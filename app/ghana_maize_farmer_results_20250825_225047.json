@@ -1,0 +1,53 @@
+{
+  "id": "521830b9-9ac0-405a-885c-59c0c555a596",
+  "company_name": "Kwame Asante - Maize Farm",
+  "country": "Ghana",
+  "assessment_date": "2025-08-26T02:50:47.391792Z",
+  "midpoint_impacts": {
+    "Water scarcity": 240000.0,
+    "Land use": 21000.0,
+    "Marine eutrophication": 60.0,
+    "Photochemical oxidation": 30.0,
+    "Biodiversity loss": 6000.0,
+    "Mineral depletion": 7.5,
+    "Global warming": 10500.0,
+    "Water consumption": 12000.0,
+    "Terrestrial acidification": 90.0,
+    "Soil degradation": 1125.0,
+    "Freshwater eutrophication": 22.5,
+    "Particulate matter formation": 60.0,
+    "Fossil depletion": 150.0
+  },
+  "endpoint_impacts": {
+    "Human Health": 0.03148499999999999,
+    "Ecosystem Quality": 4.419126e-06,
+    "Resource Scarcity": 43208.25
+  },
+  "single_score": 0.856627234251333,
+  "data_quality": {
+    "confidence_level": "Low",
+    "data_source": "CountrySpecific(Ghana)",
+    "regional_adaptation": true,
+    "completeness_score": 0.4,
+    "warnings": [
+      "Low data quality for Maize (Zea mays) Biodiversity loss: Biodiversity LCA Ghana 2023; Land use research"
+    ]
+  },
+  "breakdown_by_food": {
+    "Maize (Zea mays) (7500kg)": {
+      "Global warming": 10500.0,
+      "Water consumption": 12000.0,
+      "Freshwater eutrophication": 22.5,
+      "Marine eutrophication": 60.0,
+      "Terrestrial acidification": 90.0,
+      "Photochemical oxidation": 30.0,
+      "Fossil depletion": 150.0,
+      "Soil degradation": 1125.0,
+      "Biodiversity loss": 6000.0,
+      "Land use": 21000.0,
+      "Particulate matter formation": 60.0,
+      "Water scarcity": 750.0,
+      "Mineral depletion": 7.5
+    }
+  }
+}

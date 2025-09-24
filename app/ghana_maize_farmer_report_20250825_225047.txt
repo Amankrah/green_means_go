@@ -1,0 +1,67 @@
+
+=============================================================
+SUSTAINABILITY ASSESSMENT REPORT FOR GHANA MAIZE FARMER
+=============================================================
+
+FARM DETAILS:
+- Farmer: Kwame Asante - Maize Farm
+- Location: Ghana
+- Assessment Date: 2025-08-26
+- Maize Production: Maize (Zea mays) (7500kg)
+
+ENVIRONMENTAL IMPACT SUMMARY:
+=============================================================
+
+[CLIMATE] CARBON FOOTPRINT: 10500.0 kg CO2 equivalent
+   -> This is the greenhouse gases produced by your maize farming
+   -> Lower numbers are better for climate change
+
+[WATER] WATER USE: 12000.0 cubic meters  
+   -> Total water needed for your maize production
+   -> Includes rainfall and irrigation
+
+[LAND] LAND IMPACT: 21000.0 square meter-years
+   -> Land area and time needed for your farming system
+   -> Considers soil health and land productivity
+
+[SCORE] ENVIRONMENTAL IMPACT INDEX: 0.857 (0-1 scale)
+   -> 0.0 = Excellent environmental performance
+   -> 0.5 = Typical farming impact level  
+   -> 1.0 = High environmental impact
+   -> Your score: HIGH IMPACT - Significant improvement needed
+   -> This combines climate, water, land, and biodiversity impacts
+
+DATA CONFIDENCE: Low
+   -> How reliable these results are based on available data
+   -> Ghana-specific data improves accuracy
+
+IMPORTANT INSIGHTS FOR YOUR FARM:
+=============================================================
+
+
+BENCHMARKING FOR GHANA MAIZE FARMERS:
+=============================================================
+[HIGH PRIORITY] Your farm needs significant improvements
+   - Environmental impact index: 0.857
+   - Immediate action recommended to reduce environmental impact
+   - Extension officer support strongly recommended
+
+[!] CLIMATE ACTION PRIORITY:
+   - Carbon footprint: 10500 kg CO2-eq (1.4 kg per kg maize)
+   - Consider: Reduced tillage, cover crops, composting
+   - Potential reduction: 15-25% with improved practices
+
+[WARNING] IMPORTANT NOTES:
+
+[GOOD] PRACTICES TO CONTINUE:
+   - Maize is an efficient staple crop for Ghana
+   - Supporting local food security
+   - Contributing to agricultural economy
+
+[NEXT] RECOMMENDED STEPS:
+   1. Share results with agricultural extension officer
+   2. Explore climate-smart agriculture techniques
+   3. Consider joining farmer sustainability programs
+   4. Monitor progress with annual assessments
+
+=============================================================

@@ -1,0 +1,32 @@
+# Python
+african_lca_api/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.env
+*.venv
+env/
+venv/
+african_lca_api/Lib/
+african_lca_api/include/
+african_lca_api/Scripts/
+
+# Rust
+african_lca_backend/target/
+**/*.rs.bk
+
+# Node/Frontend
+african-lca-frontend/node_modules/
+african-lca-frontend/dist/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+
+# Misc
+.claude/
