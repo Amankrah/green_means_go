@@ -300,7 +300,9 @@ cargo test
 
 ## License
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
+This software is proprietary and all rights are reserved by the author.  
+Unauthorized copying, modification, or distribution of this software is strictly prohibited.  
+Contact the author for commercial licensing or usage permissions.
 
 ---
 
