@@ -1,0 +1,136 @@
+{
+  "country": "Nigeria",
+  "region": "Ogun State",
+  "facility_profile": {
+    "facility_name": "Village Cassava Processing Center",
+    "company_name": "Cassava Cooperative Ltd",
+    "facility_type": "CassivaProcessing",
+    "processing_capacity": 5.0,
+    "operational_hours_per_day": 8.0,
+    "operational_days_per_year": 250,
+    "established_year": 2018,
+    "certifications": ["NAFDAC"],
+    "employee_count": 8,
+    "facility_size": 400.0,
+    "location_type": "Rural"
+  },
+  "processing_operations": {
+    "energy_management": {
+      "primary_energy_source": "DieselGenerator",
+      "secondary_energy_sources": ["SolarPower"],
+      "monthly_electricity_consumption": null,
+      "monthly_fuel_consumption": 300.0,
+      "fuel_type": "Diesel",
+      "renewable_energy_percentage": 20.0,
+      "energy_efficiency_measures": ["Solar drying"],
+      "backup_generator": false
+    },
+    "water_management": {
+      "water_source": ["Borehole"],
+      "monthly_water_consumption": 200.0,
+      "water_treatment": "None",
+      "water_conservation_measures": [],
+      "wastewater_treatment": "None"
+    },
+    "waste_management": {
+      "solid_waste_generation": 50.0,
+      "organic_waste_percentage": 95.0,
+      "waste_disposal_method": "Composting",
+      "recycling_programs": [],
+      "byproduct_utilization": [
+        {
+          "byproduct_name": "Cassava peels",
+          "utilization_method": "Animal feed",
+          "percentage_utilized": 90.0
+        }
+      ]
+    },
+    "raw_material_sourcing": {
+      "local_sourcing_percentage": 95.0,
+      "average_transport_distance": 15.0,
+      "transport_mode": "Truck",
+      "supplier_sustainability_practices": [],
+      "seasonal_variation": false,
+      "storage_practices": {
+        "storage_type": "Open shed",
+        "climate_control": false,
+        "pest_control_methods": [],
+        "storage_loss_percentage": 8.0
+      }
+    },
+    "equipment_efficiency": {
+      "equipment_age": "Mature",
+      "maintenance_frequency": "Monthly",
+      "automation_level": "Manual",
+      "equipment_utilization_rate": 60.0,
+      "modernization_investments": []
+    }
+  },
+  "processed_products": [
+    {
+      "id": "cassava_flour_001",
+      "name": "Cassava Flour",
+      "product_type": "FlourCassava",
+      "annual_production": 800.0,
+      "raw_material_inputs": [
+        {
+          "material_name": "Fresh cassava roots",
+          "quantity_per_tonne_output": 3500.0,
+          "source_location": "Local farms",
+          "quality_requirements": ["Fresh", "Disease-free"],
+          "seasonal_availability": false
+        }
+      ],
+      "processing_steps": [
+        {
+          "step_name": "Washing and peeling",
+          "energy_intensity": 5.0,
+          "water_usage": 2000.0,
+          "duration": 2.0,
+          "yield_efficiency": 70.0,
+          "emissions_factor": 0.01
+        },
+        {
+          "step_name": "Grating",
+          "energy_intensity": 20.0,
+          "water_usage": 100.0,
+          "duration": 1.0,
+          "yield_efficiency": 95.0,
+          "emissions_factor": 0.02
+        },
+        {
+          "step_name": "Dewatering/pressing",
+          "energy_intensity": 8.0,
+          "water_usage": 50.0,
+          "duration": 3.0,
+          "yield_efficiency": 85.0,
+          "emissions_factor": 0.005
+        },
+        {
+          "step_name": "Drying",
+          "energy_intensity": 25.0,
+          "water_usage": 0.0,
+          "duration": 8.0,
+          "yield_efficiency": 90.0,
+          "emissions_factor": 0.03
+        },
+        {
+          "step_name": "Milling to flour",
+          "energy_intensity": 12.0,
+          "water_usage": 30.0,
+          "duration": 0.5,
+          "yield_efficiency": 92.0,
+          "emissions_factor": 0.01
+        }
+      ],
+      "packaging": {
+        "packaging_material": "Jute",
+        "package_size": 25.0,
+        "packaging_weight_per_unit": 0.05,
+        "recyclable": true
+      },
+      "quality_grade": "Standard",
+      "market_destination": "Regional"
+    }
+  ]
+}

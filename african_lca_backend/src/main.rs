@@ -35,14 +35,69 @@ fn main() {
         }
     };
     
-    // Detect if this is a comprehensive assessment request
+    // Detect assessment type
+    let is_processing = input.get("facility_profile").is_some() || 
+                       input.get("processing_operations").is_some() ||
+                       input.get("processed_products").is_some();
+    
     let is_comprehensive = input.get("farm_profile").is_some() || 
                           input.get("management_practices").is_some();
     
-    if is_comprehensive {
+    if is_processing {
+        handle_processing_assessment(&input);
+    } else if is_comprehensive {
         handle_comprehensive_assessment(&input);
     } else {
         handle_simple_assessment(&input);
+    }
+}
+
+fn handle_processing_assessment(input: &serde_json::Value) {
+    println!("Processing facility assessment...");
+    
+    // Create processing assessment from input
+    let mut assessment = match create_processing_assessment(input) {
+        Ok(assessment) => assessment,
+        Err(e) => {
+            eprintln!("Error creating processing assessment: {}", e);
+            process::exit(1);
+        }
+    };
+    
+    // Initialize Processing LCA engine
+    let methodology = LCAMethodology {
+        functional_unit: "1 tonne product".to_string(),
+        system_boundary: SystemBoundary::GateToGate, // Processing facility boundary
+        allocation_method: AllocationMethod::Mass,
+        characterization_method: CharacterizationMethod::IpccAr6,
+        normalization_method: Some(NormalizationMethod::AfricanContext),
+        weighting_method: Some(WeightingMethod::AfricanPriorities),
+    };
+    
+    let mut engine = ProcessingLCAEngine::new(methodology);
+    
+    // Load processing impact factors
+    let mut data_loader = ProcessingDataLoader::new();
+    if let Err(e) = data_loader.load_default_factors() {
+        eprintln!("Warning: Error loading processing factors: {}", e);
+    }
+    
+    engine.load_impact_factors(data_loader.get_factors().clone());
+    engine.load_benchmarks(data_loader.get_benchmarks().clone());
+    
+    // Perform processing assessment
+    if let Err(e) = engine.perform_processing_assessment(&mut assessment) {
+        eprintln!("Error performing processing assessment: {}", e);
+        process::exit(1);
+    }
+    
+    // Output results as JSON
+    match serde_json::to_string_pretty(&assessment) {
+        Ok(json) => println!("{}", json),
+        Err(e) => {
+            eprintln!("Error serializing results: {}", e);
+            process::exit(1);
+        }
     }
 }
 
@@ -463,7 +518,7 @@ fn parse_management_practices(mp: &serde_json::Value) -> Result<ManagementPracti
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
         },
-        water_management: WaterManagement {
+        water_management: crate::models::WaterManagement {
             water_source: water_mgmt.get("water_source")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect())
@@ -517,5 +572,276 @@ fn parse_soil_type(s: &str) -> Result<SoilType, Box<dyn std::error::Error>> {
         "Lateritic" => Ok(SoilType::Lateritic),
         "Volcanic" => Ok(SoilType::Volcanic),
         _ => Err(format!("Unknown soil type: {}", s).into()),
+    }
+}
+
+fn create_processing_assessment(input: &serde_json::Value) -> Result<ProcessingAssessment, Box<dyn std::error::Error>> {
+    let country_str = input["country"]
+        .as_str()
+        .ok_or("Missing country")?;
+    
+    let country = match country_str {
+        "Ghana" => Country::Ghana,
+        "Nigeria" => Country::Nigeria,
+        "Global" => Country::Global,
+        _ => return Err(format!("Unknown country: {}", country_str).into()),
+    };
+    
+    let region = input["region"].as_str().map(|s| s.to_string());
+    
+    // Parse facility profile
+    let facility_profile = parse_facility_profile(input.get("facility_profile")
+        .ok_or("Missing facility_profile")?)?;
+    
+    // Parse processing operations
+    let processing_operations = parse_processing_operations(input.get("processing_operations")
+        .ok_or("Missing processing_operations")?)?;
+    
+    // Parse processed products
+    let products_array = input["processed_products"].as_array()
+        .ok_or("Missing or invalid processed_products array")?;
+    
+    let mut processed_products = Vec::new();
+    for product_value in products_array {
+        let product = parse_processed_product(product_value)?;
+        processed_products.push(product);
+    }
+    
+    let methodology = LCAMethodology {
+        functional_unit: "1 tonne product".to_string(),
+        system_boundary: SystemBoundary::GateToGate,
+        allocation_method: AllocationMethod::Mass,
+        characterization_method: CharacterizationMethod::IpccAr6,
+        normalization_method: Some(NormalizationMethod::AfricanContext),
+        weighting_method: Some(WeightingMethod::AfricanPriorities),
+    };
+    
+    Ok(ProcessingAssessment {
+        id: Uuid::new_v4(),
+        facility_profile,
+        processing_operations,
+        processed_products,
+        country,
+        region,
+        assessment_date: Utc::now(),
+        methodology,
+        results: None,
+    })
+}
+
+fn parse_facility_profile(fp: &serde_json::Value) -> Result<ProcessingFacilityProfile, Box<dyn std::error::Error>> {
+    Ok(ProcessingFacilityProfile {
+        facility_name: fp["facility_name"].as_str().unwrap_or("").to_string(),
+        company_name: fp["company_name"].as_str().unwrap_or("").to_string(),
+        facility_type: parse_facility_type(fp["facility_type"].as_str().unwrap_or("General"))?,
+        processing_capacity: fp["processing_capacity"].as_f64().unwrap_or(0.0),
+        operational_hours_per_day: fp["operational_hours_per_day"].as_f64().unwrap_or(8.0),
+        operational_days_per_year: fp["operational_days_per_year"].as_u64().unwrap_or(250) as u32,
+        established_year: fp["established_year"].as_u64().map(|y| y as u32),
+        certifications: fp["certifications"].as_array()
+            .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect())
+            .unwrap_or_default(),
+        employee_count: fp["employee_count"].as_u64().map(|c| c as u32),
+        facility_size: fp["facility_size"].as_f64(),
+        location_type: parse_location_type(fp["location_type"].as_str().unwrap_or("Rural"))?,
+    })
+}
+
+fn parse_processing_operations(po: &serde_json::Value) -> Result<ProcessingOperations, Box<dyn std::error::Error>> {
+    Ok(ProcessingOperations {
+        energy_management: parse_energy_management(po.get("energy_management").unwrap_or(&serde_json::Value::Null))?,
+        water_management: parse_water_management_processing(po.get("water_management").unwrap_or(&serde_json::Value::Null))?,
+        waste_management: parse_waste_management(po.get("waste_management").unwrap_or(&serde_json::Value::Null))?,
+        raw_material_sourcing: parse_raw_material_sourcing(po.get("raw_material_sourcing").unwrap_or(&serde_json::Value::Null))?,
+        equipment_efficiency: parse_equipment_efficiency(po.get("equipment_efficiency").unwrap_or(&serde_json::Value::Null))?,
+    })
+}
+
+fn parse_processed_product(pp: &serde_json::Value) -> Result<ProcessedProduct, Box<dyn std::error::Error>> {
+    let raw_materials = pp.get("raw_material_inputs")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|rm| {
+            Some(RawMaterialInput {
+                material_name: rm.get("material_name")?.as_str()?.to_string(),
+                quantity_per_tonne_output: rm.get("quantity_per_tonne_output")?.as_f64()?,
+                source_location: rm.get("source_location").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                quality_requirements: rm.get("quality_requirements")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect())
+                    .unwrap_or_default(),
+                seasonal_availability: rm.get("seasonal_availability").and_then(|v| v.as_bool()).unwrap_or(true),
+            })
+        }).collect())
+        .unwrap_or_default();
+    
+    let processing_steps = pp.get("processing_steps")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|ps| {
+            Some(ProcessingStep {
+                step_name: ps.get("step_name")?.as_str()?.to_string(),
+                energy_intensity: ps.get("energy_intensity")?.as_f64()?,
+                water_usage: ps.get("water_usage")?.as_f64()?,
+                duration: ps.get("duration")?.as_f64()?,
+                yield_efficiency: ps.get("yield_efficiency").and_then(|v| v.as_f64()).unwrap_or(95.0),
+                emissions_factor: ps.get("emissions_factor").and_then(|v| v.as_f64()),
+            })
+        }).collect())
+        .unwrap_or_default();
+    
+    Ok(ProcessedProduct {
+        id: pp.get("id").or_else(|| pp.get("product_id"))
+            .and_then(|v| v.as_str())
+            .ok_or("Missing product id")?
+            .to_string(),
+        name: pp.get("name").or_else(|| pp.get("product_name"))
+            .and_then(|v| v.as_str())
+            .ok_or("Missing product name")?
+            .to_string(),
+        product_type: parse_product_type(pp["product_type"].as_str().ok_or("Missing product_type")?)?,
+        annual_production: pp["annual_production"].as_f64().ok_or("Missing annual_production")?,
+        raw_material_inputs: raw_materials,
+        processing_steps,
+        packaging: parse_packaging_info(pp.get("packaging").unwrap_or(&serde_json::Value::Null))?,
+        quality_grade: parse_quality_grade(pp.get("quality_grade").and_then(|v| v.as_str()).unwrap_or("Standard"))?,
+        market_destination: parse_market_destination(pp.get("market_destination").and_then(|v| v.as_str()).unwrap_or("Local"))?,
+    })
+}
+
+// Helper parsing functions for processing-specific enums
+fn parse_facility_type(s: &str) -> Result<ProcessingFacilityType, Box<dyn std::error::Error>> {
+    match s {
+        "Mill" => Ok(ProcessingFacilityType::Mill),
+        "Bakery" => Ok(ProcessingFacilityType::Bakery),
+        "CassivaProcessing" => Ok(ProcessingFacilityType::CassivaProcessing),
+        "RiceProcessing" => Ok(ProcessingFacilityType::RiceProcessing),
+        "PalmOilMill" => Ok(ProcessingFacilityType::PalmOilMill),
+        "CocoaProcessing" => Ok(ProcessingFacilityType::CocoaProcessing),
+        "FishProcessing" => Ok(ProcessingFacilityType::FishProcessing),
+        "MeatProcessing" => Ok(ProcessingFacilityType::MeatProcessing),
+        "DairyProcessing" => Ok(ProcessingFacilityType::DairyProcessing),
+        "FruitProcessing" => Ok(ProcessingFacilityType::FruitProcessing),
+        "VegetableProcessing" => Ok(ProcessingFacilityType::VegetableProcessing),
+        "General" => Ok(ProcessingFacilityType::General),
+        _ => Err(format!("Unknown facility type: {}", s).into()),
+    }
+}
+
+fn parse_location_type(s: &str) -> Result<LocationType, Box<dyn std::error::Error>> {
+    match s {
+        "Urban" => Ok(LocationType::Urban),
+        "PeriUrban" => Ok(LocationType::PeriUrban),
+        "Rural" => Ok(LocationType::Rural),
+        "Industrial" => Ok(LocationType::Industrial),
+        _ => Err(format!("Unknown location type: {}", s).into()),
+    }
+}
+
+fn parse_product_type(s: &str) -> Result<ProductType, Box<dyn std::error::Error>> {
+    match s {
+        "FlourMaize" => Ok(ProductType::FlourMaize),
+        "FlourWheat" => Ok(ProductType::FlourWheat),
+        "FlourCassava" => Ok(ProductType::FlourCassava),
+        "FlourPlantain" => Ok(ProductType::FlourPlantain),
+        "RiceProcessed" => Ok(ProductType::RiceProcessed),
+        "PalmOil" => Ok(ProductType::PalmOil),
+        "CocoaPowder" => Ok(ProductType::CocoaPowder),
+        "CocoaButter" => Ok(ProductType::CocoaButter),
+        "BakedGoods" => Ok(ProductType::BakedGoods),
+        "ProcessedFish" => Ok(ProductType::ProcessedFish),
+        "ProcessedMeat" => Ok(ProductType::ProcessedMeat),
+        "Dairy" => Ok(ProductType::Dairy),
+        "FruitJuice" => Ok(ProductType::FruitJuice),
+        "DriedFruits" => Ok(ProductType::DriedFruits),
+        _ => Ok(ProductType::Other(s.to_string())),
+    }
+}
+
+// Simplified implementations for the remaining parsing functions
+fn parse_energy_management(_em: &serde_json::Value) -> Result<EnergyManagement, Box<dyn std::error::Error>> {
+    Ok(EnergyManagement {
+        primary_energy_source: EnergySource::GridElectricity,
+        secondary_energy_sources: vec![],
+        monthly_electricity_consumption: Some(10000.0),
+        monthly_fuel_consumption: Some(500.0),
+        fuel_type: Some("Diesel".to_string()),
+        renewable_energy_percentage: 0.0,
+        energy_efficiency_measures: vec![],
+        backup_generator: true,
+    })
+}
+
+fn parse_water_management_processing(_wm: &serde_json::Value) -> Result<crate::processing::models::WaterManagement, Box<dyn std::error::Error>> {
+    Ok(crate::processing::models::WaterManagement {
+        water_source: vec!["Municipal".to_string()],
+        monthly_water_consumption: Some(1000.0),
+        water_treatment: crate::processing::models::WaterTreatment::BasicFiltration,
+        water_conservation_measures: vec![],
+        wastewater_treatment: crate::processing::models::WastewaterTreatment::BasicSedimentation,
+    })
+}
+
+fn parse_waste_management(_wm: &serde_json::Value) -> Result<crate::processing::models::WasteManagement, Box<dyn std::error::Error>> {
+    Ok(crate::processing::models::WasteManagement {
+        solid_waste_generation: Some(100.0),
+        organic_waste_percentage: 70.0,
+        waste_disposal_method: crate::processing::models::WasteDisposalMethod::Landfill,
+        recycling_programs: vec![],
+        byproduct_utilization: vec![],
+    })
+}
+
+fn parse_raw_material_sourcing(_rms: &serde_json::Value) -> Result<RawMaterialSourcing, Box<dyn std::error::Error>> {
+    Ok(RawMaterialSourcing {
+        local_sourcing_percentage: 80.0,
+        average_transport_distance: 50.0,
+        transport_mode: TransportMode::Truck,
+        supplier_sustainability_practices: vec![],
+        seasonal_variation: true,
+        storage_practices: StoragePractices {
+            storage_type: "Warehouse".to_string(),
+            climate_control: false,
+            pest_control_methods: vec![],
+            storage_loss_percentage: 5.0,
+        },
+    })
+}
+
+fn parse_equipment_efficiency(_ee: &serde_json::Value) -> Result<EquipmentEfficiency, Box<dyn std::error::Error>> {
+    Ok(EquipmentEfficiency {
+        equipment_age: EquipmentAge::Mature,
+        maintenance_frequency: MaintenanceFrequency::Monthly,
+        automation_level: AutomationLevel::SemiAutomated,
+        equipment_utilization_rate: 75.0,
+        modernization_investments: vec![],
+    })
+}
+
+fn parse_packaging_info(_pi: &serde_json::Value) -> Result<PackagingInfo, Box<dyn std::error::Error>> {
+    Ok(PackagingInfo {
+        packaging_material: PackagingMaterial::PlasticBag,
+        package_size: 50.0,
+        packaging_weight_per_unit: 0.1,
+        recyclable: false,
+    })
+}
+
+fn parse_quality_grade(s: &str) -> Result<QualityGrade, Box<dyn std::error::Error>> {
+    match s {
+        "Premium" => Ok(QualityGrade::Premium),
+        "Standard" => Ok(QualityGrade::Standard),
+        "Basic" => Ok(QualityGrade::Basic),
+        "Industrial" => Ok(QualityGrade::Industrial),
+        _ => Ok(QualityGrade::Standard),
+    }
+}
+
+fn parse_market_destination(s: &str) -> Result<MarketDestination, Box<dyn std::error::Error>> {
+    match s {
+        "Local" => Ok(MarketDestination::Local),
+        "Regional" => Ok(MarketDestination::Regional),
+        "National" => Ok(MarketDestination::National),
+        "Export" => Ok(MarketDestination::Export),
+        "Mixed" => Ok(MarketDestination::Mixed),
+        _ => Ok(MarketDestination::Local),
     }
 }

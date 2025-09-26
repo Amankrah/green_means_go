@@ -1,12 +1,17 @@
-pub mod models;
-pub mod lca;
-pub mod data;
+pub mod production;
 pub mod utils;
+pub mod processing;
 
-pub use models::*;
-pub use lca::*;
-pub use data::*;
+pub use production::*;
 pub use utils::*;
+pub use processing::{
+    ProcessingLCAEngine, ProcessingDataLoader, ProcessingAssessment,
+    ProcessingFacilityProfile, ProcessingOperations, ProcessedProduct,
+    ProcessingStep, RawMaterialInput, PackagingInfo, PackagingMaterial, QualityGrade, MarketDestination,
+    ProcessingFacilityType, LocationType, ProductType, EnergySource, EnergyManagement,
+    EquipmentAge, MaintenanceFrequency, AutomationLevel, EquipmentEfficiency,
+    TransportMode, RawMaterialSourcing, StoragePractices
+};
 
 #[cfg(test)]
 mod tests {
