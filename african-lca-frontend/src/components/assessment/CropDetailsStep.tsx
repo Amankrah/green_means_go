@@ -10,9 +10,7 @@ import {
   AlertCircle,
   Info,
   Calendar,
-  BarChart3,
   Layers,
-  Repeat,
   Target
 } from 'lucide-react';
 
@@ -25,12 +23,10 @@ import {
   EnhancedAssessmentFormData,
   COMMON_CROPS_BY_REGION,
   calculateEstimatedYield,
-  validateCroppingSeason,
   getCropVarieties,
   calculateAreaPercentage,
   validateTotalAllocation
 } from '@/lib/enhanced-assessment-schema';
-import { FoodCategory } from '@/types/assessment';
 
 const foodCategories = [
   { value: 'Cereals', label: '🌾 Cereals (Maize, Rice, Millet, Sorghum)' },
@@ -60,12 +56,6 @@ const croppingPatterns = [
   { value: CroppingPattern.CROP_ROTATION, label: '🔄 Crop Rotation', description: 'Different crops in sequence' }
 ];
 
-const seasonTypes = [
-  { value: SeasonType.WET_SEASON, label: '🌧️ Wet Season (Rainy)' },
-  { value: SeasonType.DRY_SEASON, label: '☀️ Dry Season' },
-  { value: SeasonType.HARMATTAN, label: '🌬️ Harmattan (Dry wind season)' },
-  { value: SeasonType.YEAR_ROUND, label: '🌍 Year Round' }
-];
 
 const months = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -98,7 +88,6 @@ export default function CropDetailsStep() {
 
   // Get common crops for the region
   const getCommonCrops = () => {
-    const regionKey = `${country}-${region}` as keyof typeof COMMON_CROPS_BY_REGION;
     if (country === 'Ghana' && region?.includes('Northern')) {
       return COMMON_CROPS_BY_REGION['Ghana-Northern'] || [];
     } else if (country === 'Ghana') {
@@ -206,8 +195,8 @@ export default function CropDetailsStep() {
     return Math.round(periodMonths * 30); // Convert months to days
   };
 
-  const handleSeasonalityChange = (index: number, field: string, value: any) => {
-    setValue(`cropProductions.${index}.seasonality.${field}` as any, value);
+  const handleSeasonalityChange = (index: number, field: 'plantingMonths' | 'harvestingMonths', value: number[]) => {
+    setValue(`cropProductions.${index}.seasonality.${field}` as const, value);
     
     // Auto-calculate growing period when months change
     if (field === 'plantingMonths' || field === 'harvestingMonths') {
@@ -312,6 +301,8 @@ export default function CropDetailsStep() {
                     type="button"
                     onClick={() => remove(index)}
                     className="text-red-500 hover:text-red-700 p-2"
+                    title="Remove this crop"
+                    aria-label="Remove this crop"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>

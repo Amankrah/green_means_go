@@ -29,7 +29,24 @@ import {
   getNextStep,
   getPreviousStep
 } from '@/lib/enhanced-assessment-schema';
-import { FormStep, EnhancedAssessmentRequest, FarmType, FarmingSystem } from '@/types/enhanced-assessment';
+import { 
+  FormStep, 
+  EnhancedAssessmentRequest, 
+  FarmType, 
+  FarmingSystem,
+  CompostSource,
+  FunctionalUnit,
+  SystemBoundary,
+  ApplicationMethod,
+  TimingStrategy,
+  TillageSystem,
+  HarvestingMethod,
+  MechanizationLevel,
+  LaborIntensity,
+  PostHarvestHandling,
+  MaintenanceFrequency
+} from '@/types/enhanced-assessment';
+import { FoodCategory } from '@/types/assessment';
 
 // Import individual step components
 import FarmProfileStep from '@/components/assessment/FarmProfileStep';
@@ -81,7 +98,7 @@ export default function ComprehensiveAssessmentPage() {
           coverCrops: [],
                   compostUse: {
           usesCompost: false,
-          compostsource: 'Not used' as any,
+          compostsource: CompostSource.NONE,
           applicationTiming: "Before planting"
         }
         },
@@ -124,8 +141,8 @@ export default function ComprehensiveAssessmentPage() {
         }
       },
       assessmentParameters: {
-        functionalUnit: 'PER_KG_PRODUCT' as any, // Default to most common LCA functional unit
-        systemBoundary: 'CRADLE_TO_GATE' as any, // Default to production-focused boundary
+        functionalUnit: FunctionalUnit.PER_KG_PRODUCT, // Default to most common LCA functional unit
+        systemBoundary: SystemBoundary.CRADLE_TO_GATE, // Default to production-focused boundary
         assessmentPeriod: 1,
         includeUncertaintyAnalysis: true,
         includeSensitivityAnalysis: true,
@@ -179,7 +196,7 @@ export default function ComprehensiveAssessmentPage() {
     }
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: EnhancedAssessmentFormData) => {
     setIsSubmitting(true);
     setSubmitResult(null);
 
@@ -213,10 +230,10 @@ export default function ComprehensiveAssessmentPage() {
       } else if (typeof error === 'object' && error !== null) {
         // Handle API validation errors
         if ('response' in error && error.response) {
-          const response = error.response as any;
+          const response = error.response as { data?: { detail?: string | Array<{ msg?: string; message?: string }> } };
           if (response.data && response.data.detail) {
             errorMessage = Array.isArray(response.data.detail) 
-              ? response.data.detail.map((err: any) => err.msg || err.message || err).join(', ')
+              ? response.data.detail.map((err: { msg?: string; message?: string }) => err.msg || err.message || JSON.stringify(err)).join(', ')
               : response.data.detail;
           }
         }
@@ -251,7 +268,7 @@ export default function ComprehensiveAssessmentPage() {
         cropId: crop.cropId || `crop_${index + 1}`,
         cropName: crop.cropName,
         localName: crop.localName,
-        category: crop.category as any, // Cast to FoodCategory to avoid type issues
+        category: crop.category as FoodCategory, // Form validation ensures this is a valid FoodCategory
         variety: crop.variety,
         areaAllocated: crop.areaAllocated,
         annualProduction: crop.annualProduction,
@@ -279,8 +296,8 @@ export default function ComprehensiveAssessmentPage() {
             ...fert,
             cost: fert.cost || 0 // Provide default cost
           })) || [],
-          applicationMethod: data.managementPractices.fertilization.applicationMethod || 'BROADCAST' as any,
-          timingStrategy: data.managementPractices.fertilization.timingStrategy || 'AT_PLANTING' as any
+          applicationMethod: data.managementPractices.fertilization.applicationMethod || ApplicationMethod.BROADCAST,
+          timingStrategy: data.managementPractices.fertilization.timingStrategy || TimingStrategy.AT_PLANTING
         },
         waterManagement: {
           ...data.managementPractices.waterManagement,
@@ -302,13 +319,13 @@ export default function ComprehensiveAssessmentPage() {
           pestMonitoringFrequency: data.pestManagement?.pestMonitoringFrequency || 'MONTHLY',
           usesEconomicThresholds: data.pestManagement?.usesEconomicThresholds || false
         },
-        tillageSystem: {} as any, // Simplified to avoid type issues
+        tillageSystem: TillageSystem.CONVENTIONAL_TILLAGE, // Default tillage system
         harvestingMethods: {
-          primaryMethod: 'MANUAL' as any,
+          primaryMethod: HarvestingMethod.MANUAL_HARVESTING,
           secondaryMethods: [],
-          mechanizationLevel: 'LOW' as any,
-          laborIntensity: 'HIGH' as any,
-          postHarvestHandling: 'BASIC' as any
+          mechanizationLevel: MechanizationLevel.FULLY_MANUAL,
+          laborIntensity: LaborIntensity.HIGH,
+          postHarvestHandling: [PostHarvestHandling.FIELD_DRYING]
         }
       },
       pestManagement: {
@@ -329,7 +346,7 @@ export default function ComprehensiveAssessmentPage() {
       equipmentEnergy: {
         equipment: data.equipmentEnergy.equipment?.map(eq => ({
           ...eq,
-          maintenanceFrequency: 'MONTHLY' as any // Add missing required field
+          maintenanceFrequency: MaintenanceFrequency.MONTHLY // Add missing required field
         })) || [],
         energySources: data.equipmentEnergy.energySources?.map(energy => ({
           ...energy,

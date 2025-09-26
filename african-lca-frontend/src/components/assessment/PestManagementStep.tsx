@@ -13,7 +13,7 @@ import {
 } from '@/types/enhanced-assessment';
 
 export default function PestManagementStep() {
-  const { register, watch, formState: { errors }, control, setValue } = useFormContext<EnhancedAssessmentFormData>();
+  const { register, formState: { errors }, control, setValue } = useFormContext<EnhancedAssessmentFormData>();
 
   // Dynamic arrays
   const { fields: pesticideFields, append: appendPesticide, remove: removePesticide } = useFieldArray({
@@ -78,6 +78,8 @@ export default function PestManagementStep() {
                       setPrimaryPests(newPests);
                     }}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Remove this pest"
+                    aria-label="Remove this pest"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -120,6 +122,8 @@ export default function PestManagementStep() {
                       setPrimaryDiseases(newDiseases);
                     }}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Remove this disease"
+                    aria-label="Remove this disease"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -242,8 +246,8 @@ export default function PestManagementStep() {
         {pesticideFields.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Bug className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No pesticides added yet. Click "Add Pesticide" to get started.</p>
-            <p className="text-xs mt-2">Leave empty if you don't use chemical pesticides</p>
+            <p>No pesticides added yet. Click &quot;Add Pesticide&quot; to get started.</p>
+            <p className="text-xs mt-2">Leave empty if you don&apos;t use chemical pesticides</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -260,6 +264,8 @@ export default function PestManagementStep() {
                     type="button"
                     onClick={() => removePesticide(index)}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Remove this pesticide"
+                    aria-label="Remove this pesticide"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -456,6 +462,8 @@ export default function PestManagementStep() {
                       setBiologicalControls(newControls);
                     }}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Remove this biological control"
+                    aria-label="Remove this biological control"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

@@ -24,7 +24,7 @@ class AssessmentAPI {
       
       if (errorData.detail) {
         if (Array.isArray(errorData.detail)) {
-          errorMessage = errorData.detail.map((err: any) => 
+          errorMessage = errorData.detail.map((err: { msg?: string; message?: string; loc?: string[] }) => 
             err.msg || err.message || err.loc?.join('.') + ': ' + err.msg || JSON.stringify(err)
           ).join(', ');
         } else if (typeof errorData.detail === 'string') {

@@ -152,7 +152,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
   }
 
   // Helper function to extract numeric value from result data
-  const extractValue = (data: any): number => {
+  const extractValue = (data: unknown): number => {
     if (typeof data === 'number') {
       return data;
     }
@@ -422,7 +422,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                     const cropQuantityKg = quantityMatch ? parseInt(quantityMatch[1].replace(/,/g, '')) : 1;
                     const cleanCropName = cropName.replace(/\s*\(\d+(?:,\d+)*kg\)/, '');
                     
-                    const impactValues = Object.values(impacts as Record<string, any>)
+                    const impactValues = Object.values(impacts as Record<string, unknown>)
                       .map(value => extractValue(value));
                     const totalImpact = impactValues.reduce((sum, value) => sum + value, 0);
                     const totalPerKg = calculatePerUnitImpact(totalImpact, cropQuantityKg);
@@ -440,7 +440,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                         </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                          {Object.entries(impacts as Record<string, any>).slice(0, 4).map(([category, rawValue]) => {
+                          {Object.entries(impacts as Record<string, unknown>).slice(0, 4).map(([category, rawValue]) => {
                             const totalValue = extractValue(rawValue);
                             const perUnitValue = calculatePerUnitImpact(totalValue, cropQuantityKg);
                             const displayValue = formatDisplayValue(perUnitValue);

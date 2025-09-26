@@ -495,7 +495,7 @@ export function calculateAreaPercentage(areaAllocated: number, totalFarmSize: nu
 /**
  * Validate that total allocated area doesn't exceed farm size
  */
-export function validateTotalAllocation(crops: any[], totalFarmSize: number): string[] {
+export function validateTotalAllocation(crops: { areaAllocated?: number }[], totalFarmSize: number): string[] {
   const errors: string[] = [];
   const totalAllocated = crops.reduce((sum, crop) => sum + (crop.areaAllocated || 0), 0);
   

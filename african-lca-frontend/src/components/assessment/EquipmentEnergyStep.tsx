@@ -128,7 +128,7 @@ export default function EquipmentEnergyStep() {
         {equipmentFields.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Settings className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No equipment added yet. Click "Add Equipment" to get started.</p>
+            <p>No equipment added yet. Click &quot;Add Equipment&quot; to get started.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -145,6 +145,8 @@ export default function EquipmentEnergyStep() {
                     type="button"
                     onClick={() => removeEquipment(index)}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Remove this equipment"
+                    aria-label="Remove this equipment"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -295,7 +297,7 @@ export default function EquipmentEnergyStep() {
         {energySourceFields.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Battery className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No energy sources added yet. Click "Add Energy Source" to get started.</p>
+            <p>No energy sources added yet. Click &quot;Add Energy Source&quot; to get started.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -312,6 +314,8 @@ export default function EquipmentEnergyStep() {
                     type="button"
                     onClick={() => removeEnergySource(index)}
                     className="text-red-600 hover:text-red-800 p-1"
+                    title="Remove this energy source"
+                    aria-label="Remove this energy source"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -669,12 +673,12 @@ export default function EquipmentEnergyStep() {
               // If no specific errors found, show debug info
               if (errorMessages.length === 0) {
                 if (Object.keys(errors.equipmentEnergy || {}).length > 0) {
-                  Object.entries(errors.equipmentEnergy || {}).forEach(([section, sectionErrors]) => {
+                  Object.entries(errors.equipmentEnergy || {}).forEach(([section]) => {
                     errorMessages.push(`• Debug: Error in equipmentEnergy.${section} - please check all fields`);
                   });
                 }
                 if (Object.keys(errors.assessmentParameters || {}).length > 0) {
-                  Object.entries(errors.assessmentParameters || {}).forEach(([field, fieldError]) => {
+                  Object.entries(errors.assessmentParameters || {}).forEach(([field]) => {
                     errorMessages.push(`• Debug: Error in assessmentParameters.${field} - please check this field`);
                   });
                 }
@@ -822,7 +826,7 @@ export default function EquipmentEnergyStep() {
           <Info className="w-5 h-5 text-blue-600 mt-0.5" />
           <div className="text-sm text-blue-700">
             <strong>Energy & Transport Impact:</strong> Equipment usage, storage facilities, and 
-            transportation contribute to your farm's carbon footprint. This information helps us 
+            transportation contribute to your farm&apos;s carbon footprint. This information helps us 
             calculate the full life-cycle environmental impact.
           </div>
         </div>

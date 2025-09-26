@@ -156,7 +156,7 @@ export default function ManagementPracticesStep() {
               <option value="8.0">Moderately alkaline (8.0)</option>
               <option value="9.0">Strongly alkaline (9.0)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">Select "Not known" if you haven't tested your soil pH</p>
+            <p className="text-xs text-gray-500 mt-1">Select &quot;Not known&quot; if you haven&apos;t tested your soil pH</p>
           </div>
 
           <div>
@@ -175,7 +175,7 @@ export default function ManagementPracticesStep() {
               <option value="5">High (5%)</option>
               <option value="7">Very High (7%+)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">Select "Not known" if you haven't tested your soil organic matter</p>
+            <p className="text-xs text-gray-500 mt-1">Select &quot;Not known&quot; if you haven&apos;t tested your soil organic matter</p>
           </div>
         </div>
 
@@ -339,6 +339,8 @@ export default function ManagementPracticesStep() {
                           type="button"
                           onClick={() => remove(index)}
                           className="text-red-500 hover:text-red-700"
+                          title="Remove this fertilizer"
+                          aria-label="Remove this fertilizer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -666,7 +668,7 @@ export default function ManagementPracticesStep() {
                 
                 // If still no specific errors, show generic debug info
                 if (errorMessages.length === 0) {
-                  Object.entries(errors.managementPractices || {}).forEach(([section, sectionErrors]) => {
+                  Object.entries(errors.managementPractices || {}).forEach(([section]) => {
                     errorMessages.push(`• Debug: Error in ${section} section - please check all fields`);
                   });
                 }

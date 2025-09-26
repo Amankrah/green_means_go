@@ -32,7 +32,6 @@ export default function FarmProfileStep() {
   } = useFormContext<EnhancedAssessmentFormData>();
 
   const selectedCountry = watch('farmProfile.country');
-  const farmType = watch('farmProfile.farmType');
   const totalFarmSize = watch('farmProfile.totalFarmSize');
 
   // Auto-select farm type based on size
