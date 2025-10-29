@@ -41,17 +41,18 @@ const foodCategories = [
 const productionSystems = [
   { value: ProductionSystem.RAINFED, label: '🌧️ Rainfed', description: 'Relies on natural rainfall' },
   { value: ProductionSystem.IRRIGATED, label: '💧 Irrigated', description: 'Uses irrigation systems' },
-  { value: ProductionSystem.MIXED_IRRIGATION, label: '🌧️💧 Mixed', description: 'Combines rainfed and irrigated' },
-  { value: ProductionSystem.WETLAND, label: '🏞️ Wetland/Lowland', description: 'Cultivated in wetland areas' },
-  { value: ProductionSystem.UPLAND, label: '⛰️ Upland/Highland', description: 'Cultivated in upland areas' },
-  { value: ProductionSystem.GREENHOUSE, label: '🏠 Protected', description: 'Greenhouse or protected cultivation' }
+  { value: ProductionSystem.INTENSIVE, label: '🏭 Intensive', description: 'High input, high output farming' },
+  { value: ProductionSystem.EXTENSIVE, label: '🌾 Extensive', description: 'Low input, larger area farming' },
+  { value: ProductionSystem.SMALLHOLDER, label: '👨‍🌾 Smallholder', description: 'Small-scale family farming' },
+  { value: ProductionSystem.AGROFORESTRY, label: '🌳 Agroforestry', description: 'Integrated with trees' },
+  { value: ProductionSystem.ORGANIC, label: '🌿 Organic', description: 'Organic farming methods' },
+  { value: ProductionSystem.CONVENTIONAL, label: '🚜 Conventional', description: 'Standard farming practices' }
 ];
 
 const croppingPatterns = [
   { value: CroppingPattern.MONOCULTURE, label: '🌱 Monoculture', description: 'Single crop grown alone' },
   { value: CroppingPattern.INTERCROPPING, label: '🌿🌾 Intercropping', description: 'Multiple crops grown together' },
   { value: CroppingPattern.RELAY_CROPPING, label: '🔄 Relay Cropping', description: 'Sequential planting of crops' },
-  { value: CroppingPattern.STRIP_CROPPING, label: '📏 Strip Cropping', description: 'Crops grown in alternating strips' },
   { value: CroppingPattern.AGROFORESTRY, label: '🌳🌾 Agroforestry', description: 'Crops integrated with trees' },
   { value: CroppingPattern.CROP_ROTATION, label: '🔄 Crop Rotation', description: 'Different crops in sequence' }
 ];
@@ -318,7 +319,7 @@ export default function CropDetailsStep() {
                   <input
                     {...register(`cropProductions.${index}.cropName`)}
                     placeholder="e.g., Maize, Rice, Cassava"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
                     onChange={(e) => handleCropNameChange(index, e.target.value)}
                     onBlur={() => calculateYield(index)}
                   />
@@ -336,7 +337,7 @@ export default function CropDetailsStep() {
                   <input
                     {...register(`cropProductions.${index}.localName`)}
                     placeholder="e.g., Abelawo, Agbeli"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
 
@@ -346,7 +347,7 @@ export default function CropDetailsStep() {
                   </label>
                   <select
                     {...register(`cropProductions.${index}.category`)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
                   >
                     <option value="">Select category</option>
                     {foodCategories.map((cat) => (
@@ -368,7 +369,7 @@ export default function CropDetailsStep() {
                   </label>
                   <select
                     {...register(`cropProductions.${index}.variety`)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
                   >
                     <option value="">Select variety</option>
                     {watch(`cropProductions.${index}.cropName`) && 
@@ -401,7 +402,7 @@ export default function CropDetailsStep() {
                     max={totalFarmSize}
                     {...register(`cropProductions.${index}.areaAllocated`, { valueAsNumber: true })}
                     placeholder="e.g., 1.5"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
                     onChange={(e) => {
                       const value = parseFloat(e.target.value) || 0;
                       setValue(`cropProductions.${index}.areaAllocated`, value);
@@ -430,7 +431,7 @@ export default function CropDetailsStep() {
                     step="0.1"
                     {...register(`cropProductions.${index}.annualProduction`, { valueAsNumber: true })}
                     placeholder="e.g., 2250"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
                   />
                   {errors.cropProductions?.[index]?.annualProduction && (
                     <p className="mt-1 text-sm text-red-600">
@@ -507,7 +508,7 @@ export default function CropDetailsStep() {
                       <input
                         {...register(`cropProductions.${index}.intercroppingPartners.0`)}
                         placeholder="e.g., Groundnuts, Beans"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                       />
                     </div>
                     <div>
@@ -517,7 +518,7 @@ export default function CropDetailsStep() {
                       <input
                         {...register(`cropProductions.${index}.intercroppingPartners.1`)}
                         placeholder="e.g., Cowpea"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                       />
                     </div>
                   </div>
@@ -600,7 +601,7 @@ export default function CropDetailsStep() {
                       max="365"
                       {...register(`cropProductions.${index}.seasonality.growingPeriod`, { valueAsNumber: true })}
                       placeholder="e.g., 120"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                     />
                     {watch(`cropProductions.${index}.seasonality.growingPeriod`) && (
                       <p className="mt-1 text-sm text-blue-600">
@@ -615,7 +616,7 @@ export default function CropDetailsStep() {
                     </label>
                     <select
                       {...register(`cropProductions.${index}.seasonality.cropsPerYear`, { valueAsNumber: true })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                     >
                       <option value={1}>1 crop per year</option>
                       <option value={2}>2 crops per year</option>

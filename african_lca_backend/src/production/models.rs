@@ -80,15 +80,17 @@ pub struct Assessment {
     pub id: Uuid,
     pub company_name: String,
     pub country: Country,
+    pub currency: Currency, // Primary currency for this assessment
     pub region: Option<String>,
     pub foods: Vec<FoodItem>,
     pub assessment_date: DateTime<Utc>,
     pub methodology: LCAMethodology,
     pub results: Option<LCAResults>,
-    
+
     // Enhanced fields for comprehensive assessments
     pub farm_profile: Option<FarmProfile>,
     pub management_practices: Option<ManagementPractices>,
+    pub equipment_energy: Option<EquipmentEnergy>, // NEW: Equipment and energy data
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -164,9 +166,11 @@ pub struct FertilizationPractices {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FertilizerApplication {
     pub fertilizer_type: String,
+    pub npk_ratio: Option<String>, // e.g., "15-15-15"
     pub application_rate: f64, // kg/hectare/season
     pub applications_per_season: u32,
     pub cost: Option<f64>,
+    pub currency: Option<Currency>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,6 +195,47 @@ pub struct PesticideApplication {
     pub application_rate: f64,
     pub applications_per_season: u32,
     pub target_pests: Vec<String>,
+}
+
+// ======================================================================
+// EQUIPMENT & ENERGY DATA
+// ======================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EquipmentEnergy {
+    pub equipment: Vec<FarmEquipment>,
+    pub energy_sources: Vec<EnergyUsage>,
+    pub fuel_consumption: Vec<FuelUsage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FarmEquipment {
+    pub equipment_type: String,
+    pub power_source: String,
+    pub age: u32, // years
+    pub hours_per_year: f64,
+    pub fuel_efficiency: Option<f64>, // liters per hour
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnergyUsage {
+    pub energy_type: String,
+    pub monthly_consumption: f64, // kWh or equivalent
+    pub primary_use: String,
+    pub cost: Option<f64>,
+    pub currency: Option<Currency>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FuelUsage {
+    pub fuel_type: String,
+    pub monthly_consumption: f64, // liters
+    pub primary_use: String,
+    pub cost: Option<f64>,
 }
 
 // ======================================================================
@@ -263,6 +308,59 @@ impl std::fmt::Display for Country {
             Country::Ghana => write!(f, "Ghana"),
             Country::Nigeria => write!(f, "Nigeria"),
             Country::Global => write!(f, "Global"),
+        }
+    }
+}
+
+impl Country {
+    /// Get the currency code for this country
+    pub fn currency_code(&self) -> &str {
+        match self {
+            Country::Ghana => "GHS",
+            Country::Nigeria => "NGN",
+            Country::Global => "USD",
+        }
+    }
+
+    /// Get the currency symbol for this country
+    pub fn currency_symbol(&self) -> &str {
+        match self {
+            Country::Ghana => "GH₵",
+            Country::Nigeria => "₦",
+            Country::Global => "$",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum Currency {
+    GHS, // Ghana Cedi
+    NGN, // Nigerian Naira
+    USD, // US Dollar (for global/comparison)
+}
+
+impl Currency {
+    pub fn code(&self) -> &str {
+        match self {
+            Currency::GHS => "GHS",
+            Currency::NGN => "NGN",
+            Currency::USD => "USD",
+        }
+    }
+
+    pub fn symbol(&self) -> &str {
+        match self {
+            Currency::GHS => "GH₵",
+            Currency::NGN => "₦",
+            Currency::USD => "$",
+        }
+    }
+
+    pub fn from_country(country: &Country) -> Self {
+        match country {
+            Country::Ghana => Currency::GHS,
+            Country::Nigeria => Currency::NGN,
+            Country::Global => Currency::USD,
         }
     }
 }

@@ -6,10 +6,10 @@
  */
 
 import { z } from 'zod';
-import { 
-  FarmType, 
-  FarmingSystem, 
-  CertificationType, 
+import {
+  FarmType,
+  FarmingSystem,
+  CertificationType,
   ProductionSystem,
   CroppingPattern,
   SeasonType,
@@ -34,7 +34,8 @@ import {
   TransportMode,
   FunctionalUnit,
   SystemBoundary,
-  FormStep
+  FormStep,
+  Currency
 } from '@/types/enhanced-assessment';
 
 // ======================================================================
@@ -265,7 +266,8 @@ export const managementPracticesSchema = z.object({
       cost: z.preprocess(
         (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
         z.number().min(0, "Cost cannot be negative").optional()
-      )
+      ),
+      currency: z.nativeEnum(Currency).optional()
     })).default([]),
     applicationMethod: z.nativeEnum(ApplicationMethod).optional(),
     timingStrategy: z.nativeEnum(TimingStrategy).optional(),
@@ -303,7 +305,9 @@ export const pestManagementSchema = z.object({
       .min(0, "Applications cannot be negative")
       .max(20, "Maximum 20 applications per season"),
     targetPests: z.array(z.string()),
-    cost: z.number().min(0).optional()
+    cost: z.number().min(0).optional(),
+    currency: z.nativeEnum(Currency).optional(),
+    safetyPrecautions: z.array(z.string()).optional().default([])
   })).default([]),
   
   usesIPM: z.boolean().default(false),
@@ -339,13 +343,14 @@ export const equipmentEnergySchema = z.object({
     cost: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
       z.number().min(0, "Cost cannot be negative").optional()
-    )
+    ),
+    currency: z.nativeEnum(Currency).optional()
   })).default([]),
   
   infrastructure: z.object({
     storageCapacity: z.number()
       .min(0, "Storage capacity cannot be negative")
-      .max(10000, "Please verify storage capacity"),
+      .max(50000, "Please verify storage capacity (max 50 tonnes)"),
     storageFacilities: z.array(z.nativeEnum(StorageFacilityType)).default([]),
     transportAccess: z.object({
       roadAccess: z.nativeEnum(RoadAccessType),

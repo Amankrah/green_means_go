@@ -9,6 +9,49 @@
 import { FoodCategory, Country } from './assessment';
 
 // ======================================================================
+// CURRENCY TYPES
+// ======================================================================
+
+export enum Currency {
+  GHS = "GHS", // Ghana Cedi
+  NGN = "NGN", // Nigerian Naira
+  USD = "USD"  // US Dollar
+}
+
+export const CurrencySymbols: Record<Currency, string> = {
+  [Currency.GHS]: "GH₵",
+  [Currency.NGN]: "₦",
+  [Currency.USD]: "$"
+};
+
+export const CurrencyNames: Record<Currency, string> = {
+  [Currency.GHS]: "Ghana Cedi",
+  [Currency.NGN]: "Nigerian Naira",
+  [Currency.USD]: "US Dollar"
+};
+
+/**
+ * Get currency for a given country
+ */
+export function getCurrencyForCountry(country: Country): Currency {
+  switch (country) {
+    case "Ghana":
+      return Currency.GHS;
+    case "Nigeria":
+      return Currency.NGN;
+    default:
+      return Currency.USD;
+  }
+}
+
+/**
+ * Get currency symbol for a given country
+ */
+export function getCurrencySymbol(country: Country): string {
+  return CurrencySymbols[getCurrencyForCountry(country)];
+}
+
+// ======================================================================
 // ENHANCED FARM PROFILE
 // ======================================================================
 
@@ -45,12 +88,12 @@ export enum FarmType {
 
 export enum FarmingSystem {
   SUBSISTENCE = "Subsistence",
-  SEMI_COMMERCIAL = "Semi-commercial", 
+  SEMI_COMMERCIAL = "SemiCommercial",
   COMMERCIAL = "Commercial",
   ORGANIC = "Organic",
   AGROECOLOGICAL = "Agroecological",
   CONVENTIONAL = "Conventional",
-  INTEGRATED_FARMING = "Integrated Farming System"
+  INTEGRATED_FARMING = "IntegratedFarming"
 }
 
 export enum CertificationType {
@@ -96,21 +139,22 @@ export interface CropProduction {
 }
 
 export enum ProductionSystem {
+  INTENSIVE = "Intensive",
+  EXTENSIVE = "Extensive",
+  SMALLHOLDER = "Smallholder",
+  AGROFORESTRY = "Agroforestry",
   IRRIGATED = "Irrigated",
-  RAINFED = "Rainfed", 
-  MIXED_IRRIGATION = "Mixed (Irrigated + Rainfed)",
-  GREENHOUSE = "Greenhouse/Protected",
-  WETLAND = "Wetland/Lowland",
-  UPLAND = "Upland/Highland"
+  RAINFED = "Rainfed",
+  ORGANIC = "Organic",
+  CONVENTIONAL = "Conventional"
 }
 
 export enum CroppingPattern {
   MONOCULTURE = "Monoculture",
   INTERCROPPING = "Intercropping",
-  RELAY_CROPPING = "Relay Cropping",
-  STRIP_CROPPING = "Strip Cropping",
+  RELAY_CROPPING = "RelayCropping",
   AGROFORESTRY = "Agroforestry",
-  CROP_ROTATION = "Crop Rotation"
+  CROP_ROTATION = "CropRotation"
 }
 
 export interface SeasonalPattern {
@@ -237,6 +281,7 @@ export interface FertilizerApplication {
   applicationRate: number; // kg/hectare/season
   applicationsPerSeason: number;
   cost: number; // local currency per unit
+  currency?: Currency; // Currency for cost
 }
 
 export enum FertilizerType {
@@ -352,6 +397,7 @@ export interface PesticideApplication {
   applicationsPerSeason: number;
   targetPests: string[];
   cost: number; // local currency per application
+  currency?: Currency; // Currency for cost
   safetyPrecautions: SafetyPrecaution[];
 }
 
@@ -456,6 +502,7 @@ export interface EnergyUsage {
   monthlyConsumption: number; // kWh or liters
   primaryUse: string; // e.g., "Irrigation", "Processing", "Storage"
   cost: number; // monthly cost in local currency
+  currency?: Currency; // Currency for cost
 }
 
 export enum EnergyType {

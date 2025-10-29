@@ -29,10 +29,10 @@ import {
   getNextStep,
   getPreviousStep
 } from '@/lib/enhanced-assessment-schema';
-import { 
-  FormStep, 
-  EnhancedAssessmentRequest, 
-  FarmType, 
+import {
+  FormStep,
+  EnhancedAssessmentRequest,
+  FarmType,
   FarmingSystem,
   CompostSource,
   FunctionalUnit,
@@ -44,7 +44,27 @@ import {
   MechanizationLevel,
   LaborIntensity,
   PostHarvestHandling,
-  MaintenanceFrequency
+  MaintenanceFrequency,
+  ProductionSystem,
+  CroppingPattern,
+  SeasonType,
+  SoilType,
+  TestingFrequency,
+  SoilConservationPractice,
+  FertilizerType,
+  WaterSource,
+  IrrigationSystem,
+  PestManagementApproach,
+  PesticideType,
+  IPMPractice,
+  MonitoringFrequency,
+  EquipmentType,
+  PowerSource,
+  EnergyType,
+  StorageFacilityType,
+  RoadAccessType,
+  TransportMode,
+  Currency
 } from '@/types/enhanced-assessment';
 import { FoodCategory } from '@/types/assessment';
 
@@ -78,65 +98,212 @@ export default function ComprehensiveAssessmentPage() {
     resolver: zodResolver(enhancedAssessmentSchema), // Will be overridden for specific steps
     defaultValues: {
       farmProfile: {
-        farmerName: '',
-        farmName: '',
+        farmerName: 'Kwame Mensah',
+        farmName: 'Mensah Family Farms',
         country: 'Ghana',
-        region: '',
-        totalFarmSize: 0,
-        farmingExperience: 0,
-        farmType: FarmType.SMALLHOLDER,
-        primaryFarmingSystem: FarmingSystem.SUBSISTENCE,
+        region: 'Ashanti',
+        totalFarmSize: 8.5,
+        farmingExperience: 18,
+        farmType: FarmType.MEDIUM_SCALE,
+        primaryFarmingSystem: FarmingSystem.SEMI_COMMERCIAL,
         certifications: [],
-        participatesInPrograms: []
+        participatesInPrograms: ['Climate Smart Agriculture', 'Farmer Field School']
       },
-      cropProductions: [],
+      cropProductions: [
+        {
+          cropId: 'crop_maize_001',
+          cropName: 'Maize',
+          localName: 'Aburo',
+          category: 'Cereals',
+          variety: 'Oba Super 2',
+          areaAllocated: 5.0,
+          annualProduction: 9500,
+          productionSystem: ProductionSystem.RAINFED,
+          croppingPattern: CroppingPattern.INTERCROPPING,
+          seasonality: {
+            plantingMonths: [4, 5],
+            harvestingMonths: [8, 9],
+            growingPeriod: 120,
+            cropsPerYear: 2,
+            season: [SeasonType.WET_SEASON]
+          },
+          isIntercropped: true,
+          intercroppingPartners: ['Cowpea'],
+          intercroppingRatio: {},
+          rotationSequence: ['Maize', 'Cowpea', 'Groundnuts'],
+          rotationDuration: 2,
+          averageYieldPerHectare: 1900,
+          postHarvestLosses: 12
+        },
+        {
+          cropId: 'crop_cassava_001',
+          cropName: 'Cassava',
+          localName: 'Bankye',
+          category: 'Roots',
+          variety: 'Bankye Hemaa',
+          areaAllocated: 3.5,
+          annualProduction: 31500,
+          productionSystem: ProductionSystem.RAINFED,
+          croppingPattern: CroppingPattern.MONOCULTURE,
+          seasonality: {
+            plantingMonths: [3, 4],
+            harvestingMonths: [12, 1],
+            growingPeriod: 270,
+            cropsPerYear: 1,
+            season: [SeasonType.WET_SEASON, SeasonType.DRY_SEASON]
+          },
+          isIntercropped: false,
+          intercroppingPartners: [],
+          intercroppingRatio: {},
+          rotationSequence: ['Cassava', 'Vegetables'],
+          rotationDuration: 2,
+          averageYieldPerHectare: 9000,
+          postHarvestLosses: 15
+        }
+      ],
       managementPractices: {
         soilManagement: {
-          soilType: undefined,
-          soilTestingFrequency: undefined,
-          conservationPractices: [],
-          coverCrops: [],
-                  compostUse: {
-          usesCompost: false,
-          compostsource: CompostSource.NONE,
-          applicationTiming: "Before planting"
-        }
+          soilType: SoilType.LOAM,
+          soilpH: 6.2,
+          organicMatterContent: 3.5,
+          soilTestingFrequency: TestingFrequency.EVERY_2_3_YEARS,
+          conservationPractices: [
+            SoilConservationPractice.CONTOUR_PLOWING,
+            SoilConservationPractice.MULCHING,
+            SoilConservationPractice.MINIMUM_TILL
+          ],
+          coverCrops: ['Mucuna', 'Cowpea'],
+          compostUse: {
+            usesCompost: true,
+            compostsource: CompostSource.FARM_MADE,
+            applicationRate: 8,
+            applicationTiming: "Before planting"
+          }
         },
         fertilization: {
-          usesFertilizers: false,
-          fertilizerApplications: [],
-          soilTestBased: false,
-          followsNutrientPlan: false
+          usesFertilizers: true,
+          fertilizerApplications: [
+            {
+              fertilizerType: FertilizerType.NPK_COMPOUND,
+              brandName: 'Yara NPK 15-15-15',
+              npkRatio: '15-15-15',
+              applicationRate: 250,
+              applicationsPerSeason: 1,
+              cost: 185,
+              currency: Currency.GHS
+            },
+            {
+              fertilizerType: FertilizerType.UREA,
+              brandName: 'Wienco Urea',
+              npkRatio: '46-0-0',
+              applicationRate: 100,
+              applicationsPerSeason: 2,
+              cost: 120,
+              currency: Currency.GHS
+            }
+          ],
+          applicationMethod: ApplicationMethod.BAND_PLACEMENT,
+          timingStrategy: TimingStrategy.SPLIT_APPLICATION,
+          soilTestBased: true,
+          followsNutrientPlan: true
         },
         waterManagement: {
-          waterSource: [],
-          irrigationSystem: undefined,
-          drainageSystem: false,
+          waterSource: [WaterSource.RAINFALL, WaterSource.RIVER_STREAM],
+          irrigationSystem: IrrigationSystem.NONE,
+          drainageSystem: true,
           waterConservationPractices: []
         }
       },
       pestManagement: {
-        primaryPests: [],
-        primaryDiseases: [],
-        managementApproach: undefined,
-        pesticides: [],
-        usesIPM: false,
-        ipmPractices: [],
-        biologicalControls: [],
-        pestMonitoringFrequency: undefined,
-        usesEconomicThresholds: false
+        primaryPests: ['Fall armyworm', 'Stemborer', 'Cassava green mite'],
+        primaryDiseases: ['Maize leaf blight', 'Cassava mosaic disease'],
+        managementApproach: PestManagementApproach.INTEGRATED_IPM,
+        pesticides: [
+          {
+            pesticideType: PesticideType.INSECTICIDE,
+            activeIngredient: 'Emamectin benzoate',
+            brandName: 'Lancer 2.5 EC',
+            applicationRate: 0.5,
+            applicationsPerSeason: 3,
+            targetPests: ['Fall armyworm', 'Stemborer'],
+            cost: 45,
+            currency: Currency.GHS,
+            safetyPrecautions: []
+          },
+          {
+            pesticideType: PesticideType.INSECTICIDE,
+            activeIngredient: 'Lambda-cyhalothrin',
+            brandName: 'Karate 5EC',
+            applicationRate: 0.3,
+            applicationsPerSeason: 2,
+            targetPests: ['Cassava green mite'],
+            cost: 38,
+            currency: Currency.GHS,
+            safetyPrecautions: []
+          }
+        ],
+        usesIPM: true,
+        ipmPractices: [
+          IPMPractice.CROP_ROTATION,
+          IPMPractice.COMPANION_PLANTING,
+          IPMPractice.RESISTANT_VARIETIES,
+          IPMPractice.CULTURAL_CONTROLS
+        ],
+        biologicalControls: ['Neem extract', 'Trichogramma wasps'],
+        pestMonitoringFrequency: MonitoringFrequency.WEEKLY,
+        usesEconomicThresholds: true
       },
       equipmentEnergy: {
-        equipment: [],
-        energySources: [],
+        equipment: [
+          {
+            equipmentType: EquipmentType.MEDIUM_TRACTOR,
+            powerSource: PowerSource.DIESEL,
+            age: 8,
+            hoursPerYear: 320,
+            fuelEfficiency: 12.5
+          },
+          {
+            equipmentType: EquipmentType.SPRAYER,
+            powerSource: PowerSource.PETROL,
+            age: 3,
+            hoursPerYear: 85,
+            fuelEfficiency: 2.8
+          },
+          {
+            equipmentType: EquipmentType.WATER_PUMP,
+            powerSource: PowerSource.PETROL,
+            age: 5,
+            hoursPerYear: 120,
+            fuelEfficiency: 3.2
+          }
+        ],
+        energySources: [
+          {
+            energyType: EnergyType.DIESEL_GENERATOR,
+            monthlyConsumption: 145,
+            primaryUse: 'Tractor operations (plowing, planting, transport)',
+            cost: 320,
+            currency: Currency.GHS
+          },
+          {
+            energyType: EnergyType.GRID_ELECTRICITY,
+            monthlyConsumption: 85,
+            primaryUse: 'Lighting, phone charging, small tools',
+            cost: 65,
+            currency: Currency.GHS
+          }
+        ],
         infrastructure: {
-          storageCapacity: 0,
-          storageFacilities: [],
+          storageCapacity: 12000,
+          storageFacilities: [
+            StorageFacilityType.TRADITIONAL_GRANARY,
+            StorageFacilityType.HERMETIC_STORAGE
+          ],
           transportAccess: {
-            roadAccess: undefined,
-            distanceToMarket: 0,
-            transportMode: [],
-            transportCost: undefined
+            roadAccess: RoadAccessType.GRAVEL_ROAD,
+            distanceToMarket: 18,
+            transportMode: [TransportMode.PICKUP_TRUCK, TransportMode.MOTORCYCLE],
+            transportCost: 45
           }
         }
       },
@@ -203,7 +370,26 @@ export default function ComprehensiveAssessmentPage() {
     try {
       // Transform enhanced form data to API format
       const apiData = transformToAPIFormat(data);
-      
+
+      // Debug: Check if fuelConsumption is being populated
+      const fuelConsumptionDebug = {
+        hasEquipmentEnergy: !!apiData.equipmentEnergy,
+        fuelConsumptionLength: apiData.equipmentEnergy?.fuelConsumption?.length || 0,
+        fuelConsumptionData: apiData.equipmentEnergy?.fuelConsumption,
+        energySourcesLength: apiData.equipmentEnergy?.energySources?.length || 0,
+        energySourcesData: apiData.equipmentEnergy?.energySources
+      };
+
+      console.log('=== FUEL CONSUMPTION DEBUG ===');
+      console.log('Equipment Energy Data:', apiData.equipmentEnergy);
+      console.log('Fuel Consumption Array LENGTH:', fuelConsumptionDebug.fuelConsumptionLength);
+      console.log('Fuel Consumption Array:', fuelConsumptionDebug.fuelConsumptionData);
+      console.log('Energy Sources Array:', fuelConsumptionDebug.energySourcesData);
+      console.log('==============================');
+
+      // Store in localStorage so we can check it later
+      localStorage.setItem('lastFuelDebug', JSON.stringify(fuelConsumptionDebug, null, 2));
+
       // Submit comprehensive assessment to backend
       console.log('Submitting comprehensive assessment:', apiData);
       
@@ -352,7 +538,40 @@ export default function ComprehensiveAssessmentPage() {
           ...energy,
           cost: energy.cost || 0 // Provide default cost
         })) || [],
-        fuelConsumption: [], // Default to empty, can be enhanced later
+        // Extract fuel consumption from energy sources
+        // Convert energy sources like "Diesel Generator" to fuel consumption entries
+        fuelConsumption: data.equipmentEnergy.energySources
+          ?.filter(energy => {
+            const energyTypeStr = typeof energy.energyType === 'string'
+              ? energy.energyType
+              : String(energy.energyType);
+
+            return energyTypeStr.includes('Diesel') ||
+                   energyTypeStr.includes('diesel') ||
+                   energyTypeStr.includes('Petrol') ||
+                   energyTypeStr.includes('Gasoline') ||
+                   energyTypeStr.includes('gasoline');
+          })
+          .map(energy => {
+            const energyTypeStr = typeof energy.energyType === 'string'
+              ? energy.energyType
+              : String(energy.energyType);
+
+            // Determine fuel type based on energy type
+            let fuelType = 'Diesel';
+            if (energyTypeStr.includes('Diesel') || energyTypeStr.includes('diesel')) {
+              fuelType = 'Diesel';
+            } else if (energyTypeStr.includes('Petrol') || energyTypeStr.includes('Gasoline')) {
+              fuelType = 'Petrol/Gasoline';
+            }
+
+            return {
+              fuelType,
+              monthlyConsumption: energy.monthlyConsumption || 0,
+              primaryUse: energy.primaryUse || 'Farm operations',
+              cost: energy.cost || 0
+            };
+          }) || [],
         infrastructure: {
           ...data.equipmentEnergy.infrastructure,
           processingFacilities: [], // Add missing required field

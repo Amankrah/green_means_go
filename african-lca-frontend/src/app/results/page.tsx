@@ -165,8 +165,18 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
   };
 
   // Helper function to format display values
-  const formatDisplayValue = (value: number, precision: number = 1): string => {
-    if (value === 0) return 'N/A';
+  const formatDisplayValue = (value: number, precision: number = 1, categoryName?: string): string => {
+    // Special handling for zero values in water-related categories
+    if (value === 0) {
+      if (categoryName === 'Water consumption' || categoryName === 'Water Use') {
+        return '0 (Rainfed)';
+      }
+      if (categoryName === 'Water scarcity') {
+        return '0 (No irrigation)';
+      }
+      // For other categories, show N/A if truly zero
+      return 'N/A';
+    }
     if (value < 0.01) return value.toExponential(2);
     if (value < 1) return value.toFixed(precision + 1);
     if (value < 1000) return value.toFixed(precision);
@@ -207,6 +217,19 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
 
   // Debug log to see the actual data structure
   console.log('Results data:', results);
+  console.log('=== MIDPOINT IMPACTS DETAILED ===');
+  console.log('Fossil depletion:', results.midpoint_impacts['Fossil depletion']);
+  console.log('Global warming:', results.midpoint_impacts['Global warming']);
+  console.log('All midpoint keys:', Object.keys(results.midpoint_impacts));
+  console.log('================================');
+
+  // Check fuel consumption debug data from localStorage
+  const fuelDebug = localStorage.getItem('lastFuelDebug');
+  if (fuelDebug) {
+    console.log('=== FUEL CONSUMPTION DEBUG (from submission) ===');
+    console.log(JSON.parse(fuelDebug));
+    console.log('================================================');
+  }
 
   // Extract single score value safely
   const singleScoreValue = extractValue(results.single_score);
@@ -320,7 +343,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                   const rawValue = results.midpoint_impacts[item.key];
                   const totalValue = extractValue(rawValue);
                   const perUnitValue = calculatePerUnitImpact(totalValue, totalProductionKg);
-                  const displayValue = formatDisplayValue(perUnitValue);
+                  const displayValue = formatDisplayValue(perUnitValue, 1, item.key);
                   
                   return (
                     <div key={index} className={`text-center p-6 rounded-xl border-2 ${item.color}`}>
@@ -344,7 +367,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                   .map(([category, rawValue], index) => {
                     const totalValue = extractValue(rawValue);
                     const perUnitValue = calculatePerUnitImpact(totalValue, totalProductionKg);
-                    const displayValue = formatDisplayValue(perUnitValue);
+                    const displayValue = formatDisplayValue(perUnitValue, 1, category);
                     
                     return (
                       <div key={index} className="text-center p-3 bg-gray-50 rounded-lg border">
@@ -443,7 +466,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                           {Object.entries(impacts as Record<string, unknown>).slice(0, 4).map(([category, rawValue]) => {
                             const totalValue = extractValue(rawValue);
                             const perUnitValue = calculatePerUnitImpact(totalValue, cropQuantityKg);
-                            const displayValue = formatDisplayValue(perUnitValue);
+                            const displayValue = formatDisplayValue(perUnitValue, 1, category);
                             
                             return (
                               <div key={category} className="text-center">

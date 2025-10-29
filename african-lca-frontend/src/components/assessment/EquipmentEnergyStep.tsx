@@ -159,7 +159,7 @@ export default function EquipmentEnergyStep() {
                     </label>
                     <select
                       {...register(`equipmentEnergy.equipment.${index}.equipmentType`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                     >
                       <option value="">Select equipment type</option>
                       {Object.values(EquipmentType).map((type) => (
@@ -180,7 +180,7 @@ export default function EquipmentEnergyStep() {
                     </label>
                     <select
                       {...register(`equipmentEnergy.equipment.${index}.powerSource`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                     >
                       <option value="">Select power source</option>
                       {Object.values(PowerSource).map((source) => (
@@ -205,7 +205,7 @@ export default function EquipmentEnergyStep() {
                       max="50"
                       {...register(`equipmentEnergy.equipment.${index}.age`, { valueAsNumber: true })}
                       placeholder="e.g., 5"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                     />
                     {errors.equipmentEnergy?.equipment?.[index]?.age && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -225,7 +225,7 @@ export default function EquipmentEnergyStep() {
                       max="4000"
                       {...register(`equipmentEnergy.equipment.${index}.hoursPerYear`, { valueAsNumber: true })}
                       placeholder="e.g., 200"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                     />
                     {errors.equipmentEnergy?.equipment?.[index]?.hoursPerYear && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -245,7 +245,7 @@ export default function EquipmentEnergyStep() {
                       min="0"
                       {...register(`equipmentEnergy.equipment.${index}.fuelEfficiency`, { valueAsNumber: true })}
                       placeholder="e.g., 3.5 (liters per hour or km)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">For fuel-powered equipment only</p>
                     {errors.equipmentEnergy?.equipment?.[index]?.fuelEfficiency && (
@@ -328,7 +328,7 @@ export default function EquipmentEnergyStep() {
                     </label>
                     <select
                       {...register(`equipmentEnergy.energySources.${index}.energyType`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                     >
                       <option value="">Select energy type</option>
                       {Object.values(EnergyType).map((type) => (
@@ -353,7 +353,7 @@ export default function EquipmentEnergyStep() {
                       step="0.1"
                       {...register(`equipmentEnergy.energySources.${index}.monthlyConsumption`, { valueAsNumber: true })}
                       placeholder="e.g., 150"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Units: kWh for electricity, liters for diesel/petrol/biogas, kg for firewood/charcoal
@@ -374,7 +374,7 @@ export default function EquipmentEnergyStep() {
                       type="text"
                       {...register(`equipmentEnergy.energySources.${index}.primaryUse`)}
                       placeholder="e.g., Irrigation, Processing, Storage"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                     />
                     {errors.equipmentEnergy?.energySources?.[index]?.primaryUse && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -394,7 +394,7 @@ export default function EquipmentEnergyStep() {
                       step="0.01"
                       {...register(`equipmentEnergy.energySources.${index}.cost`, { valueAsNumber: true })}
                       placeholder="e.g., 25000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Total monthly cost for the consumption amount specified above (local currency)
@@ -440,7 +440,7 @@ export default function EquipmentEnergyStep() {
               step="0.1"
               {...register('equipmentEnergy.infrastructure.storageCapacity', { valueAsNumber: true })}
               placeholder="e.g., 50"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             />
             {errors.equipmentEnergy?.infrastructure?.storageCapacity && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -518,7 +518,7 @@ export default function EquipmentEnergyStep() {
             </label>
             <select
               {...register('equipmentEnergy.infrastructure.transportAccess.roadAccess')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             >
               <option value="">Select road access</option>
               {Object.values(RoadAccessType).map((access) => (
@@ -542,7 +542,7 @@ export default function EquipmentEnergyStep() {
               step="0.1"
               {...register('equipmentEnergy.infrastructure.transportAccess.distanceToMarket', { valueAsNumber: true })}
               placeholder="e.g., 15"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             />
             {errors.equipmentEnergy?.infrastructure?.transportAccess?.distanceToMarket && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -588,7 +588,7 @@ export default function EquipmentEnergyStep() {
             min="0"
             {...register('equipmentEnergy.infrastructure.transportAccess.transportCost')}
             placeholder="e.g., 50000"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 text-gray-900"
           />
           <p className="text-xs text-gray-500 mt-1">Leave empty if cost varies or is unknown</p>
         </div>
@@ -715,7 +715,7 @@ export default function EquipmentEnergyStep() {
             </label>
             <select
               {...register('assessmentParameters.functionalUnit')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
             >
               {Object.entries(FunctionalUnit).map(([key, value]) => (
                 <option key={key} value={value}>
@@ -740,7 +740,7 @@ export default function EquipmentEnergyStep() {
             </label>
             <select
               {...register('assessmentParameters.systemBoundary')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
             >
               {Object.entries(SystemBoundary).map(([key, value]) => (
                 <option key={key} value={value}>
@@ -768,7 +768,7 @@ export default function EquipmentEnergyStep() {
               min="1"
               max="5"
               {...register('assessmentParameters.assessmentPeriod', { valueAsNumber: true })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
             />
             <p className="text-xs text-gray-500 mt-1">
               Typical farming cycle period to assess

@@ -116,7 +116,7 @@ export default function FarmProfileStep() {
             <input
               {...register('farmProfile.farmerName')}
               placeholder="e.g., Kwame Asante"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
             />
             {errors.farmProfile?.farmerName && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -133,7 +133,7 @@ export default function FarmProfileStep() {
             <input
               {...register('farmProfile.farmName')}
               placeholder="e.g., Green Valley Farm"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
             />
             {errors.farmProfile?.farmName && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -170,7 +170,7 @@ export default function FarmProfileStep() {
             </label>
             <select
               {...register('farmProfile.country')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             >
               <option value="">Select your country</option>
               <option value="Ghana">🇬🇭 Ghana</option>
@@ -190,7 +190,7 @@ export default function FarmProfileStep() {
             </label>
             <select
               {...register('farmProfile.region')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             >
               <option value="">Select your region/state</option>
               {selectedCountry && REGIONS_BY_COUNTRY[selectedCountry]?.map((region) => (
@@ -236,7 +236,7 @@ export default function FarmProfileStep() {
               step="0.1"
               {...register('farmProfile.totalFarmSize', { valueAsNumber: true })}
               placeholder="e.g., 2.5"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
             />
             {errors.farmProfile?.totalFarmSize && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -262,7 +262,7 @@ export default function FarmProfileStep() {
               type="number"
               {...register('farmProfile.farmingExperience', { valueAsNumber: true })}
               placeholder="e.g., 15"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
             />
             {errors.farmProfile?.farmingExperience && (
               <p className="mt-1 text-sm text-red-600 flex items-center">

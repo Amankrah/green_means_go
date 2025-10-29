@@ -101,7 +101,7 @@ export default function ManagementPracticesStep() {
             </label>
             <select
               {...register('managementPractices.soilManagement.soilType')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             >
               <option value="">Select soil type</option>
               {Object.values(SoilType).map((type) => (
@@ -122,7 +122,7 @@ export default function ManagementPracticesStep() {
             </label>
             <select
               {...register('managementPractices.soilManagement.soilTestingFrequency')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             >
               <option value="">Select frequency</option>
               {Object.values(TestingFrequency).map((freq) => (
@@ -143,7 +143,7 @@ export default function ManagementPracticesStep() {
             </label>
             <select
               {...register('managementPractices.soilManagement.soilpH')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             >
               <option value="">Not known</option>
               <option value="3.0">Very acidic (3.0)</option>
@@ -165,7 +165,7 @@ export default function ManagementPracticesStep() {
             </label>
             <select
               {...register('managementPractices.soilManagement.organicMatterContent')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             >
               <option value="">Not known</option>
               <option value="1">Low (1%)</option>
@@ -233,7 +233,7 @@ export default function ManagementPracticesStep() {
                 </label>
                 <select
                   {...register('managementPractices.soilManagement.compostUse.compostsource')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                 >
                   {Object.values(CompostSource).map((source) => (
                     <option key={source} value={source}>{source}</option>
@@ -256,7 +256,7 @@ export default function ManagementPracticesStep() {
                   step="0.1"
                   {...register('managementPractices.soilManagement.compostUse.applicationRate')}
                   placeholder="e.g., 2.0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                 />
               </div>
             </motion.div>
@@ -354,7 +354,7 @@ export default function ManagementPracticesStep() {
                         </label>
                         <select
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.fertilizerType`)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                         >
                           {Object.values(FertilizerType).map((type) => (
                             <option key={type} value={type}>{type}</option>
@@ -369,7 +369,7 @@ export default function ManagementPracticesStep() {
                         <input
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.brandName`)}
                           placeholder="e.g., Golden Harvest"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                         />
                       </div>
 
@@ -380,7 +380,7 @@ export default function ManagementPracticesStep() {
                         <input
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.npkRatio`)}
                           placeholder="e.g., 15-15-15"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                         />
                       </div>
 
@@ -393,7 +393,7 @@ export default function ManagementPracticesStep() {
                           step="0.1"
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.applicationRate`, { valueAsNumber: true })}
                           placeholder="e.g., 200"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                         />
                         {errors.managementPractices?.fertilization?.fertilizerApplications?.[index]?.applicationRate && (
                           <p className="mt-1 text-xs text-red-600 flex items-center">
@@ -413,7 +413,7 @@ export default function ManagementPracticesStep() {
                           max="10"
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.applicationsPerSeason`, { valueAsNumber: true })}
                           placeholder="e.g., 2"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                         />
                         {errors.managementPractices?.fertilization?.fertilizerApplications?.[index]?.applicationsPerSeason && (
                           <p className="mt-1 text-xs text-red-600 flex items-center">
@@ -432,7 +432,7 @@ export default function ManagementPracticesStep() {
                           step="0.01"
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.cost`)}
                           placeholder="e.g., 1500 (per kg)"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                         />
                         <p className="text-xs text-gray-500 mt-1">Price per kilogram of fertilizer</p>
                       </div>
@@ -450,7 +450,7 @@ export default function ManagementPracticesStep() {
                 </label>
                 <select
                   {...register('managementPractices.fertilization.applicationMethod')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                 >
                   <option value="">Select method</option>
                   {Object.values(ApplicationMethod).map((method) => (
@@ -465,7 +465,7 @@ export default function ManagementPracticesStep() {
                 </label>
                 <select
                   {...register('managementPractices.fertilization.timingStrategy')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
                 >
                   <option value="">Select timing</option>
                   {Object.values(TimingStrategy).map((timing) => (
@@ -554,7 +554,7 @@ export default function ManagementPracticesStep() {
             </label>
             <select
               {...register('managementPractices.waterManagement.irrigationSystem')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
             >
               <option value="">Select irrigation system</option>
               {Object.values(IrrigationSystem).map((system) => (

@@ -59,7 +59,7 @@ class AssessmentAPI {
 
   private transformEnhancedAssessmentToBackend(data: EnhancedAssessmentRequest): AssessmentRequest {
     // Transform the comprehensive frontend data to backend format
-    return {
+    const backendData: AssessmentRequest = {
       company_name: `${data.farmProfile.farmerName} - ${data.farmProfile.farmName}`,
       country: data.farmProfile.country,
       farm_profile: {
@@ -84,6 +84,7 @@ class AssessmentAPI {
           uses_fertilizers: data.managementPractices.fertilization.usesFertilizers,
           fertilizer_applications: data.managementPractices.fertilization.fertilizerApplications.map((app: FertilizerApplication) => ({
             fertilizer_type: app.fertilizerType,
+            npk_ratio: app.npkRatio,
             application_rate: app.applicationRate,
             applications_per_season: app.applicationsPerSeason,
             cost: app.cost,
@@ -109,6 +110,29 @@ class AssessmentAPI {
           monitoring_frequency: data.pestManagement.pestMonitoringFrequency,
         },
       },
+      // Include equipment_energy if provided (convert to snake_case and strip infrastructure field)
+      equipment_energy: data.equipmentEnergy ? {
+        equipment: data.equipmentEnergy.equipment.map(eq => ({
+          equipment_type: eq.equipmentType,
+          power_source: eq.powerSource,
+          age: eq.age,
+          hours_per_year: eq.hoursPerYear,
+          fuel_efficiency: eq.fuelEfficiency,
+        })),
+        energy_sources: data.equipmentEnergy.energySources.map(es => ({
+          energy_type: es.energyType,
+          monthly_consumption: es.monthlyConsumption,
+          primary_use: es.primaryUse,
+          cost: es.cost,
+          currency: es.currency,
+        })),
+        fuel_consumption: data.equipmentEnergy.fuelConsumption.map(fc => ({
+          fuel_type: fc.fuelType,
+          monthly_consumption: fc.monthlyConsumption,
+          primary_use: fc.primaryUse,
+          cost: fc.cost,
+        })),
+      } : undefined,
       foods: data.cropProductions.map((crop, index) => ({
         id: `crop_${index + 1}`,
         name: crop.cropName,
@@ -141,6 +165,8 @@ class AssessmentAPI {
         },
       })),
     };
+
+    return backendData;
   }
 
   async getAssessment(assessmentId: string): Promise<AssessmentResult> {

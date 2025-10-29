@@ -103,7 +103,18 @@ fn handle_processing_assessment(input: &serde_json::Value) {
 
 fn handle_comprehensive_assessment(input: &serde_json::Value) {
     println!("Processing comprehensive assessment...");
-    
+
+    // DEBUG: Check if equipment_energy is in the JSON input
+    eprintln!("\n{}", "=".repeat(80));
+    eprintln!("🔍 RUST BACKEND RECEIVED INPUT:");
+    eprintln!("{}", "=".repeat(80));
+    if let Some(ee) = input.get("equipment_energy") {
+        eprintln!("✓ equipment_energy present in JSON: {:?}", ee);
+    } else {
+        eprintln!("✗ equipment_energy MISSING from JSON!");
+    }
+    eprintln!("{}\n", "=".repeat(80));
+
     // Create comprehensive assessment from input
     let mut assessment = match create_comprehensive_assessment(input) {
         Ok(assessment) => assessment,
@@ -250,21 +261,29 @@ fn create_comprehensive_assessment(input: &serde_json::Value) -> Result<Assessme
     } else {
         None
     };
-    
+
+    // Parse equipment_energy if present
+    let equipment_energy = if let Some(ee) = input.get("equipment_energy") {
+        Some(parse_equipment_energy(ee)?)
+    } else {
+        None
+    };
+
     // Parse foods
     let foods_array = input["foods"].as_array()
         .ok_or("Missing or invalid foods array")?;
-    
+
     let mut foods = Vec::new();
     for food_value in foods_array {
         let food = parse_food_item(food_value, country_str)?;
         foods.push(food);
     }
-    
+
     Ok(Assessment {
         id: Uuid::new_v4(),
         company_name,
-        country,
+        country: country.clone(),
+        currency: Currency::from_country(&country),
         region,
         foods,
         assessment_date: Utc::now(),
@@ -272,6 +291,7 @@ fn create_comprehensive_assessment(input: &serde_json::Value) -> Result<Assessme
         results: None,
         farm_profile,
         management_practices,
+        equipment_energy,
     })
 }
 
@@ -342,7 +362,8 @@ fn create_simple_assessment(input: &serde_json::Value) -> Result<Assessment, Box
     Ok(Assessment {
         id: Uuid::new_v4(),
         company_name,
-        country,
+        country: country.clone(),
+        currency: Currency::from_country(&country),
         region: None,
         foods,
         assessment_date: Utc::now(),
@@ -350,6 +371,7 @@ fn create_simple_assessment(input: &serde_json::Value) -> Result<Assessment, Box
         results: None,
         farm_profile: None,
         management_practices: None,
+        equipment_energy: None,
     })
 }
 
@@ -505,9 +527,13 @@ fn parse_management_practices(mp: &serde_json::Value) -> Result<ManagementPracti
                 .map(|arr| arr.iter().filter_map(|app| {
                     Some(FertilizerApplication {
                         fertilizer_type: app.get("fertilizer_type")?.as_str()?.to_string(),
+                        npk_ratio: app.get("npk_ratio").and_then(|v| v.as_str()).map(|s| s.to_string()),
                         application_rate: app.get("application_rate")?.as_f64()?,
                         applications_per_season: app.get("applications_per_season")?.as_u64()? as u32,
                         cost: app.get("cost").and_then(|v| v.as_f64()),
+                        currency: app.get("currency")
+                            .and_then(|v| v.as_str())
+                            .and_then(|s| parse_currency(s).ok()),
                     })
                 }).collect())
                 .unwrap_or_default(),
@@ -573,6 +599,63 @@ fn parse_soil_type(s: &str) -> Result<SoilType, Box<dyn std::error::Error>> {
         "Volcanic" => Ok(SoilType::Volcanic),
         _ => Err(format!("Unknown soil type: {}", s).into()),
     }
+}
+
+fn parse_currency(s: &str) -> Result<Currency, Box<dyn std::error::Error>> {
+    match s {
+        "GHS" => Ok(Currency::GHS),
+        "NGN" => Ok(Currency::NGN),
+        "USD" => Ok(Currency::USD),
+        _ => Err(format!("Unknown currency: {}", s).into()),
+    }
+}
+
+fn parse_equipment_energy(ee: &serde_json::Value) -> Result<EquipmentEnergy, Box<dyn std::error::Error>> {
+    let equipment = ee.get("equipment")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|eq| {
+            Some(FarmEquipment {
+                equipment_type: eq.get("equipment_type")?.as_str()?.to_string(),
+                power_source: eq.get("power_source")?.as_str()?.to_string(),
+                age: eq.get("age")?.as_u64()? as u32,
+                hours_per_year: eq.get("hours_per_year")?.as_f64()?,
+                fuel_efficiency: eq.get("fuel_efficiency").and_then(|v| v.as_f64()),
+            })
+        }).collect())
+        .unwrap_or_default();
+
+    let energy_sources = ee.get("energy_sources")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|es| {
+            Some(EnergyUsage {
+                energy_type: es.get("energy_type")?.as_str()?.to_string(),
+                monthly_consumption: es.get("monthly_consumption")?.as_f64()?,
+                primary_use: es.get("primary_use")?.as_str()?.to_string(),
+                cost: es.get("cost").and_then(|v| v.as_f64()),
+                currency: es.get("currency")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| parse_currency(s).ok()),
+            })
+        }).collect())
+        .unwrap_or_default();
+
+    let fuel_consumption = ee.get("fuel_consumption")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|fc| {
+            Some(FuelUsage {
+                fuel_type: fc.get("fuel_type")?.as_str()?.to_string(),
+                monthly_consumption: fc.get("monthly_consumption")?.as_f64()?,
+                primary_use: fc.get("primary_use")?.as_str()?.to_string(),
+                cost: fc.get("cost").and_then(|v| v.as_f64()),
+            })
+        }).collect())
+        .unwrap_or_default();
+
+    Ok(EquipmentEnergy {
+        equipment,
+        energy_sources,
+        fuel_consumption,
+    })
 }
 
 fn create_processing_assessment(input: &serde_json::Value) -> Result<ProcessingAssessment, Box<dyn std::error::Error>> {

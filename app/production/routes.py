@@ -31,25 +31,33 @@ async def create_assessment(request: AssessmentRequest):
     Create a new environmental sustainability assessment (supports both simple and comprehensive)
     """
     try:
+
         # Prepare data for Rust backend - include all available fields
         rust_input = {
             "company_name": request.company_name,
             "country": request.country,
             "foods": [food.model_dump(exclude_none=False) for food in request.foods]
         }
-        
+
         # Add region if provided
         if request.region:
             rust_input["region"] = request.region
-        
+
         # Add farm profile if provided (comprehensive assessment)
         if request.farm_profile:
             rust_input["farm_profile"] = request.farm_profile.model_dump()
-            
+
         # Add management practices if provided (comprehensive assessment)
         if request.management_practices:
             rust_input["management_practices"] = request.management_practices.model_dump()
-        
+
+        # Add equipment/energy data if provided (comprehensive assessment)
+        if request.equipment_energy:
+            rust_input["equipment_energy"] = request.equipment_energy.model_dump()
+            print(f"✓ Added equipment_energy to rust_input")
+        else:
+            print(f"✗ Skipped equipment_energy (falsy value)")
+
         # Call Rust backend
         result = await call_rust_backend(rust_input)
         
@@ -83,7 +91,11 @@ async def create_comprehensive_assessment(request: AssessmentRequest):
             "farm_profile": request.farm_profile.model_dump(),
             "management_practices": request.management_practices.model_dump()
         }
-        
+
+        # Add equipment/energy data if provided
+        if request.equipment_energy:
+            rust_input["equipment_energy"] = request.equipment_energy.model_dump()
+
         # Call Rust backend for comprehensive assessment
         result = await call_rust_backend(rust_input)
         
@@ -194,11 +206,22 @@ async def call_rust_backend(data: dict) -> dict:
     Call the Rust backend for LCA calculations - Enhanced version supporting both simple and comprehensive assessments
     """
     try:
+        # DEBUG: Log what we're sending to Rust
+        print("\n" + "="*80)
+        print("🔍 DATA BEING SENT TO RUST BACKEND:")
+        print("="*80)
+        if "equipment_energy" in data:
+            print(f"✓ equipment_energy present: {data['equipment_energy']}")
+        else:
+            print("✗ equipment_energy MISSING!")
+        print("="*80 + "\n")
+
         # Write input to temporary file
         import tempfile
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(data, f)
+            json.dump(data, f, indent=2)
             temp_file = f.name
+            print(f"📄 Temp file written: {temp_file}")
         
         # Call Rust binary - Production paths
         rust_binary_release = "../african_lca_backend/target/release/server.exe"
@@ -220,8 +243,16 @@ async def call_rust_backend(data: dict) -> dict:
             capture_output=True,
             text=True,
             timeout=120,  # Increased timeout for comprehensive assessments
-            cwd="../african_lca_backend"  # Set working directory
+            cwd="../african_lca_backend",  # Set working directory
+            encoding='utf-8',
+            errors='replace'  # Replace unicode errors instead of crashing
         )
+
+        # Print Rust stderr for debugging
+        if result.stderr:
+            print("📋 RUST STDERR OUTPUT:")
+            print(result.stderr)
+            print("="*80)
         
         # Clean up temp file
         os.unlink(temp_file)

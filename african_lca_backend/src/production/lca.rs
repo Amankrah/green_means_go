@@ -1,4 +1,6 @@
 use crate::models::*;
+use crate::production::lci::LCICalculator;
+use crate::production::lci_extended::LCIExtendedCharacterization;
 use std::collections::HashMap;
 use log::{info, warn};
 
@@ -9,6 +11,7 @@ pub struct AfricanLCAEngine {
     regional_factors: HashMap<String, f64>,
     climate_adjustments: HashMap<String, f64>,
     methodology: LCAMethodology,
+    lci_calculator: LCICalculator, // NEW: ISO-compliant inventory calculator
 }
 
 impl AfricanLCAEngine {
@@ -19,6 +22,7 @@ impl AfricanLCAEngine {
             regional_factors: HashMap::new(),
             climate_adjustments: HashMap::new(),
             methodology,
+            lci_calculator: LCICalculator::new(), // Initialize LCI calculator
         }
     }
 
@@ -48,52 +52,58 @@ impl AfricanLCAEngine {
         }
     }
 
-    pub fn perform_comprehensive_assessment(&self, assessment: &mut Assessment) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Starting comprehensive LCA assessment for {} using {:?}", 
+    pub fn perform_comprehensive_assessment(&mut self, assessment: &mut Assessment) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Starting comprehensive LCA assessment for {} using {:?}",
               assessment.company_name, self.methodology.characterization_method);
 
-        // Enhanced assessment with farm management practices analysis
-        let mut midpoint_impacts = HashMap::new();
-        let mut breakdown_by_food = HashMap::new();
-
-        let impact_categories = self.get_impact_categories();
-
-        // Initialize all impact categories
-        for category in &impact_categories {
-            midpoint_impacts.insert(category.clone(), MidpointResult {
-                value: 0.0,
-                unit: self.get_impact_unit(category),
-                uncertainty_range: (0.0, 0.0),
-                data_quality_score: 0.0,
-                contributing_sources: Vec::new(),
-            });
+        // DEBUG: Log equipment_energy data
+        if let Some(ref eq_energy) = assessment.equipment_energy {
+            info!("🔧 Equipment/Energy data received:");
+            info!("  - Equipment items: {}", eq_energy.equipment.len());
+            info!("  - Energy sources: {}", eq_energy.energy_sources.len());
+            info!("  - Fuel consumption items: {}", eq_energy.fuel_consumption.len());
+            for fuel in &eq_energy.fuel_consumption {
+                info!("    * Fuel: {} - {} liters/month - {}",
+                      fuel.fuel_type, fuel.monthly_consumption, fuel.primary_use);
+            }
+        } else {
+            warn!("⚠️ No equipment_energy data found in assessment!");
         }
 
-        // Calculate impacts for each food with enhanced methodology including farm management
+        // NEW ISO 14040/14044 METHODOLOGY:
+        // Step 1: Calculate Life Cycle Inventory (LCI) from user inputs
+        info!("Step 1: Calculating Life Cycle Inventory (LCI) from user inputs");
+        let inventory = self.lci_calculator.calculate_inventory(assessment)?;
+
+        info!("LCI generated {} inventory items:", inventory.len());
+        for (key, item) in &inventory {
+            info!("  - {}: {:.2} {} ({})", key, item.quantity, item.unit, item.source);
+        }
+
+        // Step 2: Calculate midpoint impacts from LCI (characterization)
+        info!("Step 2: Calculating midpoint impacts from LCI with extended characterization");
+        let mut midpoint_impacts = self.lci_calculator.calculate_extended_midpoint_impacts(&inventory, assessment)?;
+
+        // Step 3: Apply additional regional adjustments and factors
+        info!("Step 3: Applying regional adjustments");
+        self.apply_regional_adjustments(&mut midpoint_impacts, &assessment.country, &assessment.region);
+
+        // Step 4: Calculate per-crop breakdown (if needed for detailed analysis)
+        let mut breakdown_by_food = HashMap::new();
         for food in &assessment.foods {
+            // For breakdown, we still use the enhanced calculation but now it's supplementary
             let mut food_results = self.calculate_enhanced_food_impacts(food, &assessment.country, &assessment.region)?;
-            
+
             // Apply management practice adjustments if available
             if let Some(ref management_practices) = assessment.management_practices {
                 self.apply_management_practice_adjustments(&mut food_results, management_practices, food)?;
             }
-            
-            // Add to breakdown
+
             breakdown_by_food.insert(
                 format!("{} ({}kg)", food.name, food.quantity_kg),
-                food_results.clone()
+                food_results
             );
-
-            // Aggregate impacts with uncertainty propagation
-            for (category, result) in food_results {
-                if let Some(total_result) = midpoint_impacts.get_mut(&category) {
-                    self.aggregate_midpoint_results(total_result, &result);
-                }
-            }
         }
-
-        // Apply regional adjustments
-        self.apply_regional_adjustments(&mut midpoint_impacts, &assessment.country, &assessment.region);
 
         // Calculate endpoint impacts with enhanced methodology
         let endpoint_impacts = self.calculate_enhanced_endpoint_impacts(&midpoint_impacts)?;
@@ -128,42 +138,41 @@ impl AfricanLCAEngine {
         Ok(())
     }
 
-    pub fn perform_assessment(&self, assessment: &mut Assessment) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Starting enhanced LCA assessment for {} using {:?}", 
+    pub fn perform_assessment(&mut self, assessment: &mut Assessment) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Starting enhanced LCA assessment for {} using {:?}",
               assessment.company_name, self.methodology.characterization_method);
 
-        // Initialize results structure
-        let mut midpoint_impacts = HashMap::new();
-        let mut breakdown_by_food = HashMap::new();
-
-        // Define comprehensive impact categories based on research
-        let impact_categories = self.get_impact_categories();
-
-        // Initialize all impact categories
-        for category in &impact_categories {
-            midpoint_impacts.insert(category.clone(), MidpointResult {
-                value: 0.0,
-                unit: self.get_impact_unit(category),
-                uncertainty_range: (0.0, 0.0),
-                data_quality_score: 0.0,
-                contributing_sources: Vec::new(),
-            });
+        // NEW ISO 14040/14044 METHODOLOGY:
+        // If we have management practices data, use the ISO-compliant LCI approach
+        if assessment.management_practices.is_some() {
+            info!("Management practices data available - using ISO-compliant LCI methodology");
+            return self.perform_comprehensive_assessment(assessment);
         }
 
-        // Calculate impacts for each food with enhanced methodology
+        // Otherwise, fall back to hybrid approach (LCI + category factors)
+        info!("Limited data available - using hybrid LCI + category factors methodology");
+
+        // Step 1: Calculate what we can from LCI with extended characterization
+        let inventory = self.lci_calculator.calculate_inventory(assessment)?;
+        let mut midpoint_impacts = self.lci_calculator.calculate_extended_midpoint_impacts(&inventory, assessment)?;
+
+        // Step 2: For missing data, supplement with category-level factors
+        let mut breakdown_by_food = HashMap::new();
         for food in &assessment.foods {
             let food_results = self.calculate_enhanced_food_impacts(food, &assessment.country, &assessment.region)?;
-            
-            // Add to breakdown
+
             breakdown_by_food.insert(
                 format!("{} ({}kg)", food.name, food.quantity_kg),
                 food_results.clone()
             );
 
-            // Aggregate impacts with uncertainty propagation
+            // Only aggregate categories that weren't calculated from LCI
             for (category, result) in food_results {
                 if let Some(total_result) = midpoint_impacts.get_mut(&category) {
-                    self.aggregate_midpoint_results(total_result, &result);
+                    // If LCI didn't calculate this impact, use the category factor
+                    if total_result.value == 0.0 {
+                        self.aggregate_midpoint_results(total_result, &result);
+                    }
                 }
             }
         }
@@ -635,46 +644,60 @@ impl AfricanLCAEngine {
         &self,
         endpoint: &HashMap<String, EndpointResult>
     ) -> Result<SingleScoreResult, Box<dyn std::error::Error>> {
-        
-        // African-adapted normalization and weighting factors (per kg basis)
-        let norm_factors = match self.methodology.normalization_method {
-            Some(NormalizationMethod::AfricanContext) => HashMap::from([
-                ("Human Health".to_string(), 5.2e-2),    // DALY per kg - Higher due to vulnerability
-                ("Ecosystem Quality".to_string(), 4.1e-9), // species.yr per kg - Higher due to biodiversity hotspots
-                ("Resource Scarcity".to_string(), 8.5e3),  // USD per kg - Higher due to resource constraints
-            ]),
-            _ => HashMap::from([
-                ("Human Health".to_string(), 2.2e-2),    // Global normalization per kg
-                ("Ecosystem Quality".to_string(), 1.8e-9),
-                ("Resource Scarcity".to_string(), 4.2e3),
-            ]),
-        };
 
+        // ISO 14044-compliant weighting factors
+        // Note: Weighting is value-choice dependent and should be transparent
         let weighting_factors = match self.methodology.weighting_method {
             Some(WeightingMethod::AfricanPriorities) => HashMap::from([
-                ("Human Health".to_string(), 0.4),      // Higher weight for human health
+                ("Human Health".to_string(), 0.40),      // Higher weight for human health (African context)
                 ("Ecosystem Quality".to_string(), 0.35), // Moderate weight for ecosystems
                 ("Resource Scarcity".to_string(), 0.25), // Lower weight for resources
             ]),
+            Some(WeightingMethod::EqualWeights) => HashMap::from([
+                ("Human Health".to_string(), 0.333),     // Equal weighting (ISO default)
+                ("Ecosystem Quality".to_string(), 0.333),
+                ("Resource Scarcity".to_string(), 0.334),
+            ]),
             _ => HashMap::from([
-                ("Human Health".to_string(), 0.33),     // Equal weighting
-                ("Ecosystem Quality".to_string(), 0.33),
-                ("Resource Scarcity".to_string(), 0.34),
+                ("Human Health".to_string(), 0.333),     // Default to equal weights
+                ("Ecosystem Quality".to_string(), 0.333),
+                ("Resource Scarcity".to_string(), 0.334),
             ]),
         };
 
         let mut single_score = 0.0;
         let mut score_uncertainty = 0.0;
+        let mut normalization_refs = HashMap::new();
 
+        // ISO 14044 methodology: Single Score = Σ(Endpoint / Normalization × Weight)
         for (category, result) in endpoint {
-            if let (Some(norm), Some(weight)) = (norm_factors.get(category), weighting_factors.get(category)) {
-                let normalized_score = result.value / norm;
+            if let Some(weight) = weighting_factors.get(category) {
+                // Use normalization factor embedded in endpoint result
+                // These are context-specific (African, Global, etc.) based on methodology
+                let norm_factor = result.normalization_factor.unwrap_or_else(|| {
+                    // Fallback normalization references (global per-capita annual basis)
+                    match category.as_str() {
+                        "Human Health" => 2.2e-2,      // DALY per kg global average
+                        "Ecosystem Quality" => 1.8e-9, // species.yr per kg
+                        "Resource Scarcity" => 4.2e3,  // USD per kg
+                        _ => 1.0,
+                    }
+                });
+
+                // Store for reporting
+                normalization_refs.insert(category.clone(), norm_factor);
+
+                // Normalized score = endpoint value / reference value
+                // This gives dimensionless "person-equivalent" units
+                let normalized_score = result.value / norm_factor;
+
+                // Weighted score
                 let weighted_score = normalized_score * weight;
                 single_score += weighted_score;
 
-                // Propagate uncertainty
+                // Uncertainty propagation (ISO 14044 Section 4.4.3.3)
                 let result_uncertainty = (result.uncertainty_range.1 - result.uncertainty_range.0) / 4.0;
-                let normalized_uncertainty = result_uncertainty / norm;
+                let normalized_uncertainty = result_uncertainty / norm_factor;
                 let weighted_uncertainty = normalized_uncertainty * weight;
                 score_uncertainty += weighted_uncertainty.powi(2);
             }
@@ -682,28 +705,26 @@ impl AfricanLCAEngine {
 
         let score_std = score_uncertainty.sqrt();
 
-        // Proper mathematical normalization using sigmoid function for per-unit values
-        // This ensures 0-1 scale regardless of input magnitude and handles outliers gracefully
-        // Formula: 1 / (1 + exp(-k * (x - midpoint)))
-        // Where k controls steepness, midpoint is the inflection point
-        let k = 0.5; // Steepness factor - adjusted for per-unit scale
-        let midpoint = 2.0; // Midpoint where score = 0.5 (typical per-kg impact level)
-        
-        let normalized_score = 1.0 / (1.0 + (-k * (single_score - midpoint)).exp());
+        // Convert to percentage for user display (0-100% scale)
+        // Reference: A score of 1.0 = average impact, 0.5 = half average, 2.0 = double average
+        // For better UX, we map: 0-0.5 → Excellent, 0.5-1.0 → Good, 1.0-1.5 → Average, >1.5 → Poor
+        // Display as percentage where 100% = 2x reference (worst reasonable case)
+        let display_score = (single_score / 2.0).min(1.0).max(0.0);
 
         Ok(SingleScoreResult {
-            value: normalized_score, // Sigmoid-normalized 0-1 scale
-            unit: "Environmental Impact Index (0-1, lower is better)".to_string(),
+            value: display_score, // 0-1 scale for display (0% = best, 100% = 2x reference impact)
+            unit: "Environmental Impact Score (0-1 scale, 1.0 = 2× reference impact)".to_string(),
             uncertainty_range: (
-                1.0 / (1.0 + (-k * (single_score - 2.0 * score_std - midpoint)).exp()),
-                1.0 / (1.0 + (-k * (single_score + 2.0 * score_std - midpoint)).exp())
+                ((single_score - 2.0 * score_std) / 2.0).max(0.0),
+                ((single_score + 2.0 * score_std) / 2.0).min(1.0)
             ),
             weighting_factors,
-            methodology: format!("{:?} with {:?} - Sigmoid normalized (k={}, midpoint={})", 
-                self.methodology.normalization_method, 
-                self.methodology.weighting_method,
-                k,
-                midpoint),
+            methodology: format!(
+                "ISO 14044 compliant: {:?} normalization with {:?} weighting. Raw score: {:.3} person-equiv.",
+                self.methodology.normalization_method.as_ref().unwrap_or(&NormalizationMethod::None),
+                self.methodology.weighting_method.as_ref().unwrap_or(&WeightingMethod::None),
+                single_score
+            ),
         })
     }
 
@@ -1327,6 +1348,7 @@ impl Clone for AfricanLCAEngine {
             regional_factors: self.regional_factors.clone(),
             climate_adjustments: self.climate_adjustments.clone(),
             methodology: self.methodology.clone(),
+            lci_calculator: LCICalculator::new(), // Create new LCI calculator instance
         }
     }
 }

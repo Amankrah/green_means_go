@@ -114,6 +114,32 @@ class ManagementPractices(BaseModel):
     water_management: WaterManagement
     pest_management: PestManagement
 
+# Equipment and Energy models
+class FarmEquipment(BaseModel):
+    equipment_type: str
+    power_source: str
+    age: int  # years
+    hours_per_year: float
+    fuel_efficiency: Optional[float] = None  # liters per hour
+
+class EnergyUsage(BaseModel):
+    energy_type: str
+    monthly_consumption: float  # kWh or equivalent
+    primary_use: str
+    cost: Optional[float] = None
+    currency: Optional[str] = None
+
+class FuelUsage(BaseModel):
+    fuel_type: str
+    monthly_consumption: float  # liters
+    primary_use: str
+    cost: Optional[float] = None
+
+class EquipmentEnergy(BaseModel):
+    equipment: List[FarmEquipment] = []
+    energy_sources: List[EnergyUsage] = []
+    fuel_consumption: List[FuelUsage] = []
+
 class FoodItem(BaseModel):
     id: str
     name: str
@@ -150,10 +176,11 @@ class AssessmentRequest(BaseModel):
     country: str  # "Ghana", "Nigeria", or "Global"
     foods: List[FoodItem]
     region: Optional[str] = None
-    
+
     # Enhanced fields for comprehensive assessments
     farm_profile: Optional[FarmProfile] = None
     management_practices: Optional[ManagementPractices] = None
+    equipment_energy: Optional[EquipmentEnergy] = None
     
     @field_validator('country')
     @classmethod

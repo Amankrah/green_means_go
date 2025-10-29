@@ -146,7 +146,7 @@ export default function PestManagementStep() {
             </label>
             <select
               {...register('pestManagement.managementApproach')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             >
               <option value="">Select approach</option>
               {Object.values(PestManagementApproach).map((approach) => (
@@ -167,7 +167,7 @@ export default function PestManagementStep() {
             </label>
             <select
               {...register('pestManagement.pestMonitoringFrequency')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
             >
               <option value="">Select frequency</option>
               {Object.values(MonitoringFrequency).map((freq) => (
@@ -234,7 +234,8 @@ export default function PestManagementStep() {
               applicationRate: 0,
               applicationsPerSeason: 0,
               targetPests: [],
-              cost: undefined
+              cost: undefined,
+              safetyPrecautions: []
             })}
             className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
           >
@@ -278,7 +279,7 @@ export default function PestManagementStep() {
                     </label>
                     <select
                       {...register(`pestManagement.pesticides.${index}.pesticideType`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
                     >
                       <option value="">Select type</option>
                       {Object.values(PesticideType).map((type) => (
@@ -301,7 +302,7 @@ export default function PestManagementStep() {
                       type="text"
                       {...register(`pestManagement.pesticides.${index}.brandName`)}
                       placeholder="e.g., Karate, Confidor"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.brandName && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -319,7 +320,7 @@ export default function PestManagementStep() {
                       type="text"
                       {...register(`pestManagement.pesticides.${index}.activeIngredient`)}
                       placeholder="e.g., Lambda-cyhalothrin, Imidacloprid"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.activeIngredient && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -340,7 +341,7 @@ export default function PestManagementStep() {
                       max="100"
                       {...register(`pestManagement.pesticides.${index}.applicationRate`, { valueAsNumber: true })}
                       placeholder="e.g., 2.5"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.applicationRate && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -360,7 +361,7 @@ export default function PestManagementStep() {
                       max="20"
                       {...register(`pestManagement.pesticides.${index}.applicationsPerSeason`, { valueAsNumber: true })}
                       placeholder="e.g., 3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.applicationsPerSeason && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -380,7 +381,7 @@ export default function PestManagementStep() {
                       step="0.01"
                       {...register(`pestManagement.pesticides.${index}.cost`, { valueAsNumber: true })}
                       placeholder="e.g., 15000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Total cost per hectare for one application (local currency)
