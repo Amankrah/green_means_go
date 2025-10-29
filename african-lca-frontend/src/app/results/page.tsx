@@ -23,6 +23,7 @@ import {
   RadialBar
 } from 'recharts';
 import Layout from '@/components/Layout';
+import ReportViewer from '@/components/ReportViewer';
 import { assessmentAPI, getScoreInterpretation } from '@/lib/api';
 import { AssessmentResult } from '@/types/assessment';
 
@@ -766,11 +767,24 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
             </motion.div>
           )}
 
+          {/* AI-Powered Report Generation */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.1 }}
+            className="mb-12"
+          >
+            <ReportViewer
+              assessmentId={assessmentId || ''}
+              companyName={results.company_name}
+            />
+          </motion.div>
+
           {/* Actions */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.0 }}
+            transition={{ duration: 0.6, delay: 1.2 }}
             className="text-center"
           >
             <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-8 text-white">

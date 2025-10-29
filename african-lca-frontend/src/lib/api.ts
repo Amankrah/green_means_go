@@ -192,6 +192,40 @@ class AssessmentAPI {
   async checkHealth(): Promise<{ status: string; timestamp: string }> {
     return this.fetchAPI('/health');
   }
+
+  // Report Generation APIs
+  async generateReport(
+    assessmentId: string,
+    reportType: 'comprehensive' | 'executive' | 'farmer_friendly' = 'comprehensive'
+  ): Promise<any> {
+    return this.fetchAPI('/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        assessment_id: assessmentId,
+        report_type: reportType
+      })
+    });
+  }
+
+  async getReport(reportId: string): Promise<any> {
+    return this.fetchAPI(`/reports/report/${reportId}`);
+  }
+
+  async listReportsForAssessment(assessmentId: string): Promise<any> {
+    return this.fetchAPI(`/reports/assessment/${assessmentId}/reports`);
+  }
+
+  async exportReportMarkdown(reportId: string): Promise<any> {
+    return this.fetchAPI(`/reports/report/${reportId}/export/markdown`);
+  }
+
+  async exportReportJSON(reportId: string): Promise<any> {
+    return this.fetchAPI(`/reports/report/${reportId}/export/json`);
+  }
+
+  async checkReportHealth(): Promise<any> {
+    return this.fetchAPI('/reports/health');
+  }
 }
 
 export const assessmentAPI = new AssessmentAPI();

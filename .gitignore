@@ -12,8 +12,16 @@ african_lca_api/Lib/
 african_lca_api/include/
 african_lca_api/Scripts/
 
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+app/.env
+**/.env
+
 # Rust
 african_lca_backend/target/
+target/
 **/*.rs.bk
 
 # Node/Frontend
