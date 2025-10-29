@@ -80,6 +80,7 @@ class SoilManagement(BaseModel):
 
 class FertilizerApplication(BaseModel):
     fertilizer_type: str
+    npk_ratio: Optional[str] = None  # e.g., "15-15-15"
     application_rate: float  # kg/hectare/season
     applications_per_season: int
     cost: Optional[float] = None

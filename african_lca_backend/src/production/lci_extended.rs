@@ -489,8 +489,10 @@ fn calculate_mineral_depletion(
         }
     }
 
+    let per_kg_value = fe_eq / total_production_kg;
+
     MidpointResult {
-        value: fe_eq / total_production_kg,
+        value: per_kg_value,
         unit: "kg Fe-eq per kg".to_string(),
         uncertainty_range: (fe_eq * 0.7 / total_production_kg,
                            fe_eq * 1.3 / total_production_kg),
