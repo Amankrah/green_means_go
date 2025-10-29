@@ -51,7 +51,8 @@ class AIReportGenerator:
             Dictionary containing the generated report sections
         """
 
-        # Prepare the assessment data for the AI
+        # Ensure assessment data includes all context - preserve original data
+        # Don't use fallbacks or defaults - only use actual data from Rust backend
         formatted_data = self._format_assessment_data(assessment_data)
 
         # Generate the report using Claude
@@ -107,6 +108,15 @@ class AIReportGenerator:
 
         # Generate visualizations
         visualizations = generate_all_visualizations(data)
+        
+        # Debug logging to understand data structure
+        print(f"\n🔍 AI Report Generator - Assessment data structure:")
+        print(f"  - Keys: {list(data.keys())}")
+        print(f"  - Midpoint impacts: {list(data.get('midpoint_impacts', {}).keys())}")
+        print(f"  - Breakdown by food: {list(data.get('breakdown_by_food', {}).keys())}")
+        print(f"  - Recommendations: {len(data.get('recommendations', []))}")
+        print(f"  - Data quality: {'data_quality' in data}")
+        print(f"  - Visualizations generated: {list(visualizations.keys())}")
 
         formatted = f"""
 # Environmental Sustainability Assessment Data

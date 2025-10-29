@@ -137,27 +137,67 @@ export default function ReportViewer({ assessmentId, companyName }: ReportViewer
     );
   };
 
-  // Simple markdown to HTML converter for basic formatting
+  // Enhanced markdown to HTML converter with better formatting
   const convertMarkdownToHTML = (markdown: string): string => {
     let html = markdown;
 
-    // Headers
-    html = html.replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold text-gray-900 mt-6 mb-3">$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold text-gray-900 mt-8 mb-4">$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold text-gray-900 mt-10 mb-5">$1</h1>');
+    // Headers with better styling
+    html = html.replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold text-gray-900 mt-6 mb-3 border-l-4 border-blue-500 pl-4 bg-blue-50 py-2">$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold text-gray-900 mt-8 mb-4 border-b-2 border-gray-300 pb-2">$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold text-gray-900 mt-10 mb-5 text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">$1</h1>');
 
-    // Bold and Italic
-    html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Tables with professional styling
+    html = html.replace(/\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|/g, 
+      '<tr><td class="px-3 py-2 border-b">$1</td><td class="px-3 py-2 border-b text-right font-mono">$2</td><td class="px-3 py-2 border-b text-center text-gray-600">$3</td><td class="px-3 py-2 border-b text-right font-semibold">$4</td><td class="px-3 py-2 border-b text-center">$5</td></tr>');
+    html = html.replace(/\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|/g, 
+      '<tr><td class="px-3 py-2 border-b font-medium">$1</td><td class="px-3 py-2 border-b text-right">$2</td><td class="px-3 py-2 border-b text-center">$3</td></tr>');
+    
+    // Table headers
+    html = html.replace(/\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|(\s*\n\s*\|[-\s|]*\|)/g,
+      '<table class="w-full text-sm bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-4 mb-4"><thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left font-semibold text-gray-700">$1</th><th class="px-3 py-2 text-right font-semibold text-gray-700">$2</th><th class="px-3 py-2 text-center font-semibold text-gray-700">$3</th><th class="px-3 py-2 text-right font-semibold text-gray-700">$4</th><th class="px-3 py-2 text-center font-semibold text-gray-700">$5</th></tr></thead><tbody>');
+    html = html.replace(/\|([^|\n]*)\|([^|\n]*)\|([^|\n]*)\|(\s*\n\s*\|[-\s|]*\|)/g,
+      '<table class="w-full text-sm bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-4 mb-4"><thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left font-semibold text-gray-700">$1</th><th class="px-3 py-2 text-right font-semibold text-gray-700">$2</th><th class="px-3 py-2 text-center font-semibold text-gray-700">$3</th></tr></thead><tbody>');
 
-    // Lists
-    html = html.replace(/^\- (.*$)/gim, '<li class="ml-4 mb-2">$1</li>');
-    html = html.replace(/(<li.*<\/li>)/s, '<ul class="list-disc ml-6 mb-4">$1</ul>');
+    // Close tables
+    html = html.replace(/<\/td><\/tr>(?!\s*<tr>)/g, '</td></tr></tbody></table>');
 
-    // Paragraphs
-    html = html.replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">');
+    // Code blocks with syntax highlighting
+    html = html.replace(/```([^`]*)```/g, '<div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto mt-4 mb-4 shadow-inner"><pre>$1</pre></div>');
+
+    // Inline code
+    html = html.replace(/`([^`]*)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded font-mono text-sm">$1</code>');
+
+    // Emojis and status indicators
+    html = html.replace(/🔴/g, '<span class="text-red-500 font-semibold">🔴</span>');
+    html = html.replace(/🟡/g, '<span class="text-yellow-500 font-semibold">🟡</span>');
+    html = html.replace(/🟢/g, '<span class="text-green-500 font-semibold">🟢</span>');
+    html = html.replace(/✅/g, '<span class="text-green-600 font-semibold">✅</span>');
+    html = html.replace(/⚠️/g, '<span class="text-yellow-600 font-semibold">⚠️</span>');
+    html = html.replace(/🚨/g, '<span class="text-red-600 font-semibold">🚨</span>');
+
+    // Bold and Italic with better styling
+    html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold text-gray-900"><em class="italic">$1</em></strong>');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>');
+
+    // Lists with better styling
+    html = html.replace(/^\- (.*$)/gim, '<li class="ml-4 mb-2 flex items-start"><span class="text-blue-500 mr-2">•</span><span>$1</span></li>');
+    html = html.replace(/(<li.*<\/span><\/li>)/g, '<ul class="list-none ml-6 mb-4 space-y-1">$1</ul>');
+
+    // Blockquotes for notes
+    html = html.replace(/^\*([^*].*)\*$/gim, '<div class="bg-blue-50 border-l-4 border-blue-400 p-3 my-4 italic text-blue-800">$1</div>');
+
+    // Key insights highlighting
+    html = html.replace(/📊 \*\*([^*]*)\*\*/g, '<div class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-3 my-3"><span class="text-lg">📊</span> <strong class="font-bold text-blue-900">$1</strong></div>');
+    html = html.replace(/🌾 \*\*([^*]*)\*\*/g, '<div class="bg-green-50 border border-green-200 rounded-lg p-3 my-3"><span class="text-lg">🌾</span> <strong class="font-bold text-green-900">$1</strong></div>');
+    html = html.replace(/⚡ \*\*([^*]*)\*\*/g, '<div class="bg-orange-50 border border-orange-200 rounded-lg p-3 my-3"><span class="text-lg">⚡</span> <strong class="font-bold text-orange-900">$1</strong></div>');
+
+    // Paragraphs with better spacing
+    html = html.replace(/\n\n+/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">');
     html = '<p class="mb-4 text-gray-700 leading-relaxed">' + html + '</p>';
+
+    // Clean up empty paragraphs
+    html = html.replace(/<p class="[^"]*"><\/p>/g, '');
 
     return html;
   };

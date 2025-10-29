@@ -23,7 +23,6 @@ import {
   RadialBar
 } from 'recharts';
 import Layout from '@/components/Layout';
-import ReportViewer from '@/components/ReportViewer';
 import ProfessionalReportViewer from '@/components/ProfessionalReportViewer';
 import { assessmentAPI, getScoreInterpretation } from '@/lib/api';
 import { AssessmentResult } from '@/types/assessment';
