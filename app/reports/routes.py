@@ -10,11 +10,14 @@ from datetime import datetime
 import json
 import sys
 from pathlib import Path
+import httpx
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from services.ai_report_generator import AIReportGenerator
+from services.pdf_report_generator import get_pdf_generator
+from fastapi.responses import Response
 
 # Create router for report endpoints
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -618,3 +621,81 @@ async def health_check():
         "reports_generated": len(reports_db),
         "supported_types": ["comprehensive", "executive", "farmer_friendly"]
     }
+
+
+@router.get("/report/{report_id}/download/pdf")
+async def download_report_pdf(report_id: str, assessment_id: str):
+    """
+    Generate and download a PDF version of the report
+
+    Args:
+        report_id: Unique report identifier
+        assessment_id: Assessment ID to fetch assessment data
+
+    Returns:
+        PDF file as downloadable response
+    """
+    # Check if report exists
+    if report_id not in reports_db:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Report {report_id} not found"
+        )
+
+    report_data = reports_db[report_id]
+
+    # Fetch assessment data from Rust backend
+    try:
+        rust_backend_url = "http://localhost:3000"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{rust_backend_url}/assess/{assessment_id}")
+            response.raise_for_status()
+            assessment_data = response.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Failed to fetch assessment data from Rust backend: {e.response.text}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch assessment data: {str(e)}"
+        )
+
+    # Generate PDF
+    try:
+        print(f"📄 Generating PDF for report {report_id}")
+        print(f"📄 Report type: {report_data.get('report_type')}")
+        print(f"📄 Assessment company: {assessment_data.get('company_name')}")
+
+        pdf_generator = get_pdf_generator()
+        pdf_bytes = pdf_generator.generate_pdf(
+            report_data=report_data,
+            assessment_data=assessment_data,
+            report_type=report_data.get('report_type', 'comprehensive')
+        )
+
+        print(f"✅ PDF generated successfully, size: {len(pdf_bytes)} bytes")
+
+        # Create filename
+        company_name = assessment_data.get('company_name', 'report').replace(' ', '_')
+        report_type = report_data.get('report_type', 'report')
+        filename = f"{company_name}_{report_type}_report.pdf"
+
+        # Return PDF response
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+
+    except Exception as e:
+        import traceback
+        print(f"❌ PDF generation error: {str(e)}")
+        print(f"❌ Traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate PDF: {str(e)}"
+        )

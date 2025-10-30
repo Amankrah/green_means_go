@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PrintableReport from './PrintableReport';
 import {
   FileText,
   Loader2,
@@ -66,6 +67,7 @@ export default function ProfessionalReportViewer({
   const [selectedReportType, setSelectedReportType] = useState<ReportType>('comprehensive');
   const [showReportModal, setShowReportModal] = useState(false);
   const [currentAssessmentData, setCurrentAssessmentData] = useState<AssessmentResult | undefined>(assessmentData);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Update assessment data if it changes and add fallback data fetching
@@ -316,6 +318,34 @@ export default function ProfessionalReportViewer({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!generatedReport || !assessmentId) {
+      alert('No report available to download');
+      return;
+    }
+
+    try {
+      setIsGeneratingReport(true);
+      const blob = await assessmentAPI.downloadReportPDF(generatedReport.report_id, assessmentId);
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentAssessmentData?.company_name || 'report'}_${selectedReportType}_report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setIsGeneratingReport(false);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+      setIsGeneratingReport(false);
+    }
   };
 
   // Render impact categories bar chart with normalized data
@@ -1482,11 +1512,28 @@ export default function ProfessionalReportViewer({
                 <h2 className="text-xl font-bold text-gray-900">Professional LCA Report</h2>
                 <div className="flex items-center space-x-2">
                   <button
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingReport}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingReport ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>Download PDF</span>
+                      </>
+                    )}
+                  </button>
+                  <button
                     onClick={handlePrint}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
                   >
                     <Printer className="w-4 h-4" />
-                    <span>Print/PDF</span>
+                    <span>Browser Print</span>
                   </button>
                   <button
                     onClick={() => setShowReportModal(false)}
@@ -1494,7 +1541,7 @@ export default function ProfessionalReportViewer({
                     aria-label="Close report modal"
                     title="Close report"
                   >
-                    <X className="w-6 h-6 text-gray-600" />
+                    <X className="w-6 h-4 text-gray-600" />
                   </button>
                 </div>
               </div>
@@ -1509,70 +1556,108 @@ export default function ProfessionalReportViewer({
         )}
       </AnimatePresence>
 
+      {/* Hidden Printable Version - Only visible when printing */}
+      {generatedReport && (
+        <div
+          id="printable-report"
+          className="print-only-content"
+        >
+          <PrintableReport
+            reportData={generatedReport}
+            assessmentData={currentAssessmentData}
+            companyName={currentAssessmentData?.company_name || 'Assessment Report'}
+            reportType={selectedReportType}
+          />
+        </div>
+      )}
+
       {/* Print Styles */}
       <style jsx global>{`
+        /* Hide print content on screen */
+        .print-only-content {
+          position: absolute;
+          left: -9999px;
+          top: 0;
+          width: 210mm;
+        }
+
+        /* Show printable report when printing */
         @media print {
-          /* Hide everything except the report */
+          /* Hide everything except print content */
           body * {
             visibility: hidden;
           }
 
-          #report-content, #report-content * {
+          .print-only-content,
+          .print-only-content * {
             visibility: visible;
           }
 
-          /* Position report content properly */
-          #report-content {
+          .print-only-content {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
-            max-width: 100%;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: visible !important;
           }
 
-          /* Ensure proper page breaks */
-          #report-content > * {
-            page-break-inside: avoid;
-            break-inside: avoid;
+          /* Ensure proper display for different element types */
+          .print-only-content p,
+          .print-only-content div,
+          .print-only-content h1,
+          .print-only-content h2,
+          .print-only-content h3,
+          .print-only-content h4,
+          .print-only-content ul,
+          .print-only-content ol {
+            display: block;
           }
 
-          /* Fix chart and image sizing */
-          #report-content img,
-          #report-content canvas,
-          #report-content svg {
-            max-width: 100% !important;
-            height: auto !important;
-            page-break-inside: avoid;
+          .print-only-content strong,
+          .print-only-content em,
+          .print-only-content span,
+          .print-only-content a {
+            display: inline;
           }
 
-          /* Fix table styling for print */
-          #report-content table {
-            page-break-inside: avoid;
-            width: 100% !important;
+          .print-only-content table {
+            display: table;
+            width: 100%;
           }
 
-          /* Remove shadows and rounded corners for print */
-          #report-content * {
-            box-shadow: none !important;
-            border-radius: 0 !important;
+          .print-only-content thead {
+            display: table-header-group;
           }
 
-          /* Ensure text is black */
-          #report-content {
-            color: black !important;
+          .print-only-content tbody {
+            display: table-row-group;
           }
 
-          /* Hide interactive elements */
-          button, .print\\:hidden {
-            display: none !important;
+          .print-only-content tr {
+            display: table-row;
           }
 
+          .print-only-content th,
+          .print-only-content td {
+            display: table-cell;
+          }
+
+          .print-only-content li {
+            display: list-item;
+          }
+
+          /* Page setup */
           @page {
             size: A4;
             margin: 1.5cm;
+          }
+
+          /* Avoid page breaks in important elements */
+          h1, h2, h3, h4, h5, h6 {
+            page-break-after: avoid;
+          }
+
+          table, figure {
+            page-break-inside: avoid;
           }
         }
       `}</style>

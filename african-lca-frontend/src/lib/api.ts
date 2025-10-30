@@ -241,6 +241,18 @@ class AssessmentAPI {
     return this.fetchAPI(`/reports/report/${reportId}/export/markdown`);
   }
 
+  async downloadReportPDF(reportId: string, assessmentId: string): Promise<Blob> {
+    const url = `${API_BASE_URL}/reports/report/${reportId}/download/pdf?assessment_id=${assessmentId}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to download PDF: ${response.statusText}`);
+    }
+
+    return response.blob();
+  }
+
   async exportReportJSON(reportId: string): Promise<Report> {
     return this.fetchAPI(`/reports/report/${reportId}/export/json`);
   }
