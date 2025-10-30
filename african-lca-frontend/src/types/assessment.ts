@@ -33,8 +33,8 @@ export interface FoodItem {
   cropping_pattern?: string;
   intercropping_partners?: string[];
   post_harvest_losses?: number;
-  farm_profile?: any;
-  management_practices?: any;
+  farm_profile?: Record<string, unknown>;
+  management_practices?: Record<string, unknown>;
 }
 
 export interface AssessmentRequest {
@@ -42,8 +42,8 @@ export interface AssessmentRequest {
   country: Country;
   foods: FoodItem[];
   region?: string;
-  farm_profile?: any; // Enhanced farm profile data
-  management_practices?: any; // Enhanced management practices data
+  farm_profile?: Record<string, unknown>; // Enhanced farm profile data
+  management_practices?: Record<string, unknown>; // Enhanced management practices data
 }
 
 // Assessment Results

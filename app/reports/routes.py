@@ -34,7 +34,7 @@ reports_db: Dict[str, Dict[str, Any]] = {}
 def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate recommendations based ONLY on actual assessment impact data
-    No defaults, no abstractions - purely data-driven
+    This is the SINGLE source of truth for recommendation generation
 
     Args:
         assessment_data: Actual assessment results from Rust backend
@@ -49,7 +49,6 @@ def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dic
     midpoint = enhanced_data.get('midpoint_impacts', {})
 
     if not midpoint:
-        # No impact data = no recommendations possible
         enhanced_data['recommendations'] = []
         return enhanced_data
 
@@ -62,17 +61,20 @@ def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dic
             if isinstance(impact, dict):
                 value = impact.get('value', 0)
                 unit = impact.get('unit', 'units')
+                dqi = impact.get('data_quality_score', 1.0)
             elif isinstance(impact, (int, float)):
                 value = impact
                 unit = 'units'
+                dqi = 1.0
             else:
                 continue
 
-            if value > 0:  # Only process non-zero impacts
+            if value > 0:
                 impact_analysis.append({
                     'category': category,
                     'value': value,
-                    'unit': unit
+                    'unit': unit,
+                    'dqi': dqi
                 })
         except Exception as e:
             print(f"Warning: Error analyzing impact {category}: {e}")
@@ -81,14 +83,11 @@ def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dic
     # Sort by value (highest impacts first)
     impact_analysis.sort(key=lambda x: x['value'], reverse=True)
 
-    # Generate recommendations for top 3-5 impact categories based on actual data
-    # Build a map of impact data for easy lookup
-    impact_map = {item['category']: item for item in impact_analysis}
-
+    # Impact-specific recommendation templates
     impact_recommendations_templates = {
         'Global warming': {
             'title': 'Reduce Carbon Footprint from Agricultural Operations',
-            'description_template': "Your assessment shows {value:.2f} {unit} of greenhouse gas emissions. Consider adopting practices like reduced tillage, optimizing fertilizer use, and using cover crops to sequester carbon.",
+            'description_template': "Your assessment shows {value:.4f} {unit} of greenhouse gas emissions. Consider adopting practices like reduced tillage, optimizing fertilizer use, and using cover crops to sequester carbon.",
             'category': 'Climate Action',
             'priority': 'high',
             'implementation_difficulty': 'Medium',
@@ -96,7 +95,15 @@ def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dic
         },
         'Water consumption': {
             'title': 'Optimize Water Use Efficiency',
-            'description_template': "Water consumption is {value:.2f} {unit}. Implement drip irrigation, rainwater harvesting, and water-efficient crops to reduce water usage.",
+            'description_template': "Water consumption is {value:.4f} {unit}. Implement drip irrigation, rainwater harvesting, and water-efficient crops to reduce water usage.",
+            'category': 'Water Management',
+            'priority': 'high',
+            'implementation_difficulty': 'Medium',
+            'cost_category': 'Medium'
+        },
+        'Water scarcity': {
+            'title': 'Address Water Scarcity Risk',
+            'description_template': "Water scarcity impact is {value:.4f} {unit}. Prioritize water conservation through efficient irrigation systems and drought-resistant crop varieties.",
             'category': 'Water Management',
             'priority': 'high',
             'implementation_difficulty': 'Medium',
@@ -104,31 +111,39 @@ def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dic
         },
         'Land use': {
             'title': 'Improve Land Use Efficiency',
-            'description_template': "Land use impact is {value:.2f} {unit}. Consider intensifying production sustainably through crop rotation, intercropping, and improved varieties to reduce land footprint per unit output.",
+            'description_template': "Land use impact is {value:.4f} {unit}. Consider intensifying production sustainably through crop rotation, intercropping, and improved varieties.",
             'category': 'Land Management',
             'priority': 'medium',
             'implementation_difficulty': 'Medium',
             'cost_category': 'Low to Medium'
         },
         'Terrestrial acidification': {
-            'title': 'Reduce Acidification from Fertilizers',
-            'description_template': "Acidification impact is {value:.2f} {unit}. Use precision fertilization, switch to organic amendments, and apply lime to buffer soil pH.",
+            'title': 'Reduce Soil Acidification from Inputs',
+            'description_template': "Acidification impact is {value:.4f} {unit}. Use precision fertilization, organic amendments, and lime application to maintain soil pH.",
             'category': 'Soil Health',
             'priority': 'medium',
             'implementation_difficulty': 'Low',
             'cost_category': 'Low'
         },
         'Freshwater eutrophication': {
-            'title': 'Prevent Nutrient Runoff',
-            'description_template': "Eutrophication risk is {value:.2f} {unit}. Implement buffer strips, reduce fertilizer application, and use slow-release fertilizers to minimize nutrient leaching.",
+            'title': 'Prevent Nutrient Runoff to Water Bodies',
+            'description_template': "Eutrophication risk is {value:.4f} {unit}. Implement buffer strips, reduce fertilizer rates, and use slow-release formulations.",
             'category': 'Water Quality',
             'priority': 'high',
             'implementation_difficulty': 'Medium',
             'cost_category': 'Low to Medium'
         },
+        'Marine eutrophication': {
+            'title': 'Reduce Nutrient Loading to Marine Systems',
+            'description_template': "Marine eutrophication impact is {value:.4f} {unit}. Control nitrogen losses through timing and placement optimization.",
+            'category': 'Water Quality',
+            'priority': 'medium',
+            'implementation_difficulty': 'Medium',
+            'cost_category': 'Low to Medium'
+        },
         'Biodiversity loss': {
             'title': 'Enhance On-Farm Biodiversity',
-            'description_template': "Biodiversity impact is {value:.2f} {unit}. Create wildlife corridors, maintain diverse crop rotations, and preserve natural habitats on farm boundaries.",
+            'description_template': "Biodiversity impact is {value:.4f} {unit}. Create wildlife corridors, maintain diverse rotations, and preserve natural habitats.",
             'category': 'Ecosystem Protection',
             'priority': 'medium',
             'implementation_difficulty': 'Medium',
@@ -136,15 +151,31 @@ def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dic
         },
         'Soil degradation': {
             'title': 'Prevent Soil Degradation',
-            'description_template': "Soil degradation risk is {value:.2f} {unit}. Implement conservation tillage, maintain soil cover, and use organic amendments to improve soil health.",
+            'description_template': "Soil degradation risk is {value:.4f} {unit}. Implement conservation tillage, maintain soil cover, and use organic amendments.",
             'category': 'Soil Health',
             'priority': 'high',
             'implementation_difficulty': 'Medium',
             'cost_category': 'Low'
+        },
+        'Fossil depletion': {
+            'title': 'Reduce Fossil Fuel Dependency',
+            'description_template': "Fossil depletion impact is {value:.4f} {unit}. Optimize machinery use, consider renewable energy, and reduce synthetic input dependency.",
+            'category': 'Resource Efficiency',
+            'priority': 'low',
+            'implementation_difficulty': 'High',
+            'cost_category': 'Medium to High'
+        },
+        'Mineral depletion': {
+            'title': 'Optimize Mineral Resource Use',
+            'description_template': "Mineral depletion impact is {value:.4f} {unit}. Improve nutrient cycling and use locally available mineral sources.",
+            'category': 'Resource Efficiency',
+            'priority': 'low',
+            'implementation_difficulty': 'Low',
+            'cost_category': 'Low'
         }
     }
 
-    # Add recommendations for top impact categories (up to 5)
+    # Generate recommendations for top 5 impact categories
     for impact in impact_analysis[:5]:
         category = impact['category']
         if category in impact_recommendations_templates:
@@ -158,19 +189,21 @@ def generate_data_driven_recommendations(assessment_data: Dict[str, Any]) -> Dic
                 'category': template['category'],
                 'priority': template['priority'],
                 'implementation_difficulty': template['implementation_difficulty'],
-                'cost_category': template['cost_category']
+                'cost_category': template['cost_category'],
+                'data_quality_index': impact['dqi']
             }
             recommendations.append(rec)
 
-    # If we have fewer than 3 recommendations, add a general one
+    # If fewer than 3 recommendations, add integrated management recommendation
     if len(recommendations) < 3:
         recommendations.append({
             'title': 'Implement Integrated Farm Management',
-            'description': f"Your assessment identified multiple environmental impact areas. Consider adopting an integrated approach combining soil conservation, water management, and biodiversity enhancement for comprehensive sustainability improvement.",
+            'description': "Your assessment identified multiple environmental impact areas. Adopt an integrated approach combining soil conservation, water management, and biodiversity enhancement.",
             'category': 'General',
             'priority': 'medium',
             'implementation_difficulty': 'Medium',
-            'cost_category': 'Medium'
+            'cost_category': 'Medium',
+            'data_quality_index': 1.0
         })
 
     enhanced_data['recommendations'] = recommendations
@@ -235,46 +268,8 @@ def enhance_assessment_data_for_reporting(assessment_data: Dict[str, Any]) -> Di
                     
                     enhanced_data['breakdown_by_food'][food_name] = food_impacts
         
-        # Ensure recommendations exist - create basic ones if missing
-        recommendations = enhanced_data.get('recommendations')
-        if not recommendations or len(recommendations) == 0:
-            print("🔧 Creating fallback recommendations...")
-            enhanced_data['recommendations'] = []
-            
-            midpoint = enhanced_data.get('midpoint_impacts', {})
-            if midpoint:
-                try:
-                    # Create recommendations based on highest impacts
-                    sorted_impacts = []
-                    for category, impact in midpoint.items():
-                        try:
-                            if isinstance(impact, dict):
-                                value = impact.get('value', 0)
-                            elif isinstance(impact, (int, float)):
-                                value = impact
-                            else:
-                                value = 0
-                            sorted_impacts.append((category, value))
-                        except Exception as e:
-                            print(f"Warning: Error processing impact {category}: {e}")
-                            continue
-                    
-                    sorted_impacts.sort(key=lambda x: x[1], reverse=True)
-                    
-                    priorities = ['high', 'medium', 'low']
-                    for i, (category, _) in enumerate(sorted_impacts[:3]):
-                        clean_category = category.replace('_', ' ').replace('Change', '').strip()
-                        enhanced_data['recommendations'].append({
-                            'title': f"Reduce {clean_category} Impact",
-                            'priority': priorities[i] if i < len(priorities) else 'low',
-                            'category': 'Environmental',
-                            'description': f"Implement practices to reduce {clean_category.lower()} through improved farming techniques",
-                            'implementation_difficulty': 'Medium',
-                            'cost_category': 'Low to Medium'
-                        })
-                except Exception as e:
-                    print(f"Warning: Error creating recommendations: {e}")
-                    enhanced_data['recommendations'] = []
+        # Note: Recommendations are now handled by generate_data_driven_recommendations()
+        # This function only handles data structure validation, not content generation
         
         # Ensure data_quality exists
         if not enhanced_data.get('data_quality'):
@@ -365,12 +360,11 @@ async def generate_report(
     print(f"  - Recommendations: {rec_count}")
     print(f"  - Has data quality: {'data_quality' in (assessment_data or {})}")
 
-    # Generate data-driven recommendations if missing
-    if not recommendations or len(recommendations) == 0:
-        assessment_data = generate_data_driven_recommendations(assessment_data)
-        # Save the updated recommendations back to the assessment database
-        assessments_db[assessment_id] = assessment_data
-        print(f"✅ Generated {len(assessment_data.get('recommendations', []))} data-driven recommendations and saved to assessment")
+    # ALWAYS generate/regenerate recommendations to ensure they're data-driven and current
+    # This is the single source of truth for recommendations
+    assessment_data = generate_data_driven_recommendations(assessment_data)
+    assessments_db[assessment_id] = assessment_data
+    print(f"✅ Generated {len(assessment_data.get('recommendations', []))} data-driven recommendations")
 
     try:
         # Generate the report based on type

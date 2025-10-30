@@ -1,17 +1,14 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText,
-  Download,
   Loader2,
   CheckCircle,
   X,
   Printer,
-  Share2,
   TrendingUp,
-  TrendingDown,
   AlertCircle,
   BarChart3,
   PieChart as PieChartIcon,
@@ -23,28 +20,24 @@ import {
   Cell,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
-  Radar,
-  Area,
-  AreaChart
+  Radar
 } from 'recharts';
-import { assessmentAPI } from '@/lib/api';
+import { assessmentAPI, Report } from '@/lib/api';
+import { AssessmentResult } from '@/types/assessment';
 
 interface ProfessionalReportViewerProps {
   assessmentId: string;
   companyName: string;
-  assessmentData: any;
+  assessmentData: AssessmentResult;
 }
 
 type ReportType = 'comprehensive' | 'executive' | 'farmer_friendly';
@@ -68,29 +61,18 @@ export default function ProfessionalReportViewer({
   assessmentData
 }: ProfessionalReportViewerProps) {
   const [generating, setGenerating] = useState(false);
-  const [generatedReport, setGeneratedReport] = useState<any>(null);
+  const [generatedReport, setGeneratedReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedReportType, setSelectedReportType] = useState<ReportType>('comprehensive');
   const [showReportModal, setShowReportModal] = useState(false);
-  const [currentAssessmentData, setCurrentAssessmentData] = useState(assessmentData);
+  const [currentAssessmentData, setCurrentAssessmentData] = useState<AssessmentResult | undefined>(assessmentData);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Update assessment data if it changes and add fallback data fetching
-  useEffect(() => {
-    console.log('📊 ProfessionalReportViewer - Received assessment data:', assessmentData);
-    setCurrentAssessmentData(assessmentData);
-    
-    // If no assessment data is provided but we have an assessmentId, try to fetch it
-    if (!assessmentData && assessmentId) {
-      console.log('⚠️ No assessment data provided, attempting to fetch...');
-      fetchAssessmentData();
-    }
-  }, [assessmentData, assessmentId]);
-
   // Fallback function to fetch assessment data if not provided
-  const fetchAssessmentData = async () => {
+  const fetchAssessmentData = useCallback(async () => {
     if (!assessmentId) return;
-    
+
     try {
       console.log('🔄 Fetching assessment data for ID:', assessmentId);
       const data = await assessmentAPI.getAssessment(assessmentId);
@@ -100,7 +82,18 @@ export default function ProfessionalReportViewer({
       console.error('❌ Failed to fetch assessment data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch assessment data');
     }
-  };
+  }, [assessmentId]);
+
+  useEffect(() => {
+    console.log('📊 ProfessionalReportViewer - Received assessment data:', assessmentData);
+    setCurrentAssessmentData(assessmentData);
+
+    // If no assessment data is provided but we have an assessmentId, try to fetch it
+    if (!assessmentData && assessmentId) {
+      console.log('⚠️ No assessment data provided, attempting to fetch...');
+      fetchAssessmentData();
+    }
+  }, [assessmentData, assessmentId, fetchAssessmentData]);
 
   const reportTypes = [
     {
@@ -124,13 +117,19 @@ export default function ProfessionalReportViewer({
   ];
 
   // Normalize impact data for proper chart display
-  const normalizeImpactData = (impactData: Record<string, any>) => {
-    const normalized: Record<string, any>[] = [];
+  const normalizeImpactData = (impactData: Record<string, { value: number; unit: string } | number>) => {
+    const normalized: Array<{
+      name: string;
+      originalValue: number;
+      normalizedValue: number;
+      unit: string;
+      significance: string;
+    }> = [];
 
     // Extract all values first to find max for relative scaling
     const tempData: Array<{ key: string; originalValue: number; unit: string }> = [];
 
-    Object.entries(impactData).forEach(([key, value]: [string, any]) => {
+    Object.entries(impactData).forEach(([key, value]) => {
       let originalValue = 0;
       let unit = 'units';
 
@@ -166,7 +165,7 @@ export default function ProfessionalReportViewer({
 
     return normalized
       .filter(item => item.originalValue !== 0) // Remove zero values
-      .sort((a, b) => (b.normalizedValue || 0) - (a.normalizedValue || 0))
+      .sort((a, b) => b.normalizedValue - a.normalizedValue)
       .slice(0, 8);
   };
 
@@ -202,7 +201,7 @@ export default function ProfessionalReportViewer({
 
     // Crop breakdown for pie chart - use actual data only, NO FALLBACKS
     const cropBreakdown = Object.entries(breakdown)
-      .map(([food, impacts]: [string, any]) => {
+      .map(([food, impacts]) => {
         const climateImpact = impacts?.ClimateChange || impacts?.climate_change || impacts?.['Global warming'] || {};
         let value = 0;
 
@@ -247,9 +246,9 @@ export default function ProfessionalReportViewer({
     const recommendations = currentAssessmentData?.recommendations || [];
 
     const recommendationsByPriority = {
-      high: recommendations.filter((r: any) => r.priority?.toLowerCase() === 'high').length,
-      medium: recommendations.filter((r: any) => r.priority?.toLowerCase() === 'medium').length,
-      low: recommendations.filter((r: any) => r.priority?.toLowerCase() === 'low').length
+      high: recommendations.filter((r) => r.priority?.toLowerCase() === 'high').length,
+      medium: recommendations.filter((r) => r.priority?.toLowerCase() === 'medium').length,
+      low: recommendations.filter((r) => r.priority?.toLowerCase() === 'low').length
     };
 
     const priorityData = [
@@ -288,12 +287,25 @@ export default function ProfessionalReportViewer({
       const response = await assessmentAPI.generateReport(assessmentId, selectedReportType);
       console.log('📄 Report generation response:', response);
 
-      if (response.status === 'success') {
-        setGeneratedReport(response.report_data);
-        setShowReportModal(true);
-      } else {
-        setError('Report generation failed: ' + (response.message || 'Unknown error'));
+      // Extract report_data from the response
+      const report: Report = ('report_data' in response && (response as { report_data?: Report }).report_data) 
+        ? (response as { report_data: Report }).report_data 
+        : response;
+      console.log('📋 Extracted report:', report);
+
+      // Refresh assessment data to get updated recommendations
+      if (assessmentId) {
+        try {
+          const updatedAssessment = await assessmentAPI.getAssessment(assessmentId);
+          setCurrentAssessmentData(updatedAssessment);
+          console.log('✅ Refreshed assessment data with recommendations:', updatedAssessment.recommendations?.length);
+        } catch (refreshErr) {
+          console.warn('⚠️ Could not refresh assessment data:', refreshErr);
+        }
       }
+
+      setGeneratedReport(report);
+      setShowReportModal(true);
     } catch (err) {
       console.error('❌ Report generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate report');
@@ -303,11 +315,6 @@ export default function ProfessionalReportViewer({
   };
 
   const handlePrint = () => {
-    window.print();
-  };
-
-  const handleExportPDF = () => {
-    // Trigger print dialog which can save as PDF
     window.print();
   };
 
@@ -345,13 +352,13 @@ export default function ProfessionalReportViewer({
               borderRadius: '8px',
               boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
             }}
-            formatter={(value: any, name: any, props: any) => {
-              const data = props.payload;
+            formatter={(value: number, name: string, props: { payload?: { originalValue?: number; unit?: string; significance?: string } }) => {
+              const data = props.payload || {};
               return [
                 <div key="tooltip" className="space-y-1">
                   <div><strong>Normalized Score:</strong> {value.toFixed(3)}</div>
-                  <div><strong>Original Value:</strong> {data.originalValue?.toFixed(6) || 'N/A'}</div>
-                  <div><strong>Unit:</strong> {data.unit}</div>
+                  <div><strong>Original Value:</strong> {typeof data.originalValue === 'number' ? data.originalValue.toFixed(6) : 'N/A'}</div>
+                  <div><strong>Unit:</strong> {data.unit || 'N/A'}</div>
                   <div><strong>Significance:</strong>
                     <span className={`ml-1 px-2 py-1 rounded text-xs ${
                       data.significance === 'high' ? 'bg-red-100 text-red-800' :
@@ -802,14 +809,10 @@ export default function ProfessionalReportViewer({
           <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
             <p className="text-sm text-blue-100">Overall Score</p>
             <p className="text-4xl font-bold">
-              {typeof currentAssessmentData?.single_score === 'object'
-                ? currentAssessmentData.single_score.value?.toFixed(3)
-                : currentAssessmentData?.single_score?.toFixed(3) || 'N/A'}
+              {currentAssessmentData?.single_score?.value?.toFixed(3) || 'N/A'}
             </p>
             <p className="text-sm text-blue-100 mt-1">
-              {typeof currentAssessmentData?.single_score === 'object'
-                ? currentAssessmentData.single_score.unit
-                : 'pt'}
+              {currentAssessmentData?.single_score?.unit || 'pt'}
             </p>
           </div>
         </div>
@@ -818,25 +821,210 @@ export default function ProfessionalReportViewer({
   );
 
   // Render report content with sections
-  // Helper function to format markdown-style text to HTML
-  const formatMarkdownText = (text: string): string => {
-    if (!text) return '';
+  // Helper function to format farmer-friendly report text (simpler, more robust)
+  const formatFarmerFriendlyText = (text: string): string => {
+    if (!text) {
+      console.warn('⚠️ formatFarmerFriendlyText received empty text');
+      return '';
+    }
+
+    console.log('📝 Formatting farmer-friendly text, length:', text.length);
 
     let formatted = text;
 
+    // Remove the first markdown header if present (handles both single-line and compound headers)
+    // This removes headers like "# TITLE" or "# TITLE ## Subtitle"
+    formatted = formatted.replace(/^#+ .*?\n\n/, '');
+
+    // Also handle case where the first line might be a compound header on one line
+    // e.g., "# MENSAH FAMILY FARMS - ENVIRONMENTAL REPORT ## Simple Guide..."
+    if (formatted.startsWith('#')) {
+      const firstNewline = formatted.indexOf('\n');
+      if (firstNewline > 0) {
+        formatted = formatted.substring(firstNewline + 1);
+      }
+    }
+
+    // Split into paragraphs
+    const paragraphs = formatted.split(/\n\n+/);
+    console.log('📝 Split into', paragraphs.length, 'paragraphs');
+
+    formatted = paragraphs.map((para, idx) => {
+      const trimmed = para.trim();
+      if (!trimmed) return '';
+
+      // Check for headers FIRST (before bold/italic replacement)
+      if (trimmed.startsWith('#### ')) {
+        let headerText = trimmed.substring(5);
+        // Apply bold/italic to header text
+        headerText = headerText.replace(/\*\*([^*]+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+        headerText = headerText.replace(/\*([^*]+?)\*/g, '<em class="italic">$1</em>');
+        return `<h4 class="text-base font-semibold text-gray-800 mt-5 mb-2">${headerText}</h4>`;
+      }
+      if (trimmed.startsWith('### ')) {
+        let headerText = trimmed.substring(4);
+        headerText = headerText.replace(/\*\*([^*]+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+        headerText = headerText.replace(/\*([^*]+?)\*/g, '<em class="italic">$1</em>');
+        return `<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">${headerText}</h3>`;
+      }
+      if (trimmed.startsWith('## ')) {
+        let headerText = trimmed.substring(3);
+        headerText = headerText.replace(/\*\*([^*]+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+        headerText = headerText.replace(/\*([^*]+?)\*/g, '<em class="italic">$1</em>');
+        return `<h2 class="text-xl font-bold text-gray-900 mt-8 mb-4">${headerText}</h2>`;
+      }
+      if (trimmed.startsWith('# ')) {
+        let headerText = trimmed.substring(2);
+        headerText = headerText.replace(/\*\*([^*]+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+        headerText = headerText.replace(/\*([^*]+?)\*/g, '<em class="italic">$1</em>');
+        return `<h1 class="text-2xl font-bold text-gray-900 mt-10 mb-5">${headerText}</h1>`;
+      }
+
+      // Now apply bold/italic replacement for non-header content
+      let processed = trimmed;
+
+      // Replace bold text - use global flag and check repeatedly
+      let prevProcessed = '';
+      while (prevProcessed !== processed) {
+        prevProcessed = processed;
+        processed = processed.replace(/\*\*([^*]+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+      }
+
+      // Replace italic text
+      processed = processed.replace(/\*([^*]+?)\*/g, '<em class="italic">$1</em>');
+
+      // Horizontal rule
+      if (trimmed === '---' || trimmed === '***') {
+        return '<hr class="my-6 border-t-2 border-gray-200" />';
+      }
+
+      // Check for markdown tables (must be checked before lists since tables use |)
+      if (processed.includes('|') && processed.split('\n').filter(line => line.includes('|')).length >= 2) {
+        const lines = processed.split('\n').filter(line => line.trim());
+        if (lines.length >= 2 && lines[1].includes('---')) {
+          // This is a markdown table
+          const headers = lines[0].split('|').filter(h => h.trim()).map(h => h.trim());
+          const rows = lines.slice(2).map(line =>
+            line.split('|').filter(cell => cell.trim()).map(cell => cell.trim())
+          );
+
+          let tableHTML = '<table class="min-w-full divide-y divide-gray-200 my-4 border border-gray-300"><thead class="bg-gray-50"><tr>';
+          headers.forEach(header => {
+            tableHTML += `<th class="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider border-r border-gray-300">${header}</th>`;
+          });
+          tableHTML += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+          rows.forEach(row => {
+            tableHTML += '<tr>';
+            row.forEach(cell => {
+              tableHTML += `<td class="px-4 py-3 text-sm font-medium text-black border-r border-gray-200">${cell}</td>`;
+            });
+            tableHTML += '</tr>';
+          });
+          tableHTML += '</tbody></table>';
+          return tableHTML;
+        }
+      }
+
+      // Lists (bullet points)
+      if (processed.includes('\n- ') || processed.startsWith('- ')) {
+        const items = processed.split('\n')
+          .filter(line => line.trim())
+          .map(line => {
+            if (line.trim().startsWith('- ')) {
+              const itemText = line.trim().substring(2);
+              return `<li class="mb-2">${itemText}</li>`;
+            }
+            return line;
+          })
+          .join('');
+        return `<ul class="list-disc pl-6 mb-4 space-y-1">${items}</ul>`;
+      }
+
+      // Regular paragraph - replace newlines with <br/>
+      processed = processed.replace(/\n/g, '<br/>');
+      return `<p class="mb-4 leading-relaxed">${processed}</p>`;
+    }).join('');
+
+    console.log('📝 Final formatted HTML length:', formatted.length);
+    console.log('📝 Final HTML still contains **:', formatted.includes('**') ? 'YES ❌' : 'NO ✅');
+    if (formatted.includes('**')) {
+      const idx = formatted.indexOf('**');
+      console.log('📝 First ** found at position', idx, 'context:', formatted.substring(Math.max(0, idx - 20), idx + 50));
+    }
+
+    return formatted;
+  };
+
+  // Helper function to format comprehensive/executive report text (more complex)
+  const formatMarkdownText = (text: string): string => {
+    if (!text) {
+      console.warn('⚠️ formatMarkdownText received empty text');
+      return '';
+    }
+
+    console.log('📝 Formatting markdown text, length:', text.length);
+    console.log('📝 First 200 chars:', text.substring(0, 200));
+    console.log('📝 Checking for ** patterns:', text.match(/\*\*/g)?.length || 0, 'double asterisk pairs found');
+
+    let formatted = text;
+
+    // Remove the first markdown header if it's at the very start (it's redundant with our section title)
+    // Only remove if followed by double newline
+    formatted = formatted.replace(/^#+ .*?\n\n/, '');
+
+    console.log('📝 After header removal, length:', formatted.length);
+    console.log('📝 After header, first 200 chars:', formatted.substring(0, 200));
+
     // Split by double newlines to identify paragraphs
     const paragraphs = formatted.split(/\n\n+/);
+    console.log('📝 Split into', paragraphs.length, 'paragraphs');
 
-    formatted = paragraphs.map(para => {
+    formatted = paragraphs.map((para, idx) => {
+      if (para.includes('**')) {
+        console.log(`📝 Paragraph ${idx} contains **, length:`, para.length, 'preview:', para.substring(0, 80));
+      }
       // Clean up markdown formatting in header text
       const cleanHeaderText = (headerText: string) => {
         return headerText
-          .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markers but keep text
-          .replace(/\*(.*?)\*/g, '$1')     // Remove italic markers but keep text
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Keep bold as strong tags
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')     // Keep italic as em tags
           .trim();
       };
 
-      // Headers with markdown cleanup
+      // Check if this is a markdown table
+      if (para.includes('|') && para.split('\n').filter(line => line.includes('|')).length >= 2) {
+        const lines = para.split('\n').filter(line => line.trim());
+        if (lines.length >= 2 && lines[1].includes('---')) {
+          // This is a markdown table
+          const headers = lines[0].split('|').filter(h => h.trim()).map(h => h.trim());
+          const rows = lines.slice(2).map(line =>
+            line.split('|').filter(cell => cell.trim()).map(cell => cell.trim())
+          );
+
+          let tableHTML = '<table class="min-w-full divide-y divide-gray-200 my-4 border border-gray-300"><thead class="bg-gray-50"><tr>';
+          headers.forEach(header => {
+            tableHTML += `<th class="px-4 py-3 text-left text-xs font-bold text-black uppercase tracking-wider border-r border-gray-300">${header}</th>`;
+          });
+          tableHTML += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+          rows.forEach(row => {
+            tableHTML += '<tr>';
+            row.forEach(cell => {
+              const formattedCell = cell
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+              tableHTML += `<td class="px-4 py-3 text-sm font-medium text-black border-r border-gray-200">${formattedCell}</td>`;
+            });
+            tableHTML += '</tr>';
+          });
+          tableHTML += '</tbody></table>';
+          return tableHTML;
+        }
+      }
+
+      // Headers with markdown cleanup (check h4 first, then h3, h2, h1)
+      if (para.startsWith('#### ')) {
+        return `<h4 class="text-base font-semibold text-gray-800 mt-5 mb-2">${cleanHeaderText(para.substring(5))}</h4>`;
+      }
       if (para.startsWith('### ')) {
         return `<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">${cleanHeaderText(para.substring(4))}</h3>`;
       }
@@ -871,49 +1059,68 @@ export default function ProfessionalReportViewer({
         return `<ul class="list-disc pl-6 mb-4 space-y-1">${items}</ul>`;
       }
 
-      // Check if entire paragraph is a bold subsection header (like **Step 1: Title**)
-      const trimmedPara = para.trim();
-      if (trimmedPara.match(/^\*\*.*\*\*\s*$/)) {
-        const text = trimmedPara.replace(/\*\*/g, '');
-        return `<p class="font-bold text-gray-900 mt-5 mb-3 text-base">${text}</p>`;
-      }
-
       // Handle paragraphs that might have line breaks with bold text (like subsection headers)
       const lines = para.split('\n').filter(line => line.trim());
 
-      // If paragraph has multiple lines and some start with **, treat them as mini-sections
-      if (lines.length > 1 && lines.some(line => line.trim().startsWith('**'))) {
+      // Check if paragraph contains numbered items with bold text (like **1. Item**)
+      const trimmedPara = para.trim();
+
+      // Single line that's entirely bold (like **Financial Benefits:** or **4. Title**)
+      // Match pattern: starts with **, ends with **, optional whitespace at end
+      if (trimmedPara.match(/^\*\*[^*].*?\*\*\s*$/)) {
+        const text = trimmedPara.replace(/^\*\*|\*\*$/g, '').trim();
+        return `<p class="font-bold text-gray-900 mt-5 mb-3 text-base">${text}</p>`;
+      }
+
+      // Multi-line paragraph with some lines having bold formatting
+      if (lines.length > 1) {
         return lines.map(line => {
           const trimmedLine = line.trim();
-          // Bold standalone line (like **Financial Benefits:**)
-          if (trimmedLine.match(/^\*\*.*\*\*\s*$/)) {
-            const text = trimmedLine.replace(/\*\*/g, '');
+
+          // Check if line is entirely bold (and nothing else)
+          if (trimmedLine.match(/^\*\*[^*].*?\*\*\s*$/)) {
+            const text = trimmedLine.replace(/^\*\*|\*\*$/g, '').trim();
             return `<p class="font-bold text-gray-900 mt-5 mb-3 text-base">${text}</p>`;
           }
-          // Regular line with possible inline formatting
+
+          // Apply inline bold/italic formatting to any **text** or *text* in the line
           const formatted = trimmedLine
-            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>');
+            .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>');
+
           return `<p class="mb-2 leading-relaxed">${formatted}</p>`;
         }).join('');
       }
 
-      // Regular paragraph with inline formatting
-      let content = para
-        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+      // Regular single-line paragraph with inline formatting (including **text**)
+      // Use .+? instead of .*? to ensure we match at least one character
+      const content = para
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
         .replace(/\n/g, '<br/>');
 
       return `<p class="mb-4 leading-relaxed">${content}</p>`;
     }).join('');
 
+    console.log('📝 Final formatted HTML length:', formatted.length);
+    console.log('📝 Final HTML still contains **:', formatted.includes('**') ? 'YES ❌' : 'NO ✅');
+    if (formatted.includes('**')) {
+      // Find and log the first occurrence
+      const idx = formatted.indexOf('**');
+      console.log('📝 First ** found at position', idx, 'context:', formatted.substring(Math.max(0, idx - 20), idx + 50));
+    }
+
     return formatted;
   };
 
   const renderReportContent = () => {
-    if (!generatedReport?.sections) return null;
+    if (!generatedReport?.sections) {
+      console.log('❌ No sections in generated report');
+      return null;
+    }
 
     const sections = generatedReport.sections;
+    console.log('✅ Rendering report sections:', Object.keys(sections));
 
     return (
       <div className="space-y-8">
@@ -922,9 +1129,7 @@ export default function ProfessionalReportViewer({
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-l-4 border-blue-600">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Executive Summary</h2>
             <div className="prose prose-lg max-w-none text-gray-700">
-              <p className="mb-4">
-                <div dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.executive_summary) }} />
-              </p>
+              <div dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.executive_summary) }} />
             </div>
           </div>
         )}
@@ -996,21 +1201,89 @@ export default function ProfessionalReportViewer({
           {renderRecommendationsPriorityChart()}
         </div>
 
-        {/* Other sections */}
-        {Object.entries(sections).map(([key, content]) => {
-          if (key === 'executive_summary') return null; // Already rendered
+        {/* Other sections - ISO 14044 compliant order */}
+        {(() => {
+          const sectionOrder = [
+            'introduction',
+            'methodology',
+            'impact_analysis',
+            'comparative_analysis',
+            'sensitivity_analysis',
+            'recommendations',
+            'conclusions',
+            'data_quality_limitations',
+            'critical_review',
+            'technical_appendix'
+          ];
 
-          return (
-            <div key={key} className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4 capitalize">
-                {key.replace(/_/g, ' ')}
-              </h2>
-              <div className="prose prose-lg max-w-none text-gray-700">
-                <div dangerouslySetInnerHTML={{ __html: formatMarkdownText(String(content)) }} />
-              </div>
-            </div>
-          );
-        })}
+          const sectionTitles: Record<string, string> = {
+            introduction: 'Introduction',
+            methodology: 'Assessment Methodology',
+            impact_analysis: 'Environmental Impact Analysis',
+            comparative_analysis: 'Comparative Performance Analysis',
+            sensitivity_analysis: 'Sensitivity and Uncertainty Analysis',
+            recommendations: 'Recommendations and Action Plan',
+            conclusions: 'Conclusions',
+            data_quality_limitations: 'Data Quality and Limitations',
+            critical_review: 'Critical Review and Validation (ISO 14044)',
+            technical_appendix: 'Technical Appendix',
+            farmer_report: 'Your Farm Sustainability Report',
+            full_report: 'Report'
+          };
+
+          // Render sections in ISO order
+          const orderedSections = sectionOrder
+            .filter(key => sections[key])
+            .map((key) => {
+              const isCriticalSection = key === 'critical_review' || key === 'data_quality_limitations';
+
+              return (
+                <div
+                  key={key}
+                  className={`bg-white rounded-xl p-6 shadow-lg border ${
+                    isCriticalSection ? 'border-purple-300 border-2' : 'border-gray-200'
+                  }`}
+                >
+                  {isCriticalSection && (
+                    <div className="mb-4 flex items-center text-sm text-purple-700 bg-purple-50 px-4 py-2 rounded-lg">
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <span className="font-semibold">ISO 14044 Compliance Section</span>
+                    </div>
+                  )}
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    {sectionTitles[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </h2>
+                  <div className="prose prose-lg max-w-none text-gray-700">
+                    <div dangerouslySetInnerHTML={{ __html: formatMarkdownText(String(sections[key])) }} />
+                  </div>
+                </div>
+              );
+            });
+
+          // Render additional sections not in the predefined order (like farmer_report)
+          const additionalSections = Object.entries(sections)
+            .filter(([key]) => !sectionOrder.includes(key))
+            .map(([key, content]) => {
+              // Use farmer-friendly formatter for farmer_report, standard for others
+              const formatter = key === 'farmer_report' ? formatFarmerFriendlyText : formatMarkdownText;
+
+              return (
+                <div
+                  key={key}
+                  className="bg-white rounded-xl p-6 shadow-lg border border-gray-200"
+                >
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    {sectionTitles[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </h2>
+                  <div className="prose prose-lg max-w-none text-gray-700">
+                    <div dangerouslySetInnerHTML={{ __html: formatter(String(content)) }} />
+                  </div>
+                </div>
+              );
+            });
+
+          return [...orderedSections, ...additionalSections];
+        })()}
 
       </div>
     );
@@ -1023,7 +1296,7 @@ export default function ProfessionalReportViewer({
           <FileText className="w-8 h-8 text-purple-600" />
           <div>
             <h3 className="text-2xl font-bold text-gray-900">Professional Report with Charts</h3>
-            <p className="text-sm text-gray-600">Generate comprehensive reports with interactive visualizations</p>
+            <p className="text-sm text-gray-600">ISO 14044 compliant with interactive visualizations & chain-of-thought analysis</p>
             {!currentAssessmentData && assessmentId && (
               <p className="text-xs text-orange-600 mt-1">⚠️ Loading assessment data...</p>
             )}
@@ -1036,6 +1309,70 @@ export default function ProfessionalReportViewer({
           </div>
         </div>
       </div>
+
+      {/* Enhanced Metadata Display */}
+      {generatedReport?.metadata && (
+        <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+              <div>
+                <div className="text-xs text-gray-600">Model</div>
+                <div className="font-semibold text-gray-900">{generatedReport.metadata.model_used?.split('-').pop()}</div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 mr-2 text-purple-600" />
+              <div>
+                <div className="text-xs text-gray-600">ISO 14044</div>
+                <div className="font-semibold text-gray-900">
+                  {generatedReport.metadata.iso_14044_compliant ? 'Compliant' : 'N/A'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
+              <div>
+                <div className="text-xs text-gray-600">Data Quality</div>
+                <div className="font-semibold text-gray-900 capitalize">
+                  {generatedReport.metadata.data_quality_level}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 mr-2 text-indigo-600" />
+              <div>
+                <div className="text-xs text-gray-600">Sections</div>
+                <div className="font-semibold text-gray-900">
+                  {generatedReport.metadata.sections_generated}
+                </div>
+              </div>
+            </div>
+          </div>
+          {generatedReport.metadata.chain_of_thought_enabled && (
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <div className="flex items-center text-xs text-blue-700">
+                <CheckCircle className="w-3 h-3 mr-2" />
+                <span className="font-semibold">Enhanced with Chain-of-Thought Reasoning</span>
+                <span className="ml-2 text-blue-600">• Temperature: {generatedReport.metadata.temperature}</span>
+              </div>
+            </div>
+          )}
+          {generatedReport.metadata?.validation_warnings && generatedReport.metadata.validation_warnings.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-yellow-200 bg-yellow-50 rounded px-3 py-2">
+              <div className="text-xs text-yellow-800">
+                <AlertCircle className="w-3 h-3 inline mr-1" />
+                <strong>Validation Warnings:</strong>
+                <ul className="list-disc list-inside mt-1">
+                  {generatedReport.metadata.validation_warnings.map((warning: string, i: number) => (
+                    <li key={i}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Report Type Selection */}
       <div className="grid md:grid-cols-3 gap-4 mb-6">
@@ -1154,6 +1491,8 @@ export default function ProfessionalReportViewer({
                   <button
                     onClick={() => setShowReportModal(false)}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Close report modal"
+                    title="Close report"
                   >
                     <X className="w-6 h-6 text-gray-600" />
                   </button>
@@ -1161,7 +1500,7 @@ export default function ProfessionalReportViewer({
               </div>
 
               {/* Modal Content */}
-              <div ref={reportRef} className="overflow-y-auto p-8 space-y-6 print:p-0">
+              <div id="report-content" ref={reportRef} className="overflow-y-auto p-8 space-y-6 print:p-0">
                 {renderReportHeader()}
                 {renderReportContent()}
               </div>
@@ -1173,21 +1512,67 @@ export default function ProfessionalReportViewer({
       {/* Print Styles */}
       <style jsx global>{`
         @media print {
+          /* Hide everything except the report */
           body * {
             visibility: hidden;
           }
+
           #report-content, #report-content * {
             visibility: visible;
           }
+
+          /* Position report content properly */
           #report-content {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
+            max-width: 100%;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
           }
+
+          /* Ensure proper page breaks */
+          #report-content > * {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          /* Fix chart and image sizing */
+          #report-content img,
+          #report-content canvas,
+          #report-content svg {
+            max-width: 100% !important;
+            height: auto !important;
+            page-break-inside: avoid;
+          }
+
+          /* Fix table styling for print */
+          #report-content table {
+            page-break-inside: avoid;
+            width: 100% !important;
+          }
+
+          /* Remove shadows and rounded corners for print */
+          #report-content * {
+            box-shadow: none !important;
+            border-radius: 0 !important;
+          }
+
+          /* Ensure text is black */
+          #report-content {
+            color: black !important;
+          }
+
+          /* Hide interactive elements */
+          button, .print\\:hidden {
+            display: none !important;
+          }
+
           @page {
             size: A4;
-            margin: 1cm;
+            margin: 1.5cm;
           }
         }
       `}</style>

@@ -5,6 +5,28 @@ import { EnhancedAssessmentRequest, FertilizerApplication, PesticideApplication 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Report types
+export interface Report {
+  report_id: string;
+  generated_at: string;
+  report_type: 'comprehensive' | 'executive' | 'farmer_friendly';
+  assessment_id?: string;
+  company_name?: string;
+  country?: string;
+  assessment_date?: string;
+  sections: Record<string, string>;
+  metadata?: {
+    model_used?: string;
+    generation_timestamp?: string;
+    temperature?: number;
+    chain_of_thought_enabled?: boolean;
+    iso_14044_compliant?: boolean;
+    data_quality_level?: string;
+    validation_warnings?: string[];
+    sections_generated?: number;
+  };
+}
+
 class AssessmentAPI {
   private async fetchAPI(endpoint: string, options: RequestInit = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -197,7 +219,7 @@ class AssessmentAPI {
   async generateReport(
     assessmentId: string,
     reportType: 'comprehensive' | 'executive' | 'farmer_friendly' = 'comprehensive'
-  ): Promise<any> {
+  ): Promise<Report> {
     return this.fetchAPI('/reports/generate', {
       method: 'POST',
       body: JSON.stringify({
@@ -207,23 +229,23 @@ class AssessmentAPI {
     });
   }
 
-  async getReport(reportId: string): Promise<any> {
+  async getReport(reportId: string): Promise<Report> {
     return this.fetchAPI(`/reports/report/${reportId}`);
   }
 
-  async listReportsForAssessment(assessmentId: string): Promise<any> {
+  async listReportsForAssessment(assessmentId: string): Promise<{ assessment_id: string; reports: Report[]; total: number }> {
     return this.fetchAPI(`/reports/assessment/${assessmentId}/reports`);
   }
 
-  async exportReportMarkdown(reportId: string): Promise<any> {
+  async exportReportMarkdown(reportId: string): Promise<{ report_id: string; format: string; content: string }> {
     return this.fetchAPI(`/reports/report/${reportId}/export/markdown`);
   }
 
-  async exportReportJSON(reportId: string): Promise<any> {
+  async exportReportJSON(reportId: string): Promise<Report> {
     return this.fetchAPI(`/reports/report/${reportId}/export/json`);
   }
 
-  async checkReportHealth(): Promise<any> {
+  async checkReportHealth(): Promise<{ status: string; service: string; ai_enabled: boolean; reports_generated: number; supported_types: string[] }> {
     return this.fetchAPI('/reports/health');
   }
 }

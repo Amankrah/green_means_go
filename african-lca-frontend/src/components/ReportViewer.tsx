@@ -12,7 +12,7 @@ import {
   FileJson,
   X
 } from 'lucide-react';
-import { assessmentAPI } from '@/lib/api';
+import { assessmentAPI, Report } from '@/lib/api';
 
 interface ReportViewerProps {
   assessmentId: string;
@@ -21,14 +21,9 @@ interface ReportViewerProps {
 
 type ReportType = 'comprehensive' | 'executive' | 'farmer_friendly';
 
-interface ReportSection {
-  title: string;
-  content: string;
-}
-
 export default function ReportViewer({ assessmentId, companyName }: ReportViewerProps) {
   const [generating, setGenerating] = useState(false);
-  const [generatedReport, setGeneratedReport] = useState<any>(null);
+  const [generatedReport, setGeneratedReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedReportType, setSelectedReportType] = useState<ReportType>('comprehensive');
   const [showReportModal, setShowReportModal] = useState(false);
@@ -63,12 +58,14 @@ export default function ReportViewer({ assessmentId, companyName }: ReportViewer
 
       const response = await assessmentAPI.generateReport(assessmentId, selectedReportType);
 
-      if (response.status === 'success') {
-        setGeneratedReport(response.report_data);
-        setShowReportModal(true);
-      } else {
-        setError('Report generation failed');
-      }
+      // Extract report_data from the response
+      const report: Report = ('report_data' in response && (response as { report_data?: Report }).report_data) 
+        ? (response as { report_data: Report }).report_data 
+        : response;
+      console.log('📋 Extracted report:', report);
+
+      setGeneratedReport(report);
+      setShowReportModal(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate report');
     } finally {
@@ -124,9 +121,54 @@ export default function ReportViewer({ assessmentId, companyName }: ReportViewer
     }
   };
 
+  // Define proper section ordering to match ISO 14044 structure
+  const sectionOrder = [
+    'executive_summary',
+    'introduction',
+    'methodology',
+    'impact_analysis',
+    'comparative_analysis',
+    'sensitivity_analysis',
+    'recommendations',
+    'conclusions',
+    'data_quality_limitations',
+    'critical_review',
+    'technical_appendix'
+  ];
+
+  const sectionTitles: Record<string, string> = {
+    executive_summary: 'Executive Summary',
+    introduction: 'Introduction',
+    methodology: 'Assessment Methodology',
+    impact_analysis: 'Environmental Impact Analysis',
+    comparative_analysis: 'Comparative Performance Analysis',
+    sensitivity_analysis: 'Sensitivity and Uncertainty Analysis',
+    recommendations: 'Recommendations and Action Plan',
+    conclusions: 'Conclusions',
+    data_quality_limitations: 'Data Quality and Limitations',
+    critical_review: 'Critical Review and Validation (ISO 14044)',
+    technical_appendix: 'Technical Appendix',
+    farmer_report: 'Your Farm Sustainability Report',
+    full_report: 'Report'
+  };
+
   const renderReportSection = (sectionKey: string, sectionContent: string) => {
+    // Apply special styling for critical ISO sections
+    const isCriticalSection = sectionKey === 'critical_review' || sectionKey === 'data_quality_limitations';
+
     return (
-      <div key={sectionKey} className="mb-8 bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+      <div key={sectionKey} className={`mb-8 bg-white rounded-lg p-6 shadow-sm border ${
+        isCriticalSection ? 'border-purple-300 border-2' : 'border-gray-200'
+      }`}>
+        {isCriticalSection && (
+          <div className="mb-3 flex items-center text-sm text-purple-700 bg-purple-50 px-3 py-2 rounded-lg">
+            <CheckCircle className="w-4 h-4 mr-2" />
+            <span className="font-semibold">ISO 14044 Requirement</span>
+          </div>
+        )}
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-gray-200">
+          {sectionTitles[sectionKey] || sectionKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+        </h2>
         <div
           className="prose prose-lg max-w-none"
           dangerouslySetInnerHTML={{
@@ -209,10 +251,44 @@ export default function ReportViewer({ assessmentId, companyName }: ReportViewer
           <FileText className="w-8 h-8 text-purple-600" />
           <div>
             <h3 className="text-2xl font-bold text-gray-900">AI-Powered Professional Reports</h3>
-            <p className="text-sm text-gray-600">Generate comprehensive sustainability reports using Claude AI</p>
+            <p className="text-sm text-gray-600">ISO 14044 compliant reports with chain-of-thought analysis</p>
           </div>
         </div>
       </div>
+
+      {/* Enhanced Metadata Display */}
+      {generatedReport?.metadata && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between text-xs text-blue-700">
+            <div className="flex items-center space-x-4">
+              {generatedReport.metadata.chain_of_thought_enabled && (
+                <span className="flex items-center">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Chain of Thought Analysis
+                </span>
+              )}
+              {generatedReport.metadata.iso_14044_compliant && (
+                <span className="flex items-center">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  ISO 14044 Compliant
+                </span>
+              )}
+              <span>
+                Quality: <strong>{generatedReport.metadata.data_quality_level}</strong>
+              </span>
+            </div>
+            <span>
+              {generatedReport.metadata.sections_generated} sections | Temp: {generatedReport.metadata.temperature}
+            </span>
+          </div>
+          {generatedReport.metadata?.validation_warnings && generatedReport.metadata.validation_warnings.length > 0 && (
+            <div className="mt-2 text-xs text-yellow-700">
+              <AlertTriangle className="w-3 h-3 inline mr-1" />
+              <strong>Warnings:</strong> {generatedReport.metadata.validation_warnings.join(', ')}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Report Type Selection */}
       <div className="grid md:grid-cols-3 gap-4 mb-6">
@@ -319,6 +395,7 @@ export default function ReportViewer({ assessmentId, companyName }: ReportViewer
                 <button
                   onClick={() => setShowReportModal(false)}
                   className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                  aria-label="Close report modal"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -326,15 +403,57 @@ export default function ReportViewer({ assessmentId, companyName }: ReportViewer
 
               {/* Modal Content */}
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-                {Object.entries(generatedReport.sections).map(([key, content]) => (
-                  renderReportSection(key, content as string)
-                ))}
+                {(() => {
+                  console.log('🔍 Rendering report sections:', {
+                    reportType: generatedReport.report_type,
+                    sections: Object.keys(generatedReport.sections || {}),
+                    sectionCount: Object.keys(generatedReport.sections || {}).length
+                  });
+
+                  // Render sections in proper ISO 14044 order
+                  const orderedSections = sectionOrder
+                    .filter(key => generatedReport.sections[key])
+                    .map(key => renderReportSection(key, generatedReport.sections[key] as string));
+
+                  // Render any additional sections not in the predefined order
+                  const additionalSections = Object.entries(generatedReport.sections)
+                    .filter(([key]) => !sectionOrder.includes(key))
+                    .map(([key, content]) => renderReportSection(key, content as string));
+
+                  console.log('📊 Sections breakdown:', {
+                    ordered: orderedSections.length,
+                    additional: additionalSections.length,
+                    total: orderedSections.length + additionalSections.length
+                  });
+
+                  return [...orderedSections, ...additionalSections];
+                })()}
               </div>
 
               {/* Modal Footer */}
-              <div className="bg-gray-50 p-6 border-t flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Powered by Claude AI | Model: {generatedReport.metadata?.model_used}
+              <div className="bg-gray-50 p-6 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm text-gray-600">
+                    <strong>Powered by Claude AI</strong> | Model: {generatedReport.metadata?.model_used}
+                  </div>
+                  {generatedReport.metadata && (
+                    <div className="flex items-center space-x-3 text-xs text-gray-600">
+                      {generatedReport.metadata.iso_14044_compliant && (
+                        <span className="flex items-center bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          ISO 14044
+                        </span>
+                      )}
+                      {generatedReport.metadata.chain_of_thought_enabled && (
+                        <span className="flex items-center bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          Chain of Thought
+                        </span>
+                      )}
+                      <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                        Quality: {generatedReport.metadata.data_quality_level}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex space-x-3">
                   <button

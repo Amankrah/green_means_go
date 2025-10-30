@@ -691,6 +691,6 @@ export interface FormValidationRules {
     min?: number;
     max?: number;
     pattern?: string;
-    customValidation?: (value: any) => string | null;
+    customValidation?: (value: unknown) => string | null;
   };
 }

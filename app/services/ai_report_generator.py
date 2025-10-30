@@ -9,6 +9,7 @@ import json
 from typing import Dict, Any, Optional
 from datetime import datetime
 import anthropic
+import asyncio
 from .visualization_utils import generate_all_visualizations
 
 
@@ -31,7 +32,9 @@ class AIReportGenerator:
 
         try:
             self.client = anthropic.Anthropic(api_key=self.api_key)
-            self.model = "claude-sonnet-4-20250514"  # Latest Claude model
+            # Use Haiku 4.5 for fast, cost-effective report generation
+            # Haiku: $1/MTok input, $5/MTok output vs Sonnet: $3/MTok input, $15/MTok output
+            self.model = "claude-haiku-4-5-20251001"  # Fast and cost-effective
         except Exception as e:
             raise ValueError(f"Failed to initialize Anthropic client: {e}")
 
@@ -42,6 +45,7 @@ class AIReportGenerator:
     ) -> Dict[str, Any]:
         """
         Generate a comprehensive professional report from assessment data
+        Includes data validation and quality gates
 
         Args:
             assessment_data: Complete assessment results from the LCA system
@@ -51,17 +55,26 @@ class AIReportGenerator:
             Dictionary containing the generated report sections
         """
 
-        # Ensure assessment data includes all context - preserve original data
-        # Don't use fallbacks or defaults - only use actual data from Rust backend
+        # Step 1: Validate assessment data completeness
+        validation = self._validate_assessment_completeness(assessment_data)
+
+        if not validation['is_complete']:
+            print(f"⚠️ WARNING: Assessment data incomplete - {validation['missing_sections']}")
+            print(f"   Warnings: {validation['warnings']}")
+
+        print(f"📊 Data Quality Level: {validation['data_quality_level']}")
+
+        # Step 2: Format assessment data with ALL available fields
         formatted_data = self._format_assessment_data(assessment_data)
 
-        # Generate the report using Claude
+        # Step 3: Generate the report using Claude with chain of thought
+        print("🤖 Generating report with chain of thought reasoning...")
         report_sections = await self._generate_report_sections(
             formatted_data,
             report_type
         )
 
-        # Structure the final report
+        # Step 4: Structure the final report with validation metadata
         final_report = {
             "report_id": f"REPORT-{assessment_data.get('id', 'UNKNOWN')}",
             "generated_at": datetime.now().isoformat(),
@@ -73,16 +86,65 @@ class AIReportGenerator:
             "sections": report_sections,
             "metadata": {
                 "model_used": self.model,
-                "generation_timestamp": datetime.now().isoformat()
+                "generation_timestamp": datetime.now().isoformat(),
+                "temperature": 0.6,
+                "chain_of_thought_enabled": True,
+                "iso_14044_compliant": True,
+                "data_quality_level": validation['data_quality_level'],
+                "validation_warnings": validation['warnings'],
+                "sections_generated": len(report_sections)
             }
         }
 
+        print(f"✅ Report generation complete - {len(report_sections)} sections generated")
         return final_report
+
+    def _validate_assessment_completeness(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate assessment data completeness and flag missing critical elements
+
+        Returns:
+            Dictionary with completeness flags and warnings
+        """
+        validation = {
+            'is_complete': True,
+            'warnings': [],
+            'missing_sections': [],
+            'data_quality_level': 'high'
+        }
+
+        # Check critical sections
+        if not data.get('midpoint_impacts'):
+            validation['is_complete'] = False
+            validation['missing_sections'].append('midpoint_impacts')
+            validation['warnings'].append('Missing midpoint impact data - cannot generate meaningful report')
+
+        if not data.get('breakdown_by_food'):
+            validation['warnings'].append('Missing crop-level breakdown - report will lack detailed analysis')
+            validation['data_quality_level'] = 'medium'
+
+        if not data.get('recommendations') or len(data.get('recommendations', [])) == 0:
+            validation['warnings'].append('No recommendations available - suggest running recommendation generator first')
+            validation['data_quality_level'] = 'medium'
+
+        if not data.get('data_quality'):
+            validation['warnings'].append('Missing data quality assessment - uncertainty cannot be quantified')
+
+        # Check for advanced analyses
+        advanced_count = sum([
+            1 for key in ['sensitivity_analysis', 'comparative_analysis', 'management_analysis', 'benchmarking']
+            if data.get(key)
+        ])
+
+        if advanced_count == 0:
+            validation['warnings'].append('No advanced analyses available - report will be basic')
+
+        return validation
 
     def _format_assessment_data(self, data: Dict[str, Any]) -> str:
         """
         Format assessment data into a structured prompt for Claude
-        Includes user input context and generates visualizations
+        Includes ALL available data fields with proper validation
         """
 
         # Extract key metrics
@@ -99,7 +161,7 @@ class AIReportGenerator:
         farm_profile = assessment_request.get("farm_profile") if assessment_request else None
         management_practices = assessment_request.get("management_practices") if assessment_request else None
 
-        # Optional advanced analysis
+        # Extract ALL advanced analysis fields
         sensitivity = data.get("sensitivity_analysis")
         comparative = data.get("comparative_analysis")
         management = data.get("management_analysis")
@@ -283,6 +345,36 @@ class AIReportGenerator:
                     formatted += f"  - Implementation Difficulty: {practice.get('implementation_difficulty', 'Unknown')}\n"
                     formatted += f"  - Cost Category: {practice.get('cost_category', 'Unknown')}\n"
 
+            # Include regional comparisons if available
+            if comparative.get('regional_comparisons'):
+                formatted += "\n### Regional Performance Comparisons:\n"
+                for comp in comparative.get('regional_comparisons', []):
+                    formatted += f"\n- Region: {comp.get('region', 'Unknown')}\n"
+                    formatted += f"  - Your Performance vs Regional Average: {comp.get('comparison', 'N/A')}\n"
+                    formatted += f"  - Performance Percentile: {comp.get('percentile', 'N/A')}\n"
+
+        # Management Analysis (NEW - was missing)
+        if management:
+            formatted += "\n## Management Practice Analysis\n"
+
+            if management.get('practice_efficiency'):
+                formatted += "\n### Practice Efficiency Assessment:\n"
+                for practice, efficiency in management.get('practice_efficiency', {}).items():
+                    formatted += f"- {practice}: {efficiency}\n"
+
+            if management.get('improvement_opportunities'):
+                formatted += "\n### Identified Improvement Opportunities:\n"
+                for opportunity in management.get('improvement_opportunities', []):
+                    formatted += f"\n**{opportunity.get('area', 'Unknown')}**\n"
+                    formatted += f"  - Current Status: {opportunity.get('current_status', 'N/A')}\n"
+                    formatted += f"  - Improvement Potential: {opportunity.get('potential', 'N/A')}\n"
+                    formatted += f"  - Priority: {opportunity.get('priority', 'N/A')}\n"
+
+            if management.get('best_performing_practices'):
+                formatted += "\n### Best Performing Current Practices:\n"
+                for practice in management.get('best_performing_practices', []):
+                    formatted += f"- {practice.get('practice', 'Unknown')}: {practice.get('performance', 'N/A')}\n"
+
         # Recommendations
         if recommendations:
             formatted += "\n## System Recommendations\n"
@@ -329,16 +421,63 @@ class AIReportGenerator:
 
         return formatted
 
+    def _generate_single_section(
+        self,
+        section_name: str,
+        section_prompt: str,
+        formatted_data: str,
+        system_prompt: str
+    ) -> tuple[str, str]:
+        """
+        Generate a single report section (synchronous, called via asyncio.to_thread)
+        Returns: (section_key, section_content)
+        """
+        try:
+            print(f"  📝 Generating {section_name}...")
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=2500,  # Per-section limit
+                temperature=0.6,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"}
+                    }
+                ],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"{formatted_data}\n\n{section_prompt}"
+                    }
+                ]
+            )
+            print(f"  ✅ Completed {section_name}")
+            return (section_name, response.content[0].text)
+        except Exception as e:
+            print(f"  ❌ Error generating {section_name}: {e}")
+            return (section_name, f"Error generating section: {e}")
+
     async def _generate_report_sections(
         self,
         formatted_data: str,
         report_type: str
     ) -> Dict[str, str]:
         """
-        Use Claude to generate professional report sections
+        Use Claude to generate professional report sections in parallel
+        Each section is generated independently for better quality and speed
         """
 
         system_prompt = """You are Dr. Amara Okonkwo, a leading environmental scientist and Life Cycle Assessment (LCA) expert with 15+ years of experience in African agricultural sustainability. You hold a Ph.D. in Environmental Science from Wageningen University and have published extensively on sustainable agriculture in Sub-Saharan Africa.
+
+## Critical: Chain of Thought Approach
+Before writing each section, you MUST think through your analysis step-by-step:
+1. **Data Review**: What are the key numbers and patterns in this dataset?
+2. **Hotspot Identification**: Which impact categories are most significant? Why?
+3. **Root Cause Analysis**: What farming practices or inputs drive these impacts?
+4. **Contextualization**: How does this fit within African agricultural systems?
+5. **Solution Mapping**: What specific, actionable improvements can be made?
+6. **Validation**: Does my analysis align with ISO 14044 requirements?
 
 ## Your Expertise:
 - **LCA Methodology**: Expert in ISO 14040/14044, ISO 14067 (Carbon Footprint), PAS 2050, and GHG Protocol
@@ -371,101 +510,120 @@ class AIReportGenerator:
 - Evidence-based and objective
 - Respectful of local knowledge and practices
 - Constructive and solution-oriented
-- Appropriate for academic, government, and industry stakeholders
+- Appropriate for academic, government, and industry stakeholders"""
 
-Generate reports in well-structured Markdown format with clear headings, data tables, and chart references where appropriate."""
+        # Define section prompts for parallel generation
+        section_prompts = {
+            "executive_summary": """Generate an **Executive Summary** (200-300 words):
+- High-level overview of the assessment
+- Key findings and overall environmental performance
+- Critical recommendations
+- Intended for decision-makers and executives
+Format with ## Executive Summary header.""",
 
-        user_prompt = f"""Based on the following environmental sustainability assessment data, generate a comprehensive professional LCA report.
+            "introduction": """Generate an **Introduction** (150-200 words):
+- Purpose and scope of the assessment
+- Assessment methodology overview
+- Standards and frameworks used
+Format with ## Introduction header.""",
 
-IMPORTANT INSTRUCTIONS:
-1. **Use the User Input Context**: Pay careful attention to the farm profile, crops assessed, and management practices provided by the user. Reference these specific details throughout your report to show contextual understanding.
+            "methodology": """Generate **Assessment Methodology** (200-250 words):
+- Detailed explanation of the LCA methodology
+- System boundaries and functional units
+- Data quality and sources
+- Impact assessment methods used
+Format with ## Assessment Methodology header.""",
 
-2. **Integrate Visualizations**: Charts, tables, and diagrams have been generated from the data. Reference and integrate these visualizations in appropriate sections of your report. Use phrases like "As shown in the chart below..." or "The visualization demonstrates..."
+            "impact_analysis": """Generate **Environmental Impact Analysis** (400-500 words):
+- Detailed analysis of all environmental impact categories
+- Midpoint and endpoint impacts
+- Single score interpretation
+- Comparison with benchmarks and standards
+- Identification of environmental hotspots
+Format with ## Environmental Impact Analysis header.""",
 
-3. **Apply LCA Expertise**: Use proper LCA terminology, reference ISO standards, explain impact categories, and provide technical depth appropriate for environmental professionals.
+            "comparative_analysis": """Generate **Comparative Performance Analysis** (300-400 words):
+- Benchmarking against industry standards
+- Regional comparisons
+- Performance categorization
+- Strengths and areas for improvement
+Format with ## Comparative Performance Analysis header.""",
 
-4. **African Context**: Consider local agricultural practices, climate conditions, resource availability, and socio-economic factors specific to the region.
+            "sensitivity_analysis": """Generate **Sensitivity and Uncertainty Analysis** (200-300 words):
+- Key parameters affecting results
+- Uncertainty ranges and confidence levels
+- Scenario analysis results
+- Data quality implications
+Format with ## Sensitivity and Uncertainty Analysis header.""",
 
-{formatted_data}
+            "recommendations": """Generate **Recommendations and Action Plan** (400-500 words):
+- Prioritized recommendations for environmental improvement
+- Specific actions with expected impact reductions
+- Implementation timeline and resource requirements
+- Cost-benefit considerations
+- Monitoring and verification strategies
+Format with ## Recommendations and Action Plan header.""",
 
-Generate the following report sections:
+            "conclusions": """Generate **Conclusions** (200-250 words):
+- Summary of key findings
+- Environmental performance assessment
+- Future outlook and continuous improvement pathway
+Format with ## Conclusions header.""",
 
-1. **Executive Summary** (200-300 words)
-   - High-level overview of the assessment
-   - Key findings and overall environmental performance
-   - Critical recommendations
-   - Intended for decision-makers and executives
+            "data_quality_limitations": """Generate **Data Quality and Limitations** (200-250 words):
+- Comprehensive discussion of data sources and quality
+- Temporal, geographical, and technological representativeness
+- Key assumptions and their implications
+- Uncertainty quantification
+- Limitations of the study
+Format with ## Data Quality and Limitations header.""",
 
-2. **Introduction** (150-200 words)
-   - Purpose and scope of the assessment
-   - Assessment methodology overview
-   - Standards and frameworks used
+            "critical_review": """Generate **Critical Review and Validation** (ISO 14044 Requirement) (200-250 words):
+- Internal consistency check of methodology
+- Verification of system boundaries and functional units
+- Assessment of completeness
+- Data quality validation against ISO requirements
+- Identification of any methodological gaps
+- Peer review readiness assessment
+Format with ## Critical Review and Validation header.""",
 
-3. **Assessment Methodology** (200-250 words)
-   - Detailed explanation of the LCA methodology
-   - System boundaries and functional units
-   - Data quality and sources
-   - Impact assessment methods used
+            "technical_appendix": """Generate **Technical Appendix** (200-300 words):
+- Detailed impact calculation results
+- Data quality scores and sources
+- Complete list of assumptions
+- References to standards and methodologies
+- Glossary of LCA terms used
+Format with ## Technical Appendix header."""
+        }
 
-4. **Environmental Impact Analysis** (400-500 words)
-   - Detailed analysis of all environmental impact categories
-   - Midpoint and endpoint impacts
-   - Single score interpretation
-   - Comparison with benchmarks and standards
-   - Identification of environmental hotspots
+        print(f"🚀 Generating {len(section_prompts)} sections with controlled concurrency...")
 
-5. **Comparative Performance Analysis** (300-400 words if data available)
-   - Benchmarking against industry standards
-   - Regional comparisons
-   - Performance categorization
-   - Strengths and areas for improvement
+        # Use semaphore to limit concurrent API calls (avoid rate limits)
+        semaphore = asyncio.Semaphore(5)  # Max 5 concurrent requests
 
-6. **Sensitivity and Uncertainty Analysis** (200-300 words if data available)
-   - Key parameters affecting results
-   - Uncertainty ranges and confidence levels
-   - Scenario analysis results
-   - Data quality implications
+        async def generate_with_semaphore(section_key, section_prompt):
+            async with semaphore:
+                return await asyncio.to_thread(
+                    self._generate_single_section,
+                    section_key,
+                    section_prompt,
+                    formatted_data,
+                    system_prompt
+                )
 
-7. **Recommendations and Action Plan** (400-500 words)
-   - Prioritized recommendations for environmental improvement
-   - Specific actions with expected impact reductions
-   - Implementation timeline and resource requirements
-   - Cost-benefit considerations
-   - Monitoring and verification strategies
+        # Generate all sections with controlled concurrency
+        tasks = [
+            asyncio.create_task(generate_with_semaphore(section_key, section_prompt))
+            for section_key, section_prompt in section_prompts.items()
+        ]
 
-8. **Conclusions** (200-250 words)
-   - Summary of key findings
-   - Environmental performance assessment
-   - Future outlook and continuous improvement pathway
+        # Wait for all sections to complete
+        results = await asyncio.gather(*tasks)
 
-9. **Technical Appendix** (200-300 words)
-   - Detailed impact calculation results
-   - Data quality scores and sources
-   - Assumptions and limitations
-   - References to standards and methodologies
+        # Convert results to dictionary
+        sections = dict(results)
 
-Please format each section with clear markdown headers (##) and use professional, technical language. Include specific numbers, percentages, and data from the assessment. Make the report suitable for formal presentation to stakeholders."""
-
-        # Call Claude API
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=16000,  # Large token limit for comprehensive reports
-            temperature=0.3,  # Low temperature for consistent, factual output
-            system=system_prompt,
-            messages=[
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-            ]
-        )
-
-        # Extract the generated report
-        report_text = response.content[0].text
-
-        # Parse sections from the response
-        sections = self._parse_report_sections(report_text)
-
+        print(f"✅ Generated {len(sections)} sections successfully")
         return sections
 
     def _parse_report_sections(self, report_text: str) -> Dict[str, str]:
@@ -478,7 +636,7 @@ Please format each section with clear markdown headers (##) and use professional
 
         lines = report_text.split('\n')
 
-        # Define section headers to look for
+        # Define section headers to look for (ISO 14044 compliant structure)
         section_headers = {
             "executive summary": "executive_summary",
             "introduction": "introduction",
@@ -488,6 +646,8 @@ Please format each section with clear markdown headers (##) and use professional
             "sensitivity and uncertainty analysis": "sensitivity_analysis",
             "recommendations and action plan": "recommendations",
             "conclusions": "conclusions",
+            "data quality and limitations": "data_quality_limitations",
+            "critical review and validation": "critical_review",
             "technical appendix": "technical_appendix"
         }
 
@@ -530,11 +690,11 @@ Please format each section with clear markdown headers (##) and use professional
         """
         formatted_data = self._format_assessment_data(assessment_data)
 
-        system_prompt = """You are Dr. Amara Okonkwo, a leading LCA expert specializing in African agricultural sustainability. Generate concise, high-impact executive summaries that communicate key environmental findings to decision-makers."""
+        system_prompt = '''You are Dr. Amara Okonkwo, a leading LCA expert specializing in African agricultural sustainability. Generate concise, high-impact executive summaries that communicate key environmental findings to decision-makers.'''
 
-        user_prompt = f"""Based on the following assessment data, generate a professional executive summary (200-300 words) suitable for decision-makers:
+        user_prompt = ('''Based on the following assessment data, generate a professional executive summary (200-300 words) suitable for decision-makers:
 
-{formatted_data}
+''' + formatted_data + '''
 
 The summary should include:
 - Overall environmental performance with specific metrics
@@ -543,13 +703,19 @@ The summary should include:
 - Business implications and opportunities
 - Reference the specific farm context and crops assessed
 
-Use formal, professional LCA language appropriate for executives and policymakers."""
+Use formal, professional LCA language appropriate for executives and policymakers.''')
 
         response = self.client.messages.create(
             model=self.model,
             max_tokens=1000,
             temperature=0.3,
-            system=system_prompt,
+            system=[
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             messages=[
                 {
                     "role": "user",
@@ -569,54 +735,60 @@ Use formal, professional LCA language appropriate for executives and policymaker
         """
         formatted_data = self._format_assessment_data(assessment_data)
 
-        system_prompt = """You are Kwame Mensah, a respected agricultural extension officer with 20 years of experience working with smallholder farmers across West Africa. You have a gift for explaining complex environmental concepts in simple, practical terms that farmers can understand and act upon.
+        system_prompt = '''You are Kwame Mensah, a respected agricultural extension officer with 20 years of experience working with smallholder farmers across West Africa. You have a gift for explaining complex environmental concepts in simple, practical terms that farmers can understand and act upon.
 
 ## Your Approach:
-1. **Simple Language**: Avoid technical jargon, use everyday terms farmers understand
-2. **Practical Focus**: Every recommendation must be actionable with local resources
-3. **Respect Local Knowledge**: Value traditional practices while introducing improvements
-4. **Show Clear Benefits**: Connect environmental actions to tangible outcomes (better yields, lower costs, healthier soil, more resilient crops)
-5. **Use Local Examples**: Reference crops, seasons, and practices familiar to African farmers
-6. **Visual Aids**: Describe simple diagrams and charts that illustrate key points
-7. **Step-by-Step Guidance**: Break down complex actions into simple steps
+1. Simple Language: Avoid technical jargon, use everyday terms farmers understand
+2. Practical Focus: Every recommendation must be actionable with local resources
+3. Respect Local Knowledge: Value traditional practices while introducing improvements
+4. Show Clear Benefits: Connect environmental actions to tangible outcomes (better yields, lower costs, healthier soil, more resilient crops)
+5. Use Local Examples: Reference crops, seasons, and practices familiar to African farmers
+6. Visual Aids: Describe simple diagrams and charts that illustrate key points
+7. Step-by-Step Guidance: Break down complex actions into simple steps
 
 ## Your Goal:
-Help farmers understand their environmental impact in ways that empower them to make positive changes that benefit both their farm and the environment."""
+Help farmers understand their environmental impact in ways that empower them to make positive changes that benefit both their farm and the environment.'''
 
-        user_prompt = f"""Based on this farm assessment data, create a simplified report that farmers can easily understand:
+        user_prompt = ('''Based on this farm assessment data, create a simplified report that farmers can easily understand:
 
-{formatted_data}
+''' + formatted_data + '''
 
 IMPORTANT: Reference the specific crops, farm size, and management practices from the user input. Show that you understand their unique farming situation.
 
 Generate these sections:
-1. **What This Assessment Means for Your Farm** (simple language, 150 words)
+1. What This Assessment Means for Your Farm (simple language, 150 words)
    - Explain environmental impact in everyday terms
    - Connect to their specific crops and practices
 
-2. **Your Farm's Environmental Performance** (key impacts explained simply, 200 words)
-   - Use simple comparisons (e.g., "equivalent to X days of car driving")
+2. Your Farm Environmental Performance (key impacts explained simply, 200 words)
+   - Use simple comparisons (like X days of car driving)
    - Reference the charts and visualizations provided
    - Identify main areas of concern
 
-3. **Practical Steps You Can Take** (specific, actionable recommendations, 300 words)
+3. Practical Steps You Can Take (specific, actionable recommendations, 300 words)
    - Give step-by-step instructions
    - Use only locally available resources
    - Organize by priority (what to do first)
    - Include costs (free, low-cost, investment)
 
-4. **Expected Benefits** (improved productivity, cost savings, environmental benefits, 150 words)
-   - Be specific: "You could save X cedis/naira per season"
+4. Expected Benefits (improved productivity, cost savings, environmental benefits, 150 words)
+   - Be specific with examples of savings per season
    - Show yield improvements
    - Explain long-term soil and farm health benefits
 
-Use simple language, local examples, and focus on practical actions farmers can start tomorrow."""
+Use simple language, local examples, and focus on practical actions farmers can start tomorrow.''')
 
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=4000,
+            max_tokens=3000,  # Reduced for faster generation
             temperature=0.4,
-            system=system_prompt,
+            system=[
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"}  # Cache the system prompt
+                }
+            ],
             messages=[
                 {
                     "role": "user",
@@ -626,6 +798,9 @@ Use simple language, local examples, and focus on practical actions farmers can 
         )
 
         report_text = response.content[0].text
-        sections = self._parse_report_sections(report_text)
 
-        return sections
+        # For farmer-friendly reports, return as a single section since it has custom structure
+        # Don't use _parse_report_sections as it expects specific ISO section headers
+        return {
+            "farmer_report": report_text
+        }

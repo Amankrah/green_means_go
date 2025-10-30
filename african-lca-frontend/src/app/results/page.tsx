@@ -421,7 +421,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                       ? totalValue
                       : calculatePerUnitImpact(totalValue, totalProductionKg);
                     const displayValue = formatDisplayValue(perUnitValue, 1, category);
-                    
+
                     return (
                       <div key={index} className="text-center p-3 bg-gray-50 rounded-lg border">
                         <div className="text-lg font-bold text-gray-900 mb-1">
