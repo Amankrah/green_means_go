@@ -35,8 +35,13 @@ class PDFReportGenerator:
 
     def _setup_custom_styles(self):
         """Set up custom paragraph styles"""
+        # Helper function to add style only if it doesn't exist
+        def add_style_if_not_exists(style_def):
+            if style_def.name not in self.styles:
+                self.styles.add(style_def)
+
         # Title style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='CustomTitle',
             parent=self.styles['Heading1'],
             fontSize=24,
@@ -47,7 +52,7 @@ class PDFReportGenerator:
         ))
 
         # Subtitle style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='CustomSubtitle',
             parent=self.styles['Heading2'],
             fontSize=18,
@@ -58,7 +63,7 @@ class PDFReportGenerator:
         ))
 
         # Section header style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='SectionHeader',
             parent=self.styles['Heading2'],
             fontSize=16,
@@ -69,7 +74,7 @@ class PDFReportGenerator:
         ))
 
         # Subsection header style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='SubsectionHeader',
             parent=self.styles['Heading3'],
             fontSize=14,
@@ -80,8 +85,8 @@ class PDFReportGenerator:
         ))
 
         # Body text style
-        self.styles.add(ParagraphStyle(
-            name='BodyText',
+        add_style_if_not_exists(ParagraphStyle(
+            name='CustomBodyText',
             parent=self.styles['Normal'],
             fontSize=11,
             leading=14,
@@ -91,7 +96,7 @@ class PDFReportGenerator:
         ))
 
         # Bullet list style
-        self.styles.add(ParagraphStyle(
+        add_style_if_not_exists(ParagraphStyle(
             name='BulletText',
             parent=self.styles['Normal'],
             fontSize=11,
@@ -134,6 +139,15 @@ class PDFReportGenerator:
         if report_type in ['farmer_friendly', 'executive']:
             story.extend(self._create_key_metrics(assessment_data))
             story.append(Spacer(1, 0.5*cm))
+
+        # Add visualizations for farmer_friendly and comprehensive reports
+        if report_type in ['farmer_friendly', 'comprehensive']:
+            chart = self._create_impact_chart(assessment_data)
+            if chart:
+                story.append(Paragraph("Visual Analysis", self.styles['SectionHeader']))
+                story.append(Spacer(1, 0.3*cm))
+                story.append(chart)
+                story.append(Spacer(1, 0.5*cm))
 
         # Add report sections
         sections = report_data.get('sections', {})
@@ -230,19 +244,22 @@ class PDFReportGenerator:
 
         table = Table(data, colWidths=[5.5*cm, 5.5*cm, 5.5*cm])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f5f5f5')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4f46e5')),  # Indigo header
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 1), (0, 1), colors.HexColor('#fef3c7')),  # Light yellow for climate
+            ('BACKGROUND', (1, 1), (1, 1), colors.HexColor('#dbeafe')),  # Light blue for data quality
+            ('BACKGROUND', (2, 1), (2, 1), colors.HexColor('#fed7aa')),  # Light orange for recommendations
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (-1, 1), 14),
             ('FONTSIZE', (0, 2), (-1, 2), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 1), (-1, 1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, 1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dddddd')),
-            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor('#000000'))
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+            ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#4f46e5'))
         ]))
 
         elements.append(table)
@@ -316,7 +333,7 @@ class PDFReportGenerator:
             text = self._convert_markdown_inline(para)
             # Replace newlines with line breaks
             text = text.replace('\n', '<br/>')
-            elements.append(Paragraph(text, self.styles['BodyText']))
+            elements.append(Paragraph(text, self.styles['CustomBodyText']))
 
         return elements
 
@@ -373,12 +390,95 @@ class PDFReportGenerator:
 
     def _create_horizontal_line(self):
         """Create a horizontal line separator"""
-        from reportlab.platypus import Drawing
-        from reportlab.graphics.shapes import Line
+        from reportlab.graphics.shapes import Drawing, Line
 
         d = Drawing(16*cm, 0.1*cm)
         d.add(Line(0, 0, 16*cm, 0, strokeColor=colors.HexColor('#000000'), strokeWidth=2))
         return d
+
+    def _create_impact_chart(self, assessment_data: Dict) -> Optional[Image]:
+        """Create a colored bar chart of environmental impacts"""
+        try:
+            midpoint = assessment_data.get('midpoint_impacts', {})
+            if not midpoint:
+                return None
+
+            # Extract and sort impacts
+            impacts = []
+            for category, data in midpoint.items():
+                if isinstance(data, dict):
+                    value = data.get('value', 0)
+                else:
+                    value = data if isinstance(data, (int, float)) else 0
+
+                if value > 0:
+                    impacts.append((category, value))
+
+            if not impacts:
+                return None
+
+            # Sort by value descending and take top 8
+            impacts.sort(key=lambda x: x[1], reverse=True)
+            impacts = impacts[:8]
+
+            categories = [x[0] for x in impacts]
+            values = [x[1] for x in impacts]
+
+            # Normalize values for better visualization
+            max_val = max(values) if values else 1
+            normalized_values = [100 * v / max_val for v in values]
+
+            # Create figure with colors
+            fig = Figure(figsize=(7, 4))
+            ax = fig.add_subplot(111)
+
+            # Color bars based on impact level
+            colors_list = []
+            for norm_val in normalized_values:
+                if norm_val >= 75:
+                    colors_list.append('#ef4444')  # Red for high impact
+                elif norm_val >= 40:
+                    colors_list.append('#f59e0b')  # Orange for medium impact
+                else:
+                    colors_list.append('#10b981')  # Green for low impact
+
+            bars = ax.barh(range(len(categories)), normalized_values, color=colors_list)
+            ax.set_yticks(range(len(categories)))
+            ax.set_yticklabels(categories, fontsize=9)
+            ax.set_xlabel('Normalized Impact', fontsize=10)
+            ax.set_title('Environmental Impact Categories (Normalized)', fontsize=11, fontweight='bold')
+            ax.set_xlim(0, 105)
+
+            # Add value labels
+            for i, (bar, val) in enumerate(zip(bars, normalized_values)):
+                ax.text(val + 2, i, f'{val:.0f}', va='center', fontsize=8)
+
+            # Add legend
+            from matplotlib.patches import Patch
+            legend_elements = [
+                Patch(facecolor='#ef4444', label='High (≥75%)'),
+                Patch(facecolor='#f59e0b', label='Medium (40-74%)'),
+                Patch(facecolor='#10b981', label='Low (<40%)')
+            ]
+            ax.legend(handles=legend_elements, loc='lower right', fontsize=8)
+
+            fig.tight_layout()
+
+            # Convert to image
+            img_buffer = io.BytesIO()
+            fig.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+            img_buffer.seek(0)
+            plt.close(fig)
+
+            # Create ReportLab Image
+            img = Image(img_buffer, width=16*cm, height=9*cm)
+            return img
+
+        except Exception as e:
+            print(f"Error creating impact chart: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def _create_footer(self) -> List:
         """Create PDF footer"""

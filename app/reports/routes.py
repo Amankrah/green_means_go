@@ -644,23 +644,16 @@ async def download_report_pdf(report_id: str, assessment_id: str):
 
     report_data = reports_db[report_id]
 
-    # Fetch assessment data from Rust backend
-    try:
-        rust_backend_url = "http://localhost:3000"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{rust_backend_url}/assess/{assessment_id}")
-            response.raise_for_status()
-            assessment_data = response.json()
-    except httpx.HTTPStatusError as e:
+    # Fetch assessment data from assessments database
+    from production.routes import assessments_db
+
+    if assessment_id not in assessments_db:
         raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Failed to fetch assessment data from Rust backend: {e.response.text}"
+            status_code=404,
+            detail=f"Assessment {assessment_id} not found"
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch assessment data: {str(e)}"
-        )
+
+    assessment_data = assessments_db[assessment_id]
 
     # Generate PDF
     try:

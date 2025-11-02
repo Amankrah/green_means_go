@@ -2,9 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sprout, Menu, X, Leaf, BarChart3, Home } from 'lucide-react';
+import { Sprout, Menu, X, BarChart3, Home } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import Logo from './Logo';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,17 +27,15 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
-                <Leaf className="w-6 h-6 text-white" />
-              </div>
+            <Link href="/" className="flex items-center space-x-3 group">
+              <Logo size={48} className="transition-transform duration-200 group-hover:scale-105" />
               <div className="hidden sm:block">
                 <h1 className="text-lg sm:text-xl font-bold text-gray-900">Green Means Go</h1>
-                <p className="text-xs sm:text-sm text-green-600">African Farm Sustainability</p>
+                <p className="text-xs sm:text-sm text-green-600">African Food Systems LCA</p>
               </div>
               <div className="sm:hidden">
                 <h1 className="text-lg font-bold text-gray-900">GMG</h1>
-                <p className="text-xs text-green-600">Farm Sustainability</p>
+                <p className="text-xs text-green-600">Food Systems</p>
               </div>
             </Link>
 
@@ -98,15 +97,15 @@ export default function Layout({ children }: LayoutProps) {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <Leaf className="w-6 h-6 text-green-600" />
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              <Logo size={40} />
               <span className="text-lg font-semibold text-gray-900">Green Means Go</span>
             </div>
             <p className="text-gray-600 mb-2">
-              Empowering African farmers with sustainability insights
+              Sustainable food systems assessment for Africa
             </p>
             <p className="text-sm text-gray-500">
-              Supporting climate-smart agriculture across West Africa
+              From farm production to food processing - ISO 14044 compliant LCA
             </p>
             <div className="mt-6 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-6">
               <span className="text-sm text-gray-400">🌾 Ghana</span>

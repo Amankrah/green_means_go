@@ -87,7 +87,7 @@ class AIReportGenerator:
             "metadata": {
                 "model_used": self.model,
                 "generation_timestamp": datetime.now().isoformat(),
-                "temperature": 0.6,
+                "temperature": 0,
                 "chain_of_thought_enabled": True,
                 "iso_14044_compliant": True,
                 "data_quality_level": validation['data_quality_level'],
@@ -780,8 +780,8 @@ Use simple language, local examples, and focus on practical actions farmers can 
 
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=3000,  # Reduced for faster generation
-            temperature=0.4,
+            max_tokens=10000,  # Reduced for faster generation
+            temperature=0,
             system=[
                 {
                     "type": "text",

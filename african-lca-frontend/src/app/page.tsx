@@ -3,18 +3,20 @@
 import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  Sprout, 
-  BarChart3, 
-  Globe, 
-  Users, 
-  Award, 
+import {
+  Sprout,
+  BarChart3,
+  Globe,
+  Users,
+  Award,
   ArrowRight,
   Leaf,
   Droplets,
   Sun,
   TreePine,
-  Clock
+  Clock,
+  Factory,
+  TrendingUp
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 
@@ -22,26 +24,26 @@ export default function HomePage() {
   const features = [
     {
       icon: Sprout,
-      title: 'Farm Assessment',
-      description: 'Simple sustainability assessment for your crops using minimal information',
+      title: 'Farm Production',
+      description: 'Comprehensive farm-level assessments covering crops, livestock, and management practices',
       color: 'text-green-600 bg-green-100',
     },
     {
-      icon: BarChart3,
-      title: 'Detailed Results',
-      description: 'Get comprehensive environmental impact analysis with actionable recommendations',
+      icon: Factory,
+      title: 'Food Processing',
+      description: 'Processing facility assessments from raw materials to finished food products',
       color: 'text-blue-600 bg-blue-100',
     },
     {
       icon: Globe,
       title: 'Africa-Focused',
-      description: 'Built specifically for African farming systems with local data and expertise',
+      description: 'Built specifically for African food systems with local data, contexts, and expertise',
       color: 'text-emerald-600 bg-emerald-100',
     },
     {
-      icon: Users,
-      title: 'Farmer Friendly',
-      description: 'No technical expertise required - designed for practical farm use',
+      icon: TrendingUp,
+      title: 'Value Chain Insights',
+      description: 'Track sustainability across the entire food value chain from farm to fork',
       color: 'text-teal-600 bg-teal-100',
     },
   ];
@@ -49,8 +51,8 @@ export default function HomePage() {
   const stats = [
     { label: 'Countries Supported', value: '2+', icon: Globe },
     { label: 'Impact Categories', value: '13', icon: BarChart3 },
-    { label: 'Farmer Friendly', value: '100%', icon: Users },
-    { label: 'Science Based', value: 'Yes', icon: Award },
+    { label: 'Value Chain Coverage', value: 'Farm to Fork', icon: TrendingUp },
+    { label: 'ISO Compliant', value: '14044', icon: Award },
   ];
 
   const impacts = [
@@ -92,25 +94,33 @@ export default function HomePage() {
             className="text-center"
           >
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Sustainable Farming for{' '}
+              Sustainable Food Systems for{' '}
               <span className="text-green-600">Africa</span>
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Assess your farm&apos;s environmental impact and get actionable insights 
-              to improve sustainability and productivity
+              Environmental impact assessments for farms and food processing companies across the African value chain
             </p>
-            <div className="flex justify-center">
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Link href="/assessment">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-green-600 hover:bg-green-700 text-white px-12 py-4 rounded-xl font-semibold text-lg flex items-center space-x-3 shadow-lg transition-colors duration-200"
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-semibold text-lg flex items-center space-x-3 shadow-lg transition-colors duration-200"
                 >
                   <Sprout className="w-6 h-6" />
-                  <span>Start Farm Assessment</span>
+                  <span>Farm Assessment</span>
                   <ArrowRight className="w-5 h-5" />
                 </motion.button>
               </Link>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                className="bg-gray-300 text-gray-600 px-8 py-4 rounded-xl font-semibold text-lg flex items-center space-x-3 shadow-lg cursor-not-allowed relative"
+                disabled
+              >
+                <Factory className="w-6 h-6" />
+                <span>Processing Assessment</span>
+                <span className="ml-2 px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded">COMING SOON</span>
+              </motion.button>
             </div>
             
             {/* Assessment Description */}
@@ -118,41 +128,68 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="mt-8 max-w-4xl mx-auto"
+              className="mt-8 max-w-6xl mx-auto"
             >
-              <div className="bg-white rounded-xl p-8 shadow-lg border-2 border-green-200">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Sprout className="w-4 h-4 text-green-600" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Farm Assessment Card */}
+                <div className="bg-white rounded-xl p-8 shadow-lg border-2 border-green-200">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Sprout className="w-4 h-4 text-green-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">Farm Production</h3>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900">Comprehensive Farm Assessment</h3>
-                </div>
-                <p className="text-gray-600 mb-6">
-                  Detailed Life Cycle Assessment (LCA) following ISO 14040/14044 standards, specifically designed 
-                  for African agricultural systems. Get precise sustainability insights based on your actual 
-                  farm management practices, cropping patterns, and regional conditions.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
-                  <div className="space-y-2">
-                    <p>✓ Complete farm system analysis</p>
-                    <p>✓ Management practices evaluation</p>
-                    <p>✓ Intercropping & crop rotation assessment</p>
-                    <p>✓ Soil, water & pest management analysis</p>
-                    <p>✓ Equipment & infrastructure evaluation</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p>✓ Regional benchmarking & comparisons</p>
-                    <p>✓ Personalized recommendations</p>
-                    <p>✓ 13 environmental impact categories</p>
-                    <p>✓ Data quality assessment</p>
-                    <p>✓ Actionable improvement strategies</p>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-green-600 font-medium flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    ⏱️ Complete assessment in 15-20 minutes
+                  <p className="text-gray-600 mb-4">
+                    Comprehensive LCA for agricultural systems following ISO 14040/14044 standards,
+                    designed for African farming contexts.
                   </p>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p>✓ Farm system & management analysis</p>
+                    <p>✓ Cropping patterns & intercropping</p>
+                    <p>✓ Soil, water & pest management</p>
+                    <p>✓ Equipment & energy assessment</p>
+                    <p>✓ Regional benchmarking</p>
+                    <p>✓ Farmer-friendly recommendations</p>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-green-600 font-medium flex items-center text-sm">
+                      <Clock className="w-4 h-4 mr-1" />
+                      15-20 minutes
+                    </p>
+                  </div>
+                </div>
+
+                {/* Processing Assessment Card */}
+                <div className="bg-white rounded-xl p-8 shadow-lg border-2 border-blue-200 relative opacity-90">
+                  <div className="absolute top-4 right-4">
+                    <span className="px-3 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full">
+                      COMING SOON
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Factory className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900">Food Processing</h3>
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    Environmental impact assessment for food processing facilities, from raw materials
+                    to finished products.
+                  </p>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p>✓ Raw material sourcing analysis</p>
+                    <p>✓ Processing operations assessment</p>
+                    <p>✓ Energy & water consumption</p>
+                    <p>✓ Waste & emissions tracking</p>
+                    <p>✓ Supply chain optimization</p>
+                    <p>✓ Efficiency improvement strategies</p>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-gray-500 font-medium flex items-center text-sm">
+                      <Clock className="w-4 h-4 mr-1" />
+                      10-15 minutes
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -202,8 +239,8 @@ export default function HomePage() {
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Why Choose Green Means Go?
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Built specifically for African farmers with local expertise and research-backed methodology
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Supporting sustainable food systems across Africa - from smallholder farmers to large-scale processing facilities
             </p>
           </motion.div>
 
@@ -274,10 +311,10 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-              Ready to Assess Your Farm?
+              Ready to Measure Your Environmental Impact?
             </h2>
             <p className="text-xl text-green-100 mb-8">
-              Get a comprehensive analysis of your farm&apos;s environmental impact and discover actionable ways to improve sustainability
+              Start with farm assessments today - processing facility tools launching soon!
             </p>
             <div className="flex justify-center">
               <Link href="/assessment">
@@ -287,7 +324,7 @@ export default function HomePage() {
                   className="bg-white text-green-600 hover:bg-gray-50 px-12 py-4 rounded-xl font-semibold text-xl flex items-center space-x-3 shadow-xl transition-colors duration-200"
                 >
                   <Sprout className="w-6 h-6" />
-                  <span>Start Assessment</span>
+                  <span>Start Farm Assessment</span>
                   <ArrowRight className="w-5 h-5" />
                 </motion.button>
               </Link>

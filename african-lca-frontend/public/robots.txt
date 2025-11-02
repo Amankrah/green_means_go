@@ -1,0 +1,15 @@
+# Robots.txt for Green Means Go (greenmeansgo.ai)
+# Development: Blocks all crawlers
+# Production: Allows all crawlers
+
+# Default: Allow all (production)
+User-agent: *
+Allow: /
+
+# Disallow admin or private routes (if any)
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+
+# Sitemap location
+Sitemap: https://greenmeansgo.ai/sitemap.xml
