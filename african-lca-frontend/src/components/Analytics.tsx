@@ -2,7 +2,7 @@
 
 import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import seoConfig from '@/config/seo.config';
 
 // Extend Window interface to include gtag
@@ -18,10 +18,10 @@ declare global {
 }
 
 /**
- * Google Analytics Component
+ * Google Analytics Component (Internal)
  * Only loads in production environment
  */
-export function GoogleAnalytics() {
+function GoogleAnalyticsInternal() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const gaId = seoConfig.analytics.googleAnalyticsId;
@@ -102,6 +102,18 @@ export function GoogleTagManager() {
         />
       </noscript>
     </>
+  );
+}
+
+/**
+ * Google Analytics Component (with Suspense wrapper)
+ * Only loads in production environment
+ */
+export function GoogleAnalytics() {
+  return (
+    <Suspense fallback={null}>
+      <GoogleAnalyticsInternal />
+    </Suspense>
   );
 }
 

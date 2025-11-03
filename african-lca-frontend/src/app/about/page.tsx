@@ -3,6 +3,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
 import {
   Sprout,
   Globe,

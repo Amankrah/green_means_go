@@ -3,6 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
 import {
   Sprout,
   BarChart3,

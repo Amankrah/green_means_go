@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
 import { 
   ChevronLeft, 
   ChevronRight, 
