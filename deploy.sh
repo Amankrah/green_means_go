@@ -128,19 +128,33 @@ cd $BACKEND_DIR
 print_status "Running Rust release build with optimizations..."
 cargo build --release
 
-# Check for binary (Rust converts dashes to underscores in binary names)
-if [ -f "$BACKEND_DIR/target/release/african_lca_backend" ]; then
+# Check for binary (multiple possible names)
+if [ -f "$BACKEND_DIR/target/release/server" ]; then
+    RUST_BINARY="$BACKEND_DIR/target/release/server"
+    print_status "Found Rust binary: server"
+elif [ -f "$BACKEND_DIR/target/release/african_lca_backend" ]; then
     RUST_BINARY="$BACKEND_DIR/target/release/african_lca_backend"
+    print_status "Found Rust binary: african_lca_backend"
 elif [ -f "$BACKEND_DIR/target/release/african-lca-backend" ]; then
     RUST_BINARY="$BACKEND_DIR/target/release/african-lca-backend"
+    print_status "Found Rust binary: african-lca-backend"
 else
-    print_error "Rust build failed - binary not found"
-    print_error "Checked locations:"
-    print_error "  - $BACKEND_DIR/target/release/african_lca_backend"
-    print_error "  - $BACKEND_DIR/target/release/african-lca-backend"
-    print_status "Listing actual files in target/release/:"
-    ls -la "$BACKEND_DIR/target/release/" | grep -E '^-.*x' || true
-    exit 1
+    # Try to find any executable binary
+    print_warning "Standard binary names not found, searching for executables..."
+    RUST_BINARY=$(find "$BACKEND_DIR/target/release/" -maxdepth 1 -type f -executable ! -name "*.so" ! -name "*.d" ! -name "build-*" | head -1)
+    
+    if [ -n "$RUST_BINARY" ]; then
+        print_status "Found executable: $RUST_BINARY"
+    else
+        print_error "Rust build failed - no executable binary found"
+        print_error "Checked locations:"
+        print_error "  - $BACKEND_DIR/target/release/server"
+        print_error "  - $BACKEND_DIR/target/release/african_lca_backend"
+        print_error "  - $BACKEND_DIR/target/release/african-lca-backend"
+        print_status "Listing actual files in target/release/:"
+        ls -la "$BACKEND_DIR/target/release/" | grep -E '^-.*x' || true
+        exit 1
+    fi
 fi
 
 print_status "Rust backend built successfully ✓"
