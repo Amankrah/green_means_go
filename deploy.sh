@@ -592,6 +592,8 @@ git pull origin main
 # Rebuild Rust backend
 echo "Building Rust backend..."
 cd african_lca_backend
+# Source Rust environment
+source $HOME/.cargo/env
 cargo build --release
 
 # Update Python dependencies
