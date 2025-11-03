@@ -307,19 +307,29 @@ async def call_rust_processing_backend(data: dict) -> dict:
             json.dump(data, f)
             temp_file = f.name
         
-        # Call Rust binary - Production paths
-        rust_binary_release = "../african_lca_backend/target/release/server.exe"
-        rust_binary_debug = "../african_lca_backend/target/debug/server.exe"
-        
-        # Determine which binary to use
-        if os.path.exists(rust_binary_release):
-            rust_binary = rust_binary_release
-        elif os.path.exists(rust_binary_debug):
-            rust_binary = rust_binary_debug
-        else:
-            # Clean up temp file before raising exception
-            os.unlink(temp_file)
-            raise Exception("Rust backend not found! Please compile with: cargo build --release")
+        # Call Rust binary - Check environment variable first, then fallback to local paths
+        rust_binary = os.environ.get('RUST_BACKEND_PATH')
+
+        if not rust_binary or not os.path.exists(rust_binary):
+            # Fallback to local development paths
+            rust_binary_release = "../african_lca_backend/target/release/server.exe"
+            rust_binary_debug = "../african_lca_backend/target/debug/server.exe"
+            rust_binary_release_linux = "../african_lca_backend/target/release/server"
+            rust_binary_debug_linux = "../african_lca_backend/target/debug/server"
+
+            # Determine which binary to use
+            if os.path.exists(rust_binary_release):
+                rust_binary = rust_binary_release
+            elif os.path.exists(rust_binary_debug):
+                rust_binary = rust_binary_debug
+            elif os.path.exists(rust_binary_release_linux):
+                rust_binary = rust_binary_release_linux
+            elif os.path.exists(rust_binary_debug_linux):
+                rust_binary = rust_binary_debug_linux
+            else:
+                # Clean up temp file before raising exception
+                os.unlink(temp_file)
+                raise Exception(f"Rust backend not found! Checked:\n  - RUST_BACKEND_PATH env var: {os.environ.get('RUST_BACKEND_PATH')}\n  - {rust_binary_release}\n  - {rust_binary_debug}\n  - {rust_binary_release_linux}\n  - {rust_binary_debug_linux}\nPlease compile with: cargo build --release")
         
         # Execute Rust backend
         result = subprocess.run(
