@@ -210,10 +210,9 @@ python -c "import fastapi; print(f'FastAPI {fastapi.__version__} installed')"
 # 7. Environment configuration
 print_step "Step 5: Setting up environment configuration..."
 
-# Create .env file for API if it doesn't exist
-if [ ! -f "$API_DIR/.env" ]; then
-    print_warning "Creating production .env file for API..."
-    cat > $API_DIR/.env << EOF
+# Create or update .env file for API
+print_status "Configuring API environment file..."
+cat > $API_DIR/.env << EOF
 # Production Environment Configuration
 API_HOST=127.0.0.1
 API_PORT=8000
@@ -228,16 +227,17 @@ ENVIRONMENT=production
 # Logging
 LOG_LEVEL=info
 EOF
-    print_warning "Please review and edit $API_DIR/.env if needed"
+
+# Verify the .env file was created
+if [ -f "$API_DIR/.env" ]; then
+    print_status "Environment file created successfully ✓"
+    print_status "Rust binary path set to: $RUST_BINARY"
 else
-    # Update existing .env with correct Rust binary path
-    print_status "Updating RUST_BACKEND_PATH in existing .env..."
-    if grep -q "RUST_BACKEND_PATH=" "$API_DIR/.env"; then
-        sed -i "s|RUST_BACKEND_PATH=.*|RUST_BACKEND_PATH=$RUST_BINARY|" "$API_DIR/.env"
-    else
-        echo "RUST_BACKEND_PATH=$RUST_BINARY" >> "$API_DIR/.env"
-    fi
+    print_error "Failed to create .env file"
+    exit 1
 fi
+
+print_warning "Remember to add your ANTHROPIC_API_KEY to $API_DIR/.env for AI report generation"
 
 # 8. Frontend Build and Deployment
 print_step "Step 6: Building and deploying frontend..."
@@ -440,9 +440,10 @@ EOF
 print_step "Step 8: Configuring Supervisor for service management..."
 
 # FastAPI backend configuration
+# Note: Environment variables must be on a single line with proper escaping
 sudo tee /etc/supervisor/conf.d/greenmeansgo-api.conf > /dev/null << EOF
 [program:greenmeansgo-api]
-command=$VENV_DIR/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 4
+command=$VENV_DIR/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 4 --env-file .env
 directory=$API_DIR
 user=$USER
 autostart=true
@@ -450,7 +451,7 @@ autorestart=true
 redirect_stderr=true
 stdout_logfile=/var/log/greenmeansgo-api.log
 stderr_logfile=/var/log/greenmeansgo-api-error.log
-environment=PATH="$VENV_DIR/bin",RUST_BACKEND_PATH="$RUST_BINARY"
+environment=PATH="$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin",RUST_BACKEND_PATH="$RUST_BINARY",PYTHONPATH="$API_DIR"
 stopwaitsecs=60
 EOF
 
