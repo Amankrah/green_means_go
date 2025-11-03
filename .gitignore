@@ -22,6 +22,14 @@ app/.env.example
 **/.env
 **/.env.example
 
+# SSH Keys and Credentials (NEVER commit these!)
+*.pem
+*.key
+*.ppk
+gmgo.pem
+*.crt
+*.csr
+
 # Rust
 african_lca_backend/target/
 target/
@@ -38,6 +46,10 @@ african-lca-frontend/dist/
 # OS/Editor
 .DS_Store
 Thumbs.db
+
+# Deployment files with sensitive information
+DEPLOYMENT.md
+# deploy.sh
 
 # Misc
 .claude/
