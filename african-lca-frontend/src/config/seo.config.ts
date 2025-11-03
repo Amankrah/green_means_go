@@ -12,7 +12,7 @@ export const seoConfig = {
   // Default Metadata
   defaultTitle: 'Green Means Go - African Food Systems LCA Platform',
   titleTemplate: '%s | Green Means Go',
-  defaultDescription: 'Professional Life Cycle Assessment (LCA) platform for African food systems. Assess environmental impact of farms and food processing facilities following ISO 14044 standards. Covering Ghana, Nigeria, and expanding across Africa.',
+  defaultDescription: 'Professional Life Cycle Assessment (LCA) platform for African food systems. Developed at Sustainable Agrifood Systems Engineering Lab at McGill University. Assess environmental impact of farms and food processing facilities following ISO 14044 standards. Covering Ghana, Nigeria, and expanding across Africa.',
 
   // Keywords
   keywords: [
@@ -61,19 +61,34 @@ export const seoConfig = {
     foundingDate: '2024',
     founders: [
       {
-        name: 'Green Means Go Team',
+        name: 'Sustainable Agrifood Systems Engineering Lab',
+        url: 'https://sasellab.com/',
       },
     ],
+    parentOrganization: {
+      name: 'Sustainable Agrifood Systems Engineering Lab',
+      url: 'https://sasellab.com/',
+      alternateName: 'SASEL Lab',
+      parentOrganization: {
+        name: 'McGill University',
+        url: 'https://www.mcgill.ca/',
+      },
+    },
     address: {
-      addressCountry: 'GH',
-      addressRegion: 'West Africa',
+      addressCountry: 'CA',
+      addressRegion: 'Quebec',
+      addressLocality: 'Sainte-Anne-de-Bellevue',
+      postalCode: 'H9X 3V9',
+      streetAddress: '2111 Lakeshore Road',
     },
     contactPoint: {
       contactType: 'Customer Support',
-      email: 'contact@greenmeansgo.ai',
+      email: 'ebenezer.kwofie@mcgill.ca',
+      telephone: '+1-514-398-7776',
     },
     sameAs: [
       // Add social media profiles when available
+      'https://sasellab.com/',
       'https://twitter.com/greenmeansgo',
       'https://linkedin.com/company/greenmeansgo',
     ],

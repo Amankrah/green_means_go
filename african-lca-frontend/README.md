@@ -1,8 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Green Means Go - African Food Systems LCA Platform
+
+Professional Life Cycle Assessment (LCA) platform for African food systems. Assess environmental impact of farms and food processing facilities following ISO 14044 standards.
+
+## About
+
+Green Means Go is developed at the [Sustainable Agrifood Systems Engineering Lab (SASEL)](https://sasellab.com/) at McGill University. The platform provides comprehensive sustainability assessments for African agricultural and food processing operations.
+
+### Key Features
+
+- 🌾 **Farm Production Assessment**: Comprehensive farm-level LCA covering crops, livestock, and management practices
+- 🏭 **Food Processing Assessment**: Processing facility assessments from raw materials to finished products
+- 🌍 **Africa-Focused**: Built specifically for African food systems with local data and contexts
+- 📊 **ISO 14044 Compliant**: Professional LCA methodology following international standards
+- 🎯 **Regional Coverage**: Currently supporting Ghana and Nigeria, expanding across Africa
+
+## Technology Stack
+
+- **Framework**: Next.js 15 (React 19)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Animation**: Framer Motion
+- **Forms**: React Hook Form + Zod validation
+- **API**: RESTful backend integration
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ or Bun
+- npm, yarn, pnpm, or bun
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/green-means-go.git
+cd green-means-go/african-lca-frontend
+
+# Install dependencies
+npm install
+# or
+bun install
+
+# Set up environment variables
+cp .env.example .env.local
+```
+
+### Development
+
+Run the development server:
 
 ```bash
 npm run dev
@@ -14,23 +60,59 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Building for Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+african-lca-frontend/
+├── src/
+│   ├── app/              # Next.js app router pages
+│   ├── components/       # React components
+│   ├── lib/             # Utility functions and API
+│   ├── types/           # TypeScript type definitions
+│   └── config/          # Configuration files
+├── public/              # Static assets
+└── README.md
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Create a `.env.local` file with the following variables:
 
-## Deploy on Vercel
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_GA_TRACKING_ID=your-ga-id
+NEXT_PUBLIC_GTM_ID=your-gtm-id
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Contributing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
+
+## License
+
+All rights reserved © 2025 Green Means Go
+
+## Contact & Support
+
+- **Lab**: [Sustainable Agrifood Systems Engineering Lab](https://sasellab.com/)
+- **Email**: ebenezer.kwofie@mcgill.ca
+- **Address**: 2111 Lakeshore Road, Sainte-Anne-de-Bellevue, Quebec, Canada H9X 3V9
+- **Phone**: +1-514-398-7776
+
+## Acknowledgments
+
+Developed at the [Sustainable Agrifood Systems Engineering Lab](https://sasellab.com/) at McGill University.
+
+---
+
+Built with ❤️ for sustainable African food systems

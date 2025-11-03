@@ -1,8 +1,10 @@
 import React from 'react';
+import { Report } from '@/lib/api';
+import { AssessmentResult } from '@/types/assessment';
 
 interface PrintableReportProps {
-  reportData: any;
-  assessmentData: any;
+  reportData: Report;
+  assessmentData: AssessmentResult;
   companyName: string;
   reportType: string;
 }
@@ -233,7 +235,7 @@ export const PrintableReport: React.FC<PrintableReportProps> = ({
 
       {/* Report Content Sections */}
       {reportData?.sections ? (
-        Object.entries(reportData.sections).map(([sectionKey, sectionContent]: [string, any]) => (
+        Object.entries(reportData.sections).map(([sectionKey, sectionContent]) => (
           <div
             key={sectionKey}
             style={{

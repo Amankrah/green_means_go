@@ -5,6 +5,18 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import seoConfig from '@/config/seo.config';
 
+// Extend Window interface to include gtag
+declare global {
+  interface Window {
+    gtag?: (
+      command: 'config' | 'event' | 'js' | 'set',
+      targetId: string | Date,
+      config?: Record<string, unknown>
+    ) => void;
+    dataLayer?: unknown[];
+  }
+}
+
 /**
  * Google Analytics Component
  * Only loads in production environment
@@ -20,8 +32,8 @@ export function GoogleAnalytics() {
     const url = pathname + searchParams.toString();
 
     // Track page view
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('config', gaId, {
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('config', gaId, {
         page_path: url,
       });
     }

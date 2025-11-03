@@ -94,14 +94,33 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center justify-center min-h-[70vh]">
           <div className="text-center">
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <p className="text-lg text-gray-900">Loading your assessment results...</p>
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="mb-8"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                className="w-20 h-20 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-6"
+              />
+              <div className="space-y-2">
+                <p className="text-2xl font-bold text-gray-900">Loading your results...</p>
+                <p className="text-gray-600">Processing your assessment with our Rust-powered engine</p>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex items-center justify-center space-x-2 text-sm text-green-600 mt-4"
+                >
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span>Typical processing time: 100-200ms</span>
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </Layout>
@@ -112,17 +131,33 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
     return (
       <Layout>
         <div className="py-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl mx-auto text-center">
-            <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Unable to Load Results</h1>
-            <p className="text-gray-900 mb-8">{error}</p>
-            <button
-              onClick={() => window.location.href = '/assessment'}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
-            >
-              Start New Assessment
-            </button>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto"
+          >
+            <div className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-3xl p-12 text-center shadow-xl">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-6"
+              >
+                <AlertTriangle className="w-12 h-12 text-white" />
+              </motion.div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Unable to Load Results</h1>
+              <p className="text-lg text-gray-700 mb-8">{error}</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/assessment'}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg inline-flex items-center space-x-2"
+              >
+                <span>Start New Assessment</span>
+                <ArrowRight className="w-5 h-5" />
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
       </Layout>
     );
@@ -132,23 +167,38 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
     return (
       <Layout>
         <div className="py-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
-            <BarChart3 className="w-16 h-16 text-gray-800 mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              No Assessment Results Yet
-            </h1>
-            <p className="text-lg text-gray-900 mb-8">
-              Complete a farm assessment to see your sustainability analysis and recommendations.
-            </p>
-            <a
-              href="/assessment"
-              className="bg-green-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-green-700 inline-flex items-center space-x-2"
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span>Start Assessment</span>
-              <ArrowRight className="w-5 h-5" />
-            </a>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto"
+          >
+            <div className="bg-gradient-to-br from-gray-50 to-green-50/50 border-2 border-gray-200 rounded-3xl p-16 text-center shadow-xl">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl"
+              >
+                <BarChart3 className="w-12 h-12 text-white" />
+              </motion.div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                No Assessment Results Yet
+              </h1>
+              <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+                Complete a farm assessment to see your sustainability analysis and recommendations.
+              </p>
+              <motion.a
+                href="/assessment"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:from-green-700 hover:to-emerald-700 inline-flex items-center space-x-3 shadow-xl"
+              >
+                <BarChart3 className="w-6 h-6" />
+                <span>Start Assessment</span>
+                <ArrowRight className="w-5 h-5" />
+              </motion.a>
+            </div>
+          </motion.div>
         </div>
       </Layout>
     );
@@ -246,79 +296,133 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
 
   return (
     <Layout>
-      <div className="py-8 px-4 sm:px-6 lg:px-8">
+      <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-green-50/30 via-white to-emerald-50/30">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-6 sm:mb-8"
+            className="text-center mb-10"
           >
-            <div className="flex items-center justify-center space-x-4 mb-6">
-              <Award className="w-8 h-8 text-green-600" />
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                Sustainability Assessment Results
-              </h1>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <motion.div 
+              className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl"
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Award className="w-10 h-10 text-white" />
+            </motion.div>
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-8 leading-tight">
+              Sustainability Assessment Results
+            </h1>
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white max-w-3xl mx-auto"
+            >
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
                 {results.company_name}
               </h2>
-              <div className="flex items-center justify-center space-x-6 text-sm text-gray-900">
-                <span>📍 {results.country}</span>
-                <span>📅 {new Date(results.assessment_date).toLocaleDateString()}</span>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-gray-700">
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">📍</span>
+                  <span className="font-semibold">{results.country}</span>
+                </div>
+                <div className="hidden sm:block w-1 h-1 bg-gray-400 rounded-full"></div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">📅</span>
+                  <span className="font-semibold">{new Date(results.assessment_date).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}</span>
+                </div>
               </div>
-            </div>
+              
+              
+            </motion.div>
           </motion.div>
 
           {/* Score Overview */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
             className="mb-12"
           >
-            <div className={`rounded-2xl p-8 border-2 ${scoreInterpretation.color}`}>
-              <div className="flex flex-col md:flex-row items-center justify-between">
-                <div className="text-center md:text-left mb-6 md:mb-0">
-                  <h3 className="text-2xl font-bold mb-2">
-                    Environmental Impact Score
-                  </h3>
-                  <div className="text-5xl font-bold mb-4">
-                    {(singleScoreValue * 100).toFixed(1)}%
-                  </div>
-                  <div className="text-xl font-semibold mb-2">
-                    {scoreInterpretation.title}
-                  </div>
-                  <p className="text-lg opacity-90 max-w-md">
-                    {scoreInterpretation.description}
-                  </p>
+            <div className={`rounded-3xl p-10 border-2 shadow-2xl ${scoreInterpretation.color}`}>
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+                <div className="text-center lg:text-left flex-1">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <h3 className="text-3xl font-bold mb-4">
+                      Environmental Impact Score
+                    </h3>
+                    <div className="text-7xl font-black mb-6 tracking-tight">
+                      {(singleScoreValue * 100).toFixed(1)}%
+                    </div>
+                    <div className="inline-flex items-center space-x-3 mb-4">
+                      <div className="text-2xl font-bold">
+                        {scoreInterpretation.title}
+                      </div>
+                      {scoreInterpretation.category === 'excellent' && <span className="text-3xl">🏆</span>}
+                      {scoreInterpretation.category === 'good' && <span className="text-3xl">⭐</span>}
+                    </div>
+                    <p className="text-xl opacity-90 max-w-md leading-relaxed">
+                      {scoreInterpretation.description}
+                    </p>
+                  </motion.div>
                 </div>
                 
-                <div className="w-64 h-64">
+                <motion.div 
+                  className="w-72 h-72 flex-shrink-0"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="90%" data={scoreData}>
-                      <RadialBar dataKey="score" cornerRadius={10} fill={scoreData[0].fill} />
-                      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-current text-2xl font-bold">
+                      <RadialBar dataKey="score" cornerRadius={15} fill={scoreData[0].fill} />
+                      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-current text-3xl font-black">
                         {scoreData[0].score.toFixed(1)}%
                       </text>
                     </RadialBarChart>
                   </ResponsiveContainer>
-                </div>
+                </motion.div>
               </div>
               
-              <div className="mt-6 pt-6 border-t border-opacity-20">
-                <h4 className="font-semibold mb-3">Key Recommendations:</h4>
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="mt-8 pt-8 border-t border-opacity-20"
+              >
+                <h4 className="text-xl font-bold mb-5 flex items-center">
+                  <CheckCircle className="w-6 h-6 mr-2" />
+                  Key Recommendations:
+                </h4>
                 <div className="grid md:grid-cols-3 gap-4">
                   {scoreInterpretation.recommendations.map((rec, index) => (
-                    <div key={index} className="flex items-start space-x-2">
-                      <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{rec}</span>
-                    </div>
+                    <motion.div 
+                      key={index} 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.7 + (index * 0.1) }}
+                      className="flex items-start space-x-3 bg-white/40 backdrop-blur-sm rounded-xl p-4 border border-white/60"
+                    >
+                      <div className="w-6 h-6 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CheckCircle className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-sm font-medium leading-relaxed">{rec}</span>
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
 

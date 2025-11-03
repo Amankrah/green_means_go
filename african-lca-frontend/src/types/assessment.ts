@@ -44,6 +44,28 @@ export interface AssessmentRequest {
   region?: string;
   farm_profile?: Record<string, unknown>; // Enhanced farm profile data
   management_practices?: Record<string, unknown>; // Enhanced management practices data
+  equipment_energy?: {
+    equipment: Array<{
+      equipment_type: string;
+      power_source: string;
+      age: number;
+      hours_per_year: number;
+      fuel_efficiency?: number;
+    }>;
+    energy_sources: Array<{
+      energy_type: string;
+      monthly_consumption: number;
+      primary_use: string;
+      cost: number;
+      currency?: string;
+    }>;
+    fuel_consumption: Array<{
+      fuel_type: string;
+      monthly_consumption: number;
+      primary_use: string;
+      cost: number;
+    }>;
+  };
 }
 
 // Assessment Results

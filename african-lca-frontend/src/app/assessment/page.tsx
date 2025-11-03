@@ -61,6 +61,7 @@ import {
   EquipmentType,
   PowerSource,
   EnergyType,
+  FuelType,
   StorageFacilityType,
   RoadAccessType,
   TransportMode,
@@ -558,11 +559,11 @@ export default function ComprehensiveAssessmentPage() {
               : String(energy.energyType);
 
             // Determine fuel type based on energy type
-            let fuelType = 'Diesel';
+            let fuelType = FuelType.DIESEL;
             if (energyTypeStr.includes('Diesel') || energyTypeStr.includes('diesel')) {
-              fuelType = 'Diesel';
+              fuelType = FuelType.DIESEL;
             } else if (energyTypeStr.includes('Petrol') || energyTypeStr.includes('Gasoline')) {
-              fuelType = 'Petrol/Gasoline';
+              fuelType = FuelType.PETROL;
             }
 
             return {
@@ -609,57 +610,74 @@ export default function ComprehensiveAssessmentPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50/50 to-teal-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-8"
+            className="text-center mb-12"
           >
-            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Sprout className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            <motion.div 
+              className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl"
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Sprout className="w-10 h-10 text-white" />
+            </motion.div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 leading-tight">
               Comprehensive Farm Sustainability Assessment
             </h1>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Get detailed environmental impact analysis with actionable recommendations tailored for African farming systems
             </p>
           </motion.div>
 
           {/* Progress Bar */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-12"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mb-12 bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Clock className="w-5 h-5 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  Estimated time: {currentStepInfo?.estimatedTime}
-                </span>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    Estimated time: {currentStepInfo?.estimatedTime}
+                  </div>
+                  <div className="text-xs text-gray-500">Save and continue anytime</div>
+                </div>
               </div>
-              <div className="text-sm text-gray-600">
-                Step {FORM_STEPS.findIndex(s => s.id === currentStep) + 1} of {FORM_STEPS.length}
+              <div className="text-right">
+                <div className="text-2xl font-bold text-green-600">
+                  {FORM_STEPS.findIndex(s => s.id === currentStep) + 1}/{FORM_STEPS.length}
+                </div>
+                <div className="text-xs text-gray-500 font-medium">Steps</div>
               </div>
             </div>
             
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
               <motion.div
-                className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
               />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+            </div>
+            <div className="mt-2 text-right text-xs font-semibold text-green-600">
+              {Math.round(progress)}% Complete
             </div>
           </motion.div>
 
           {/* Step Navigation */}
-          <div className="mb-12 px-4 sm:px-0">
-            <div className="flex items-center justify-between">
+          <div className="mb-12 px-2 sm:px-0 overflow-x-auto">
+            <div className="flex items-center justify-between min-w-max sm:min-w-0">
               {FORM_STEPS.map((step, index) => {
                 const Icon = stepIcons[step.id];
                 const isActive = step.id === currentStep;
@@ -670,34 +688,58 @@ export default function ComprehensiveAssessmentPage() {
                     key={step.id}
                     className={`flex items-center ${index < FORM_STEPS.length - 1 ? 'flex-1' : ''}`}
                   >
-                    <div className="relative">
-                      <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center border-2
-                        ${isActive 
-                          ? 'bg-green-500 border-green-500 text-white' 
-                          : isCompleted 
-                            ? 'bg-green-100 border-green-500 text-green-600'
-                            : 'bg-white border-gray-300 text-gray-400'
-                        }
-                      `}>
+                    <motion.div 
+                      className="relative"
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                    >
+                      <motion.div 
+                        className={`
+                          w-14 h-14 rounded-2xl flex items-center justify-center border-2 shadow-lg transition-all duration-300
+                          ${isActive 
+                            ? 'bg-gradient-to-br from-green-500 to-emerald-600 border-green-400 text-white scale-110 shadow-green-200' 
+                            : isCompleted 
+                              ? 'bg-gradient-to-br from-green-100 to-emerald-50 border-green-400 text-green-600'
+                              : 'bg-white border-gray-300 text-gray-400'
+                          }
+                        `}
+                        whileHover={{ scale: isActive ? 1.15 : 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
                         {isCompleted ? (
-                          <CheckCircle className="w-5 h-5" />
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                          >
+                            <CheckCircle className="w-7 h-7" />
+                          </motion.div>
                         ) : (
-                          <Icon className="w-5 h-5" />
+                          <Icon className="w-7 h-7" />
                         )}
-                      </div>
-                      <div className="absolute top-12 left-1/2 transform -translate-x-1/2 text-xs text-center">
-                        <div className={`font-medium ${isActive ? 'text-green-600' : 'text-gray-500'}`}>
-                          {step.title}
+                      </motion.div>
+                      <div className="absolute top-16 left-1/2 transform -translate-x-1/2 text-center w-24">
+                        <div className={`text-xs font-semibold ${isActive ? 'text-green-600' : isCompleted ? 'text-green-500' : 'text-gray-500'}`}>
+                          {step.title.split(' ')[0]}
+                        </div>
+                        <div className={`text-[10px] ${isActive ? 'text-green-500' : 'text-gray-400'}`}>
+                          {step.title.split(' ').slice(1).join(' ')}
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                     
                     {index < FORM_STEPS.length - 1 && (
-                      <div className={`
-                        flex-1 h-0.5 mx-4 mt-2
-                        ${isCompleted ? 'bg-green-300' : 'bg-gray-200'}
-                      `} />
+                      <div className="flex-1 h-1 mx-3 mt-2 relative">
+                        <div className="absolute inset-0 bg-gray-200 rounded-full" />
+                        <motion.div 
+                          className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"
+                          initial={{ scaleX: 0 }}
+                          animate={{ scaleX: isCompleted ? 1 : 0 }}
+                          transition={{ duration: 0.5, delay: index * 0.1 }}
+                          style={{ transformOrigin: 'left' }}
+                        />
+                      </div>
                     )}
                   </div>
                 );
@@ -709,16 +751,33 @@ export default function ComprehensiveAssessmentPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-white rounded-2xl shadow-xl overflow-hidden"
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100"
           >
-            <div className="bg-gradient-to-r from-green-500 to-emerald-500 px-8 py-6">
-              <h2 className="text-2xl font-bold text-white">
-                {currentStepInfo?.title}
-              </h2>
-              <p className="text-green-100 mt-1">
-                {currentStepInfo?.description}
-              </p>
+            <div className="relative bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 px-8 py-8">
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-white rounded-full blur-3xl"></div>
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center space-x-3 mb-3">
+                  {(() => {
+                    const Icon = stepIcons[currentStep];
+                    return <Icon className="w-7 h-7 text-white" />;
+                  })()}
+                  <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold text-white">
+                    Step {FORM_STEPS.findIndex(s => s.id === currentStep) + 1} of {FORM_STEPS.length}
+                  </span>
+                </div>
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  {currentStepInfo?.title}
+                </h2>
+                <p className="text-green-50 text-lg leading-relaxed">
+                  {currentStepInfo?.description}
+                </p>
+              </div>
             </div>
 
             <FormProvider {...methods}>
@@ -739,18 +798,20 @@ export default function ComprehensiveAssessmentPage() {
 
             {/* Navigation Footer */}
             {currentStep !== FormStep.REVIEW_SUBMIT && (
-              <div className="bg-gray-50 px-8 py-6 flex justify-between items-center">
-                <button
+              <div className="bg-gradient-to-r from-gray-50 to-green-50/30 px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200">
+                <motion.button
                   type="button"
                   onClick={handlePreviousStep}
                   disabled={currentStep === FormStep.FARM_PROFILE}
-                  className="flex items-center space-x-2 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center space-x-2 px-8 py-3.5 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-white hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-5 h-5" />
                   <span>Previous</span>
-                </button>
+                </motion.button>
 
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-center">
                   {(() => {
                     // Only show errors for current step
                     let hasCurrentStepErrors = false;
@@ -770,22 +831,28 @@ export default function ComprehensiveAssessmentPage() {
                     }
                     
                     return hasCurrentStepErrors ? (
-                      <div className="flex items-center space-x-2 text-red-600">
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>Please fix errors to continue</span>
-                      </div>
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center space-x-2 text-red-600 bg-red-50 px-4 py-2 rounded-lg border border-red-200"
+                      >
+                        <AlertTriangle className="w-5 h-5" />
+                        <span className="font-medium">Please fix errors to continue</span>
+                      </motion.div>
                     ) : null;
                   })()}
                 </div>
 
-                <button
+                <motion.button
                   type="button"
                   onClick={handleNextStep}
-                  className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3.5 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl"
                 >
-                  <span>Next</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                  <span>Next Step</span>
+                  <ChevronRight className="w-5 h-5" />
+                </motion.button>
               </div>
             )}
           </motion.div>
@@ -793,27 +860,54 @@ export default function ComprehensiveAssessmentPage() {
           {/* Submit Result */}
           {submitResult && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`mt-6 max-w-md mx-auto text-center p-6 rounded-lg ${
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className={`mt-8 max-w-2xl mx-auto text-center p-8 rounded-3xl shadow-2xl ${
                 submitResult.success 
-                  ? 'bg-green-50 text-green-800 border border-green-200' 
-                  : 'bg-red-50 text-red-800 border border-red-200'
+                  ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300' 
+                  : 'bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-300'
               }`}
             >
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                {submitResult.success ? (
-                  <CheckCircle className="w-6 h-6" />
-                ) : (
-                  <AlertTriangle className="w-6 h-6" />
+              <div className="flex flex-col items-center space-y-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.2 }}
+                  className={`w-20 h-20 rounded-full flex items-center justify-center ${
+                    submitResult.success ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                >
+                  {submitResult.success ? (
+                    <CheckCircle className="w-12 h-12 text-white" />
+                  ) : (
+                    <AlertTriangle className="w-12 h-12 text-white" />
+                  )}
+                </motion.div>
+                <div>
+                  <h3 className={`text-2xl font-bold mb-2 ${
+                    submitResult.success ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    {submitResult.success ? 'Success!' : 'Error'}
+                  </h3>
+                  <p className={`text-lg ${
+                    submitResult.success ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {submitResult.message}
+                  </p>
+                </div>
+                {submitResult.success && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex items-center space-x-2 text-green-600 bg-green-100 px-4 py-2 rounded-full"
+                  >
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-sm font-medium">Redirecting to comprehensive results page...</span>
+                  </motion.div>
                 )}
-                <span className="font-medium">{submitResult.message}</span>
               </div>
-              {submitResult.success && (
-                <p className="text-sm text-green-600">
-                  Redirecting to comprehensive results page...
-                </p>
-              )}
             </motion.div>
           )}
 
@@ -821,33 +915,47 @@ export default function ComprehensiveAssessmentPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6"
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-10 bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-3xl p-8 shadow-lg"
           >
-            <div className="flex items-start space-x-3">
-              <Info className="w-6 h-6 text-blue-600 mt-0.5" />
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900 mb-2">
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                <Info className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-blue-900 mb-3">
                   Why This Detailed Assessment?
                 </h3>
-                <p className="text-blue-700 mb-3">
+                <p className="text-blue-800 mb-5 leading-relaxed text-lg">
                   This comprehensive assessment follows international LCA standards (ISO 14040/14044) 
                   to provide you with accurate, scientifically-backed sustainability insights specific 
                   to African farming systems.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-600">
-                  <div>
-                    <strong>✓ More Accurate Results:</strong> Detailed inputs provide precise environmental impact calculations
-                  </div>
-                  <div>
-                    <strong>✓ Specific Recommendations:</strong> Tailored advice based on your actual practices
-                  </div>
-                  <div>
-                    <strong>✓ Benchmark Comparisons:</strong> See how you compare to similar farms
-                  </div>
-                  <div>
-                    <strong>✓ Improvement Pathways:</strong> Clear steps to reduce environmental impact
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { title: 'More Accurate Results', desc: 'Detailed inputs provide precise environmental impact calculations' },
+                    { title: 'Specific Recommendations', desc: 'Tailored advice based on your actual practices' },
+                    { title: 'Benchmark Comparisons', desc: 'See how you compare to similar farms' },
+                    { title: 'Improvement Pathways', desc: 'Clear steps to reduce environmental impact' }
+                  ].map((item, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.4, delay: 0.7 + (idx * 0.1) }}
+                      className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-blue-100"
+                    >
+                      <div className="flex items-start space-x-2">
+                        <div className="w-6 h-6 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <CheckCircle className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-blue-900 mb-1">{item.title}</div>
+                          <div className="text-sm text-blue-700 leading-relaxed">{item.desc}</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               </div>
             </div>

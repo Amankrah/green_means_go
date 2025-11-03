@@ -38,9 +38,10 @@ export const metadata: Metadata = {
   keywords: seoConfig.keywords,
   authors: [
     { name: seoConfig.organization.name },
-    { name: "Green Means Go Team", url: seoConfig.siteUrl },
+    { name: "Sustainable Agrifood Systems Engineering Lab", url: "https://sasellab.com/" },
+    { name: "McGill University", url: "https://www.mcgill.ca/" },
   ],
-  creator: seoConfig.organization.name,
+  creator: "Sustainable Agrifood Systems Engineering Lab",
   publisher: seoConfig.organization.name,
   formatDetection: {
     email: false,
