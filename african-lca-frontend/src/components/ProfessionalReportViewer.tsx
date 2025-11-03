@@ -879,7 +879,7 @@ export default function ProfessionalReportViewer({
     const paragraphs = formatted.split(/\n\n+/);
     console.log('📝 Split into', paragraphs.length, 'paragraphs');
 
-    formatted = paragraphs.map((para, idx) => {
+    formatted = paragraphs.map((para) => {
       const trimmed = para.trim();
       if (!trimmed) return '';
 

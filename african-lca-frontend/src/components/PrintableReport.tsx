@@ -4,7 +4,7 @@ import { AssessmentResult } from '@/types/assessment';
 
 interface PrintableReportProps {
   reportData: Report;
-  assessmentData: AssessmentResult;
+  assessmentData?: AssessmentResult;
   companyName: string;
   reportType: string;
 }
