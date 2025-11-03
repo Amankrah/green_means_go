@@ -312,12 +312,14 @@ server {
     proxy_connect_timeout 300;
     proxy_send_timeout 300;
 
-    # FastAPI endpoints (use exact match or specific paths to avoid conflicts)
-    location /api {
+    # FastAPI endpoints - strip /api prefix before passing to backend
+    location /api/ {
+        rewrite ^/api/(.*)$ /$1 break;
         proxy_pass http://fastapi_backend;
     }
 
-    location /api/ {
+    location /api {
+        rewrite ^/api$ / break;
         proxy_pass http://fastapi_backend;
     }
 
