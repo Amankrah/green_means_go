@@ -115,6 +115,12 @@ if [ ! -f "$BACKEND_DIR/Cargo.toml" ]; then
     exit 1
 fi
 
+# Check for requirements.txt
+if [ ! -f "$PROJECT_DIR/requirements.txt" ] && [ ! -f "$API_DIR/requirements.txt" ]; then
+    print_error "requirements.txt not found in project root or app directory"
+    exit 1
+fi
+
 print_status "Project structure verified ✓"
 
 # 3. Create project directory permissions
@@ -185,7 +191,18 @@ activate_venv
 # 6. Install Python dependencies
 print_status "Installing Python/FastAPI dependencies..."
 pip install --upgrade pip
-pip install -r requirements.txt
+
+# Check for requirements.txt in multiple locations
+if [ -f "$API_DIR/requirements.txt" ]; then
+    print_status "Installing from $API_DIR/requirements.txt"
+    pip install -r "$API_DIR/requirements.txt"
+elif [ -f "$PROJECT_DIR/requirements.txt" ]; then
+    print_status "Installing from $PROJECT_DIR/requirements.txt"
+    pip install -r "$PROJECT_DIR/requirements.txt"
+else
+    print_error "requirements.txt not found in $API_DIR or $PROJECT_DIR"
+    exit 1
+fi
 
 # Verify FastAPI is installed
 python -c "import fastapi; print(f'FastAPI {fastapi.__version__} installed')"
