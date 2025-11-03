@@ -128,13 +128,23 @@ cd $BACKEND_DIR
 print_status "Running Rust release build with optimizations..."
 cargo build --release
 
-if [ ! -f "$BACKEND_DIR/target/release/african_lca_backend" ]; then
+# Check for binary (Rust converts dashes to underscores in binary names)
+if [ -f "$BACKEND_DIR/target/release/african_lca_backend" ]; then
+    RUST_BINARY="$BACKEND_DIR/target/release/african_lca_backend"
+elif [ -f "$BACKEND_DIR/target/release/african-lca-backend" ]; then
+    RUST_BINARY="$BACKEND_DIR/target/release/african-lca-backend"
+else
     print_error "Rust build failed - binary not found"
+    print_error "Checked locations:"
+    print_error "  - $BACKEND_DIR/target/release/african_lca_backend"
+    print_error "  - $BACKEND_DIR/target/release/african-lca-backend"
+    print_status "Listing actual files in target/release/:"
+    ls -la "$BACKEND_DIR/target/release/" | grep -E '^-.*x' || true
     exit 1
 fi
 
 print_status "Rust backend built successfully ✓"
-print_status "Binary location: $BACKEND_DIR/target/release/african_lca_backend"
+print_status "Binary location: $RUST_BINARY"
 
 # 5. Setup Python virtual environment for FastAPI
 print_step "Step 4: Setting up Python virtual environment for FastAPI..."
@@ -176,7 +186,7 @@ if [ ! -f "$API_DIR/.env" ]; then
 # Production Environment Configuration
 API_HOST=127.0.0.1
 API_PORT=8000
-RUST_BACKEND_PATH=$BACKEND_DIR/target/release/african_lca_backend
+RUST_BACKEND_PATH=$RUST_BINARY
 
 # CORS Settings
 CORS_ORIGINS=https://greenmeansgo.ai,https://www.greenmeansgo.ai
@@ -188,6 +198,14 @@ ENVIRONMENT=production
 LOG_LEVEL=info
 EOF
     print_warning "Please review and edit $API_DIR/.env if needed"
+else
+    # Update existing .env with correct Rust binary path
+    print_status "Updating RUST_BACKEND_PATH in existing .env..."
+    if grep -q "RUST_BACKEND_PATH=" "$API_DIR/.env"; then
+        sed -i "s|RUST_BACKEND_PATH=.*|RUST_BACKEND_PATH=$RUST_BINARY|" "$API_DIR/.env"
+    else
+        echo "RUST_BACKEND_PATH=$RUST_BINARY" >> "$API_DIR/.env"
+    fi
 fi
 
 # 8. Frontend Build and Deployment
@@ -397,7 +415,7 @@ autorestart=true
 redirect_stderr=true
 stdout_logfile=/var/log/greenmeansgo-api.log
 stderr_logfile=/var/log/greenmeansgo-api-error.log
-environment=PATH="$VENV_DIR/bin",RUST_BACKEND_PATH="$BACKEND_DIR/target/release/african_lca_backend"
+environment=PATH="$VENV_DIR/bin",RUST_BACKEND_PATH="$RUST_BINARY"
 stopwaitsecs=60
 EOF
 
@@ -576,7 +594,7 @@ echo ""
 print_status "Services deployed:"
 print_status "├─ Frontend (Next.js): https://greenmeansgo.ai → port 3000"
 print_status "├─ API (FastAPI): https://greenmeansgo.ai/api/ → port 8000"
-print_status "└─ Rust Backend: Compiled binary at $BACKEND_DIR/target/release/"
+print_status "└─ Rust Backend: Compiled binary at $RUST_BINARY"
 echo ""
 print_status "Architecture:"
 print_status "├─ Rust (Computation Engine): ~100-200ms processing"
