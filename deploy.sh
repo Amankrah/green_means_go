@@ -456,9 +456,10 @@ stopwaitsecs=60
 EOF
 
 # Next.js frontend configuration
+NPM_PATH=$(which npm)
 sudo tee /etc/supervisor/conf.d/greenmeansgo-frontend.conf > /dev/null << EOF
 [program:greenmeansgo-frontend]
-command=/usr/bin/npm start
+command=$NPM_PATH start
 directory=$FRONTEND_DIR
 user=$USER
 autostart=true
@@ -466,7 +467,7 @@ autorestart=true
 redirect_stderr=true
 stdout_logfile=/var/log/greenmeansgo-frontend.log
 stderr_logfile=/var/log/greenmeansgo-frontend-error.log
-environment=NODE_ENV="production",PORT="3000"
+environment=NODE_ENV="production",PORT="3000",PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin"
 stopwaitsecs=60
 EOF
 
