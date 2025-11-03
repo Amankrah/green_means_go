@@ -312,7 +312,7 @@ server {
     proxy_connect_timeout 300;
     proxy_send_timeout 300;
 
-    # FastAPI endpoints
+    # FastAPI endpoints (use exact match or specific paths to avoid conflicts)
     location /api {
         proxy_pass http://fastapi_backend;
     }
@@ -321,11 +321,13 @@ server {
         proxy_pass http://fastapi_backend;
     }
 
-    location /assess {
+    # Exact match for /assess to avoid matching /assessment
+    location = /assess {
         proxy_pass http://fastapi_backend;
     }
 
-    location /assess/ {
+    # Match /assess/{anything} but not /assessment
+    location ~ ^/assess/(.*)$ {
         proxy_pass http://fastapi_backend;
     }
 
