@@ -51,10 +51,8 @@ Thumbs.db
 DEPLOYMENT.md
 # deploy.sh
 
-# Documentation - ignore all .md files except README
+# Documentation - ignore all .md files
 *.md
-!README.md
-!**/README.md
 
 # Misc
 .claude/
