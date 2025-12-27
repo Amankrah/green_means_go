@@ -18,13 +18,19 @@ app = FastAPI(
     version="2.1.0"
 )
 
-# Add CORS middleware
+# Add CORS middleware - restrict to known origins
+ALLOWED_ORIGINS = [
+    "https://greenmeansgo.ai",
+    "https://www.greenmeansgo.ai",
+    "http://localhost:3000",  # Development only
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Include processing, production, and reports routes

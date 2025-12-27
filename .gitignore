@@ -47,6 +47,13 @@ african-lca-frontend/dist/
 .DS_Store
 Thumbs.db
 
+# Scripts
+*.bat
+
+# Generated files
+*.pdf
+*.html
+
 # Deployment files with sensitive information
 DEPLOYMENT.md
 # deploy.sh
