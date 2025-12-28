@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from datetime import datetime
 import uvicorn
+import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -12,10 +14,23 @@ from processing.routes import router as processing_router
 from production.routes import router as production_router
 from reports.routes import router as reports_router
 
+# Environment detection
+IS_PRODUCTION = os.getenv("ENVIRONMENT", "development") == "production"
+
+# Disable docs in production for security
 app = FastAPI(
     title="African Environmental Sustainability Assessment API",
     description="Comprehensive LCA API for food companies, farmers, and processing facilities in Africa - supports farm and processing assessments with AI-powered report generation",
-    version="2.1.0"
+    version="2.1.0",
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
+
+# Trusted hosts middleware - prevent host header attacks
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["greenmeansgo.ai", "www.greenmeansgo.ai", "localhost", "127.0.0.1"],
 )
 
 # Add CORS middleware - restrict to known origins
@@ -41,7 +56,7 @@ app.include_router(reports_router)
 
 @app.get("/")
 async def root():
-    return {
+    response = {
         "message": "African Environmental Sustainability Assessment API",
         "version": "2.1.0",
         "features": [
@@ -56,10 +71,13 @@ async def root():
             "farm_assessments": "/assess, /assess/comprehensive",
             "processing_assessments": "/processing/assess",
             "reports": "/reports/generate, /reports/report/{id}",
-            "documentation": "/docs"
         },
-        "docs": "/docs"
     }
+    # Only show docs endpoint in development
+    if not IS_PRODUCTION:
+        response["endpoints"]["documentation"] = "/docs"
+        response["docs"] = "/docs"
+    return response
 
 @app.get("/health")
 async def health_check():

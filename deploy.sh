@@ -64,7 +64,7 @@ fi
 echo "========================================"
 echo "  Green Means Go Deployment"
 echo "  Domain: greenmeansgo.ai"
-echo "  IP: 16.52.214.205"
+echo "  IP: 15.156.234.180"
 echo "========================================"
 echo ""
 
@@ -273,20 +273,35 @@ print_step "Step 7: Configuring Nginx..."
 
 # Create initial HTTP-only nginx configuration
 sudo tee /etc/nginx/sites-available/greenmeansgo.ai > /dev/null << 'EOF'
+# Rate limiting zones - protect against abuse
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=general_limit:10m rate=30r/s;
+limit_conn_zone $binary_remote_addr zone=conn_limit:10m;
+
 # Upstream definitions
 upstream fastapi_backend {
     server 127.0.0.1:8000 fail_timeout=30s;
+    keepalive 32;
 }
 
 upstream nextjs_frontend {
     server 127.0.0.1:3000 fail_timeout=30s;
+    keepalive 32;
+}
+
+# Block direct IP access - force domain usage
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
 }
 
 # HTTP server - temporary configuration for SSL setup
 server {
     listen 80;
     listen [::]:80;
-    server_name greenmeansgo.ai www.greenmeansgo.ai 16.52.214.205;
+    server_name greenmeansgo.ai www.greenmeansgo.ai;
 
     # Allow Let's Encrypt challenges
     location /.well-known/acme-challenge/ {
@@ -298,6 +313,8 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://greenmeansgo.ai;" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
 
     # Client body size limit
     client_max_body_size 20M;
@@ -314,26 +331,32 @@ server {
 
     # FastAPI endpoints - strip /api prefix before passing to backend
     location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        limit_conn conn_limit 10;
         rewrite ^/api/(.*)$ /$1 break;
         proxy_pass http://fastapi_backend;
     }
 
     location /api {
+        limit_req zone=api_limit burst=20 nodelay;
         rewrite ^/api$ / break;
         proxy_pass http://fastapi_backend;
     }
 
     # Exact match for /assess to avoid matching /assessment
     location = /assess {
+        limit_req zone=api_limit burst=5 nodelay;
         proxy_pass http://fastapi_backend;
     }
 
     # Match /assess/{anything} but not /assessment
     location ~ ^/assess/(.*)$ {
+        limit_req zone=api_limit burst=5 nodelay;
         proxy_pass http://fastapi_backend;
     }
 
     location /assessments {
+        limit_req zone=api_limit burst=10 nodelay;
         proxy_pass http://fastapi_backend;
     }
 
@@ -341,19 +364,21 @@ server {
         proxy_pass http://fastapi_backend;
     }
 
-    location /docs {
-        proxy_pass http://fastapi_backend;
-    }
-
-    location /openapi.json {
-        proxy_pass http://fastapi_backend;
-    }
+    # Disable /docs in production for security - uncomment to enable
+    # location /docs {
+    #     proxy_pass http://fastapi_backend;
+    # }
+    # location /openapi.json {
+    #     proxy_pass http://fastapi_backend;
+    # }
 
     location /reports {
+        limit_req zone=api_limit burst=5 nodelay;
         proxy_pass http://fastapi_backend;
     }
 
     location /reports/ {
+        limit_req zone=api_limit burst=5 nodelay;
         proxy_pass http://fastapi_backend;
     }
 
@@ -367,6 +392,7 @@ server {
 
     # Next.js frontend - all other routes
     location / {
+        limit_req zone=general_limit burst=50 nodelay;
         proxy_pass http://nextjs_frontend;
 
         # WebSocket support for Next.js
@@ -498,7 +524,7 @@ sudo systemctl start nginx
 
 # Get SSL certificate
 print_status "Requesting SSL certificate from Let's Encrypt..."
-print_warning "Make sure your DNS is configured: greenmeansgo.ai → 16.52.214.205"
+print_warning "Make sure your DNS is configured: greenmeansgo.ai → 15.156.234.180"
 print_warning "Press Ctrl+C to cancel if DNS is not ready, or wait..."
 sleep 5
 
@@ -519,7 +545,7 @@ else
     print_error "SSL certificate installation failed"
     print_warning "Continuing with HTTP-only configuration"
     print_warning "You can run 'sudo certbot --nginx -d greenmeansgo.ai -d www.greenmeansgo.ai' manually later"
-    print_warning "Make sure your domain DNS is properly configured and pointing to 16.52.214.205"
+    print_warning "Make sure your domain DNS is properly configured and pointing to 15.156.234.180"
 fi
 
 # 13. Start services
@@ -570,10 +596,10 @@ fi
 # 17. Performance optimization
 print_step "Step 13: Performance optimization..."
 
-# Enable gzip compression in nginx
-print_status "Enabling gzip compression..."
+# Enable gzip compression and security in nginx
+print_status "Enabling gzip compression and security settings..."
 if ! grep -q "gzip on;" /etc/nginx/nginx.conf; then
-    sudo sed -i '/http {/a \        gzip on;\n        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;\n        gzip_min_length 1000;' /etc/nginx/nginx.conf
+    sudo sed -i '/http {/a \        # Security - hide nginx version\n        server_tokens off;\n\n        # Gzip compression\n        gzip on;\n        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;\n        gzip_min_length 1000;' /etc/nginx/nginx.conf
     sudo systemctl reload nginx
 fi
 
@@ -628,7 +654,7 @@ echo "=========================================="
 echo ""
 print_status "Your Green Means Go application is now running at:"
 print_status "🌍 https://greenmeansgo.ai (once DNS propagates)"
-print_status "📍 http://16.52.214.205 (direct IP access)"
+print_status "📍 http://15.156.234.180 (direct IP - use domain for SSL)"
 echo ""
 print_status "Services deployed:"
 print_status "├─ Frontend (Next.js): https://greenmeansgo.ai → port 3000"

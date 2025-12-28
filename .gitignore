@@ -26,9 +26,10 @@ app/.env.example
 *.pem
 *.key
 *.ppk
-gmgo.pem
+greenmeansgo_key.pem
 *.crt
 *.csr
+*.pub
 
 # Rust
 african_lca_backend/target/
