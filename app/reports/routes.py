@@ -303,6 +303,7 @@ class ReportGenerationRequest(BaseModel):
     assessment_id: str
     report_type: str = "comprehensive"  # comprehensive, executive, farmer_friendly
     include_sections: Optional[list] = None  # Optional: specific sections to generate
+    assessment_data: Optional[Dict[str, Any]] = None  # Optional: full assessment data (bypasses DB lookup)
 
 
 class ReportGenerationResponse(BaseModel):
@@ -326,7 +327,8 @@ async def generate_report(
     - farmer_friendly: Simplified report for smallholder farmers
 
     Args:
-        request: Report generation request with assessment ID and preferences
+        request: Report generation request with assessment ID and preferences.
+                 Can include assessment_data directly to bypass database lookup.
 
     Returns:
         Generated report with all sections and metadata
@@ -340,15 +342,24 @@ async def generate_report(
     # Import here to avoid circular imports
     from production.routes import assessments_db
 
-    # Get the assessment data
     assessment_id = request.assessment_id
-    if assessment_id not in assessments_db:
+    
+    # If assessment_data provided directly, use it (survives backend restarts)
+    if request.assessment_data:
+        assessment_data = request.assessment_data
+        # Also store in DB for future use
+        assessments_db[assessment_id] = assessment_data
+        print(f"📥 Using assessment data from request for {assessment_id}")
+    elif assessment_id in assessments_db:
+        assessment_data = assessments_db[assessment_id]
+        print(f"📦 Using assessment data from database for {assessment_id}")
+    else:
         raise HTTPException(
             status_code=404,
-            detail=f"Assessment {assessment_id} not found"
+            detail=f"Assessment {assessment_id} not found. Please include assessment_data in the request."
         )
 
-    assessment_data = assessments_db[assessment_id]
+    assessment_data = assessment_data  # Now we have assessment_data from one of the sources above
 
     # Debug logging to understand assessment data structure (safe)
     print(f"\n🔍 Report Generation - Assessment data for {assessment_id}:")

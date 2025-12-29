@@ -218,14 +218,23 @@ class AssessmentAPI {
   // Report Generation APIs
   async generateReport(
     assessmentId: string,
-    reportType: 'comprehensive' | 'executive' | 'farmer_friendly' = 'comprehensive'
+    reportType: 'comprehensive' | 'executive' | 'farmer_friendly' = 'comprehensive',
+    assessmentData?: AssessmentResult  // Optional: include to survive backend restarts
   ): Promise<Report> {
+    // Build request body
+    const requestBody: Record<string, unknown> = {
+      assessment_id: assessmentId,
+      report_type: reportType
+    };
+    
+    // Include assessment data if provided (fixes "not found" after backend restart)
+    if (assessmentData) {
+      requestBody.assessment_data = assessmentData;
+    }
+    
     return this.fetchAPI('/reports/generate', {
       method: 'POST',
-      body: JSON.stringify({
-        assessment_id: assessmentId,
-        report_type: reportType
-      })
+      body: JSON.stringify(requestBody)
     });
   }
 

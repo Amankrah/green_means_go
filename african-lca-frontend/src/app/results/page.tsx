@@ -66,11 +66,45 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
   const loadResults = async (id: string) => {
     try {
       setLoading(true);
+      
+      // Try localStorage first (survives backend restarts)
+      const cachedResult = localStorage.getItem(`assessment_${id}`);
+      if (cachedResult) {
+        console.log('📦 Loaded assessment from localStorage cache');
+        const parsed = JSON.parse(cachedResult);
+        setResults(parsed);
+        setLoading(false);
+        
+        // Try to sync with backend in background (non-blocking)
+        assessmentAPI.getAssessment(id)
+          .then(backendResult => {
+            console.log('🔄 Synced with backend, updating cache');
+            localStorage.setItem(`assessment_${id}`, JSON.stringify(backendResult));
+            setResults(backendResult);
+          })
+          .catch(() => {
+            console.log('⚠️ Backend unavailable, using cached data');
+          });
+        return;
+      }
+      
+      // No cache, fetch from backend
       const result = await assessmentAPI.getAssessment(id);
       console.log('🔍 Results data from backend:', result);
+      
+      // Cache for future use
+      localStorage.setItem(`assessment_${id}`, JSON.stringify(result));
       setResults(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load results');
+      // Check localStorage as last resort
+      const cachedResult = localStorage.getItem(`assessment_${id}`);
+      if (cachedResult) {
+        console.log('📦 API failed, using localStorage cache');
+        setResults(JSON.parse(cachedResult));
+        setError(null);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load results');
+      }
     } finally {
       setLoading(false);
     }

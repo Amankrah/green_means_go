@@ -286,7 +286,8 @@ export default function ProfessionalReportViewer({
       setError(null);
 
       console.log('🚀 Generating report for assessment:', assessmentId, 'type:', selectedReportType);
-      const response = await assessmentAPI.generateReport(assessmentId, selectedReportType);
+      // Pass assessment data to survive backend restarts
+      const response = await assessmentAPI.generateReport(assessmentId, selectedReportType, currentAssessmentData);
       console.log('📄 Report generation response:', response);
 
       // Extract report_data from the response

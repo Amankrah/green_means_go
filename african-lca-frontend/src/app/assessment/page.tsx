@@ -399,6 +399,10 @@ export default function ComprehensiveAssessmentPage() {
       
       const result = await assessmentAPI.submitComprehensiveAssessment(apiData);
       
+      // Store result in localStorage for persistence (survives backend restarts)
+      localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
+      localStorage.setItem('lastAssessmentId', result.id);
+      
       setSubmitResult({
         success: true,
         message: 'Comprehensive assessment completed successfully!',
