@@ -1,66 +1,306 @@
-# Python
-african_lca_api/
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
-*.env
-*.venv
-env/
-venv/
-african_lca_api/Lib/
-african_lca_api/include/
-african_lca_api/Scripts/
+# =============================================================================
+# Green Means Go - .gitignore
+# =============================================================================
+# This file prevents sensitive, generated, and unnecessary files from being
+# committed to the repository.
+# =============================================================================
+
+# =============================================================================
+# SECURITY - CRITICAL (Never commit these!)
+# =============================================================================
 
 # Environment variables and secrets
 .env
-.env.example
+.env.*
 .env.local
 .env.*.local
-app/.env
-app/.env.example
+!.env.example
 **/.env
-**/.env.example
+**/.env.*
+!**/.env.example
 
-# SSH Keys and Credentials (NEVER commit these!)
+# SSH Keys and Credentials
 *.pem
 *.key
 *.ppk
-greenmeansgo_key.pem
 *.crt
 *.csr
 *.pub
+id_rsa
+id_ed25519
+*.p12
+*.pfx
 
-# Rust
-african_lca_backend/target/
+# API Keys and Tokens
+secrets.json
+credentials.json
+config.secret.*
+*.secret
+
+# AWS Credentials
+.aws/
+aws-credentials*
+
+# =============================================================================
+# MALWARE SIGNATURES (Block known malware patterns)
+# =============================================================================
+
+# Cryptominer artifacts
+**/xmrig*
+**/xmrig-auto/
+**/immunify360firewall*
+**/kdevtmpfsi*
+**/kinsing*
+cc.txt
+**/monero*
+**/.unix/
+**/.bin
+**/config.json.bak
+
+# Suspicious scripts
+r2.sh
+v.sh
+csf.txt
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+african_lca_api/
+**/venv/
+**/.venv/
+
+# Bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+*.whl
+MANIFEST
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# =============================================================================
+# RUST
+# =============================================================================
+
+# Build artifacts
 target/
+**/target/
 **/*.rs.bk
+Cargo.lock
 
-# Node/Frontend
-african-lca-frontend/node_modules/
-african-lca-frontend/dist/
+# Debug files
+*.pdb
+
+# =============================================================================
+# NODE.JS / FRONTEND
+# =============================================================================
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Cache
+.npm/
+.eslintcache
+.cache/
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime
+.pnp.*
+
+# =============================================================================
+# IDE AND EDITORS
+# =============================================================================
 
 # VSCode
 .vscode/
 *.code-workspace
+.history/
 
-# OS/Editor
+# JetBrains (PyCharm, WebStorm, IntelliJ)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# OPERATING SYSTEMS
+# =============================================================================
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
 
-# Scripts
-*.bat
+# Linux
+*~
+.directory
+.Trash-*
 
-# Generated files
+# =============================================================================
+# LOGS AND TEMPORARY FILES
+# =============================================================================
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# =============================================================================
+# GENERATED FILES
+# =============================================================================
+
+# PDFs and documents (generated reports)
 *.pdf
-*.html
+!docs/*.pdf
 
-# Deployment files with sensitive information
+# Coverage reports
+coverage/
+*.lcov
+
+# =============================================================================
+# PROJECT SPECIFIC
+# =============================================================================
+
+# Deployment scripts with sensitive info
 DEPLOYMENT.md
-# deploy.sh
 
-# Documentation - ignore all .md files
-*.md
+# Local scripts
+*.bat
+*.ps1
+!scripts/*.ps1
 
-# Misc
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Upload directories
+uploads/
+media/
+
+# Static files (generated)
+staticfiles/
+
+# Claude artifacts
 .claude/
+
+# Local configuration overrides
+local_settings.py
+settings_local.py
+
+# =============================================================================
+# DOCKER (if used in future)
+# =============================================================================
+
+# Docker override files
+docker-compose.override.yml
+.docker/
+
+# =============================================================================
+# TERRAFORM / INFRASTRUCTURE (if used)
+# =============================================================================
+
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+
+# =============================================================================
+# KEEP THESE FILES (whitelist)
+# =============================================================================
+
+# Keep example environment files
+!.env.example
+!.env.sample
+!.env.template
+
+# Keep documentation
+!README.md
+!CONTRIBUTING.md
+!LICENSE
+!docs/**/*.md
+
+# Keep configuration examples
+!docker-compose.example.yml
+!nginx.conf.example
