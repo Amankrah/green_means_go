@@ -13,6 +13,7 @@ load_dotenv()
 from processing.routes import router as processing_router
 from production.routes import router as production_router
 from reports.routes import router as reports_router
+from inventory.routes import router as inventory_router
 
 # Environment detection
 IS_PRODUCTION = os.getenv("ENVIRONMENT", "development") == "production"
@@ -52,6 +53,7 @@ app.add_middleware(
 app.include_router(processing_router)
 app.include_router(production_router)
 app.include_router(reports_router)
+app.include_router(inventory_router)
 
 
 @app.get("/")

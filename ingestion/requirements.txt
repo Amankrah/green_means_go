@@ -11,4 +11,17 @@ olca-schema>=2.0
 # Live openLCA IPC client (optional — only needed for the load-ipc path)
 olca-ipc>=2.0
 
+# Cradle-to-gate inventory solver (query.py): linear-algebra over the
+# technosphere/biosphere matrices. numpy required; scipy used if present.
+numpy>=1.24
+scipy>=1.10
+
+# Matching subsystem (matching.py) — OPTIONAL:
+#   - Without these it uses the built-in offline lexical embedder (no API key).
+#   - With OPENAI_API_KEY set + openai installed -> OpenAI embeddings.
+#   - With ANTHROPIC_API_KEY set + anthropic installed -> LLM query expansion.
+openai>=1.0        # optional: semantic embeddings + query expansion
+anthropic>=0.42    # optional: LLM query expansion (also used by app report generator)
+python-dotenv>=1.0 # loads app/.env for the standalone ingestion CLI
+
 # (canonical store uses Python's built-in sqlite3 — no extra dependency)
