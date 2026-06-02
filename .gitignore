@@ -242,6 +242,9 @@ coverage/
 # PROJECT SPECIFIC
 # =============================================================================
 
+# Local LCA reference datasets (large; fetch via ingestion/)
+data/
+
 # Deployment scripts with sensitive info
 DEPLOYMENT.md
 
