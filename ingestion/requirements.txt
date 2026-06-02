@@ -8,8 +8,9 @@
 # openLCA schema dataclasses + JSON-LD zip reader/writer (GreenDelta)
 olca-schema>=2.0
 
-# Live openLCA IPC client (optional — only needed for the load-ipc path)
-olca-ipc>=2.0
+# Live openLCA IPC client (optional — only needed for the load-ipc path).
+# PyPI has no stable 2.x yet; 2.0.0a2 pairs with olca-schema 2.x.
+olca-ipc>=2.0.0a2
 
 # Cradle-to-gate inventory solver (query.py): linear-algebra over the
 # technosphere/biosphere matrices. numpy required; scipy used if present.
