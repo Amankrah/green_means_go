@@ -35,34 +35,44 @@ rclone lsd "mcgill:2 - Teaching/BREE 505 - 2026/6 - Tutorials/Database"   # must
 
 ---
 
-## 1 · Fetch the databases (version-pinned)  ~5–30 min (network)
-```bash
-cd ingestion
-python3 fetch_data.py --list-remote          # see EXACT filenames on the share
-#   -> update the truncated 'remote' fields in manifest.json to match exactly
-python3 ingest.py fetch --only P0           # Agribalyse + ecoinvent Cutoff Unit + the docx
-```
-Files land in `data/raw/<target>/`; provenance in `data/raw/_fetch_log.json`.
-**Verify:** `ls -lh ../data/raw/*/` shows the expected sizes (~498 MB zolca, ~152 MB ecoinvent).
+## 1 · Get the databases (version-pinned)  ~5–30 min (network)
 
-> Big-file tip: for the multi-GB system-process packages use
-> `python3 fetch_data.py --mount` and read on demand instead of downloading.
+**Primary: browser download.** McGill's tenant blocks the rclone OAuth app
+(requires admin consent), so the reliable path is the OneDrive **share link** in
+a browser — it uses your normal McGill login. Select just the P0 files and
+**Download**, then place them where the pipeline expects:
+```bash
+mkdir -p data/raw/agribalyse_3.2 data/raw/ecoinvent_3.11_cutoff_unit data/raw/_docs
+mv ~/Downloads/agribalyse\ 3.2.zolca       data/raw/agribalyse_3.2/
+mv ~/Downloads/ecoinvent*Cutoff*Unit*.zolca data/raw/ecoinvent_3.11_cutoff_unit/
+mv ~/Downloads/OpenLCA\ Databases.docx     data/raw/_docs/
+```
+**Verify:** `ls -lh data/raw/*/` shows ~499 MB (Agribalyse) and ~153 MB (ecoinvent) `.zolca`.
+
+> The downloads are openLCA **`.zolca`** (Apache Derby DB backups), NOT JSON-LD —
+> they must be restored in openLCA (step 2). `load-jsonld` cannot read a `.zolca`.
+
+> _Optional rclone path (only if your tenant approves the rclone app):_ `rclone config`
+> (remote `mcgill`, type onedrive), `rclone lsf mcgill:`, then `python3 ingest.py fetch --only P0`.
 
 ---
 
-## 2 · Import into openLCA, then expose for loading  ~15–40 min (one-time per DB)
-openLCA is required once because `.zolca` / EcoSpold aren't readable without it.
-Follow `data/raw/_docs/OpenLCA Databases.docx`.
+## 2 · Restore in openLCA, then expose for loading  ~15–40 min (one-time per DB)
+`.zolca` = an openLCA (Apache Derby) database backup — it must be restored in
+openLCA before the engine can read it. Follow `data/raw/_docs/OpenLCA Databases.docx`.
 
-1. Open **openLCA** → create/open a database → **Import** the ecoinvent package and
-   the `agribalyse 3.2.zolca` (and an LCIA method pack if you want CFs).
+1. Open **openLCA** → Navigation panel → right-click → **"Restore database…"** →
+   select the `.zolca` → double-click the new database to **activate** it.
+   Do this for both the ecoinvent and Agribalyse `.zolca` files.
 2. Pick **one** load path:
 
-   **Path A — JSON-LD export (best for headless/reproducible):**
-   `File ▸ Export ▸ JSON-LD` → produces a `.zip` per database.
+   **Path B — live IPC (recommended, no export):** with a DB active,
+   `Tools ▸ Developer tools ▸ IPC server` → port `8080`, leave running. The IPC
+   server serves the **currently active** database, so load one DB, switch active
+   DB, restart IPC, load the next.
 
-   **Path B — live IPC (no export):**
-   `Tools ▸ Developer tools ▸ IPC server` → port `8080`, leave running.
+   **Path A — JSON-LD export (faster for full ecoinvent):**
+   `File ▸ Export ▸ JSON-LD` → produces a `.zip` per database.
 
 **Verify:** Path A → the `.zip` exists; Path B → `curl localhost:8080` responds.
 
@@ -71,15 +81,17 @@ Follow `data/raw/_docs/OpenLCA Databases.docx`.
 ## 3 · Load into the canonical store  ~2–20 min (DB size dependent)
 ```bash
 cd ingestion
-# Path A (JSON-LD zip):
-python3 ingest.py load-jsonld ../data/raw/ecoinvent_3.11_cutoff_unit/ecoinvent.zip \
-    --name ecoinvent --version "3.11 Cutoff Unit" --license "ecoinvent academic/research (McGill)"
-python3 ingest.py load-jsonld ../data/raw/agribalyse_3.2/agribalyse.zip \
-    --name agribalyse --version "3.2" --license "ETALAB + ecoinvent-derived parts"
+pip install -r requirements.txt   # ensure olca-schema (+ olca-ipc for Path B) are installed
 
-# Path B (live openLCA IPC):
-python3 ingest.py load-ipc --name ecoinvent --version "3.11 Cutoff" --port 8080
+# Path B (live openLCA IPC) — activate each DB in openLCA, start IPC, then:
+python3 ingest.py load-ipc --name ecoinvent  --version "3.11 Cutoff Unit" --port 8080
+python3 ingest.py load-ipc --name agribalyse --version "3.2"             --port 8080
+
+# Path A (JSON-LD) — point at the zip you EXPORTED from openLCA (NOT the .zolca):
+python3 ingest.py load-jsonld "../data/raw/ecoinvent_3.11_cutoff_unit/ecoinvent_jsonld.zip" \
+    --name ecoinvent --version "3.11 Cutoff Unit" --license "ecoinvent academic/research (McGill)"
 ```
+Both DBs load into the same store, so Agribalyse→ecoinvent provider links resolve by UID.
 **Verify:**
 ```bash
 python3 ingest.py stats     # expect non-zero flows / processes / exchanges / CFs per source
