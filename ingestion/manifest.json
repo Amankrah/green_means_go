@@ -1,0 +1,60 @@
+{
+  "_comment": "Source-of-truth manifest for LCA Engineer background databases hosted on the McGill OneDrive/SharePoint share (BREE 505 research folder). Edit 'remote_base' if your rclone remote or folder path differs. Each item is fetched with rclone into data/raw/<target>. Version-pin everything for reproducible research.",
+  "remote_base": "2 - Teaching/BREE 505 - 2026/6 - Tutorials/Database",
+  "items": [
+    {
+      "name": "agribalyse-3.2",
+      "remote": "agribalyse 3.2.zolca",
+      "target": "agribalyse_3.2",
+      "format": "zolca",
+      "size_mb": 498,
+      "priority": "P0",
+      "note": "openLCA database backup. Cannot be parsed directly — open in openLCA, then export to JSON-LD or read via IPC."
+    },
+    {
+      "name": "ecoinvent-3.11-cutoff-unit",
+      "remote": "ecoinvent 3.11 Cutoff Unit-Processes 2025-01-...",
+      "target": "ecoinvent_3.11_cutoff_unit",
+      "format": "jsonld_or_ecospold",
+      "size_mb": 152,
+      "priority": "P0",
+      "note": "Default system model, UNIT processes (traceable). Confirm exact filename with 'fetch_data.py --list-remote'. If JSON-LD zip, read directly; if EcoSpold2, import to openLCA first."
+    },
+    {
+      "name": "ecoinvent-3.12-lcia-methods",
+      "remote": "ecoinvent 3.12 LCIA Methods 2025-12-...",
+      "target": "ecoinvent_3.12_lcia_methods",
+      "format": "jsonld_or_zolca",
+      "size_mb": 26,
+      "priority": "P1",
+      "note": "openLCA-ready LCIA method pack (ReCiPe/EF/etc). Complements the spreadsheet CFs already on disk."
+    },
+    {
+      "name": "agrifootprint-6.3-mass",
+      "remote": "agrifootprint_6_3_mass_15022023_4_o...",
+      "target": "agrifootprint_6.3_mass",
+      "format": "jsonld_or_ecospold",
+      "size_mb": 148,
+      "priority": "P2",
+      "note": "Bonus agri-food LCI database (mass allocation). Optional cross-check / alternative to Agribalyse."
+    },
+    {
+      "name": "exiobase-3.9.4",
+      "remote": "exiobase_3_9_4_DAL.zip",
+      "target": "exiobase_3.9.4",
+      "format": "zip_mrio",
+      "size_mb": 2660,
+      "priority": "P3",
+      "note": "Environmentally-extended MRIO for hybrid LCA / data-gap filling. Large — fetch only when needed."
+    },
+    {
+      "name": "openlca-databases-doc",
+      "remote": "OpenLCA Databases.docx",
+      "target": "_docs",
+      "format": "docx",
+      "size_mb": 1,
+      "priority": "P0",
+      "note": "Import instructions from the course — read this first."
+    }
+  ]
+}

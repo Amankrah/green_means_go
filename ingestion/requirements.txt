@@ -1,0 +1,14 @@
+# LCA Engineer — ingestion pipeline dependencies
+# Install:  pip install -r ingestion/requirements.txt
+#
+# System tool (NOT pip): rclone — for fetching from the McGill SharePoint share.
+#   Linux:  curl https://rclone.org/install.sh | sudo bash   (or: sudo apt install rclone)
+#   Then:   rclone config   (add a remote named 'mcgill', type onedrive)
+
+# openLCA schema dataclasses + JSON-LD zip reader/writer (GreenDelta)
+olca-schema>=2.0
+
+# Live openLCA IPC client (optional — only needed for the load-ipc path)
+olca-ipc>=2.0
+
+# (canonical store uses Python's built-in sqlite3 — no extra dependency)
