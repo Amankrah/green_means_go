@@ -369,6 +369,17 @@ impl Currency {
 // LCA RESULTS STRUCTURE
 // ======================================================================
 
+/// One on-farm elementary flow, exposed so the Python engine can characterize it via
+/// the validated canonical CFs (Option A: Rust = LCI kernel, Python = characterization).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LciFlow {
+    pub substance: String,     // e.g. "N2O", "CH4", "CO2"
+    pub quantity: f64,
+    pub unit: String,
+    pub compartment: String,   // "air" | "water" | "soil" | "resource"
+    pub source: String,        // which input caused this emission
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LCAResults {
     pub midpoint_impacts: HashMap<String, MidpointResult>,
@@ -378,11 +389,15 @@ pub struct LCAResults {
     pub breakdown_by_food: HashMap<String, HashMap<String, MidpointResult>>,
     pub sensitivity_analysis: Option<SensitivityAnalysis>,
     pub comparative_analysis: Option<ComparativeAnalysis>,
-    
+
     // Enhanced results for comprehensive assessments
     pub management_analysis: Option<ManagementAnalysis>,
     pub benchmarking: Option<BenchmarkingResults>,
     pub recommendations: Option<Vec<Recommendation>>,
+
+    // On-farm LCI (elementary flows) for the Python characterization path.
+    #[serde(default)]
+    pub lci_inventory: Option<Vec<LciFlow>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

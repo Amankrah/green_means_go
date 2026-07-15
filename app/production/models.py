@@ -208,8 +208,10 @@ class EndpointResult(BaseModel):
 class SingleScoreResult(BaseModel):
     value: float
     unit: str
+    band: Optional[str] = None  # qualitative band: Low | Moderate | High
     uncertainty_range: List[float]  # [min, max]
     weighting_factors: Dict[str, float]
+    contributions: Optional[Dict[str, float]] = None  # each category's share of the single score
     methodology: str
 
 class DataQuality(BaseModel):

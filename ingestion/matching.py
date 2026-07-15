@@ -33,8 +33,12 @@ from typing import Optional, Sequence
 
 import numpy as np
 
-from canonical_store import DEFAULT_DB
-from query import CanonicalQuery
+try:
+    from .canonical_store import DEFAULT_DB
+    from .query import CanonicalQuery
+except ImportError:
+    from canonical_store import DEFAULT_DB
+    from query import CanonicalQuery
 
 # Load API keys from a .env so the standalone CLI behaves like the FastAPI app
 # (which calls load_dotenv()). Searches app/.env then repo-root .env. Non-fatal.

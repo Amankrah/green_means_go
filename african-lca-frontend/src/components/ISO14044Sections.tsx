@@ -523,8 +523,8 @@ export function InterpretationSection({ results }: ISO14044SectionsProps) {
                   Environmental hotspots identified in{' '}
                   {results.sensitivity_analysis?.most_influential_parameters?.[0]?.parameter_name || 'key operational areas'}.
                   Overall performance: {results.single_score && typeof results.single_score === 'object' && 'value' in results.single_score
-                    ? ((results.single_score.value as number) * 100).toFixed(1)
-                    : 'N/A'}% normalized score.
+                    ? `${(results.single_score.value as number).toFixed(0)} ${(results.single_score as { unit?: string }).unit || 'µPt per kg'}${(results.single_score as { band?: string }).band ? ` (${(results.single_score as { band?: string }).band} impact)` : ''}`
+                    : 'N/A'} normalized single score.
                 </p>
               </div>
 

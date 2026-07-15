@@ -14,6 +14,7 @@ from processing.routes import router as processing_router
 from production.routes import router as production_router
 from reports.routes import router as reports_router
 from inventory.routes import router as inventory_router
+from farm.routes import router as farm_router
 
 # Environment detection
 IS_PRODUCTION = os.getenv("ENVIRONMENT", "development") == "production"
@@ -54,6 +55,26 @@ app.include_router(processing_router)
 app.include_router(production_router)
 app.include_router(reports_router)
 app.include_router(inventory_router)
+app.include_router(farm_router)
+
+
+@app.on_event("startup")
+async def _warm_engine():
+    """Pre-load the validated engine (matcher index) in the background so the first
+    assessment isn't slow. Non-fatal if the store isn't built yet."""
+    import threading
+    def _go():
+        try:
+            import sys
+            from pathlib import Path
+            root = Path(__file__).resolve().parents[1]
+            if str(root) not in sys.path:
+                sys.path.insert(0, str(root))
+            from engine.service import warm
+            warm(("GH",))
+        except Exception as e:
+            print(f"engine warmup skipped: {e}")
+    threading.Thread(target=_go, daemon=True).start()
 
 
 @app.get("/")

@@ -321,13 +321,28 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
 
   const totalProductionKg = getTotalProductionQuantity();
 
-  // Extract single score value safely
+  // Single score: a normalized ReCiPe score in µPt per kg (person-equivalents ×1e6),
+  // with a qualitative band from the backend. Falls back to the legacy 0-1 interpretation.
   const singleScoreValue = extractValue(results.single_score);
-  const scoreInterpretation = getScoreInterpretation(singleScoreValue);
+  const scoreBand = (results.single_score as { band?: string })?.band;
+  const BAND_MAP: Record<string, { category: string; title: string; description: string; color: string; recommendations: string[] }> = {
+    Low: { category: 'excellent', title: 'Low Impact', color: 'text-green-700 bg-green-50 border-green-200',
+           description: 'Low normalized environmental footprint per kg (ReCiPe 2016 single score).',
+           recommendations: ['Maintain current practices', 'Document methods for certification', 'Share as a regional benchmark'] },
+    Moderate: { category: 'typical', title: 'Moderate Impact', color: 'text-yellow-700 bg-yellow-50 border-yellow-200',
+                description: 'Typical normalized environmental footprint per kg for agri-food.',
+                recommendations: ['Optimize fertiliser rates to cut field N2O', 'Improve fuel/energy efficiency', 'Target the largest-contributing category below'] },
+    High: { category: 'below-average', title: 'Higher Impact', color: 'text-red-700 bg-red-50 border-red-200',
+            description: 'Higher normalized footprint per kg — see the recommendations to reduce it.',
+            recommendations: ['Reduce synthetic N inputs / split applications', 'Switch to lower-carbon energy sources', 'Review the dominant impact category below'] },
+  };
+  const scoreInterpretation = (scoreBand && BAND_MAP[scoreBand]) || getScoreInterpretation(singleScoreValue);
+  const scoreUnit = (results.single_score as { unit?: string })?.unit || '';
+  const isMicroPoints = scoreUnit.includes('µPt') || scoreUnit.includes('Pt');
 
   const scoreData = [{
     name: 'Your Score',
-    score: singleScoreValue * 100,
+    score: isMicroPoints ? Math.min((singleScoreValue / 2000) * 100, 100) : singleScoreValue * 100,
     fill: SCORE_COLORS[scoreInterpretation.category as keyof typeof SCORE_COLORS]
   }];
 
@@ -400,8 +415,13 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                     <h3 className="text-3xl font-bold mb-4">
                       Environmental Impact Score
                     </h3>
-                    <div className="text-7xl font-black mb-6 tracking-tight">
-                      {(singleScoreValue * 100).toFixed(1)}%
+                    <div className="mb-6">
+                      <span className="text-7xl font-black tracking-tight">
+                        {isMicroPoints ? singleScoreValue.toFixed(0) : (singleScoreValue * 100).toFixed(1)}
+                      </span>
+                      <span className="text-2xl font-bold ml-2 opacity-80">
+                        {isMicroPoints ? 'µPt/kg' : '%'}
+                      </span>
                     </div>
                     <div className="inline-flex items-center space-x-3 mb-4">
                       <div className="text-2xl font-bold">
@@ -426,7 +446,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                     <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="90%" data={scoreData}>
                       <RadialBar dataKey="score" cornerRadius={15} fill={scoreData[0].fill} />
                       <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-current text-3xl font-black">
-                        {scoreData[0].score.toFixed(1)}%
+                        {isMicroPoints ? singleScoreValue.toFixed(0) : `${scoreData[0].score.toFixed(1)}%`}
                       </text>
                     </RadialBarChart>
                   </ResponsiveContainer>
@@ -479,23 +499,34 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                   {results.single_score.methodology}
                 </p>
 
-                <div className="grid md:grid-cols-3 gap-6">
-                  {Object.entries(results.single_score.weighting_factors).map(([category, weight]: [string, number]) => (
-                    <div key={category} className="bg-white rounded-xl p-5 shadow-sm">
-                      <h4 className="font-semibold text-gray-900 mb-2">{category}</h4>
-                      <div className="text-4xl font-bold text-indigo-600 mb-2">
-                        {(weight * 100).toFixed(0)}%
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                        <div
-                          className="bg-indigo-600 h-2 rounded-full transition-all"
-                          style={{ width: `${weight * 100}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-900">Weighting in final score</p>
+                {(() => {
+                  // Prefer each category's actual share of the single score (what drives
+                  // it); fall back to the equal weighting factors for older responses.
+                  const contributions = (results.single_score as { contributions?: Record<string, number> }).contributions;
+                  const entries = contributions
+                    ? Object.entries(contributions).sort((a, b) => b[1] - a[1])
+                    : Object.entries(results.single_score.weighting_factors);
+                  const label = contributions ? 'Share of single score' : 'Weighting in final score';
+                  return (
+                    <div className="grid md:grid-cols-3 gap-6">
+                      {entries.map(([category, frac]: [string, number]) => (
+                        <div key={category} className="bg-white rounded-xl p-5 shadow-sm">
+                          <h4 className="font-semibold text-gray-900 mb-2">{category}</h4>
+                          <div className="text-4xl font-bold text-indigo-600 mb-2">
+                            {(frac * 100).toFixed(frac < 0.1 ? 1 : 0)}%
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                            <div
+                              className="bg-indigo-600 h-2 rounded-full transition-all"
+                              style={{ width: `${Math.min(frac * 100, 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-900">{label}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
 
                 <div className="mt-6 p-4 bg-white bg-opacity-60 rounded-lg border border-blue-200">
                   <p className="text-xs text-gray-900">
@@ -600,12 +631,12 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                     const cropQuantityKg = quantityMatch ? parseInt(quantityMatch[1].replace(/,/g, '')) : 1;
                     const cleanCropName = cropName.replace(/\s*\(\d+(?:,\d+)*kg\)/, '');
                     
-                    const impactValues = Object.values(impacts as Record<string, unknown>)
-                      .map(value => extractValue(value));
-                    const totalImpact = impactValues.reduce((sum, value) => sum + value, 0);
-                    // breakdown_by_food contains total impacts per crop, need to divide by quantity
-                    const totalPerKg = calculatePerUnitImpact(totalImpact, cropQuantityKg);
-                    
+                    // Headline the crop's CLIMATE footprint (a single, meaningful metric)
+                    // rather than summing heterogeneous categories (kg CO2 + m2 + kg P …),
+                    // which has no physical meaning. breakdown values are crop totals.
+                    const climateTotal = extractValue((impacts as Record<string, unknown>)['Global warming']);
+                    const climatePerKg = calculatePerUnitImpact(climateTotal, cropQuantityKg);
+
                     return (
                       <div key={index} className="border border-gray-200 rounded-xl p-6">
                         <div className="flex items-center justify-between mb-4">
@@ -614,7 +645,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                             <p className="text-sm text-gray-800">{cropQuantityKg.toLocaleString()} kg annual production</p>
                           </div>
                           <div className="text-sm text-gray-900 text-right">
-                            <div>Total Impact: {formatDisplayValue(totalPerKg)} per kg</div>
+                            <div>Climate footprint: {formatDisplayValue(climatePerKg)} kg CO₂-eq per kg</div>
                           </div>
                         </div>
                         

@@ -3,8 +3,18 @@ from typing import Dict, Any
 from datetime import datetime
 import json
 import os
+import sys
 import tempfile
 import subprocess
+from pathlib import Path
+
+# The validated engine (Rust LCI kernel + supply-chain solver + canonical CFs) is the
+# default served path. Set USE_LEGACY_RUST_LCIA=1 to fall back to the old Rust
+# hardcoded-LCIA path (kept only for comparison/emergencies).
+_ROOT = Path(__file__).resolve().parents[2]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+USE_VALIDATED_ENGINE = os.getenv("USE_LEGACY_RUST_LCIA", "0") != "1"
 
 from .models import (
     AssessmentRequest,
@@ -58,15 +68,19 @@ async def create_assessment(request: AssessmentRequest):
         else:
             print(f"✗ Skipped equipment_energy (falsy value)")
 
-        # Call Rust backend
-        result = await call_rust_backend(rust_input)
-        
+        if USE_VALIDATED_ENGINE:
+            # NEW validated pipeline: Rust LCI kernel + supply-chain solver + canonical CFs
+            from engine.service import run_farm_assessment
+            result = run_farm_assessment(rust_input, region=request.region)
+        else:
+            result = await call_rust_backend(rust_input)   # legacy Rust hardcoded LCIA
+
         # Store in database
         assessment_id = result["id"]
         assessments_db[assessment_id] = result
-        
+
         return AssessmentResponse(**result)
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Assessment failed: {str(e)}")
 
@@ -96,15 +110,18 @@ async def create_comprehensive_assessment(request: AssessmentRequest):
         if request.equipment_energy:
             rust_input["equipment_energy"] = request.equipment_energy.model_dump()
 
-        # Call Rust backend for comprehensive assessment
-        result = await call_rust_backend(rust_input)
-        
+        if USE_VALIDATED_ENGINE:
+            from engine.service import run_farm_assessment
+            result = run_farm_assessment(rust_input, region=request.region)
+        else:
+            result = await call_rust_backend(rust_input)
+
         # Store in database
         assessment_id = result["id"]
         assessments_db[assessment_id] = result
-        
+
         return AssessmentResponse(**result)
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Comprehensive assessment failed: {str(e)}")
 

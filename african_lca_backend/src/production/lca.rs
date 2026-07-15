@@ -1,8 +1,26 @@
 use crate::models::*;
-use crate::production::lci::LCICalculator;
+use crate::production::lci::{LCICalculator, InventoryItem, EnvironmentalCompartment};
 use crate::production::lci_extended::LCIExtendedCharacterization;
 use std::collections::HashMap;
 use log::{info, warn};
+
+/// Convert the internal LCI inventory (map of elementary flows) into the serialisable
+/// LciFlow list exposed in the result, so the Python engine can characterize on-farm
+/// emissions via the validated canonical CFs.
+fn inventory_to_flows(inv: &HashMap<String, InventoryItem>) -> Vec<LciFlow> {
+    inv.values().map(|it| LciFlow {
+        substance: it.substance.clone(),
+        quantity: it.quantity,
+        unit: it.unit.clone(),
+        compartment: match it.compartment {
+            EnvironmentalCompartment::Air => "air",
+            EnvironmentalCompartment::Water => "water",
+            EnvironmentalCompartment::Soil => "soil",
+            EnvironmentalCompartment::Resource => "resource",
+        }.to_string(),
+        source: it.source.clone(),
+    }).collect()
+}
 
 
 pub struct AfricanLCAEngine {
@@ -132,6 +150,7 @@ impl AfricanLCAEngine {
             management_analysis: None, // TODO: Implement management analysis
             benchmarking: None, // TODO: Implement benchmarking
             recommendations: None, // TODO: Implement recommendations
+            lci_inventory: Some(inventory_to_flows(&inventory)),
         });
 
         info!("Comprehensive assessment completed for {}", assessment.company_name);
@@ -207,6 +226,7 @@ impl AfricanLCAEngine {
             management_analysis: None, // TODO: Implement management analysis
             benchmarking: None, // TODO: Implement benchmarking
             recommendations: None, // TODO: Implement recommendations
+            lci_inventory: Some(inventory_to_flows(&inventory)),
         });
 
         info!("Enhanced assessment completed for {}", assessment.company_name);

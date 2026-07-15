@@ -37,8 +37,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from canonical_store import DEFAULT_DB
-from flowkey import medium_of
+try:
+    from .canonical_store import DEFAULT_DB
+    from .flowkey import medium_of
+except ImportError:
+    from canonical_store import DEFAULT_DB
+    from flowkey import medium_of
 
 
 @dataclass
@@ -54,7 +58,11 @@ class InventoryResult:
 
 class CanonicalQuery:
     def __init__(self, db_path: Path | str = DEFAULT_DB):
-        self.conn = sqlite3.connect(str(db_path))
+        # check_same_thread=False: the engine is built once (possibly in a warmup thread)
+        # and served from FastAPI's threadpool threads; access is serialised by a per-
+        # engine lock in engine/service.py, so cross-thread use of this read-only
+        # connection is safe.
+        self.conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._producers: Optional[dict] = None   # flow_uid -> [(process_uid, source_id)]
         self._source_of: Optional[dict] = None   # process_uid -> source_id
@@ -354,6 +362,22 @@ class CanonicalQuery:
             else:
                 self._characterize(elementary, m, result)
         return result
+
+    def characterize_flows(self, elementary: dict, method_name: str) -> dict:
+        """Characterize an arbitrary elementary-flow inventory with a named LCIA method,
+        reusing the validated UID → FEDEFL → heuristic matching. `elementary` is
+        {store_flow_uid: {"name","unit","amount"}}. Returns {category: {value, unit}}.
+
+        Used by the engine orchestrator to characterize a MERGED inventory (on-farm
+        field emissions + supply-chain), so the whole cradle-to-gate LCA goes through
+        exactly one validated impact path."""
+        m = self.find_method(method_name)
+        if not m:
+            return {}
+        holder = InventoryResult(target_uid="", target_name="", n_processes=0,
+                                 n_unlinked_inputs=0, elementary_flows=elementary)
+        self._characterize(elementary, m, holder)
+        return holder.impacts
 
     def _flow_keys(self) -> tuple[dict, dict, dict]:
         if self._flowkeys is None:
