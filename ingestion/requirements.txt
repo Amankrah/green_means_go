@@ -6,11 +6,13 @@
 #   Then:   rclone config   (add a remote named 'mcgill', type onedrive)
 
 # openLCA schema dataclasses + JSON-LD zip reader/writer (GreenDelta)
-olca-schema>=2.0
+olca-schema>=2.4.0
 
 # Live openLCA IPC client (optional — only needed for the load-ipc path).
-# PyPI has no stable 2.x yet; 2.0.0a2 pairs with olca-schema 2.x.
-olca-ipc>=2.0.0a2
+# Stable olca-ipc 2.x requires Python >=3.11; older alphas on PyPI are broken
+# against current olca-schema (missing olca_schema.results). JSON-LD load works
+# on Python 3.10 without this package.
+olca-ipc>=2.4.0; python_version >= "3.11"
 
 # Cradle-to-gate inventory solver (query.py): linear-algebra over the
 # technosphere/biosphere matrices. numpy required; scipy used if present.

@@ -58,6 +58,17 @@ CREATE TABLE IF NOT EXISTS import_runs (
     message       TEXT
 );
 
+-- Unit conversion factors (from openLCA UnitGroups). Required: exchange amounts and
+-- a provider's reference amount can be in DIFFERENT units of the same group (an
+-- Agribalyse input of 6411 kg manure against a provider whose reference is 0.9966 t).
+-- Without converting, the solver over-scales that provider 1000x.
+CREATE TABLE IF NOT EXISTS units (
+    name              TEXT PRIMARY KEY,
+    unit_group        TEXT,
+    conversion_factor REAL NOT NULL DEFAULT 1.0,  -- multiply to get the group's reference unit
+    is_reference      INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS flows (
     uid         TEXT PRIMARY KEY,        -- openLCA/source UUID
     source_id   INTEGER NOT NULL REFERENCES sources(id),
@@ -66,7 +77,9 @@ CREATE TABLE IF NOT EXISTS flows (
     flow_type   TEXT,                    -- ELEMENTARY_FLOW | PRODUCT_FLOW | WASTE_FLOW
     ref_unit    TEXT,
     cas         TEXT,
-    formula     TEXT
+    formula     TEXT,
+    flow_key    TEXT,                    -- canonical (name|compartment) for CF bridging
+    cas_key     TEXT                     -- secondary (CAS|compartment), substance-identity cats only
 );
 
 CREATE TABLE IF NOT EXISTS processes (
@@ -143,7 +156,19 @@ class CanonicalStore:
         self.conn.execute("PRAGMA synchronous = NORMAL;")
         self.conn.execute("PRAGMA foreign_keys = ON;")
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a store was first created (CREATE TABLE IF
+        NOT EXISTS won't add them to an existing table)."""
+        cols = {r[1] for r in self.conn.execute("PRAGMA table_info(flows)")}
+        if "flow_key" not in cols:
+            self.conn.execute("ALTER TABLE flows ADD COLUMN flow_key TEXT")
+        if "cas_key" not in cols:
+            self.conn.execute("ALTER TABLE flows ADD COLUMN cas_key TEXT")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS ix_flows_key ON flows(flow_key)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS ix_flows_caskey ON flows(cas_key)")
 
     # -- context manager ------------------------------------------------------
     def __enter__(self) -> "CanonicalStore":
@@ -201,14 +226,42 @@ class CanonicalStore:
 
     # -- bulk inserts (executemany for speed on big DBs) ----------------------
     def add_flows(self, source_id: int, rows: Iterable[dict]) -> int:
+        from flowkey import flow_key, cas_key
         data = [
             (r["uid"], source_id, r["name"], r.get("category"), r.get("flow_type"),
-             r.get("ref_unit"), r.get("cas"), r.get("formula"))
+             r.get("ref_unit"), r.get("cas"), r.get("formula"),
+             flow_key(r.get("cas"), r.get("name"), r.get("category")),
+             cas_key(r.get("cas"), r.get("category")))
             for r in rows
         ]
         self.conn.executemany(
-            "INSERT OR REPLACE INTO flows(uid, source_id, name, category, flow_type, ref_unit, cas, formula) "
-            "VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO flows(uid, source_id, name, category, flow_type, ref_unit, cas, formula, flow_key, cas_key) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            data,
+        )
+        return len(data)
+
+    def backfill_flow_keys(self) -> int:
+        """Compute flow_key + cas_key for every flow lacking a flow_key (existing stores)."""
+        from flowkey import flow_key, cas_key
+        rows = self.conn.execute(
+            "SELECT uid, cas, name, category FROM flows WHERE flow_key IS NULL OR cas_key IS NULL"
+        ).fetchall()
+        updates = [(flow_key(r["cas"], r["name"], r["category"]),
+                    cas_key(r["cas"], r["category"]), r["uid"]) for r in rows]
+        self.conn.executemany("UPDATE flows SET flow_key=?, cas_key=? WHERE uid=?", updates)
+        self.conn.commit()
+        return len(updates)
+
+    def add_units(self, rows: Iterable[dict]) -> int:
+        data = [
+            (r["name"], r.get("unit_group"), float(r.get("conversion_factor") or 1.0),
+             int(r.get("is_reference", 0)))
+            for r in rows if r.get("name")
+        ]
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO units(name, unit_group, conversion_factor, is_reference) "
+            "VALUES (?,?,?,?)",
             data,
         )
         return len(data)

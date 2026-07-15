@@ -19,7 +19,9 @@ API. Every step has a verification you can copy-paste. Times are rough.
 ## 0 · Prerequisites (once)  ~15 min
 ```bash
 # Python deps (solver + readers + matcher)
-pip install -r ingestion/requirements.txt
+pip install -r ingestion/requirements.txt          # Python 3.10: JSON-LD path (olca-schema)
+python3.11 -m pip install -r ingestion/requirements.txt   # Python 3.11+: adds olca-ipc for live IPC
+```
 
 # rclone (fetch) — Linux
 curl https://rclone.org/install.sh | sudo bash      # or: sudo apt install rclone
@@ -32,6 +34,8 @@ rclone lsd "mcgill:2 - Teaching/BREE 505 - 2026/6 - Tutorials/Database"   # must
 #   ANTHROPIC_API_KEY=...   OPENAI_API_KEY=...
 ```
 **Verify:** `rclone version`, `python3 -c "import numpy,scipy,olca_schema"` (no error).
+For the optional IPC path (`load-ipc`), also run
+`python3.11 -c "import olca_schema, olca_ipc; print('ok')"`.
 
 ---
 
@@ -69,9 +73,9 @@ openLCA before the engine can read it. Follow `data/raw/_docs/OpenLCA Databases.
    **Path B — live IPC (recommended, no export):** with a DB active,
    `Tools ▸ Developer tools ▸ IPC server` → port `8080`, leave running. The IPC
    server serves the **currently active** database, so load one DB, switch active
-   DB, restart IPC, load the next.
+   DB, restart IPC, load the next. **Requires Python >=3.11** (`olca-ipc`).
 
-   **Path A — JSON-LD export (faster for full ecoinvent):**
+   **Path A — JSON-LD export (faster for full ecoinvent; works on Python 3.10):**
    `File ▸ Export ▸ JSON-LD` → produces a `.zip` per database.
 
 **Verify:** Path A → the `.zip` exists; Path B → `curl localhost:8080` responds.
@@ -81,11 +85,11 @@ openLCA before the engine can read it. Follow `data/raw/_docs/OpenLCA Databases.
 ## 3 · Load into the canonical store  ~2–20 min (DB size dependent)
 ```bash
 cd ingestion
-pip install -r requirements.txt   # ensure olca-schema (+ olca-ipc for Path B) are installed
+python3.11 -m pip install -r requirements.txt   # Path B needs olca-ipc (Python 3.11+)
 
 # Path B (live openLCA IPC) — activate each DB in openLCA, start IPC, then:
-python3 ingest.py load-ipc --name ecoinvent  --version "3.11 Cutoff Unit" --port 8080
-python3 ingest.py load-ipc --name agribalyse --version "3.2"             --port 8080
+python3.11 ingest.py load-ipc --name ecoinvent  --version "3.11 Cutoff Unit" --port 8080
+python3.11 ingest.py load-ipc --name agribalyse --version "3.2"             --port 8080
 
 # Path A (JSON-LD) — point at the zip you EXPORTED from openLCA (NOT the .zolca):
 python3 ingest.py load-jsonld "../data/raw/ecoinvent_3.11_cutoff_unit/ecoinvent_jsonld.zip" \
@@ -130,15 +134,95 @@ curl -s -X POST localhost:8000/inventory/reindex            # rebuild matcher in
 
 ---
 
-## Validation gate (do before trusting absolute numbers)
-The inventory (elementary-flow) math is proven (`test_query.py`), but **characterized
-impact signs/units depend on each method's flow directions**. Before reporting
-absolutes:
-1. Pick 2–3 reference products (e.g. `market for maize grain`, electricity mix).
-2. Compute the same impacts **in openLCA** (same method, same system model).
-3. Compare to `query.py inventory`. They should agree within rounding.
-4. If a category is off by a sign/factor, adjust the sign convention in
-   `query.py::cradle_to_gate` (documented in its header) and re-verify.
+## Validation gate — ✅ PASSED against TWO independent references
+
+**Reference 1 — ecoinvent → openLCA** (2026-06-02)
+- Product: ecoinvent 3.11 Cutoff Unit, `maize grain production … Cutoff, U` (AU-VIC,
+  uid `d821b9ce-7106-3ec9-b6c9-3a2e6e0969ff`), 1 kg, method `ReCiPe 2016 v1.03, midpoint (H)`.
+- **All 18 categories agree, worst 0.45% (rounding in openLCA's displayed values).**
+
+**Reference 2 — Agribalyse → ADEME's OFFICIAL published EF 3.1 results** (2026-07-15)
+- Product: Agribalyse 3.2, `Maize grain, conventional, 28% moisture, national average,
+  animal feed, at farm gate {FR} U` (uid `df3618ff-5c9a-3abf-a3ee-1afed0bf3910`), 1 kg,
+  method `EF v3.1`; reference = `data/AGRIBALYSE3.2/…partie agriculture_conv…xlsx`.
+- **11 of 12 categories within 5%** of ADEME's published values (climate, land use
+  exact, ionising radiation, ozone, photochem, acidification, freshwater + marine
+  eutrophication, energy resources +3.2%, mineral resources +1.4%, particulate −2%).
+- Known residual: **ecotoxicity +15%.** The authoritative FEDEFL layer (below) gives
+  the SAME ecotox result as the heuristic — proving it is NOT a nomenclature/matching
+  problem but a **supply-chain reconstruction difference**: our deterministic flow-linked
+  system characterizes ~15% more freshwater ecotoxicity than ADEME's exact product
+  systems. Inherent to rebuilding from a flat process list; only bites the most
+  trace-sensitive category. Not double-counting (verified: no duplicate pesticide flows).
+- Water use excluded from bridging (AWARE is flow-instance specific — shows a gap, not a
+  wrong number).
+
+### Authoritative FEDEFL normalization (glad_fetch.py + glad_load.py)
+The heuristic name/CAS bridge is backstopped by the official GLAD/FEDEFL "one list":
+- `glad_fetch.py` downloads the GLAD mapped files (`ecoinventEFv3.7→FEDEFL`,
+  `ILCD-EFv3.0→FEDEFL`) via the GitHub **LFS batch API** (the on-disk `.xlsx` are LFS
+  stubs; the repo is a ZIP extract with no git). Public Apache-2.0 data.
+- `glad_load.py` assigns every flow a canonical **`fed_id = flowable|compartment`**,
+  resolved by (1) mapped-file source-name, (2) CAS, (3) FEDEFL synonym → **86% of flows**.
+  Curated `NO_FLOW_MATCH` entries (e.g. biogenic `Carbon dioxide, in air`) get a
+  `__NOMAP__` sentinel and are never bridged — replacing our heuristic CO2 special-case
+  with authoritative data.
+- The solver's top match tier is `fed_id` (fine→medium), then the heuristic tiers for the
+  14% FEDEFL didn't resolve. Run once after loading databases: `python3 ingest.py glad`.
+- Version caveat: GLAD maps ecoinvent 3.7 / EF 3.0; we run 3.11 / EF 3.1 — so resolution
+  is by name+CAS+context, not raw UUID (UUID overlap is only ~6%).
+
+### Bridge tiers (query.py::_characterize)
+Match a CF to an inventory flow in this order, each guarded by method-known + unique-value:
+`exact UID → name|fine-compartment → CAS|fine-compartment (substance cats) → name|medium-compartment`.
+Fine = medium + canonical sub-compartment (`emission/soil/agricultural`), with synonyms
+normalised (`river`→surface, `long-term` stripped) so inventory and CF lists align. Fine
+serves sub-compartment-specific CFs (ecotox, PM); the name→medium fallback serves coarse
+CFs (eutrophication: P-to-any-water = 1.0). CAS is fine-only (CAS+medium over-counts).
+Backfill after loading: `python3.11 ingest.py flowkeys`.
+
+### Flow-nomenclature bridge (why Agribalyse needed more than ecoinvent)
+The same substance appears under different flow UIDs across/within databases, and a
+method's CFs are keyed to only some. `flowkey.py` computes a canonical
+`name|compartment` signature; `_characterize()` matches a CF to an inventory flow by
+exact UID first, then by that key. Guards that keep it correct:
+- **two tiers:** `name|compartment` first, then `CAS|compartment` for substance-identity
+  categories only (allow-listed: NOT climate, NOT water). CAS rescues same-substance
+  flows whose NAMES differ across nomenclatures ("BENFURACARB"/"Benfuracarb", "Gas,
+  natural") — it fixed energy (−38%→+3%) and minerals (−57%→+1%).
+- **name-based tier first** (not CAS): "Carbon dioxide, fossil" (CF 1.0) stays separate
+  from "…non-fossil" (biogenic, CF 0) — CAS+compartment alone would merge them, which is
+  why the CAS tier is excluded from climate.
+- **method-known guard:** never bridge a flow whose UID the method already knows in
+  ANY category (its omission here is a deliberate CF=0). This keeps ecoinvent exact.
+- **unique-value guard:** only bridge when all CFs sharing a key agree.
+- **water categories excluded:** AWARE water-use CFs are net-consumption, flow-instance
+  specific — bridging over-counts.
+Backfill after loading a database: `python3.11 ingest.py flowkeys`.
+
+Three bugs were found and fixed by this gate — re-run it after ANY change to
+`query.py::cradle_to_gate`:
+
+1. **Waste-treatment traversal.** ecoinvent links landfills/tailings via *output*
+   exchanges with a default provider. Following inputs only dropped every treatment
+   activity → toxicity / ionising radiation / freshwater eutrophication ~95% LOW,
+   while climate and land use looked perfectly fine. `_reachable()` now follows all
+   provider-linked technosphere exchanges (supply chain 13,491 → 17,182 processes).
+2. **Elementary-flow signs.** Inputs must NOT be negated: openLCA encodes direction
+   in the flow itself and signs its CFs to match. Negating flipped resource and
+   land-use impacts negative.
+3. **Method name ambiguity.** `find_method()` used a bare `LIKE`, so
+   "…midpoint (H)" silently matched "…midpoint (H) **no LT**" (long-term emissions
+   excluded). It now prefers an exact match, then the shortest containing name.
+
+### Re-running the gate
+```bash
+# openLCA: open the process -> Direct calculation -> pick the SAME method -> 1 kg
+python3 query.py inventory <uid> --method "ReCiPe 2016 v1.03, midpoint (H)" --top 20
+```
+Compare category by category. A *uniform* offset points at allocation/system model;
+*one bad category* points at a CF direction; *a cluster of long-term-dominated
+categories* points at supply-chain traversal (bug 1 above).
 
 This is the ISO-spirit critical-review step from `docs/lca_engineer/DEVELOPER_GUIDE.md §9`.
 
@@ -160,6 +244,7 @@ This is the ISO-spirit critical-review step from `docs/lca_engineer/DEVELOPER_GU
 | `/inventory/*` → 503 "not built" | Store empty — run steps 1–3. |
 | `rclone` lists nothing | Re-run `rclone config`; check the remote name (`--remote`) and the path in `manifest.json`. |
 | `ZipReader has no read_each` | `pip install -U olca-schema` (needs v2). |
+| `No module named 'olca_schema.results'` | Broken `olca-ipc` alpha on Python 3.10 — run `pip uninstall olca-ipc`, reinstall requirements, use JSON-LD (`load-jsonld`) or upgrade to Python 3.11+ for `load-ipc`. |
 | Loader runs but 0 processes | Wrong export type — re-export as **JSON-LD** (not CSV/EcoSpold) from openLCA. |
 | Matcher uses lexical despite keys | `pip install openai` + confirm `OPENAI_API_KEY` in `app/.env`. |
 | Impacts look wrong by a sign/factor | Run the Validation gate above. |

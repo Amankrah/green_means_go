@@ -93,17 +93,27 @@ def read_jsonld_zip(
                 store.commit()
             print(f"  processes: {counts['processes']}, exchanges: {counts['exchanges']}")
 
-            # --- impact methods + categories + CFs ---
+            # --- impact methods first, so categories can be linked to their method ---
+            # (openLCA stores ImpactCategory standalone; the method only references
+            #  them. Without this link, --method "ReCiPe" matches nothing.)
+            method_of: dict = {}
+            n_methods = 0
             for method in reader.read_each(o.ImpactMethod):
-                store.add_impact_method(source_id, getattr(method, "id", None),
-                                        getattr(method, "name", None))
+                muid = getattr(method, "id", None)
+                store.add_impact_method(source_id, muid, getattr(method, "name", None))
+                n_methods += 1
                 for cat_ref in (getattr(method, "impact_categories", None) or []):
-                    # store the link; full category (with CFs) is read below
-                    pass
+                    cuid = oc.ref_id(cat_ref)
+                    if cuid:
+                        method_of.setdefault(cuid, muid)
+            store.commit()
+            print(f"  impact methods: {n_methods} (covering {len(method_of)} categories)")
+
+            # --- impact categories + CFs ---
             for cat in reader.read_each(o.ImpactCategory):
                 crow, cfrows = oc.impact_category_to_rows(cat)
                 store.add_impact_category(source_id, crow["uid"], crow["name"],
-                                          crow["ref_unit"], None)
+                                          crow["ref_unit"], method_of.get(crow["uid"]))
                 if cfrows:
                     counts["cfs"] += store.add_cfs(crow["uid"], cfrows)
                 store.commit()
@@ -112,6 +122,17 @@ def read_jsonld_zip(
             close = getattr(reader, "close", None)
             if callable(close):
                 close()
+
+        # An empty load means the zip wasn't an openLCA JSON-LD export (e.g. someone
+        # pointed at a .zolca). Fail loudly instead of recording a clean empty run.
+        if counts["processes"] == 0 and counts["flows"] == 0:
+            msg = (
+                f"No data read from {zip_path.name}. Is it really an openLCA JSON-LD "
+                "export? A .zolca (Derby DB backup) cannot be read here — restore it "
+                "in openLCA and use 'File > Export > JSON-LD', or use load-ipc."
+            )
+            store.finish_run(run_id, "error", counts, message=msg)
+            raise RuntimeError(msg)
 
         store.finish_run(run_id, "ok", counts)
         return counts

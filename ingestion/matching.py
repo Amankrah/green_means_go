@@ -49,6 +49,11 @@ except Exception:
 
 EMB_CACHE = Path(DEFAULT_DB).parent
 
+# ecoinvent category paths are enormous ("A:Agriculture.../01:Crop.../0111:Growing...").
+# The process NAME carries most of the signal, so cap the embedded text: this keeps
+# token cost (and cost in $) bounded without hurting match quality.
+MAX_EMB_CHARS = 300
+
 
 # --------------------------- embedding backends ----------------------------
 class LexicalEmbedder:
@@ -93,9 +98,21 @@ class OpenAIEmbedder:
         self.model = model
         self.name = f"openai:{model}"
 
+    # OpenAI caps a single embeddings request at 300k tokens; a full ecoinvent+
+    # Agribalyse index is ~46k processes (millions of tokens), so we MUST batch.
+    BATCH = 1000
+
     def embed(self, texts: Sequence[str]) -> np.ndarray:
-        resp = self.client.embeddings.create(model=self.model, input=list(texts))
-        vecs = np.array([d.embedding for d in resp.data], dtype=np.float32)
+        texts = [(t or " ")[:MAX_EMB_CHARS] for t in texts]  # never send empty; cap tokens
+        out: list[list[float]] = []
+        total = len(texts)
+        for i in range(0, total, self.BATCH):
+            chunk = texts[i:i + self.BATCH]
+            resp = self.client.embeddings.create(model=self.model, input=chunk)
+            out.extend(d.embedding for d in resp.data)
+            if total > self.BATCH:
+                print(f"    embedded {min(i + self.BATCH, total)}/{total} ...", flush=True)
+        vecs = np.array(out, dtype=np.float32)
         norms = np.linalg.norm(vecs, axis=1, keepdims=True)
         norms[norms == 0] = 1.0
         return vecs / norms

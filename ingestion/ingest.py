@@ -58,6 +58,39 @@ def cmd_load_ipc(args) -> int:
     return 0
 
 
+def cmd_load_methods(args) -> int:
+    from ipc_reader import backfill_methods
+    with CanonicalStore(args.db) as store:
+        res = backfill_methods(store, args.name, args.version, args.port)
+        print("Done:", json.dumps(res))
+    return 0
+
+
+def cmd_load_units(args) -> int:
+    from ipc_reader import backfill_units
+    with CanonicalStore(args.db) as store:
+        res = backfill_units(store, args.port)
+        print("Done:", json.dumps(res))
+    return 0
+
+
+def cmd_glad(args) -> int:
+    """Fetch GLAD mapped files (LFS) + normalise every flow to a FEDEFL fed_id."""
+    import glad_fetch, glad_load
+    if glad_fetch.main([]) != 0:
+        return 1
+    with CanonicalStore(args.db) as store:
+        glad_load.build_fed_ids(store)
+    return 0
+
+
+def cmd_flowkeys(args) -> int:
+    with CanonicalStore(args.db) as store:
+        n = store.backfill_flow_keys()
+        print(f"Done: computed flow_key for {n} flows")
+    return 0
+
+
 def cmd_stats(args) -> int:
     with CanonicalStore(args.db) as store:
         print(json.dumps(store.stats(), indent=2))
@@ -88,6 +121,24 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--port", type=int, default=8080)
     i.add_argument("--license", default="")
     i.set_defaults(func=cmd_load_ipc)
+
+    lm = sub.add_parser("load-methods",
+                        help="backfill LCIA methods + link categories (fast, no re-import)")
+    lm.add_argument("--name", required=True)
+    lm.add_argument("--version", required=True)
+    lm.add_argument("--port", type=int, default=8080)
+    lm.set_defaults(func=cmd_load_methods)
+
+    lu = sub.add_parser("load-units",
+                        help="backfill unit conversion factors from openLCA (fast, no re-import)")
+    lu.add_argument("--port", type=int, default=8080)
+    lu.set_defaults(func=cmd_load_units)
+
+    fk = sub.add_parser("flowkeys", help="backfill canonical flow keys (CF nomenclature bridge)")
+    fk.set_defaults(func=cmd_flowkeys)
+
+    gl = sub.add_parser("glad", help="fetch GLAD mapped files + assign authoritative FEDEFL fed_id to flows")
+    gl.set_defaults(func=cmd_glad)
 
     s = sub.add_parser("stats", help="show canonical store contents")
     s.set_defaults(func=cmd_stats)
