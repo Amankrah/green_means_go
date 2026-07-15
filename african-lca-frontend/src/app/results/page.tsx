@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 import Layout from '@/components/Layout';
 import ProfessionalReportViewer from '@/components/ProfessionalReportViewer';
+import ISOReport from '@/components/ISOReport';
 import { assessmentAPI, getScoreInterpretation } from '@/lib/api';
 import { AssessmentResult } from '@/types/assessment';
 
@@ -433,6 +434,12 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                     <p className="text-xl opacity-90 max-w-md leading-relaxed">
                       {scoreInterpretation.description}
                     </p>
+                    {(results.single_score as { band_basis?: string })?.band_basis && (
+                      <p className="text-xs opacity-70 max-w-md mt-3 leading-relaxed">
+                        Band is {(results.single_score as { band_basis?: string }).band_basis}.
+                        A single score compares best across scenarios of the same product.
+                      </p>
+                    )}
                   </motion.div>
                 </div>
                 
@@ -938,6 +945,18 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
               </div>
             </motion.div>
           )}
+
+          {/* Deterministic ISO 14044 report (data-backed compliant backbone) */}
+          {(results as { iso_report?: unknown }).iso_report ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.05 }}
+              className="mb-12"
+            >
+              <ISOReport report={(results as { iso_report?: Parameters<typeof ISOReport>[0]['report'] }).iso_report} />
+            </motion.div>
+          ) : null}
 
           {/* AI-Powered Professional Report with Charts */}
           <motion.div

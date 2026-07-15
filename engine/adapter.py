@@ -99,11 +99,45 @@ RECIPE_NF = {
 }
 
 
+# Band thresholds are calibrated EMPIRICALLY against a benchmark basket of farm-gate
+# crop products run through this same pipeline (see engine/calibrate_bands.py, which
+# writes single_score_bands.json). Low/Moderate/High = below 33rd / 33rd-67th / above
+# 67th percentile of that basket. The 500/1500 fallback is only used if the file is
+# absent, and is flagged as indicative in that case.
+import json as _json
+import os as _os
+
+_BANDS_FILE = _os.path.join(_os.path.dirname(__file__), "single_score_bands.json")
+_BANDS_CACHE: dict | None = None
+
+
+def _bands() -> dict:
+    """Load the calibrated band cutoffs (cached). Falls back to indicative defaults."""
+    global _BANDS_CACHE
+    if _BANDS_CACHE is None:
+        try:
+            d = _json.loads(open(_BANDS_FILE, encoding="utf-8").read())
+            _BANDS_CACHE = {
+                "low": float(d["low_cut_upt_per_kg"]),
+                "high": float(d["high_cut_upt_per_kg"]),
+                "calibrated": True,
+                "basis": (f"tertiles of {d.get('n_products', '?')} benchmark farm-gate crop "
+                          f"products via the identical pipeline"),
+                "percentiles": d.get("percentiles"),
+            }
+        except (OSError, ValueError, KeyError):
+            _BANDS_CACHE = {"low": 500.0, "high": 1500.0, "calibrated": False,
+                            "basis": "indicative defaults (no calibration file present)",
+                            "percentiles": None}
+    return _BANDS_CACHE
+
+
 def single_score(midpoints: dict, ep: dict) -> tuple:
     """Proper normalized single score: normalise each midpoint by its ReCiPe 2016
     per-capita reference (person-equivalents), equal-weight and sum, express in
     micro-person-equivalents (µPt) per kg. Transparent and standard — replaces both the
-    old misleading sigmoid and the earlier GWP proxy. Also returns a qualitative band."""
+    old misleading sigmoid and the earlier GWP proxy. Also returns a qualitative band
+    whose Low/Moderate/High cutoffs are empirically calibrated (see _bands)."""
     total = 0.0
     per_cat: dict = {}
     for cat, nf in RECIPE_NF.items():
@@ -116,11 +150,15 @@ def single_score(midpoints: dict, ep: dict) -> tuple:
     # Each category's SHARE of the single score (what actually drives it) — far more
     # informative than the flat equal weights, which all render as an unhelpful "100%".
     contributions = {c: (pe / total if total else 0.0) for c, pe in per_cat.items()}
-    # Indicative bands for agri-food per kg (1e6 µPt = one person's annual footprint).
-    band = ("Low" if micro < 500 else "Moderate" if micro < 1500 else "High")
+    # Band relative to the calibrated benchmark basket (1e6 µPt = one person's annual
+    # footprint). Cutoffs come from single_score_bands.json when present.
+    b = _bands()
+    band = ("Low" if micro < b["low"] else "Moderate" if micro < b["high"] else "High")
     return micro, {
         "unit": "µPt per kg",
         "band": band,
+        "band_basis": b["basis"],
+        "band_cutoffs": {"low": b["low"], "high": b["high"], "calibrated": b["calibrated"]},
         "person_equivalents_per_kg": total,
         "weighting_factors": {c: 1.0 for c in used},   # equal weighting
         "contributions": contributions,                # share of the single score per category
@@ -186,6 +224,13 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
 
     single, single_meta = single_score(midpoints, ep)
 
+    try:
+        from .iso_report import build_iso_report
+    except ImportError:
+        from iso_report import build_iso_report
+    iso = build_iso_report(assessment, result, engine, midpoints, single_meta, total_kg,
+                           per_crop, assessment_id=assessment_id)
+
     return {
         "id": assessment_id,
         "company_name": assessment.get("company_name", ""),
@@ -197,6 +242,7 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
             "value": single,
             "unit": single_meta["unit"],
             "band": single_meta["band"],
+            "band_basis": single_meta["band_basis"],
             "uncertainty_range": [single * 0.7, single * 1.4],
             "weighting_factors": single_meta["weighting_factors"],
             "contributions": single_meta["contributions"],
@@ -213,4 +259,5 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
         "breakdown_by_food": breakdown,
         "sensitivity_analysis": {"contribution": result.contribution},
         "input_matches": result.input_matches,
+        "iso_report": iso,
     }

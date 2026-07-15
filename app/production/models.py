@@ -209,6 +209,7 @@ class SingleScoreResult(BaseModel):
     value: float
     unit: str
     band: Optional[str] = None  # qualitative band: Low | Moderate | High
+    band_basis: Optional[str] = None  # what the band is relative to (benchmark basket)
     uncertainty_range: List[float]  # [min, max]
     weighting_factors: Dict[str, float]
     contributions: Optional[Dict[str, float]] = None  # each category's share of the single score
@@ -264,3 +265,6 @@ class AssessmentResponse(BaseModel):
     management_analysis: Optional[ManagementAnalysis] = None
     benchmarking: Optional[BenchmarkingResults] = None
     recommendations: Optional[List[Recommendation]] = None
+
+    # Deterministic, data-backed ISO 14040/14044 report structure (four phases + review)
+    iso_report: Optional[Dict[str, Any]] = None

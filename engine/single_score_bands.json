@@ -1,0 +1,156 @@
+{
+  "methodology": "Empirical band calibration: single score computed for a benchmark basket of ecoinvent 3.11 farm-gate crop products (1 kg, Cutoff) through the identical pipeline (cradle-to-gate solve -> ReCiPe 2016 v1.03 midpoint (H) -> normalization). Bands are the basket's tertiles: Low = below the 33rd percentile, Moderate = 33rd-67th, High = above the 67th percentile.",
+  "method": "ReCiPe 2016 v1.03, midpoint (H)",
+  "n_products": 20,
+  "low_cut_upt_per_kg": 930.0,
+  "high_cut_upt_per_kg": 1990.0,
+  "percentiles": {
+    "p33": 933.9,
+    "p67": 1991.7,
+    "min": 174.05,
+    "max": 7382.97,
+    "median": 1279.6
+  },
+  "basket": [
+    {
+      "crop": "sugarcane",
+      "uid": "6a9d4808-0fd7-37e8-80d0-cc18431ad198",
+      "process": "sugarcane production | sugarcane | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 174.05
+    },
+    {
+      "crop": "white cabbage",
+      "uid": "54a70577-57cf-3725-920e-70295922900d",
+      "process": "white cabbage production | white cabbage | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 394.22
+    },
+    {
+      "crop": "carrot",
+      "uid": "5ff670ff-97fb-349c-a422-d2c5ca3eb1d7",
+      "process": "carrot production | carrot | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 459.84
+    },
+    {
+      "crop": "tomato (open field)",
+      "uid": "e31a2353-fc67-30bc-96e9-ebb0f9169c32",
+      "process": "tomato production, fresh grade, open field | tomato, fresh grade | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 660.62
+    },
+    {
+      "crop": "onion",
+      "uid": "c648d125-e666-3324-bbfe-e21b1a229dc1",
+      "process": "onion production | onion | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 681.87
+    },
+    {
+      "crop": "fava bean",
+      "uid": "cee6731c-0689-3915-9060-c0ed5434367b",
+      "process": "fava bean production | fava bean | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 913.67
+    },
+    {
+      "crop": "banana",
+      "uid": "0795317e-72de-31e5-9665-7d75278fb19d",
+      "process": "banana production | banana | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 922.84
+    },
+    {
+      "crop": "potato",
+      "uid": "780388d2-1408-3208-a30f-975d442868a1",
+      "process": "potato production | potato | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 956.04
+    },
+    {
+      "crop": "sweet sorghum grain",
+      "uid": "2420d326-69ec-3854-9a93-e61837a646d1",
+      "process": "sweet sorghum production | sweet sorghum grain | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 1129.84
+    },
+    {
+      "crop": "millet",
+      "uid": "e231ca8a-3c94-3b02-832b-114eda60725f",
+      "process": "millet production | millet | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 1130.87
+    },
+    {
+      "crop": "maize grain",
+      "uid": "ba01d774-7088-347e-a8da-e47e09758545",
+      "process": "maize grain production | maize grain | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 1428.35
+    },
+    {
+      "crop": "protein pea",
+      "uid": "60ff08dd-52d8-3878-9fdd-66e7344d5145",
+      "process": "protein pea production | protein pea | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 1708.04
+    },
+    {
+      "crop": "barley grain",
+      "uid": "df3792fb-f227-3e33-b859-592bc2f6fee9",
+      "process": "barley grain production | barley grain | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 1963.53
+    },
+    {
+      "crop": "soybean",
+      "uid": "8c55ff16-6c35-39e3-ae24-3af5ea53c082",
+      "process": "soybean production | soybean | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 2005.83
+    },
+    {
+      "crop": "rye grain",
+      "uid": "2f6fcec7-ba25-38df-98fb-d00ee93d96b4",
+      "process": "rye production | rye grain | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 2612.88
+    },
+    {
+      "crop": "wheat grain",
+      "uid": "7aa54cd9-a4d9-30f0-ae39-9daec120f49f",
+      "process": "wheat grain production | wheat grain | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 2929.01
+    },
+    {
+      "crop": "rape seed",
+      "uid": "afb80808-3b48-32ee-a480-643a88d65d58",
+      "process": "rape seed production | rape seed | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 3276.12
+    },
+    {
+      "crop": "rice (non-basmati)",
+      "uid": "f394c9c0-251e-300f-ae5e-d3bf07915a12",
+      "process": "rice production, non-basmati | rice, non-basmati | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 4513.55
+    },
+    {
+      "crop": "oat grain",
+      "uid": "793c389c-2db3-3f4f-a20a-969ded525c77",
+      "process": "oat grain production | oat grain | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 5229.72
+    },
+    {
+      "crop": "sunflower seed",
+      "uid": "ec1b6000-ad89-36d0-914b-7434ffec0a2e",
+      "process": "sunflower production | sunflower seed | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 7382.97
+    }
+  ]
+}

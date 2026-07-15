@@ -42,6 +42,30 @@ Full Option-A path proven end-to-end for Ghana **and** Canada:
 - **Biogenic vs fossil** CO2/CH4 resolve to distinct store flows (name-first).
 - Ghana maize demo (1 kg): Climate 1.54 = field 1.47 + upstream 0.07; land use 1.0 (field).
 
+## Single-score bands (empirically calibrated)
+
+The normalized single score (µPt/kg, in `adapter.single_score`) carries a Low/Moderate/
+High band whose cutoffs are **not hardcoded**. `calibrate_bands.py` computes the score
+for a benchmark basket of 20 ecoinvent farm-gate crop products through the identical
+pipeline and sets the cutoffs at the basket's tertiles; results + provenance are written
+to `single_score_bands.json` (currently Low<930, Moderate<1990, High≥1990). So "Moderate"
+means "typical among real crops we can measure," not an absolute verdict. Regenerate with
+`python -m engine.calibrate_bands`. If the file is absent, the adapter falls back to
+indicative 500/1500 and flags the band as uncalibrated.
+
+## ISO 14044 report (deterministic, review-ready)
+`iso_report.py` emits a data-backed ISO 14040/14044 report (document control · goal ·
+scope · LCI · LCIA · interpretation · critical review · references), structured per CSIR
+LCA Guideline 4 and the OCP LCA SOP. Every element comes from the real assessment; the
+mandatory statements (functional unit, system boundary, cut-off, the "results are relative
+expressions" disclaimer, value-choice flags) are always present. Default posture is
+external/public (`intended_for_public=True`), which — per ISO 14044 §6.3 / ISO/TS
+14071:2024 — makes an independent critical review by a qualified 3-expert panel MANDATORY.
+The generator never conducts that review, so the report is emitted as an ISO-conformant
+DRAFT with the critical review marked REQUIRED and PENDING and the review statement left
+empty (issued only when a real panel accepts the study). Rendered by
+`african-lca-frontend/src/components/ISOReport.tsx`.
+
 ## Remaining refinements
 1. **Cross-unit input amounts** (kg diesel vs MJ process): surfaced as a note when
    `amount_unit != ref_unit`; needs substance-specific conversion (e.g. diesel LHV) or
