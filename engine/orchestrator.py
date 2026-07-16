@@ -157,7 +157,8 @@ class FarmLCA:
                     f"'{inp['unit']}' but '{m['name']}' is per '{ref_unit}' — convert first.")
             res.input_matches.append({
                 "input": inp["name"], "amount": inp["amount"], "amount_unit": inp.get("unit"),
-                "matched": m["name"], "ref_unit": ref_unit,
+                "matched": m["name"], "ref_unit": ref_unit, "kind": inp.get("kind"),
+                "source": self.q.source_label(m["uid"]),
                 "location": m.get("location"), "score": m["score"],
             })
 

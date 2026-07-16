@@ -89,6 +89,21 @@ class CanonicalQuery:
         r = self.conn.execute("SELECT * FROM processes WHERE uid=?", (uid,)).fetchone()
         return dict(r) if r else None
 
+    def source_label(self, process_uid: str) -> str:
+        """Friendly database label for a process's source (e.g. 'ecoinvent 3.11',
+        'Agribalyse 3.2'), so a match can be attributed to the database it came from."""
+        if getattr(self, "_source_labels", None) is None:
+            pretty = {"agribalyse": "Agribalyse", "ecoinvent": "ecoinvent"}
+            self._source_labels = {}
+            try:
+                for r in self.conn.execute("SELECT id, name, version FROM sources"):
+                    ver = (r["version"] or "").split()[0] if r["version"] else ""
+                    self._source_labels[r["id"]] = f"{pretty.get(r['name'], r['name'])} {ver}".strip()
+            except sqlite3.OperationalError:
+                self._source_labels = {}
+        r = self.conn.execute("SELECT source_id FROM processes WHERE uid=?", (process_uid,)).fetchone()
+        return self._source_labels.get(r["source_id"] if r else None, "background database")
+
     def get_exchanges(self, process_uid: str) -> list[dict]:
         rows = self.conn.execute(
             "SELECT flow_uid, flow_name, is_input, is_elementary, is_reference, amount, unit, "

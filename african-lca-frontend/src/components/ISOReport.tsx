@@ -27,20 +27,26 @@ interface IsoReport {
     date_of_issue: string; report_number: string; version: string;
     reference_standards: string[]; farm_certifications: string[];
   };
+  introduction?: { context: string; product_system: string; similar_studies: string };
   goal: {
+    goal_statement?: string;
     reasons_for_study: string; intended_application: string; intended_audience: string;
     commissioner: string; comparative_assertion_disclosed_to_public: boolean;
     public_disclosure_intended: boolean; peer_review_statement: string;
   };
   scope: {
-    product_system: string; functional_unit: string; system_boundary: string;
+    approach?: string;
+    product_system: string; functional_unit: string; functional_unit_basis?: string;
+    system_boundary: string; boundary_included?: string[]; boundary_excluded?: string[];
     boundary_type: string; cutoff_criteria: string; allocation_procedure: string;
     lcia_method: string; perspective: string; impact_categories: Category[];
+    impact_categories_basis?: string;
     normalization_reference: string; data_requirements: { foreground: string; background: string };
     assumptions_and_limitations: string[]; value_choices: string[];
   };
   inventory_analysis: {
     data_sources: string[]; foreground_data: string; background_data: string; on_farm_lci: string;
+    on_farm_flows?: string[]; on_farm_adjustments?: string[];
     calculation_procedure: string; reference_flows: RefFlow[]; inputs_matched: string;
     pedigree_uncertainty: string; data_validation: string; notes: string[]; unlinked_flows?: string[];
     inventory_results?: { basis: string; n_flows_total: number; n_shown: number;
@@ -53,6 +59,7 @@ interface IsoReport {
     results_table?: { category: string; result: number; unit: string }[];
   };
   interpretation: {
+    results_interpretation?: string;
     significant_issues: string[]; data_quality_assessment: string; completeness_check: string;
     consistency_check: string; sensitivity_and_uncertainty: string; conclusions: string[];
     recommendations: string[]; limitations: string[]; public_disclosure: string;
@@ -138,7 +145,7 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
   // Guard against a stale/old-shape payload (e.g. an assessment generated before the
   // ISO-conformant report was added): render nothing rather than crash the results page.
   if (!report || !report.document_control || !report.critical_review || !report.goal) return null;
-  const { document_control: dc, goal, scope, inventory_analysis: lci,
+  const { document_control: dc, introduction, goal, scope, inventory_analysis: lci,
     impact_assessment: lcia, interpretation, critical_review: cr } = report;
   const pending = cr.required && !cr.statement;
 
@@ -187,8 +194,23 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
       </div>
 
       <div className="space-y-3">
-        {/* 1. Goal */}
-        <Phase num="1" title="Goal" clause="What the study is for and who it is for" defaultOpen>
+        {/* Introduction */}
+        {introduction && (
+          <Phase num="1" title="Introduction" clause="The study, the farm, and the product" defaultOpen>
+            <Field label="About this study">{introduction.context}</Field>
+            <Field label="The product system">{introduction.product_system}</Field>
+            <Field label="Background and similar work">{introduction.similar_studies}</Field>
+          </Phase>
+        )}
+
+        {/* Goal */}
+        <Phase num="2" title="Goal" clause="What the study is for and who it is for" defaultOpen>
+          {goal.goal_statement && (
+            <div className="mb-3 rounded-lg bg-emerald-600 text-white px-4 py-3">
+              <div className="text-xs font-bold uppercase tracking-wide opacity-90">Goal of the study</div>
+              <div className="text-sm font-semibold leading-relaxed">{goal.goal_statement}</div>
+            </div>
+          )}
           <Field label="Reasons for the study">{goal.reasons_for_study}</Field>
           <Field label="Intended application">{goal.intended_application}</Field>
           <Field label="Intended audience">{goal.intended_audience}</Field>
@@ -200,15 +222,34 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
         </Phase>
 
         {/* 2. Scope */}
-        <Phase num="2" title="Scope" clause="What was assessed, and how" defaultOpen>
+        <Phase num="3" title="Scope" clause="What was assessed, and how" defaultOpen>
           <div className="mb-4 rounded-lg bg-emerald-600 text-white px-4 py-3">
             <div className="text-xs font-bold uppercase tracking-wide opacity-90">Functional unit</div>
             <div className="text-lg font-bold">{scope.functional_unit}</div>
+            {scope.functional_unit_basis && (
+              <div className="text-xs opacity-90 mt-1 leading-relaxed">{scope.functional_unit_basis}</div>
+            )}
           </div>
           <Field label="Product system">{scope.product_system}</Field>
           <Field label="System boundary">{scope.system_boundary}</Field>
+          {(scope.boundary_included || scope.boundary_excluded) && (
+            <div className="grid md:grid-cols-2 gap-x-6 gap-y-2 mb-4">
+              {scope.boundary_included && (
+                <div className="rounded-lg bg-green-50 border border-green-200 p-3">
+                  <div className="text-[13px] font-bold text-green-800 mb-1">Inside the boundary</div>
+                  <Bullets items={scope.boundary_included} />
+                </div>
+              )}
+              {scope.boundary_excluded && (
+                <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+                  <div className="text-[13px] font-bold text-gray-700 mb-1">Outside the boundary</div>
+                  <Bullets items={scope.boundary_excluded} />
+                </div>
+              )}
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-x-6">
-            <Field label="Boundary type">{scope.boundary_type}</Field>
+            <Field label="Boundary type">{scope.boundary_type}{scope.approach ? ` · ${scope.approach}` : ''}</Field>
             <Field label="LCIA method">{scope.lcia_method} · {scope.perspective}</Field>
           </div>
           <Field label="Cut-off criteria">{scope.cutoff_criteria}</Field>
@@ -221,6 +262,9 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
                 </span>
               ))}
             </div>
+            {scope.impact_categories_basis && (
+              <p className="text-sm text-gray-700 mt-2 leading-relaxed">{scope.impact_categories_basis}</p>
+            )}
           </Field>
           <div className="grid md:grid-cols-2 gap-x-6">
             <Field label="Foreground data">{scope.data_requirements.foreground}</Field>
@@ -236,13 +280,27 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
         </Phase>
 
         {/* 3. Inventory */}
-        <Phase num="3" title="Life Cycle Inventory" clause="The data behind the results">
+        <Phase num="4" title="Life Cycle Inventory" clause="The data behind the results">
           <Field label="Data sources"><Bullets items={lci.data_sources} /></Field>
           <div className="grid md:grid-cols-2 gap-x-6">
             <Field label="Foreground data">{lci.foreground_data}</Field>
             <Field label="Background data">{lci.background_data}</Field>
           </div>
-          <Field label="On-farm inventory">{lci.on_farm_lci}</Field>
+          <Field label="On-farm inventory (field emissions)">
+            <p className="mb-2">{lci.on_farm_lci}</p>
+            {lci.on_farm_flows && lci.on_farm_flows.length > 0 && (
+              <>
+                <div className="text-xs font-semibold text-gray-600 mb-1">Field flows modelled</div>
+                <Bullets items={lci.on_farm_flows} />
+              </>
+            )}
+            {lci.on_farm_adjustments && lci.on_farm_adjustments.length > 0 && (
+              <div className="mt-2">
+                <div className="text-xs font-semibold text-gray-600 mb-1">Adjustments applied</div>
+                <Bullets items={lci.on_farm_adjustments} />
+              </div>
+            )}
+          </Field>
           <Field label="Calculation procedure">{lci.calculation_procedure}</Field>
           <Field label="Reference flows linked to the functional unit">
             <div className="overflow-x-auto">
@@ -268,7 +326,7 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
             </div>
           </Field>
           {lci.inventory_results && lci.inventory_results.flows.length > 0 && (
-            <Field label={`Inventory results — dominant elementary flows (${lci.inventory_results.n_shown} of ${lci.inventory_results.n_flows_total}, ${lci.inventory_results.basis})`}>
+            <Field label={`Inventory results: the biggest elementary flows (${lci.inventory_results.n_shown} of ${lci.inventory_results.n_flows_total}, ${lci.inventory_results.basis})`}>
               <DataTable
                 headers={['Elementary flow', 'Amount', 'Unit']}
                 rows={lci.inventory_results.flows.map(f => [f.flow, fmt(f.amount), f.unit])}
@@ -285,7 +343,7 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
         </Phase>
 
         {/* 4. Impact assessment */}
-        <Phase num="4" title="Life Cycle Impact Assessment" clause="How the impacts were worked out">
+        <Phase num="5" title="Life Cycle Impact Assessment" clause="How the impacts were worked out">
           <Field label="Method and why it was chosen">{lcia.method}. {lcia.rationale}</Field>
           <Field label="Required steps">
             <Bullets items={Object.values(lcia.mandatory_elements)} />
@@ -308,10 +366,16 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
         </Phase>
 
         {/* 5. Interpretation */}
-        <Phase num="5" title="Interpretation" clause="What the results mean" defaultOpen>
+        <Phase num="6" title="Interpretation" clause="What the results mean" defaultOpen>
+          {interpretation.results_interpretation && (
+            <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-3">
+              <div className="text-[13px] font-bold text-blue-900 mb-1">The results, against the goal</div>
+              <div className="text-sm text-gray-700 leading-relaxed">{interpretation.results_interpretation}</div>
+            </div>
+          )}
           <Field label="What stands out"><Bullets items={interpretation.significant_issues} /></Field>
           {interpretation.contribution_analysis && interpretation.contribution_analysis.by_source.length > 0 && (
-            <Field label={`Contribution analysis — ${interpretation.contribution_analysis.indicator} by source`}>
+            <Field label={`Contribution analysis: ${interpretation.contribution_analysis.indicator} by source`}>
               <div className="space-y-2">
                 {interpretation.contribution_analysis.by_source.map((s, i) => (
                   <div key={i}>

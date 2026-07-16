@@ -188,12 +188,19 @@ class ProcessMatcher:
             "SELECT uid, name, category, location FROM processes ORDER BY uid").fetchall()]
         cache = self._cache_path()
         if not force and cache.exists():
-            data = np.load(cache, allow_pickle=True)
-            if len(data["uids"]) == len(procs) and len(procs) > 0:
-                self.uids = list(data["uids"])
-                self.meta = list(data["meta"])
-                self.matrix = data["matrix"]
-                return len(self.uids)
+            try:
+                data = np.load(cache, allow_pickle=True)
+                matrix = data["matrix"]   # touch the array so a bad CRC surfaces here
+                if len(data["uids"]) == len(procs) and len(procs) > 0:
+                    self.uids = list(data["uids"])
+                    self.meta = list(data["meta"])
+                    self.matrix = matrix
+                    return len(self.uids)
+            except Exception as e:
+                # a corrupt/unreadable cache must not crash an assessment: fall through and
+                # rebuild it (needs the embedder). Old behaviour raised a cryptic "Bad CRC-32".
+                import warnings
+                warnings.warn(f"embedding cache at {cache} is unreadable ({e}); rebuilding it.")
         if not procs:
             self.uids, self.meta, self.matrix = [], [], np.zeros((0, 1), np.float32)
             return 0

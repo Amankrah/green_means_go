@@ -714,8 +714,9 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
             </motion.div>
           )}
 
-          {/* Endpoint Impacts */}
-          {results.endpoint_impacts && (
+          {/* Endpoint Impacts — only for methods that define endpoints (ReCiPe); the EF
+              method is midpoint-only, so this section is hidden rather than shown empty. */}
+          {results.endpoint_impacts && Object.keys(results.endpoint_impacts).length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
