@@ -609,7 +609,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "recommendations": _recs,
         "limitations": [
             "This is a screening study, so it uses standard emission factors and average background data rather than measurements from this farm.",
-            "A detailed, dataset-by-dataset data-quality score has not yet been carried out.",
+            "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. A finer, dataset-by-dataset pedigree score with propagated uncertainty (rather than the indicative range shown) has not been carried out.",
             "The single score uses equal weighting, which is a judgement call, and it works best for comparing scenarios of the same crop rather than as an absolute verdict.",
         ],
         "public_disclosure": (
