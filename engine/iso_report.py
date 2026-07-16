@@ -159,7 +159,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     clim_s = sup.get("Climate change", {}).get("value", 0.0) or 0.0
     if (clim_f + clim_s):
         significant.append(
-            f"Emissions released in the field make up about {_pct(clim_f, clim_f+clim_s):.0f}% "
+            f"Field emissions make up about {_pct(clim_f, clim_f+clim_s):.0f}% "
             f"of the climate impact, and the inputs the farm buys in make up the other "
             f"{_pct(clim_s, clim_f+clim_s):.0f}%")
 
@@ -229,7 +229,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "adaptation": m.get("location") or region_name,
         })
     reference_flows.append({
-        "process": f"Field emissions and resource use ({field_emissions_text})",
+        "process": f"Field emissions ({field_emissions_text})",
         "amount": "per kilogram of crop",
         "source": "IPCC 2019, Volume 4 (Agriculture and Land Use)",
         "adaptation": f"{region_name}" + (f", nitrous-oxide factor {ef1} kg N2O-N per kg N" if ef1 else ""),
@@ -273,7 +273,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             f"The product system studied is the on-farm production of {crop_names} at {farm}. It runs "
             "from the inputs used in the field through to the point the crop leaves the farm gate, and "
             "takes in the crops themselves, the fertiliser, fuel, electricity and other inputs the farm "
-            "buys in, and the emissions given off in the field."),
+            "buys in, and the field emissions."),
         "similar_studies": (
             "This is a screening-level study, in keeping with common practice for farm and food life "
             "cycle work. The wider supply chain is built on established published inventories (ecoinvent"
@@ -331,7 +331,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "The study runs from the inputs used in the field through to the point the crop leaves the "
             "farm (cradle to gate). What sits inside and outside the boundary is set out below."),
         "boundary_included": [
-            f"The emissions and resource use in the field ({field_emissions_text}), from the IPCC 2019 method and the on-farm inventory.",
+            f"The field emissions ({field_emissions_text}), from the IPCC 2019 method and the on-farm inventory.",
             "The production of the inputs the farm buys in: mineral fertiliser, diesel and grid electricity "
             "(and any pesticides or purchased compost).",
             "The generation and grid transmission of the electricity used.",
@@ -440,7 +440,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     inventory = {
         "data_sources": [f for f in [
             "ecoinvent 3.11, for the wider supply chain",
-            "IPCC 2019, Volume 4 (Agriculture and Land Use), for the emissions released in the field",
+            "IPCC 2019, Volume 4 (Agriculture and Land Use), for the field emissions",
             ("Agribalyse 3.2, for some of the background datasets" if uses_agribalyse else None),
         ] if f],
         "foreground_data": ("Activity data reported by the farm for the crops and inputs listed"
@@ -451,7 +451,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                             + (" and Agribalyse" if uses_agribalyse else "")
                             + ", adjusted to the region where a regional version exists. Any stand-in "
                               "datasets are noted."),
-        "on_farm_lci": ("We work out the emissions released in the field from the farm's own records: the "
+        "on_farm_lci": ("We work out the field emissions from the farm's own records: the "
                         "areas cropped, the fertiliser type and rate"
                         + (", and any compost or manure applied" if compost_n_modelled else "")
                         + ". These go through the IPCC 2019 method (Volume 4). The flows we account for, and "
