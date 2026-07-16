@@ -173,6 +173,19 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                     "NO3": "Nitrate, water", "land_occ": "Occupation, annual crop",
                     "water": "Water", "NH3": "Ammonia, air", "PO4": "Phosphate, water"}
     inv = getattr(result, "inventory", None) or {}
+    # Which on-farm field flows are ACTUALLY in the inventory (stored under kernel keys), so
+    # the boundary and reference-flow text list only what was modelled. Fuel/grid CO2 is
+    # dropped upstream, so field CO2 normally is not present and should not be claimed.
+    _inv_keys = {(r.get("name") or "") for r in inv.values()}
+    has_field_ch4 = "CH4_bio" in _inv_keys or "CH4" in _inv_keys
+    _field_subs = [label for key, label in [
+        ("N2O", "nitrous oxide"), ("CH4_bio", "methane"), ("CH4", "methane"),
+        ("CO2", "carbon dioxide"), ("NO3", "nitrate lost to water"),
+        ("water", "water used"), ("land_occ", "the land occupied")] if key in _inv_keys]
+    # de-duplicate (CH4/CH4_bio both map to "methane") while keeping order
+    _seen: set = set()
+    _field_subs = [s for s in _field_subs if not (s in _seen or _seen.add(s))]
+    field_emissions_text = ", ".join(_field_subs) if _field_subs else "field emissions"
     top_flows = sorted(inv.values(), key=lambda r: -abs(r.get("amount") or 0.0))[:30]
     inventory_results = {
         "basis": "per kilogram of crop at the farm gate",
@@ -216,7 +229,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "adaptation": m.get("location") or region_name,
         })
     reference_flows.append({
-        "process": "Emissions released in the field (nitrous oxide, methane, carbon dioxide, nitrate, land occupied)",
+        "process": f"Field emissions and resource use ({field_emissions_text})",
         "amount": "per kilogram of crop",
         "source": "IPCC 2019, Volume 4 (Agriculture and Land Use)",
         "adaptation": f"{region_name}" + (f", nitrous-oxide factor {ef1} kg N2O-N per kg N" if ef1 else ""),
@@ -253,9 +266,9 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     introduction = {
         "context": (
             f"This report is a life cycle assessment of the {crop_names} grown at {farm} in "
-            f"{region_name}, prepared for {commissioner}. The farm wanted to understand the "
-            "environmental footprint of what it grows and where the biggest impacts sit, so it can "
-            "make improvements and can speak to its performance with evidence behind it."),
+            f"{region_name}, prepared for {commissioner}. It measures the environmental footprint of "
+            "what the farm grows and shows where the biggest impacts sit, so the farm can make "
+            "improvements and can speak to its performance with evidence behind it."),
         "product_system": (
             f"The product system studied is the on-farm production of {crop_names} at {farm}. It runs "
             "from the inputs used in the field through to the point the crop leaves the farm gate, and "
@@ -318,8 +331,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "The study runs from the inputs used in the field through to the point the crop leaves the "
             "farm (cradle to gate). What sits inside and outside the boundary is set out below."),
         "boundary_included": [
-            "The emissions given off in the field (nitrous oxide, methane, carbon dioxide, nitrate lost "
-            "to water) and the land the crop occupies, worked out with the IPCC 2019 method.",
+            f"The emissions and resource use in the field ({field_emissions_text}), from the IPCC 2019 method and the on-farm inventory.",
             "The production of the inputs the farm buys in: mineral fertiliser, diesel and grid electricity "
             "(and any pesticides or purchased compost).",
             "The generation and grid transmission of the electricity used.",
@@ -346,7 +358,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             f"All {len(categories)} midpoint categories that could be characterised and mapped for this "
             f"study are reported ({'ReCiPe 2016' if 'ReCiPe' in method else 'Environmental Footprint 3.1'}), "
             "so that no major environmental issue is left out. The ones that matter most for growing crops, "
-            "such as climate change, land use, eutrophication and fossil resource use, are all covered."),
+            "such as climate change, land use, eutrophication and fossil resource use, are among them."),
         "normalization_reference": (
             "ReCiPe 2016, using the world-average, hierarchist reference for the single score."
             if "ReCiPe" in method else "The method's own reference set."),
@@ -391,7 +403,6 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     # Comprehensive on-farm field-emission description: state exactly what the IPCC Tier 1
     # model computes for THIS farm (not just the N2O factor), per CSIR Guideline 4 §3.1.
     climate_zone = getattr(region, "climate_zone", "regional")
-    has_rice = any("rice" in (f.get("name", "") or "").lower() for f in foods)
     try:
         from .field_model import _has_legume_partner
     except ImportError:
@@ -408,7 +419,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "(using the IPCC 2019 fractions with the EF4 and EF5 factors).",
         "Nitrate washed into water by leaching.",
     ]
-    if has_rice:
+    if has_field_ch4:
         on_farm_flows.append("Methane from the flooded rice paddy.")
     on_farm_flows.append("The land the crop occupies while it grows.")
 
@@ -440,10 +451,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                             + (" and Agribalyse" if uses_agribalyse else "")
                             + ", adjusted to the region where a regional version exists. Any stand-in "
                               "datasets are noted."),
-        "on_farm_lci": ("We work out the emissions released in the field from the farm's own records: "
-                        "the areas cropped, the fertiliser type and rate, and any compost or manure applied. "
-                        "These go through the IPCC 2019 method (Volume 4). The flows we account for, and the "
-                        "adjustments we make, are listed below."),
+        "on_farm_lci": ("We work out the emissions released in the field from the farm's own records: the "
+                        "areas cropped, the fertiliser type and rate"
+                        + (", and any compost or manure applied" if compost_n_modelled else "")
+                        + ". These go through the IPCC 2019 method (Volume 4). The flows we account for, and "
+                        "the adjustments we make, are listed below."),
         "on_farm_flows": on_farm_flows,
         "on_farm_adjustments": on_farm_adjustments,
         "calculation_procedure": (
@@ -521,6 +533,30 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "Each category result carries an indicative pedigree uncertainty of roughly 30 to 40 percent "
             "(shown as the range on each figure), a screening estimate rather than a full uncertainty propagation.")
 
+    # Recommendations driven by the actual hotspots (the top climate contributors), not a
+    # fixed list, so the advice points at what is really moving this farm's result.
+    def _rec_for(src_name: str):
+        s = (src_name or "").lower()
+        if "field emission" in s:
+            return "Cut the nitrous oxide coming off the field: fine-tune the fertiliser rate, type and timing, and lean on legumes where you can."
+        if "diesel" in s or "fuel" in s or "machinery" in s:
+            return "Use fuel more efficiently and move to lower-carbon machinery or energy where it is practical."
+        if "electric" in s:
+            return "Reduce grid electricity use, or switch to a lower-carbon supply."
+        if any(k in s for k in ("fertil", "npk", "urea", "dap", "phosphate")):
+            return "Match the fertiliser rate and type more closely to what the crop actually needs."
+        if "pesticide" in s or "compost" in s:
+            return "Review the agrochemicals and amendments used, and cut back what is not needed."
+        return None
+    _recs = []
+    for row in _src[:3]:
+        r = _rec_for(row.get("source"))
+        if r and r not in _recs:
+            _recs.append(r)
+    if not _recs:
+        _recs.append("Focus on the largest impact category and the activities behind it.")
+    _recs.append("Gather more of the farm's own activity data to replace screening defaults and narrow the uncertainty.")
+
     # Results interpretation tied back to the goal and scope (CSIR Guideline 4 §5, item 1):
     # restate what the study set out to do and what the numbers actually say about it.
     _band = (single_meta.get("band") or "").lower()
@@ -550,6 +586,9 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                     (f"{len(unlinked_notes)} input(s) could not be matched" if unlinked_notes else None),
                     ("compost is used but no application rate was given, so its field nitrogen is not counted"
                      if (_sm.get("uses_compost") and not _sm.get("compost_application_rate")) else None),
+                    ("purchased compost was reported without a rate, so its production burden is not counted"
+                     if any("purchased compost reported but no application rate" in (n or "").lower()
+                            for n in (result.notes or [])) else None),
                     ("some inputs were given in a different unit from the matched dataset (see notes)"
                      if any("unit mismatch" in (n or "").lower() for n in (result.notes or [])) else None),
                 ] if g])),
@@ -563,13 +602,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "conclusions": [
             (f"Measured per kilogram of crop, the biggest single contributor is {top_cats[0][0]}."
              if top_cats else "The impacts are spread fairly evenly across the categories."),
-            "The clearest chances to improve lie in the largest category, and in whichever side, the field or the bought-in inputs, drives it.",
+            (f"On the climate side, {_src[0]['source']} is the main driver at about {_src[0]['share']*100:.0f}%, "
+             "so that is where the clearest improvement lies."
+             if _src else "The clearest chances to improve lie in the largest impact category."),
         ],
-        "recommendations": [
-            "Fine-tune the amount, type and timing of fertiliser to cut nitrous oxide from the field.",
-            "Use fuel and grid electricity more efficiently, and move to lower-carbon energy where it is practical.",
-            "Gather more of the farm's own activity data to replace screening defaults and narrow the uncertainty.",
-        ],
+        "recommendations": _recs,
         "limitations": [
             "This is a screening study, so it uses standard emission factors and average background data rather than measurements from this farm.",
             "A detailed, dataset-by-dataset data-quality score has not yet been carried out.",
