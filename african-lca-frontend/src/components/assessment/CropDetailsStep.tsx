@@ -99,6 +99,12 @@ export default function CropDetailsStep() {
       return COMMON_CROPS_BY_REGION['Nigeria-Middle Belt'] || [];
     } else if (country === 'Nigeria') {
       return COMMON_CROPS_BY_REGION['Nigeria-Southern'] || [];
+    } else if (country === 'Canada' && ['Saskatchewan', 'Alberta', 'Manitoba'].includes(region)) {
+      return COMMON_CROPS_BY_REGION['Canada-Prairies'] || [];
+    } else if (country === 'Canada' && ['Ontario', 'Quebec'].includes(region)) {
+      return COMMON_CROPS_BY_REGION['Canada-Central'] || [];
+    } else if (country === 'Canada') {
+      return COMMON_CROPS_BY_REGION['Canada'] || [];
     }
     return [];
   };

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+import RequireAuth from '@/components/RequireAuth';
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -55,6 +56,19 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
   const [error, setError] = useState<string | null>(null);
   const [rerunning, setRerunning] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [shareLabel, setShareLabel] = useState('Share Results');
+
+  const handleDownload = () => window.print();
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareLabel('Link copied');
+    } catch {
+      setShareLabel('Copy failed');
+    }
+    setTimeout(() => setShareLabel('Share Results'), 2000);
+  };
 
   useEffect(() => {
     if (assessmentId) {
@@ -1039,7 +1053,8 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button 
+                <button
+                  type="button"
                   onClick={handleRerun}
                   disabled={rerunning || !assessmentId}
                   className="bg-white text-green-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all"
@@ -1048,22 +1063,30 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                   <span>{rerunning ? 'Refreshing...' : 'Refresh Results'}</span>
                 </button>
 
-                <button className="border-2 border-white text-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-green-600 flex items-center space-x-2 transition-colors">
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  className="border-2 border-white text-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-green-600 flex items-center space-x-2 transition-colors"
+                >
                   <Download className="w-5 h-5" />
                   <span>Download Report</span>
                 </button>
-                
-                <button className="border-2 border-white text-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-green-600 flex items-center space-x-2 transition-colors">
+
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="border-2 border-white text-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-green-600 flex items-center space-x-2 transition-colors"
+                >
                   <Share className="w-5 h-5" />
-                  <span>Share Results</span>
+                  <span>{shareLabel}</span>
                 </button>
-                
+
                 <a
-                  href="/assessment"
+                  href="/dashboard"
                   className="border-2 border-white text-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-green-600 flex items-center space-x-2 transition-colors"
                 >
                   <BarChart3 className="w-5 h-5" />
-                  <span>New Assessment</span>
+                  <span>Back to dashboard</span>
                 </a>
               </div>
             </div>
@@ -1083,22 +1106,24 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={
-      <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <p className="text-lg text-gray-900">Loading...</p>
+    <RequireAuth>
+      <Suspense fallback={
+        <Layout>
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4"
+              />
+              <p className="text-lg text-gray-900">Loading...</p>
+            </div>
           </div>
-        </div>
-      </Layout>
-    }>
-      <ResultsPageContent />
-    </Suspense>
+        </Layout>
+      }>
+        <ResultsPageContent />
+      </Suspense>
+    </RequireAuth>
   );
 }
 

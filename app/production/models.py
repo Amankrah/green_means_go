@@ -3,7 +3,11 @@ from typing import List, Optional, Dict, Union, Any
 from datetime import datetime
 from enum import Enum
 
-# Valid values
+# Country is the coarse dataset bucket the LCI kernel understands (Ghana / Nigeria /
+# Global). Finer geography — including new demonstration regions like Canada — is
+# carried by `region` (engine/regions.py: GH / NG / CA), so onboarding a country means
+# adding a region, not a new country bucket. The platform is global; "Global" is the
+# region-agnostic default and the bucket Canada (region "CA") resolves through.
 VALID_COUNTRIES = ["Ghana", "Nigeria", "Global"]
 VALID_FOOD_CATEGORIES = [
     "Cereals", "Legumes", "Vegetables", "Fruits", "Meat", "Poultry", 
@@ -175,9 +179,13 @@ class FoodItem(BaseModel):
 
 class AssessmentRequest(BaseModel):
     company_name: str
-    country: str  # "Ghana", "Nigeria", or "Global"
+    country: str  # one of VALID_COUNTRIES
     foods: List[FoodItem]
     region: Optional[str] = None
+
+    # Optional linkage/labelling for saving under a user's account.
+    farm_id: Optional[str] = None  # attach this assessment to a Farm the user owns
+    title: Optional[str] = None    # human label for the saved assessment
 
     # Enhanced fields for comprehensive assessments
     farm_profile: Optional[FarmProfile] = None

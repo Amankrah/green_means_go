@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import Layout from '@/components/Layout';
+import RequireAuth from '@/components/RequireAuth';
 import { assessmentAPI } from '@/lib/api';
 import { 
   enhancedAssessmentSchema, 
@@ -89,9 +91,10 @@ const stepIcons = {
   [FormStep.REVIEW_SUBMIT]: BarChart3,
 };
 
-export default function ComprehensiveAssessmentPage() {
+function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
   const [currentStep, setCurrentStep] = useState<FormStep>(FormStep.FARM_PROFILE);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [linkedFarmName, setLinkedFarmName] = useState<string | null>(null);
   const [submitResult, setSubmitResult] = useState<{
     success: boolean;
     message: string;
@@ -102,67 +105,67 @@ export default function ComprehensiveAssessmentPage() {
     resolver: zodResolver(enhancedAssessmentSchema), // Will be overridden for specific steps
     defaultValues: {
       farmProfile: {
-        farmerName: 'Kwame Mensah',
-        farmName: 'Mensah Family Farms',
-        country: 'Ghana',
-        region: 'Ashanti',
-        totalFarmSize: 8.5,
-        farmingExperience: 18,
-        farmType: FarmType.MEDIUM_SCALE,
+        farmerName: 'Sarah Thompson',
+        farmName: 'Thompson Prairie Farm',
+        country: 'Canada',
+        region: 'Saskatchewan',
+        totalFarmSize: 520,
+        farmingExperience: 22,
+        farmType: FarmType.COMMERCIAL,
         primaryFarmingSystem: FarmingSystem.SEMI_COMMERCIAL,
         certifications: [],
-        participatesInPrograms: ['Climate Smart Agriculture', 'Farmer Field School']
+        participatesInPrograms: ['Climate Smart Agriculture']
       },
       cropProductions: [
         {
-          cropId: 'crop_maize_001',
-          cropName: 'Maize',
-          localName: 'Aburo',
+          cropId: 'crop_wheat_001',
+          cropName: 'Wheat',
+          localName: 'Spring Wheat',
           category: 'Cereals',
-          variety: 'Oba Super 2',
-          areaAllocated: 5.0,
-          annualProduction: 9500,
+          variety: 'AAC Brandon',
+          areaAllocated: 300,
+          annualProduction: 1140000,
           productionSystem: ProductionSystem.RAINFED,
-          croppingPattern: CroppingPattern.INTERCROPPING,
+          croppingPattern: CroppingPattern.MONOCULTURE,
           seasonality: {
             plantingMonths: [4, 5],
             harvestingMonths: [8, 9],
             growingPeriod: 120,
-            cropsPerYear: 2,
-            season: [SeasonType.WET_SEASON]
-          },
-          isIntercropped: true,
-          intercroppingPartners: ['Cowpea'],
-          intercroppingRatio: {},
-          rotationSequence: ['Maize', 'Cowpea', 'Groundnuts'],
-          rotationDuration: 2,
-          averageYieldPerHectare: 1900,
-          postHarvestLosses: 12
-        },
-        {
-          cropId: 'crop_cassava_001',
-          cropName: 'Cassava',
-          localName: 'Bankye',
-          category: 'Roots',
-          variety: 'Bankye Hemaa',
-          areaAllocated: 3.5,
-          annualProduction: 31500,
-          productionSystem: ProductionSystem.RAINFED,
-          croppingPattern: CroppingPattern.MONOCULTURE,
-          seasonality: {
-            plantingMonths: [3, 4],
-            harvestingMonths: [12, 1],
-            growingPeriod: 270,
             cropsPerYear: 1,
-            season: [SeasonType.WET_SEASON, SeasonType.DRY_SEASON]
+            season: [SeasonType.WET_SEASON]
           },
           isIntercropped: false,
           intercroppingPartners: [],
           intercroppingRatio: {},
-          rotationSequence: ['Cassava', 'Vegetables'],
-          rotationDuration: 2,
-          averageYieldPerHectare: 9000,
-          postHarvestLosses: 15
+          rotationSequence: ['Wheat', 'Canola', 'Barley'],
+          rotationDuration: 3,
+          averageYieldPerHectare: 3800,
+          postHarvestLosses: 3
+        },
+        {
+          cropId: 'crop_canola_001',
+          cropName: 'Canola',
+          localName: 'Canola',
+          category: 'Oils',
+          variety: 'InVigor L233P',
+          areaAllocated: 220,
+          annualProduction: 550000,
+          productionSystem: ProductionSystem.RAINFED,
+          croppingPattern: CroppingPattern.MONOCULTURE,
+          seasonality: {
+            plantingMonths: [5],
+            harvestingMonths: [9, 10],
+            growingPeriod: 100,
+            cropsPerYear: 1,
+            season: [SeasonType.WET_SEASON]
+          },
+          isIntercropped: false,
+          intercroppingPartners: [],
+          intercroppingRatio: {},
+          rotationSequence: ['Canola', 'Wheat', 'Barley'],
+          rotationDuration: 3,
+          averageYieldPerHectare: 2500,
+          postHarvestLosses: 4
         }
       ],
       managementPractices: {
@@ -325,6 +328,32 @@ export default function ComprehensiveAssessmentPage() {
 
   const { handleSubmit, trigger, formState: { errors } } = methods;
 
+  // When launched from a saved farm (New assessment → /assessment?farmId=…), prefill the
+  // farm profile from that record and remember the link so the result is saved against it.
+  useEffect(() => {
+    if (!farmId) return;
+    let active = true;
+    assessmentAPI
+      .getFarm(farmId)
+      .then((farm) => {
+        if (!active) return;
+        setLinkedFarmName(farm.name);
+        methods.setValue('farmProfile.farmName', farm.name);
+        if (farm.country && ['Ghana', 'Nigeria', 'Canada'].includes(farm.country)) {
+          methods.setValue('farmProfile.country', farm.country as 'Ghana' | 'Nigeria' | 'Canada');
+        }
+        if (farm.region) methods.setValue('farmProfile.region', farm.region);
+        if (farm.size_ha != null) methods.setValue('farmProfile.totalFarmSize', farm.size_ha);
+        if (farm.farmer_name) methods.setValue('farmProfile.farmerName', farm.farmer_name);
+      })
+      .catch(() => {
+        /* farm not found / not owned — proceed with a blank assessment */
+      });
+    return () => {
+      active = false;
+    };
+  }, [farmId, methods]);
+
   const handleNextStep = async () => {
     // Only validate the current step fields
     let currentStepValid = false;
@@ -397,8 +426,11 @@ export default function ComprehensiveAssessmentPage() {
       // Submit comprehensive assessment to backend
       console.log('Submitting comprehensive assessment:', apiData);
       
-      const result = await assessmentAPI.submitComprehensiveAssessment(apiData);
-      
+      const result = await assessmentAPI.submitComprehensiveAssessment(apiData, {
+        farmId: farmId ?? undefined,
+        title: data.farmProfile?.farmName || undefined,
+      });
+
       // Store result in localStorage for persistence (survives backend restarts)
       localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
       localStorage.setItem('lastAssessmentId', result.id);
@@ -637,8 +669,14 @@ export default function ComprehensiveAssessmentPage() {
               Comprehensive Farm Sustainability Assessment
             </h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Get detailed environmental impact analysis with actionable recommendations tailored for African farming systems
+              Get detailed environmental impact analysis with actionable recommendations tailored to your farming system
             </p>
+            {linkedFarmName && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-50 border border-green-200 px-4 py-1.5 text-sm font-medium text-green-700">
+                <Sprout className="w-4 h-4" />
+                Assessing: {linkedFarmName}
+              </div>
+            )}
           </motion.div>
 
           {/* Progress Bar */}
@@ -934,9 +972,9 @@ export default function ComprehensiveAssessmentPage() {
                   Why This Detailed Assessment?
                 </h3>
                 <p className="text-blue-800 mb-5 leading-relaxed text-lg">
-                  This comprehensive assessment follows international LCA standards (ISO 14040/14044) 
-                  to provide you with accurate, scientifically-backed sustainability insights specific 
-                  to African farming systems.
+                  This comprehensive assessment follows international LCA standards (ISO 14040/14044)
+                  to provide you with accurate, scientifically-backed sustainability insights specific
+                  to your farming system and region.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
@@ -970,5 +1008,21 @@ export default function ComprehensiveAssessmentPage() {
         </div>
       </div>
     </Layout>
+  );
+}
+
+function AssessmentPageInner() {
+  const searchParams = useSearchParams();
+  const farmId = searchParams.get('farmId');
+  return <ComprehensiveAssessmentPage farmId={farmId} />;
+}
+
+export default function AssessmentPage() {
+  return (
+    <RequireAuth roles={['farmer', 'extension_officer']}>
+      <Suspense fallback={null}>
+        <AssessmentPageInner />
+      </Suspense>
+    </RequireAuth>
   );
 }

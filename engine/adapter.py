@@ -150,12 +150,16 @@ EF_NF = {
 }
 
 
-def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, midpoint (H)") -> tuple:
+def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, midpoint (H)",
+                 bands: dict | None = None) -> tuple:
     """Proper normalized single score: normalise each midpoint by its per-capita reference
     (person-equivalents), equal-weight and sum, express in micro-person-equivalents (µPt)
     per kg. The normalization set is chosen to MATCH the LCIA method (ReCiPe vs EF), so the
     factors are in the same units as the values. Transparent and standard. Also returns a
-    qualitative band whose Low/Moderate/High cutoffs are empirically calibrated (see _bands)."""
+    qualitative band whose Low/Moderate/High cutoffs are empirically calibrated (see _bands).
+
+    `bands` overrides the default farm-gate benchmark with another calibrated set (e.g. the
+    processed-food benchmark for facility assessments); it must have the same shape as _bands()."""
     is_ef = bool(method) and "EF" in method and "ReCiPe" not in method
     nf_set = EF_NF if is_ef else RECIPE_NF
     total = 0.0
@@ -172,7 +176,7 @@ def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, mi
     contributions = {c: (pe / total if total else 0.0) for c, pe in per_cat.items()}
     # Band relative to the calibrated benchmark basket (1e6 µPt = one person's annual
     # footprint). Cutoffs come from single_score_bands.json when present.
-    b = _bands()
+    b = bands or _bands()
     band = ("Low" if micro < b["low"] else "Moderate" if micro < b["high"] else "High")
     nf_name = "Environmental Footprint 3.1" if is_ef else "ReCiPe 2016 [World, Hierarchist]"
     # The band cutoffs are calibrated on ReCiPe scores; for EF they are only indicative.

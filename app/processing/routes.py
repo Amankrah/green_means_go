@@ -1,10 +1,18 @@
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Dict, Any, Optional
 from datetime import datetime
 import json
 import os
 import tempfile
 import subprocess
+
+from sqlalchemy.orm import Session
+
+from db import get_db
+from models import AssessmentType, Facility, User
+from auth.deps import require_role
+from models import UserRole
+from store import get_owned_assessment, list_owned_assessments, save_assessment
 
 from .models import (
     ProcessingAssessmentRequest, 
@@ -25,15 +33,31 @@ from .models import (
 # Create router for processing endpoints
 router = APIRouter(prefix="/processing", tags=["processing"])
 
-# In-memory storage for processing assessments (use database in production)
-processing_assessments_db: Dict[str, Dict[str, Any]] = {}
+# Processing assessments are for processor accounts.
+_require_processor = require_role(UserRole.processor)
+
+
+def _resolve_facility_id(request: ProcessingAssessmentRequest, user: User, db: Session) -> Optional[str]:
+    """If the request attaches a facility, confirm it belongs to the current user."""
+    if not request.facility_id:
+        return None
+    facility = db.get(Facility, request.facility_id)
+    if facility is None or facility.created_by_user_id != user.id:
+        raise HTTPException(status_code=404, detail="Facility not found")
+    return facility.id
+
 
 @router.post("/assess", response_model=ProcessingAssessmentResponse)
-async def create_processing_assessment(request: ProcessingAssessmentRequest):
+async def create_processing_assessment(
+    request: ProcessingAssessmentRequest,
+    user: User = Depends(_require_processor),
+    db: Session = Depends(get_db),
+):
     """
     Create a new environmental sustainability assessment for food processing facilities
     """
     try:
+        facility_id = _resolve_facility_id(request, user, db)
         # Prepare data for Rust backend
         rust_input = {
             "country": request.country,
@@ -48,45 +72,61 @@ async def create_processing_assessment(request: ProcessingAssessmentRequest):
         
         # Call Rust backend for processing assessment
         result = await call_rust_processing_backend(rust_input)
-        
-        # Store in database
-        assessment_id = result["id"]
-        processing_assessments_db[assessment_id] = result
-        
+
+        # Persist under the current user's account.
+        save_assessment(
+            db, user_id=user.id, a_type=AssessmentType.processing, payload=result,
+            facility_id=facility_id, title=request.title,
+        )
+
         return ProcessingAssessmentResponse(**result)
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing assessment failed: {str(e)}")
 
 @router.get("/assess/{assessment_id}", response_model=ProcessingAssessmentResponse)
-async def get_processing_assessment(assessment_id: str):
+async def get_processing_assessment(
+    assessment_id: str,
+    user: User = Depends(_require_processor),
+    db: Session = Depends(get_db),
+):
     """
-    Retrieve an existing processing assessment by ID
+    Retrieve one of the current user's processing assessments by ID
     """
-    if assessment_id not in processing_assessments_db:
+    assessment = get_owned_assessment(db, user, assessment_id, AssessmentType.processing)
+    if assessment is None:
         raise HTTPException(status_code=404, detail="Processing assessment not found")
-    
-    return ProcessingAssessmentResponse(**processing_assessments_db[assessment_id])
+    return ProcessingAssessmentResponse(**assessment.payload_json)
 
 @router.get("/assessments")
-async def list_processing_assessments():
+async def list_processing_assessments(
+    user: User = Depends(_require_processor),
+    db: Session = Depends(get_db),
+):
     """
-    List all processing assessments
+    List the current user's saved processing assessments
     """
+    rows = list_owned_assessments(db, user, AssessmentType.processing)
     return {
         "assessments": [
             {
-                "id": assessment_id,
-                "facility_name": data.get("facility_profile", {}).get("facility_name", "Unknown"),
-                "company_name": data.get("facility_profile", {}).get("company_name", "Unknown"),
-                "facility_type": data.get("facility_profile", {}).get("facility_type", "General"),
-                "country": data["country"],
-                "assessment_date": data["assessment_date"],
-                "processing_capacity": data.get("facility_profile", {}).get("processing_capacity", 0.0)
+                "id": row.id,
+                "title": row.title,
+                "facility_name": row.payload_json.get("facility_profile", {}).get("facility_name", "Unknown"),
+                "company_name": row.payload_json.get("facility_profile", {}).get("company_name", "Unknown"),
+                "facility_type": row.payload_json.get("facility_profile", {}).get("facility_type", "General"),
+                "country": row.country,
+                "facility_id": row.facility_id,
+                "single_score": row.single_score,
+                "assessment_date": row.payload_json.get("assessment_date"),
+                "created_at": row.created_at,
+                "processing_capacity": row.payload_json.get("facility_profile", {}).get("processing_capacity", 0.0),
             }
-            for assessment_id, data in processing_assessments_db.items()
+            for row in rows
         ],
-        "total": len(processing_assessments_db)
+        "total": len(rows),
     }
 
 @router.get("/facility-types")
@@ -419,7 +459,7 @@ def transform_processing_result_to_api_format(rust_result: dict) -> dict:
                 "unit": single_score_data.get("unit", "Processing Impact Index"),
                 "uncertainty_range": single_score_data.get("uncertainty_range", [0.0, 0.0]),
                 "weighting_factors": single_score_data.get("weighting_factors", {}),
-                "methodology": single_score_data.get("methodology", "Processing-adapted African LCA")
+                "methodology": single_score_data.get("methodology", "Processing-adapted LCA")
             }
         else:
             single_score = single_score_data or 0.0

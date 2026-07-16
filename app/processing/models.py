@@ -125,6 +125,13 @@ class MarketDestination(str, Enum):
     EXPORT = "Export"
     MIXED = "Mixed"
 
+class AllocationBasis(str, Enum):
+    # How the facility's total impact is split between co-products (ISO 14044 requires this
+    # be stated). MASS needs no extra data (uses annual_production); ECONOMIC needs a per-kg
+    # value per product and, when values are missing, falls back to mass with a note.
+    MASS = "mass"
+    ECONOMIC = "economic"
+
 # Processing facility profile
 class ProcessingFacilityProfile(BaseModel):
     facility_name: str
@@ -195,6 +202,12 @@ class RawMaterialSourcing(BaseModel):
     seasonal_variation: bool = True
     storage_practices: StoragePractices = StoragePractices()
 
+# Refrigerant / F-gas use (cold storage, chilling). Leakage is a direct on-site climate
+# emission (leaked mass x GWP100), separate from purchased energy.
+class RefrigerantManagement(BaseModel):
+    refrigerant_type: Optional[str] = None       # e.g. R-134a, R-404A, Ammonia
+    annual_leakage_kg: Optional[float] = None     # kg of refrigerant lost per year
+
 # Equipment efficiency
 class EquipmentEfficiency(BaseModel):
     equipment_age: EquipmentAge = EquipmentAge.MATURE
@@ -210,6 +223,7 @@ class ProcessingOperations(BaseModel):
     waste_management: ProcessingWasteManagement = ProcessingWasteManagement()
     raw_material_sourcing: RawMaterialSourcing = RawMaterialSourcing()
     equipment_efficiency: EquipmentEfficiency = EquipmentEfficiency()
+    refrigerant_management: RefrigerantManagement = RefrigerantManagement()
 
 # Raw material input
 class RawMaterialInput(BaseModel):
@@ -253,6 +267,7 @@ class ProcessedProduct(BaseModel):
     packaging: PackagingInfo = PackagingInfo()
     quality_grade: QualityGrade = QualityGrade.STANDARD
     market_destination: MarketDestination = MarketDestination.LOCAL
+    economic_value: Optional[float] = None  # price per kg, used only for economic allocation
 
     @field_validator('annual_production')
     @classmethod
@@ -263,15 +278,22 @@ class ProcessedProduct(BaseModel):
 
 # Processing assessment request
 class ProcessingAssessmentRequest(BaseModel):
-    country: str  # "Ghana", "Nigeria", or "Global"
+    country: str  # one of the supported countries below
     region: Optional[str] = None
     facility_profile: ProcessingFacilityProfile
     processing_operations: ProcessingOperations = ProcessingOperations()
     processed_products: List[ProcessedProduct]
+    allocation_basis: AllocationBasis = AllocationBasis.MASS  # how co-products split the total
+
+    # Optional linkage/labelling for saving under a user's account.
+    facility_id: Optional[str] = None  # attach to a Facility the user owns
+    title: Optional[str] = None        # human label for the saved assessment
 
     @field_validator('country')
     @classmethod
     def validate_country(cls, v):
+        # Country is the coarse dataset bucket the kernel understands; finer geography
+        # (e.g. Canada) is carried by `region` (engine/regions.py: GH/NG/CA).
         valid_countries = ["Ghana", "Nigeria", "Global"]
         if v not in valid_countries:
             raise ValueError(f"Invalid country: {v}. Must be one of {valid_countries}")

@@ -1,8 +1,8 @@
 /**
- * Enhanced LCA Assessment Types for African Agricultural Systems
- * 
- * This implements standardized LCA data collection following ISO 14040/14044 
- * while being practical for African farmers. Covers all necessary system 
+ * Enhanced LCA Assessment Types for Agricultural Systems worldwide
+ *
+ * This implements standardized LCA data collection following ISO 14040/14044
+ * while staying practical for farmers everywhere. Covers all necessary system
  * boundaries for accurate sustainability assessment.
  */
 

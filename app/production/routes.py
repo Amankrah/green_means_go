@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Dict, Any, Optional
 from datetime import datetime
 import json
 import os
@@ -7,6 +7,13 @@ import sys
 import tempfile
 import subprocess
 from pathlib import Path
+
+from sqlalchemy.orm import Session
+
+from db import get_db
+from models import Assessment, AssessmentType, Farm, User
+from auth.deps import get_current_user
+from store import get_owned_assessment, list_owned_assessments, save_assessment
 
 # The validated engine (Rust LCI kernel + supply-chain solver + canonical CFs) is the
 # default served path. Set USE_LEGACY_RUST_LCIA=1 to fall back to the old Rust
@@ -32,15 +39,28 @@ from .models import (
 # Create router for production endpoints
 router = APIRouter(tags=["production"])
 
-# Global storage (in production, use a proper database)
-assessments_db: Dict[str, Dict[str, Any]] = {}
+
+def _resolve_farm_id(request: AssessmentRequest, user: User, db: Session) -> Optional[str]:
+    """If the request attaches a farm, confirm it belongs to the current user."""
+    if not request.farm_id:
+        return None
+    farm = db.get(Farm, request.farm_id)
+    if farm is None or farm.created_by_user_id != user.id:
+        raise HTTPException(status_code=404, detail="Farm not found")
+    return farm.id
+
 
 @router.post("/assess", response_model=AssessmentResponse)
-async def create_assessment(request: AssessmentRequest):
+async def create_assessment(
+    request: AssessmentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Create a new environmental sustainability assessment (supports both simple and comprehensive)
     """
     try:
+        farm_id = _resolve_farm_id(request, user, db)
 
         # Prepare data for Rust backend - include all available fields
         rust_input = {
@@ -79,27 +99,36 @@ async def create_assessment(request: AssessmentRequest):
         else:
             result = await call_rust_backend(rust_input)   # legacy Rust hardcoded LCIA
 
-        # Store in database
-        assessment_id = result["id"]
-        assessments_db[assessment_id] = result
+        # Persist under the current user's account.
+        save_assessment(
+            db, user_id=user.id, a_type=AssessmentType.farm, payload=result,
+            farm_id=farm_id, title=request.title,
+        )
 
         return AssessmentResponse(**result)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Assessment failed: {str(e)}")
 
 @router.post("/assess/comprehensive", response_model=AssessmentResponse)
-async def create_comprehensive_assessment(request: AssessmentRequest):
+async def create_comprehensive_assessment(
+    request: AssessmentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Create a comprehensive environmental sustainability assessment with farm management details
     """
     if not request.farm_profile or not request.management_practices:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="Comprehensive assessment requires farm_profile and management_practices"
         )
-    
+
     try:
+        farm_id = _resolve_farm_id(request, user, db)
         # Prepare comprehensive data for Rust backend
         rust_input = {
             "company_name": request.company_name,
@@ -121,42 +150,59 @@ async def create_comprehensive_assessment(request: AssessmentRequest):
         else:
             result = await call_rust_backend(rust_input)
 
-        # Store in database
-        assessment_id = result["id"]
-        assessments_db[assessment_id] = result
+        # Persist under the current user's account.
+        save_assessment(
+            db, user_id=user.id, a_type=AssessmentType.farm, payload=result,
+            farm_id=farm_id, title=request.title,
+        )
 
         return AssessmentResponse(**result)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Comprehensive assessment failed: {str(e)}")
 
 @router.get("/assess/{assessment_id}", response_model=AssessmentResponse)
-async def get_assessment(assessment_id: str):
+async def get_assessment(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
-    Retrieve an existing assessment by ID
+    Retrieve one of the current user's farm assessments by ID
     """
-    if assessment_id not in assessments_db:
+    assessment = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if assessment is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
-    
-    return AssessmentResponse(**assessments_db[assessment_id])
+    return AssessmentResponse(**assessment.payload_json)
 
 @router.get("/assessments")
-async def list_assessments():
+async def list_assessments(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
-    List all assessments
+    List the current user's saved farm assessments
     """
+    rows = list_owned_assessments(db, user, AssessmentType.farm)
     return {
         "assessments": [
             {
-                "id": assessment_id,
-                "company_name": data["company_name"],
-                "country": data["country"],
-                "assessment_date": data["assessment_date"],
-                "is_comprehensive": "farm_profile" in data or "management_analysis" in data.get("results", {})
+                "id": row.id,
+                "title": row.title,
+                "company_name": row.company_name,
+                "country": row.country,
+                "farm_id": row.farm_id,
+                "single_score": row.single_score,
+                "assessment_date": row.payload_json.get("assessment_date"),
+                "created_at": row.created_at,
+                "is_comprehensive": "farm_profile" in row.payload_json
+                or "management_analysis" in row.payload_json,
             }
-            for assessment_id, data in assessments_db.items()
+            for row in rows
         ],
-        "total": len(assessments_db)
+        "total": len(rows),
     }
 
 @router.get("/food-categories")
@@ -403,7 +449,7 @@ def transform_rust_result_to_api_format(rust_result: dict) -> dict:
                 "unit": single_score_data.get("unit", "pt"),
                 "uncertainty_range": single_score_data.get("uncertainty_range", [0.0, 0.0]),
                 "weighting_factors": single_score_data.get("weighting_factors", {}),
-                "methodology": single_score_data.get("methodology", "AfricanPriorities")
+                "methodology": single_score_data.get("methodology", "RegionalPriorities")
             }
         elif isinstance(single_score_data, dict):
             single_score = single_score_data.get("value", 0.0)

@@ -15,14 +15,17 @@ from production.routes import router as production_router
 from chat.routes import router as chat_router
 from inventory.routes import router as inventory_router
 from farm.routes import router as farm_router
+from auth.routes import router as auth_router
+from workspace.routes import router as workspace_router
+from db import init_db
 
 # Environment detection
 IS_PRODUCTION = os.getenv("ENVIRONMENT", "development") == "production"
 
 # Disable docs in production for security
 app = FastAPI(
-    title="African Environmental Sustainability Assessment API",
-    description="Comprehensive LCA API for food companies, farmers, and processing facilities in Africa - supports farm and processing assessments with AI plain-language guides",
+    title="Green Means Go Sustainability Assessment API",
+    description="Life cycle assessment API for farmers, agricultural extension officers, and food processors worldwide - supports farm and processing assessments with AI plain-language guides",
     version="2.1.0",
     docs_url=None if IS_PRODUCTION else "/docs",
     redoc_url=None if IS_PRODUCTION else "/redoc",
@@ -46,16 +49,26 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
-# Include processing, production, chat, and other routes
+# Include auth, workspace, processing, production, chat, and other routes
+app.include_router(auth_router)
+app.include_router(workspace_router)
 app.include_router(processing_router)
 app.include_router(production_router)
 app.include_router(chat_router)
 app.include_router(inventory_router)
 app.include_router(farm_router)
+
+
+@app.on_event("startup")
+async def _init_database():
+    """Create the application tables (users, farms, facilities, assessments) if they
+    don't exist yet. Uses the SQLite dev database by default; production runs Alembic
+    migrations instead but create_all is idempotent and safe."""
+    init_db()
 
 
 @app.on_event("startup")
@@ -80,7 +93,7 @@ async def _warm_engine():
 @app.get("/")
 async def root():
     response = {
-        "message": "African Environmental Sustainability Assessment API",
+        "message": "Green Means Go Sustainability Assessment API",
         "version": "2.1.0",
         "features": [
             "Simple LCA Assessment",
@@ -91,9 +104,10 @@ async def root():
             "Processing Efficiency Analysis"
         ],
         "endpoints": {
+            "auth": "/auth/signup, /auth/login, /auth/refresh, /auth/me",
             "farm_assessments": "/assess, /assess/comprehensive",
             "processing_assessments": "/processing/assess",
-            "reports": "/reports/generate, /reports/report/{id}",
+            "workspace": "/farms, /facilities, /me/assessments",
         },
     }
     # Only show docs endpoint in development

@@ -105,8 +105,8 @@ export default function ResultsChat({ open, onClose, assessmentData, assessmentI
   const lastIsStreamingAssistant =
     streaming && messages.length > 0 && messages[messages.length - 1].role === 'assistant';
 
-  return (
-    <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open}>
+  const chatContent = (
+    <>
       <div
         className={`absolute inset-0 bg-black/30 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
@@ -207,6 +207,14 @@ export default function ResultsChat({ open, onClose, assessmentData, assessmentI
           </p>
         </div>
       </div>
+    </>
+  );
+
+  return open ? (
+    <div className="fixed inset-0 z-50">{chatContent}</div>
+  ) : (
+    <div className="fixed inset-0 z-50 pointer-events-none" aria-hidden="true">
+      {chatContent}
     </div>
   );
 }

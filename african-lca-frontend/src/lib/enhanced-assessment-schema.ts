@@ -428,7 +428,10 @@ export const COMMON_CROPS_BY_REGION = {
   "Ghana-Southern": ["Cassava", "Plantain", "Cocoyam", "Maize", "Rice", "Vegetables"],
   "Nigeria-Northern": ["Millet", "Sorghum", "Maize", "Rice", "Groundnuts", "Cowpea", "Cotton"],
   "Nigeria-Middle Belt": ["Yam", "Maize", "Rice", "Sweet Potato", "Groundnuts", "Soybeans"],
-  "Nigeria-Southern": ["Cassava", "Plantain", "Cocoyam", "Vegetables", "Oil Palm", "Cocoa"]
+  "Nigeria-Southern": ["Cassava", "Plantain", "Cocoyam", "Vegetables", "Oil Palm", "Cocoa"],
+  "Canada-Prairies": ["Wheat", "Canola", "Barley", "Oats", "Lentils", "Field Peas", "Flax"],
+  "Canada-Central": ["Corn", "Soybeans", "Wheat", "Barley", "Potatoes"],
+  "Canada": ["Wheat", "Canola", "Barley", "Corn", "Soybeans", "Oats", "Potatoes"]
 };
 
 export const CROP_VARIETIES = {
@@ -553,14 +556,14 @@ export function getPreviousStep(currentStep: FormStep): FormStep | null {
 }
 
 /**
- * Helper function to estimate typical yields for West African crops
+ * Helper function to estimate typical yields for common crops
  * NOTE: This is for guidance only - actual production should be used for LCA calculations
  * @param cropName - Name of the crop
  * @param areaHa - Area in hectares
  * @returns Estimated yield in kg (for guidance only)
  */
 export function calculateEstimatedYield(cropName: string, areaHa: number): number {
-  // Typical yields for major crops in West Africa (kg/ha) - RESEARCH NEEDED
+  // Typical yields for major crops by region (kg/ha) - RESEARCH NEEDED
   // These are rough estimates and should be replaced with regional databases
   const averageYields: Record<string, number> = {
     "Maize": 1500,

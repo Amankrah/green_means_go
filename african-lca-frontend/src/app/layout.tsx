@@ -1,18 +1,29 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Inter, Space_Mono } from "next/font/google";
 import "./globals.css";
 import seoConfig from "@/config/seo.config";
 import StructuredData from "@/components/StructuredData";
 import Analytics from "@/components/Analytics";
+import Providers from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// "Field Instrument" type system: an optical serif for display, a neutral body, and a
+// monospace for data / instrument-readout labels.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
+  axes: ["opsz", "SOFT"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
+  weight: ["400", "700"],
   subsets: ["latin"],
   display: "swap",
 });
@@ -23,8 +34,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#10b981' },
-    { media: '(prefers-color-scheme: dark)', color: '#059669' },
+    { media: '(prefers-color-scheme: light)', color: '#3f7d53' },
+    { media: '(prefers-color-scheme: dark)', color: '#21503b' },
   ],
 };
 
@@ -106,18 +117,13 @@ export default function RootLayout({
         <StructuredData />
         <link rel="canonical" href={seoConfig.siteUrl} />
         <link rel="alternate" hrefLang="en" href={seoConfig.siteUrl} />
-        <link rel="alternate" hrefLang="en-GH" href={`${seoConfig.siteUrl}?locale=en-GH`} />
-        <link rel="alternate" hrefLang="en-NG" href={`${seoConfig.siteUrl}?locale=en-NG`} />
-        <meta name="geo.region" content="GH" />
-        <meta name="geo.region" content="NG" />
-        <meta name="geo.placename" content="Ghana" />
-        <meta name="geo.placename" content="Nigeria" />
+        <link rel="alternate" hrefLang="x-default" href={seoConfig.siteUrl} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${fraunces.variable} ${inter.variable} ${spaceMono.variable} antialiased`}
       >
         <Analytics />
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

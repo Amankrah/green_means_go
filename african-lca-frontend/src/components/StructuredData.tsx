@@ -144,7 +144,7 @@ export function SoftwareApplicationSchema() {
       'Farm Environmental Impact Analysis',
       'Food Processing Assessment',
       'ISO 14044 Compliance',
-      'African Agricultural Data',
+      'Region-Specific Agricultural Data',
       'Sustainability Recommendations',
       'Carbon Footprint Calculation',
       'Water Footprint Analysis',

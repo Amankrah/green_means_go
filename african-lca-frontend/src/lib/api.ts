@@ -1,8 +1,17 @@
-// API service for African LCA Backend
+// API service for the Green Means Go Backend
 
 import { AssessmentRequest, AssessmentResult } from '@/types/assessment';
 import { EnhancedAssessmentRequest, FertilizerApplication, PesticideApplication } from '@/types/enhanced-assessment';
 import { COUNTRY_TO_REGION } from '@/lib/country-examples';
+import {
+  AuthUser,
+  UserRole,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setSession,
+  clearSession,
+} from '@/lib/auth-storage';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -12,26 +21,141 @@ export interface ChatMessage {
   content: string;
 }
 
+// Auth payloads
+export interface SignupRequest {
+  email: string;
+  password: string;
+  full_name: string;
+  role: UserRole;
+  organization?: string;
+  phone?: string;
+  country?: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+// Saved-assessment summary rows returned by the dashboard/list endpoints.
+export interface AssessmentSummary {
+  id: string;
+  type?: 'farm' | 'processing';
+  title?: string | null;
+  company_name?: string | null;
+  country?: string | null;
+  region?: string | null;
+  farm_id?: string | null;
+  facility_id?: string | null;
+  single_score?: number | null;
+  status?: string;
+  assessment_date?: string | null;
+  created_at?: string | null;
+}
+
+export interface Farm {
+  id: string;
+  name: string;
+  country?: string | null;
+  region?: string | null;
+  location?: string | null;
+  size_ha?: number | null;
+  notes?: string | null;
+  farmer_name?: string | null;
+  farmer_contact?: string | null;
+  created_at: string;
+}
+
+export interface Facility {
+  id: string;
+  name: string;
+  facility_type?: string | null;
+  country?: string | null;
+  region?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
+/** Thrown on any non-OK response; carries the HTTP status so callers can special-case 401. */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 class AssessmentAPI {
-  private async fetchAPI(endpoint: string, options: RequestInit = {}) {
+  // Serialize concurrent refresh attempts so a burst of 401s triggers one refresh.
+  private refreshInFlight: Promise<boolean> | null = null;
+
+  private authHeaders(): Record<string, string> {
+    const token = getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  /** Exchange the refresh token for a new access token. Returns false (and signs the
+   *  user out) if there's no refresh token or it's rejected. Deduplicated. */
+  private async refreshAccessToken(): Promise<boolean> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    this.refreshInFlight = (async () => {
+      const refresh_token = getRefreshToken();
+      if (!refresh_token) return false;
+      try {
+        const resp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token }),
+        });
+        if (!resp.ok) {
+          clearSession();
+          return false;
+        }
+        const data = await resp.json();
+        setAccessToken(data.access_token);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.refreshInFlight = null;
+      }
+    })();
+    return this.refreshInFlight;
+  }
+
+  // Returns parsed JSON, whose shape is the caller's responsibility (each public method
+  // annotates its own return type), so the body is intentionally dynamic here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async fetchAPI(endpoint: string, options: RequestInit = {}, retryOn401 = true): Promise<any> {
     const url = `${API_BASE_URL}${endpoint}`;
-    
+
     const response = await fetch(url, {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...this.authHeaders(),
         ...options.headers,
       },
-      ...options,
     });
+
+    // Transparently refresh once on an expired access token, then retry.
+    if (response.status === 401 && retryOn401) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) return this.fetchAPI(endpoint, options, false);
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       let errorMessage = `API Error: ${response.status} ${response.statusText}`;
-      
+
       if (errorData.detail) {
         if (Array.isArray(errorData.detail)) {
-          errorMessage = errorData.detail.map((err: { msg?: string; message?: string; loc?: string[] }) => 
+          errorMessage = errorData.detail.map((err: { msg?: string; message?: string; loc?: string[] }) =>
             err.msg || err.message || err.loc?.join('.') + ': ' + err.msg || JSON.stringify(err)
           ).join(', ');
         } else if (typeof errorData.detail === 'string') {
@@ -40,11 +164,95 @@ class AssessmentAPI {
           errorMessage = JSON.stringify(errorData.detail);
         }
       }
-      
-      throw new Error(errorMessage);
+
+      throw new ApiError(errorMessage, response.status);
     }
 
+    // 204 No Content (e.g. DELETE) has no JSON body.
+    if (response.status === 204) return null;
     return response.json();
+  }
+
+  // --- auth ----------------------------------------------------------------------
+
+  async signup(data: SignupRequest): Promise<TokenResponse> {
+    const resp: TokenResponse = await this.fetchAPI('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    setSession(resp, resp.user);
+    return resp;
+  }
+
+  async login(email: string, password: string): Promise<TokenResponse> {
+    const resp: TokenResponse = await this.fetchAPI('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    setSession(resp, resp.user);
+    return resp;
+  }
+
+  async getMe(): Promise<AuthUser> {
+    return this.fetchAPI('/auth/me');
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.fetchAPI('/auth/logout', { method: 'POST' });
+    } catch {
+      // Stateless logout — clearing local tokens is what matters even if the call fails.
+    } finally {
+      clearSession();
+    }
+  }
+
+  // --- workspace (saved assessments, farms, facilities) --------------------------
+
+  async getMyAssessments(): Promise<{ assessments: AssessmentSummary[]; total: number }> {
+    return this.fetchAPI('/me/assessments');
+  }
+
+  async getFarms(): Promise<Farm[]> {
+    return this.fetchAPI('/farms');
+  }
+
+  async getFarm(id: string): Promise<Farm> {
+    return this.fetchAPI(`/farms/${id}`);
+  }
+
+  async createFarm(data: Partial<Farm> & { name: string }): Promise<Farm> {
+    return this.fetchAPI('/farms', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateFarm(id: string, data: Partial<Farm>): Promise<Farm> {
+    return this.fetchAPI(`/farms/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  async deleteFarm(id: string): Promise<void> {
+    await this.fetchAPI(`/farms/${id}`, { method: 'DELETE' });
+  }
+
+  async getFacilities(): Promise<Facility[]> {
+    return this.fetchAPI('/facilities');
+  }
+
+  async createFacility(data: Partial<Facility> & { name: string }): Promise<Facility> {
+    return this.fetchAPI('/facilities', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateFacility(id: string, data: Partial<Facility>): Promise<Facility> {
+    return this.fetchAPI(`/facilities/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  }
+
+  async deleteFacility(id: string): Promise<void> {
+    await this.fetchAPI(`/facilities/${id}`, { method: 'DELETE' });
+  }
+
+  // Processing assessment (processor accounts). Sends the request shape the backend
+  // /processing/assess endpoint expects; most operations fields have server defaults.
+  async submitProcessingAssessment(data: Record<string, unknown>): Promise<AssessmentResult> {
+    return this.fetchAPI('/processing/assess', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async submitAssessment(data: AssessmentRequest): Promise<AssessmentResult> {
@@ -54,10 +262,15 @@ class AssessmentAPI {
     });
   }
 
-  async submitComprehensiveAssessment(data: EnhancedAssessmentRequest): Promise<AssessmentResult> {
+  async submitComprehensiveAssessment(
+    data: EnhancedAssessmentRequest,
+    opts?: { farmId?: string | null; title?: string | null }
+  ): Promise<AssessmentResult> {
     // Transform enhanced assessment data to backend format
     const backendData = this.transformEnhancedAssessmentToBackend(data);
-    
+    if (opts?.farmId) backendData.farm_id = opts.farmId;
+    if (opts?.title) backendData.title = opts.title;
+
     return this.fetchAPI('/assess', {
       method: 'POST',
       body: JSON.stringify(backendData),
@@ -220,11 +433,12 @@ class AssessmentAPI {
       assessmentId?: string | null;
       onChunk: (text: string) => void;
       signal?: AbortSignal;
-    }
+    },
+    retryOn401 = true
   ): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
       body: JSON.stringify({
         messages,
         assessment_data: opts.assessmentData,
@@ -232,6 +446,11 @@ class AssessmentAPI {
       }),
       signal: opts.signal,
     });
+
+    if (response.status === 401 && retryOn401) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) return this.streamChat(messages, opts, false);
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

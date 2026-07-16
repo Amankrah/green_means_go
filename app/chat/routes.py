@@ -18,9 +18,10 @@ import json
 import os
 from typing import Any, List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 import anthropic
 
@@ -29,7 +30,10 @@ from services.report_grounding import (
     MissingIsoReportError,
     format_grounding_for_prompt,
 )
-from production.routes import assessments_db
+from db import get_db
+from models import User
+from auth.deps import get_current_user
+from store import get_owned_assessment
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -85,11 +89,15 @@ def retrieve_context(query: str) -> List[str]:
     return []
 
 
-def _resolve_assessment(req: ChatRequest) -> dict:
+def _resolve_assessment(req: ChatRequest, user: User, db: Session) -> dict:
+    # Inline data (the client already holds this farm's result) is trusted for the
+    # owner's own session; otherwise look the saved assessment up scoped to the user.
     if req.assessment_data:
         return req.assessment_data
-    if req.assessment_id and req.assessment_id in assessments_db:
-        return assessments_db[req.assessment_id]
+    if req.assessment_id:
+        owned = get_owned_assessment(db, user, req.assessment_id)
+        if owned is not None:
+            return owned.payload_json
     raise HTTPException(
         status_code=404,
         detail="No assessment context provided. Pass assessment_data or a known assessment_id.",
@@ -111,7 +119,11 @@ def _build_system(grounding: str, latest_query: str) -> list[dict]:
 
 
 @router.post("/stream")
-async def chat_stream(req: ChatRequest):
+async def chat_stream(
+    req: ChatRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Stream a grounded, plain-language answer as Server-Sent Events.
 
     Emits `data: {"delta": "..."}` per token chunk, a terminal `event: done`, or an
@@ -125,7 +137,7 @@ async def chat_stream(req: ChatRequest):
     if not req.messages or req.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="messages must end with a user turn.")
 
-    assessment = _resolve_assessment(req)
+    assessment = _resolve_assessment(req, user, db)
     try:
         grounding = format_grounding_for_prompt(assessment)
     except MissingIsoReportError as e:

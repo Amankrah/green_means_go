@@ -132,7 +132,17 @@ class FarmLCA:
                 if m:
                     res.notes.append(f"'{inp['name']}' not found; used representative '{inp['fallback']}'")
             if inp.get("match_as") and m:
-                res.notes.append(f"pesticide '{inp['name']}' modelled with a representative agrochemical dataset")
+                # match_as steers to a representative dataset while keeping the declared name.
+                # Word the note by kind so non-pesticide inputs (raw materials, packaging,
+                # utilities on the processing side) are not mislabelled as pesticides.
+                _kind = inp.get("kind") or "input"
+                _phrase = {"pesticide": "a representative agrochemical dataset",
+                           "raw_material": "a representative production dataset",
+                           "packaging": "a representative packaging dataset",
+                           "waste": "a representative waste-treatment dataset",
+                           "transport": "a representative freight dataset",
+                           "fuel": "a representative fuel-combustion dataset"}.get(_kind, "a representative dataset")
+                res.notes.append(f"'{inp['name']}' modelled with {_phrase}")
             if not m:
                 res.input_matches.append({**inp, "matched": None})
                 res.notes.append(f"input '{inp['name']}' had no match; excluded")

@@ -1,4 +1,4 @@
-// Core Types for the African LCA Assessment System
+// Core Types for the Green Means Go LCA Assessment System
 
 // Basic enums and country types
 // UI-level countries. 'Global' is the backend country used for Canada (which is sent with
@@ -44,6 +44,8 @@ export interface AssessmentRequest {
   country: Country;
   foods: FoodItem[];
   region?: string;
+  farm_id?: string; // attach the saved assessment to a Farm the user owns
+  title?: string;   // human label for the saved assessment
   farm_profile?: Record<string, unknown>; // Enhanced farm profile data
   management_practices?: Record<string, unknown>; // Enhanced management practices data
   equipment_energy?: {

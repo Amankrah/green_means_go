@@ -1,26 +1,159 @@
 @import "tailwindcss";
 
+/*
+  Green Means Go — design system ("Field Ledger")
+  Life-cycle assessment as precise measurement of living systems. A cool lichen paper,
+  a botanical green primary, and a harvest-amber signal — paired with an editorial
+  optical serif (Fraunces), a neutral body (Inter), and a monospace "readout" voice
+  (Space Mono) for numerals, eyebrows, and data. Documentary field imagery, a measured
+  grid, and the Impact Band connect evidence gathered outside to results read on screen.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand palette */
+  --gmg-ink: #10291f;      /* deep pine near-black — text, dark surfaces */
+  --gmg-paper: #eef2ed;    /* cool lichen — page background */
+  --gmg-surface: #f9fbf7;  /* clean field-note sheet */
+  --gmg-moss: #2f6b49;     /* primary green */
+  --gmg-spruce: #173f31;   /* deep green — dark accents/headers */
+  --gmg-amber: #d89b3f;    /* signal / highlight (harvest) */
+  --gmg-clay: #b85d3d;     /* high-impact end of the spectrum */
+  --gmg-line: #cdd7cf;     /* measured rules on paper */
+  --gmg-muted: #587064;    /* secondary text on paper */
+
+  --background: var(--gmg-paper);
+  --foreground: var(--gmg-ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Brand tokens exposed as Tailwind colors: bg-ink, text-moss, border-line, etc. */
+  --color-ink: var(--gmg-ink);
+  --color-paper: var(--gmg-paper);
+  --color-surface: var(--gmg-surface);
+  --color-moss: var(--gmg-moss);
+  --color-spruce: var(--gmg-spruce);
+  --color-amber: var(--gmg-amber);
+  --color-clay: var(--gmg-clay);
+  --color-line: var(--gmg-line);
+  --color-muted: var(--gmg-muted);
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-fraunces);
+  --font-mono: var(--font-space-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(47, 107, 73, 0.2);
+  color: var(--gmg-ink);
+}
+
+/* Display face for headings; opt out with .font-sans where body type is wanted. */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-optical-sizing: auto;
+}
+.font-mono {
+  font-family: var(--font-space-mono), ui-monospace, monospace;
+}
+
+/* Monospace eyebrow / instrument-readout label used across the marketing surfaces. */
+.eyebrow {
+  font-family: var(--font-space-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  color: var(--gmg-muted);
+}
+/* Eyebrow on dark (ink/spruce) surfaces. */
+.eyebrow-invert {
+  color: rgba(243, 242, 234, 0.6);
+}
+
+/* Signature: the Impact Band — green (low) → amber → rust (high impact). */
+.impact-band {
+  background: linear-gradient(90deg, var(--gmg-moss) 0%, #7a9a44 34%, var(--gmg-amber) 66%, var(--gmg-clay) 100%);
+}
+
+/* A surveyor's field grid: structure rather than decoration. */
+.field-grid {
+  background-image:
+    linear-gradient(rgba(16, 41, 31, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 41, 31, 0.055) 1px, transparent 1px);
+  background-size: 42px 42px;
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 86%);
+  mask-image: linear-gradient(to bottom, black, transparent 86%);
+}
+
+.button-primary,
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.875rem 1.75rem;
+  font-weight: 500;
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.button-primary {
+  background: var(--gmg-spruce);
+  color: var(--gmg-paper);
+}
+
+.button-primary:hover {
+  background: var(--gmg-ink);
+}
+
+.button-secondary {
+  border: 1px solid var(--gmg-line);
+  color: var(--gmg-ink);
+}
+
+.button-secondary:hover {
+  background: var(--gmg-surface);
+  border-color: var(--gmg-moss);
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  color: var(--gmg-moss);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--gmg-line);
+  text-underline-offset: 0.3rem;
+  transition: color 180ms ease, text-decoration-color 180ms ease;
+}
+
+.text-link:hover {
+  color: var(--gmg-spruce);
+  text-decoration-color: var(--gmg-moss);
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(216, 155, 63, 0.8);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

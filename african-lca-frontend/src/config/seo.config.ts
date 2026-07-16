@@ -10,25 +10,22 @@ export const seoConfig = {
   domain: process.env.NEXT_PUBLIC_DOMAIN || 'greenmeansgo.ai',
 
   // Default Metadata
-  defaultTitle: 'Green Means Go - African Food Systems LCA Platform',
+  defaultTitle: 'Green Means Go - Global Food Systems LCA Platform',
   titleTemplate: '%s | Green Means Go',
-  defaultDescription: 'Professional Life Cycle Assessment (LCA) platform for African food systems. Developed at Sustainable Agrifood Systems Engineering Lab at McGill University. Assess environmental impact of farms and food processing facilities following ISO 14044 standards. Covering Ghana, Nigeria, and expanding across Africa.',
+  defaultDescription: 'Life Cycle Assessment (LCA) platform for food systems worldwide. Developed at the Sustainable Agrifood Systems Engineering Lab at McGill University. Assess the environmental impact of farms and food processing facilities following ISO 14040/14044 standards — demonstrated with Canada and onboarding countries across the globe.',
 
   // Keywords
   keywords: [
     'LCA',
     'Life Cycle Assessment',
-    'African agriculture',
     'sustainability assessment',
     'food systems',
     'environmental impact',
     'carbon footprint',
-    'Ghana agriculture',
-    'Nigeria agriculture',
-    'West Africa',
     'sustainable farming',
     'food processing',
     'ISO 14044',
+    'ISO 14040',
     'climate smart agriculture',
     'agricultural sustainability',
     'farm assessment',
@@ -36,6 +33,7 @@ export const seoConfig = {
     'GHG emissions',
     'water footprint',
     'sustainable food production',
+    'Canada agriculture',
   ],
 
   // Social Media
@@ -49,7 +47,7 @@ export const seoConfig = {
     url: '/og-image.png',
     width: 1200,
     height: 630,
-    alt: 'Green Means Go - African Food Systems LCA',
+    alt: 'Green Means Go - Global Food Systems LCA',
   },
 
   // Structured Data
@@ -97,9 +95,9 @@ export const seoConfig = {
   // Service Schema
   service: {
     name: 'Life Cycle Assessment Services',
-    description: 'Professional LCA services for African food systems',
+    description: 'Professional LCA services for food systems worldwide',
     provider: 'Green Means Go',
-    areaServed: ['Ghana', 'Nigeria', 'West Africa', 'Africa'],
+    areaServed: ['Canada', 'Ghana', 'Nigeria', 'Worldwide'],
     serviceType: [
       'Environmental Impact Assessment',
       'Life Cycle Assessment',
@@ -117,7 +115,7 @@ export const seoConfig = {
 
   // Locale
   locale: process.env.NEXT_PUBLIC_DEFAULT_LOCALE || 'en',
-  alternateLocales: ['en-GH', 'en-NG'],
+  alternateLocales: ['en-CA'],
 };
 
 export default seoConfig;
