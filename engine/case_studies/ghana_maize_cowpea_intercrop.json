@@ -20,6 +20,7 @@
       "soil_type": "Lateritic",
       "uses_compost": true,
       "compost_source": "Animal manure",
+      "compost_application_rate": 6,
       "conservation_practices": [
         "Mulching",
         "Contour Plowing"

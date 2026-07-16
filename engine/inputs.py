@@ -104,13 +104,19 @@ def extract_purchased_inputs(assessment: dict) -> tuple[list[dict], list[str]]:
         inputs.append({"name": ai, "match_as": "pesticide production, unspecified",
                        "amount": kg, "unit": "kg", "kind": "pesticide"})
 
-    # Purchased compost / organic amendment: only a supply-chain burden when it is bought
-    # in (farm-made compost has none). We lack a mass here, so we cannot quantify it; note
-    # it rather than invent a number. Its nitrogen contribution to field N2O is handled in
-    # the field-emission model when a rate is available.
+    # Purchased compost: add its production burden (market for compost), scaled from the
+    # application rate. Only PURCHASED compost carries a supply-chain burden — farm-made
+    # compost, own manure and crop residues are on-farm co-products/waste (burden-free
+    # under cut-off), though their organic N still feeds field N2O in the field model.
     sm = mp.get("soil_management") or {}
     if sm.get("uses_compost") and "purchas" in (sm.get("compost_source") or "").lower():
-        notes.append("purchased compost reported but no mass given; its production burden is not quantified")
+        rate_t_ha = sm.get("compost_application_rate")
+        if rate_t_ha and total_area:
+            kg = rate_t_ha * 1000.0 * total_area    # tonnes/ha -> kg
+            inputs.append({"name": "compost", "match_as": "market for compost",
+                           "amount": kg, "unit": "kg", "kind": "compost"})
+        else:
+            notes.append("purchased compost reported but no application rate given; its production burden is not quantified")
 
     if not inputs:
         notes.append("no purchased inputs extracted (no fertiliser/fuel/electricity data)")
