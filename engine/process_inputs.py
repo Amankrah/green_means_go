@@ -44,6 +44,35 @@ WASTE_MATCH = {
     "Mixed": "treatment of municipal solid waste, sanitary landfill",
 }
 
+# Raw-material crop-keyword hints -> a farm-gate PRODUCTION dataset to match against. This
+# steers free text like "Maize kernels" to "maize grain production" (the harvested crop),
+# not "maize seed production" (seed for sowing) or a consumer-stage Ciqual product. Keyed by
+# a substring found in the declared material name; first match wins.
+RAW_MATERIAL_HINTS = {
+    "maize": "maize grain production", "corn": "maize grain production",
+    "wheat": "wheat grain production", "rice": "rice production", "paddy": "rice production",
+    "soy": "soybean production", "sorghum": "sorghum grain production", "millet": "millet production",
+    "potato": "potato production", "cassava": "cassava production", "manioc": "cassava production",
+    "yam": "yam production", "plantain": "banana production", "banana": "banana production",
+    "cocoa": "cocoa bean production", "coffee": "coffee green bean production",
+    "groundnut": "groundnut production", "peanut": "groundnut production",
+    "palm": "palm fruit bunch production", "sugarcane": "sugarcane production",
+    "sunflower": "sunflower production", "rape": "rape seed production", "canola": "rape seed production",
+    "barley": "barley grain production", "oat": "oat grain production", "tomato": "tomato production",
+    "cabbage": "white cabbage production", "onion": "onion production", "carrot": "carrot production",
+    "fava": "fava bean production", "pea": "protein pea production", "bean": "fava bean production",
+}
+
+
+def _raw_material_match(name: str) -> str:
+    """Best farm-gate production dataset hint for a declared raw material name."""
+    low = (name or "").lower()
+    for key, target in RAW_MATERIAL_HINTS.items():
+        if key in low:
+            return target
+    return f"{name} production"
+
+
 # Transport mode -> representative freight dataset (ref unit tonne.km).
 TRANSPORT_MATCH = {
     "Truck": "transport, freight, lorry",
@@ -88,10 +117,10 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
             if name and kg > 0:
                 raw_totals[name] = raw_totals.get(name, 0.0) + kg
     for name, kg in raw_totals.items():
-        # Steer the match to a farm-gate PRODUCTION dataset (e.g. "cassava production"),
-        # not a consumer-stage product, by biasing the match text. Keep the declared name
-        # as the display label so the report stays transparent.
-        inputs.append({"name": name, "match_as": f"{name} production, at farm",
+        # Steer the match to a farm-gate PRODUCTION dataset (grain, not seed or a
+        # consumer-stage product) via a crop-keyword hint. Keep the declared name as the
+        # display label so the report stays transparent.
+        inputs.append({"name": name, "match_as": _raw_material_match(name),
                        "fallback": name, "amount": kg, "unit": "kg", "kind": "raw_material"})
     if not raw_totals:
         notes.append("no raw-material inputs were declared, so the cradle burden of the ingredients is not counted")

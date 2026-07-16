@@ -318,3 +318,10 @@ class ProcessingAssessmentResponse(BaseModel):
     data_quality: Dict[str, Any]
     breakdown_by_product: Dict[str, Dict[str, Union[float, Dict[str, Any]]]]
     recommendations: Optional[List[Dict[str, Any]]] = None
+    # Enriched fields from the validated engine (parity with the farm response), so the ISO
+    # report renderer and the results chat work for processors too.
+    allocation: Optional[Dict[str, Any]] = None
+    input_matches: Optional[List[Dict[str, Any]]] = None
+    inventory: Optional[Dict[str, Any]] = None
+    contribution_by_source: Optional[Dict[str, Any]] = None
+    iso_report: Optional[Dict[str, Any]] = None

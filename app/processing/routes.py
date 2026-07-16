@@ -58,20 +58,25 @@ async def create_processing_assessment(
     """
     try:
         facility_id = _resolve_facility_id(request, user, db)
-        # Prepare data for Rust backend
-        rust_input = {
-            "country": request.country,
-            "facility_profile": request.facility_profile.model_dump(),
-            "processing_operations": request.processing_operations.model_dump(),
-            "processed_products": [product.model_dump() for product in request.processed_products]
-        }
-        
-        # Add region if provided
-        if request.region:
-            rust_input["region"] = request.region
-        
-        # Call Rust backend for processing assessment
-        result = await call_rust_processing_backend(rust_input)
+
+        if os.getenv("USE_LEGACY_RUST_LCIA") == "1":
+            # Legacy path: the Rust hardcoded-factor kernel, kept behind a flag for comparison.
+            rust_input = {
+                "country": request.country,
+                "facility_profile": request.facility_profile.model_dump(),
+                "processing_operations": request.processing_operations.model_dump(),
+                "processed_products": [p.model_dump() for p in request.processed_products],
+            }
+            if request.region:
+                rust_input["region"] = request.region
+            result = await call_rust_processing_backend(rust_input)
+        else:
+            # Validated engine: ecoinvent supply-chain solve + ReCiPe/EF characterization +
+            # co-product allocation + processing ISO report (mirrors the farm /assess path).
+            from starlette.concurrency import run_in_threadpool
+            from engine.process_service import run_process_assessment
+            request_dict = request.model_dump(mode="json")
+            result = await run_in_threadpool(run_process_assessment, request_dict, request.region)
 
         # Persist under the current user's account.
         save_assessment(

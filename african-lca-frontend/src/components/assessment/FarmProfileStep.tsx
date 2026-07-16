@@ -111,27 +111,27 @@ export default function FarmProfileStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-gray-50 rounded-xl p-6"
+        className="gmg-section"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-            <User className="w-5 h-5 text-green-600" />
+          <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+            <User className="w-5 h-5 text-moss" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-            <p className="text-sm text-gray-600">Tell us about yourself and your farm</p>
+            <h3 className="text-lg font-semibold text-ink">Basic Information</h3>
+            <p className="text-sm text-muted">Tell us about yourself and your farm</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Farmer/Owner Name *
             </label>
             <input
               {...register('farmProfile.farmerName')}
               placeholder="e.g., Kwame Asante"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+              className="gmg-input"
             />
             {errors.farmProfile?.farmerName && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -142,13 +142,13 @@ export default function FarmProfileStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Farm Name *
             </label>
             <input
               {...register('farmProfile.farmName')}
               placeholder="e.g., Green Valley Farm"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+              className="gmg-input"
             />
             {errors.farmProfile?.farmName && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -165,28 +165,28 @@ export default function FarmProfileStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="bg-gray-50 rounded-xl p-6"
+        className="gmg-section"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <MapPin className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+            <MapPin className="w-5 h-5 text-moss" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Location Details</h3>
-            <p className="text-sm text-gray-600">Help us understand your farming environment</p>
+            <h3 className="text-lg font-semibold text-ink">Location Details</h3>
+            <p className="text-sm text-muted">Help us understand your farming environment</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               <Globe className="w-4 h-4 inline mr-1" />
               Country *
             </label>
             <select
               {...countryField}
               onChange={onCountryChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select your country</option>
               <option value="Ghana">🇬🇭 Ghana</option>
@@ -199,18 +199,18 @@ export default function FarmProfileStep() {
                 {errors.farmProfile.country.message}
               </p>
             )}
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-muted">
               Choosing a country loads a matching example farm you can then edit.
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Region/State *
             </label>
             <select
               {...register('farmProfile.region')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select your region/state</option>
               {selectedCountry && REGIONS_BY_COUNTRY[selectedCountry]?.map((region) => (
@@ -234,21 +234,21 @@ export default function FarmProfileStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="bg-gray-50 rounded-xl p-6"
+        className="gmg-section"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-emerald-600" />
+          <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-moss" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Farm Scale & Experience</h3>
-            <p className="text-sm text-gray-600">Size of your operation and farming background</p>
+            <h3 className="text-lg font-semibold text-ink">Farm Scale & Experience</h3>
+            <p className="text-sm text-muted">Size of your operation and farming background</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Total Farm Size (hectares) *
             </label>
             <input
@@ -256,7 +256,7 @@ export default function FarmProfileStep() {
               step="0.1"
               {...register('farmProfile.totalFarmSize', { valueAsNumber: true })}
               placeholder="e.g., 2.5"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+              className="gmg-input"
             />
             {errors.farmProfile?.totalFarmSize && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -265,7 +265,7 @@ export default function FarmProfileStep() {
               </p>
             )}
             {totalFarmSize && (
-              <p className="mt-1 text-sm text-green-600">
+              <p className="mt-1 text-sm text-moss">
                 <Info className="w-4 h-4 inline mr-1" />
                 {totalFarmSize < 2 ? 'Smallholder farm' : 
                  totalFarmSize <= 5 ? 'Small-scale farm' :
@@ -275,14 +275,14 @@ export default function FarmProfileStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Years of Farming Experience *
             </label>
             <input
               type="number"
               {...register('farmProfile.farmingExperience', { valueAsNumber: true })}
               placeholder="e.g., 15"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+              className="gmg-input"
             />
             {errors.farmProfile?.farmingExperience && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -299,21 +299,21 @@ export default function FarmProfileStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
-        className="bg-gray-50 rounded-xl p-6"
+        className="gmg-section"
       >
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-purple-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Farming System</h3>
-            <p className="text-sm text-gray-600">What type of farming operation do you run?</p>
+            <h3 className="text-lg font-semibold text-ink">Farming System</h3>
+            <p className="text-sm text-muted">What type of farming operation do you run?</p>
           </div>
         </div>
 
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Farm Type *
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -328,12 +328,12 @@ export default function FarmProfileStep() {
                   <div className={`
                     border-2 rounded-lg p-4 cursor-pointer transition-all
                     ${watch('farmProfile.farmType') === option.value
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-moss bg-moss/10'
+                      : 'border-line hover:border-line'
                     }
                   `}>
-                    <div className="font-medium text-gray-900 mb-1">{option.label}</div>
-                    <div className="text-sm text-gray-600">{option.description}</div>
+                    <div className="font-medium text-ink mb-1">{option.label}</div>
+                    <div className="text-sm text-muted">{option.description}</div>
                   </div>
                 </label>
               ))}
@@ -347,7 +347,7 @@ export default function FarmProfileStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Primary Farming System *
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -362,12 +362,12 @@ export default function FarmProfileStep() {
                   <div className={`
                     border-2 rounded-lg p-4 cursor-pointer transition-all
                     ${watch('farmProfile.primaryFarmingSystem') === option.value
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-moss bg-moss/10'
+                      : 'border-line hover:border-line'
                     }
                   `}>
-                    <div className="font-medium text-gray-900 mb-1">{option.label}</div>
-                    <div className="text-sm text-gray-600">{option.description}</div>
+                    <div className="font-medium text-ink mb-1">{option.label}</div>
+                    <div className="text-sm text-muted">{option.description}</div>
                   </div>
                 </label>
               ))}
@@ -387,21 +387,21 @@ export default function FarmProfileStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
-        className="bg-gray-50 rounded-xl p-6"
+        className="gmg-section"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-            <Award className="w-5 h-5 text-yellow-600" />
+          <div className="w-10 h-10 bg-amber/10 rounded-lg flex items-center justify-center">
+            <Award className="w-5 h-5 text-amber" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Certifications & Programs</h3>
-            <p className="text-sm text-gray-600">Any certifications or sustainability programs you participate in</p>
+            <h3 className="text-lg font-semibold text-ink">Certifications & Programs</h3>
+            <p className="text-sm text-muted">Any certifications or sustainability programs you participate in</p>
           </div>
         </div>
 
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Current Certifications (select all that apply)
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -411,16 +411,16 @@ export default function FarmProfileStep() {
                     type="checkbox"
                     {...register('farmProfile.certifications')}
                     value={option.value}
-                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="rounded border-line text-moss focus:ring-moss"
                   />
-                  <span className="text-sm text-gray-700">{option.label}</span>
+                  <span className="text-sm text-ink">{option.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Sustainability Programs (select all that apply)
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -430,9 +430,9 @@ export default function FarmProfileStep() {
                     type="checkbox"
                     {...register('farmProfile.participatesInPrograms')}
                     value={program}
-                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="rounded border-line text-moss focus:ring-moss"
                   />
-                  <span className="text-sm text-gray-700">{program}</span>
+                  <span className="text-sm text-ink">{program}</span>
                 </label>
               ))}
             </div>
@@ -445,11 +445,11 @@ export default function FarmProfileStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.5 }}
-        className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+        className="bg-moss/10 border border-line rounded-lg p-4"
       >
         <div className="flex items-start space-x-3">
-          <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div className="text-sm text-blue-700">
+          <Info className="w-5 h-5 text-moss mt-0.5" />
+          <div className="text-sm text-spruce">
             <strong>Why we need this information:</strong> Your farm profile helps us select appropriate 
             environmental impact factors and benchmarks specific to your farming system and location. 
             This ensures more accurate sustainability assessment results.

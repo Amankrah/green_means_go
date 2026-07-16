@@ -97,16 +97,16 @@ export default function EquipmentEnergyStep() {
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-green-50 rounded-xl p-6"
+        className="bg-moss/10 rounded-xl p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <Settings className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+              <Settings className="w-5 h-5 text-moss" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Farm Equipment</h3>
-              <p className="text-sm text-gray-600">Equipment used for farming operations</p>
+              <h3 className="text-lg font-semibold text-ink">Farm Equipment</h3>
+              <p className="text-sm text-muted">Equipment used for farming operations</p>
             </div>
           </div>
           <button
@@ -118,7 +118,7 @@ export default function EquipmentEnergyStep() {
               hoursPerYear: 0,
               fuelEfficiency: undefined
             })}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 bg-spruce text-white rounded-lg hover:bg-ink transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Add Equipment</span>
@@ -126,8 +126,8 @@ export default function EquipmentEnergyStep() {
         </div>
 
         {equipmentFields.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Settings className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted">
+            <Settings className="w-12 h-12 mx-auto mb-4 text-line" />
             <p>No equipment added yet. Click &quot;Add Equipment&quot; to get started.</p>
           </div>
         ) : (
@@ -137,10 +137,10 @@ export default function EquipmentEnergyStep() {
                 key={field.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-green-200 rounded-lg p-4"
+                className="bg-white border border-moss/30 rounded-lg p-4"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-gray-900">Equipment #{index + 1}</h4>
+                  <h4 className="font-medium text-ink">Equipment #{index + 1}</h4>
                   <button
                     type="button"
                     onClick={() => removeEquipment(index)}
@@ -154,12 +154,12 @@ export default function EquipmentEnergyStep() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Equipment Type *
                     </label>
                     <select
                       {...register(`equipmentEnergy.equipment.${index}.equipmentType`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="gmg-input"
                     >
                       <option value="">Select equipment type</option>
                       {Object.values(EquipmentType).map((type) => (
@@ -175,12 +175,12 @@ export default function EquipmentEnergyStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Power Source *
                     </label>
                     <select
                       {...register(`equipmentEnergy.equipment.${index}.powerSource`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="gmg-input"
                     >
                       <option value="">Select power source</option>
                       {Object.values(PowerSource).map((source) => (
@@ -196,7 +196,7 @@ export default function EquipmentEnergyStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Age (years) *
                     </label>
                     <input
@@ -205,7 +205,7 @@ export default function EquipmentEnergyStep() {
                       max="50"
                       {...register(`equipmentEnergy.equipment.${index}.age`, { valueAsNumber: true })}
                       placeholder="e.g., 5"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {errors.equipmentEnergy?.equipment?.[index]?.age && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -216,7 +216,7 @@ export default function EquipmentEnergyStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Hours Per Year *
                     </label>
                     <input
@@ -225,7 +225,7 @@ export default function EquipmentEnergyStep() {
                       max="4000"
                       {...register(`equipmentEnergy.equipment.${index}.hoursPerYear`, { valueAsNumber: true })}
                       placeholder="e.g., 200"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {errors.equipmentEnergy?.equipment?.[index]?.hoursPerYear && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -236,7 +236,7 @@ export default function EquipmentEnergyStep() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Fuel Efficiency (optional)
                     </label>
                     <input
@@ -245,9 +245,9 @@ export default function EquipmentEnergyStep() {
                       min="0"
                       {...register(`equipmentEnergy.equipment.${index}.fuelEfficiency`, { valueAsNumber: true })}
                       placeholder="e.g., 3.5 (liters per hour or km)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="gmg-input"
                     />
-                    <p className="text-xs text-gray-500 mt-1">For fuel-powered equipment only</p>
+                    <p className="text-xs text-muted mt-1">For fuel-powered equipment only</p>
                     {errors.equipmentEnergy?.equipment?.[index]?.fuelEfficiency && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
                         <AlertCircle className="w-4 h-4 mr-1" />
@@ -267,16 +267,16 @@ export default function EquipmentEnergyStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-blue-50 rounded-xl p-6"
+        className="bg-moss/10 rounded-xl p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Battery className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+              <Battery className="w-5 h-5 text-moss" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Energy Sources</h3>
-              <p className="text-sm text-gray-600">Energy used for farm operations</p>
+              <h3 className="text-lg font-semibold text-ink">Energy Sources</h3>
+              <p className="text-sm text-muted">Energy used for farm operations</p>
             </div>
           </div>
           <button
@@ -287,7 +287,7 @@ export default function EquipmentEnergyStep() {
               primaryUse: '',
               cost: undefined
             })}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 bg-spruce text-white rounded-lg hover:bg-ink transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Add Energy Source</span>
@@ -295,8 +295,8 @@ export default function EquipmentEnergyStep() {
         </div>
 
         {energySourceFields.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Battery className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted">
+            <Battery className="w-12 h-12 mx-auto mb-4 text-line" />
             <p>No energy sources added yet. Click &quot;Add Energy Source&quot; to get started.</p>
           </div>
         ) : (
@@ -306,10 +306,10 @@ export default function EquipmentEnergyStep() {
                 key={field.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-blue-200 rounded-lg p-4"
+                className="bg-white border border-line rounded-lg p-4"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-gray-900">Energy Source #{index + 1}</h4>
+                  <h4 className="font-medium text-ink">Energy Source #{index + 1}</h4>
                   <button
                     type="button"
                     onClick={() => removeEnergySource(index)}
@@ -323,12 +323,12 @@ export default function EquipmentEnergyStep() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Energy Type *
                     </label>
                     <select
                       {...register(`equipmentEnergy.energySources.${index}.energyType`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      className="gmg-input"
                     >
                       <option value="">Select energy type</option>
                       {Object.values(EnergyType).map((type) => (
@@ -344,7 +344,7 @@ export default function EquipmentEnergyStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Monthly Consumption *
                     </label>
                     <input
@@ -353,9 +353,9 @@ export default function EquipmentEnergyStep() {
                       step="0.1"
                       {...register(`equipmentEnergy.energySources.${index}.monthlyConsumption`, { valueAsNumber: true })}
                       placeholder="e.g., 150"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      className="gmg-input"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted mt-1">
                       Units: kWh for electricity, liters for diesel/petrol/biogas, kg for firewood/charcoal
                     </p>
                     {errors.equipmentEnergy?.energySources?.[index]?.monthlyConsumption && (
@@ -367,14 +367,14 @@ export default function EquipmentEnergyStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Primary Use *
                     </label>
                     <input
                       type="text"
                       {...register(`equipmentEnergy.energySources.${index}.primaryUse`)}
                       placeholder="e.g., Irrigation, Processing, Storage"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {errors.equipmentEnergy?.energySources?.[index]?.primaryUse && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -385,7 +385,7 @@ export default function EquipmentEnergyStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Total Monthly Cost (optional)
                     </label>
                     <input
@@ -394,9 +394,9 @@ export default function EquipmentEnergyStep() {
                       step="0.01"
                       {...register(`equipmentEnergy.energySources.${index}.cost`, { valueAsNumber: true })}
                       placeholder="e.g., 25000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      className="gmg-input"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted mt-1">
                       Total monthly cost for the consumption amount specified above (local currency)
                     </p>
                     {errors.equipmentEnergy?.energySources?.[index]?.cost && (
@@ -425,14 +425,14 @@ export default function EquipmentEnergyStep() {
             <Zap className="w-5 h-5 text-purple-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Storage & Infrastructure</h3>
-            <p className="text-sm text-gray-600">Storage facilities and farm infrastructure</p>
+            <h3 className="text-lg font-semibold text-ink">Storage & Infrastructure</h3>
+            <p className="text-sm text-muted">Storage facilities and farm infrastructure</p>
           </div>
         </div>
 
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Storage Capacity (cubic meters or tons) *
             </label>
             <input
@@ -440,7 +440,7 @@ export default function EquipmentEnergyStep() {
               step="0.1"
               {...register('equipmentEnergy.infrastructure.storageCapacity', { valueAsNumber: true })}
               placeholder="e.g., 50"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             />
             {errors.equipmentEnergy?.infrastructure?.storageCapacity && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -451,11 +451,11 @@ export default function EquipmentEnergyStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Storage Facilities (select all that apply)
             </label>
             {currentStorageFacilities.includes(StorageFacilityType.NONE) && (
-              <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+              <div className="mb-3 p-2 bg-moss/10 border border-line rounded text-sm text-spruce">
                 ℹ️ <strong>No dedicated storage</strong> is selected. Other storage options are disabled.
               </div>
             )}
@@ -481,8 +481,8 @@ export default function EquipmentEnergyStep() {
                       className="text-purple-600 focus:ring-purple-500 rounded disabled:opacity-50"
                     />
                     <span className={`text-sm ${
-                      isNoDedicatedStorage ? 'text-gray-600 font-medium' : 
-                      isDisabled ? 'text-gray-400' : 'text-gray-700'
+                      isNoDedicatedStorage ? 'text-muted font-medium' : 
+                      isDisabled ? 'text-muted' : 'text-ink'
                     }`}>
                       {facility}
                       {isNoDedicatedStorage && ' (excludes other options)'}
@@ -499,26 +499,26 @@ export default function EquipmentEnergyStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-yellow-50 rounded-xl p-6"
+        className="bg-amber/10 rounded-xl p-6"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-            <Truck className="w-5 h-5 text-yellow-600" />
+          <div className="w-10 h-10 bg-amber/10 rounded-lg flex items-center justify-center">
+            <Truck className="w-5 h-5 text-amber" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Transport & Market Access</h3>
-            <p className="text-sm text-gray-600">How do you transport your produce to market?</p>
+            <h3 className="text-lg font-semibold text-ink">Transport & Market Access</h3>
+            <p className="text-sm text-muted">How do you transport your produce to market?</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Road Access *
             </label>
             <select
               {...register('equipmentEnergy.infrastructure.transportAccess.roadAccess')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select road access</option>
               {Object.values(RoadAccessType).map((access) => (
@@ -534,7 +534,7 @@ export default function EquipmentEnergyStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Distance to Market (kilometers) *
             </label>
             <input
@@ -542,7 +542,7 @@ export default function EquipmentEnergyStep() {
               step="0.1"
               {...register('equipmentEnergy.infrastructure.transportAccess.distanceToMarket', { valueAsNumber: true })}
               placeholder="e.g., 15"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             />
             {errors.equipmentEnergy?.infrastructure?.transportAccess?.distanceToMarket && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -560,7 +560,7 @@ export default function EquipmentEnergyStep() {
         </div>
 
         <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-medium text-ink mb-3">
             Transport Methods (select all that apply) *
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -570,16 +570,16 @@ export default function EquipmentEnergyStep() {
                   type="checkbox"
                   {...register('equipmentEnergy.infrastructure.transportAccess.transportMode')}
                   value={mode}
-                  className="text-yellow-600 focus:ring-yellow-500 rounded"
+                  className="text-amber focus:ring-amber rounded"
                 />
-                <span className="text-sm text-gray-700">{mode}</span>
+                <span className="text-sm text-ink">{mode}</span>
               </label>
             ))}
           </div>
         </div>
 
         <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-ink mb-2">
             Transport Cost (local currency per trip - optional)
           </label>
           <input
@@ -588,9 +588,9 @@ export default function EquipmentEnergyStep() {
             min="0"
             {...register('equipmentEnergy.infrastructure.transportAccess.transportCost')}
             placeholder="e.g., 50000"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 text-gray-900"
+            className="gmg-input"
           />
-          <p className="text-xs text-gray-500 mt-1">Leave empty if cost varies or is unknown</p>
+          <p className="text-xs text-muted mt-1">Leave empty if cost varies or is unknown</p>
         </div>
       </motion.section>
 
@@ -701,21 +701,21 @@ export default function EquipmentEnergyStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-indigo-50 border border-indigo-200 rounded-xl p-6"
+        className="bg-moss/10 border border-line rounded-xl p-6"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <BarChart3 className="w-6 h-6 text-indigo-600" />
-          <h3 className="text-lg font-semibold text-indigo-900">Assessment Configuration</h3>
+          <BarChart3 className="w-6 h-6 text-moss" />
+          <h3 className="text-lg font-semibold text-ink">Assessment Configuration</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Assessment Focus *
             </label>
             <select
               {...register('assessmentParameters.functionalUnit')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              className="gmg-input"
             >
               {Object.entries(FunctionalUnit).map(([key, value]) => (
                 <option key={key} value={value}>
@@ -723,7 +723,7 @@ export default function EquipmentEnergyStep() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted mt-1">
               How should we measure environmental impact?
             </p>
             {errors.assessmentParameters?.functionalUnit && (
@@ -735,12 +735,12 @@ export default function EquipmentEnergyStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Assessment Scope *
             </label>
             <select
               {...register('assessmentParameters.systemBoundary')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              className="gmg-input"
             >
               {Object.entries(SystemBoundary).map(([key, value]) => (
                 <option key={key} value={value}>
@@ -748,7 +748,7 @@ export default function EquipmentEnergyStep() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted mt-1">
               What stages should we include in the assessment?
             </p>
             {errors.assessmentParameters?.systemBoundary && (
@@ -760,7 +760,7 @@ export default function EquipmentEnergyStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Assessment Period (years) *
             </label>
             <input
@@ -768,9 +768,9 @@ export default function EquipmentEnergyStep() {
               min="1"
               max="5"
               {...register('assessmentParameters.assessmentPeriod', { valueAsNumber: true })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              className="gmg-input"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted mt-1">
               Typical farming cycle period to assess
             </p>
             {errors.assessmentParameters?.assessmentPeriod && (
@@ -782,7 +782,7 @@ export default function EquipmentEnergyStep() {
           </div>
 
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-ink">
               Advanced Analysis Options
             </label>
             
@@ -790,27 +790,27 @@ export default function EquipmentEnergyStep() {
               <input
                 type="checkbox"
                 {...register('assessmentParameters.includeUncertaintyAnalysis')}
-                className="text-indigo-600 focus:ring-indigo-500 rounded"
+                className="text-moss focus:ring-moss rounded"
               />
-              <span className="text-sm text-gray-700">Include uncertainty analysis</span>
+              <span className="text-sm text-ink">Include uncertainty analysis</span>
             </label>
             
             <label className="flex items-center space-x-2">
               <input
                 type="checkbox"
                 {...register('assessmentParameters.includeSensitivityAnalysis')}
-                className="text-indigo-600 focus:ring-indigo-500 rounded"
+                className="text-moss focus:ring-moss rounded"
               />
-              <span className="text-sm text-gray-700">Include sensitivity analysis</span>
+              <span className="text-sm text-ink">Include sensitivity analysis</span>
             </label>
             
             <label className="flex items-center space-x-2">
               <input
                 type="checkbox"
                 {...register('assessmentParameters.benchmarkComparison')}
-                className="text-indigo-600 focus:ring-indigo-500 rounded"
+                className="text-moss focus:ring-moss rounded"
               />
-              <span className="text-sm text-gray-700">Compare with regional benchmarks</span>
+              <span className="text-sm text-ink">Compare with regional benchmarks</span>
             </label>
           </div>
         </div>
@@ -820,11 +820,11 @@ export default function EquipmentEnergyStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+        className="bg-moss/10 border border-line rounded-lg p-4"
       >
         <div className="flex items-start space-x-3">
-          <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div className="text-sm text-blue-700">
+          <Info className="w-5 h-5 text-moss mt-0.5" />
+          <div className="text-sm text-spruce">
             <strong>Energy & Transport Impact:</strong> Equipment usage, storage facilities, and 
             transportation contribute to your farm&apos;s carbon footprint. This information helps us 
             calculate the full life-cycle environmental impact.

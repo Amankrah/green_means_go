@@ -228,13 +228,13 @@ export default function CropDetailsStep() {
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-xl font-semibold text-gray-900">Crop Production Details</h3>
-            <p className="text-gray-600">Add all crops you grow on your farm</p>
+            <h3 className="text-xl font-semibold text-ink">Crop Production Details</h3>
+            <p className="text-muted">Add all crops you grow on your farm</p>
           </div>
           <button
             type="button"
             onClick={addNewCrop}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center space-x-2 bg-spruce text-white px-4 py-2 rounded-lg hover:bg-ink transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Add Crop</span>
@@ -243,8 +243,8 @@ export default function CropDetailsStep() {
 
         {/* Quick Add Common Crops */}
         {getCommonCrops().length > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <div className="text-sm text-green-700 mb-2">
+          <div className="bg-moss/10 border border-moss/30 rounded-lg p-4 mb-6">
+            <div className="text-sm text-spruce mb-2">
               <strong>Common crops in {region}, {country}:</strong>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -263,7 +263,7 @@ export default function CropDetailsStep() {
                       setValue(`cropProductions.${newIndex}.category`, category);
                     }, 100);
                   }}
-                  className="text-xs bg-white border border-green-300 text-green-700 px-2 py-1 rounded hover:bg-green-100"
+                  className="text-xs bg-white border border-line text-spruce px-2 py-1 rounded hover:bg-moss/10"
                 >
                   + {cropName}
                 </button>
@@ -283,22 +283,22 @@ export default function CropDetailsStep() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.3 }}
-              className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm"
+              className="bg-white border border-line rounded-xl p-6 shadow-sm"
             >
               {/* Crop Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Sprout className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+                    <Sprout className="w-5 h-5 text-moss" />
                   </div>
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-900">
+                    <h4 className="text-lg font-semibold text-ink">
                       Crop {index + 1}
                       {watch(`cropProductions.${index}.cropName`) && 
                         ` - ${watch(`cropProductions.${index}.cropName`)}`
                       }
                     </h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted">
                       {watch(`cropProductions.${index}.areaAllocated`) || 0} hectares
                     </p>
                   </div>
@@ -319,13 +319,13 @@ export default function CropDetailsStep() {
               {/* Basic Crop Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink mb-2">
                     Crop Name *
                   </label>
                   <input
                     {...register(`cropProductions.${index}.cropName`)}
                     placeholder="e.g., Maize, Rice, Cassava"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                    className="gmg-input"
                     onChange={(e) => handleCropNameChange(index, e.target.value)}
                     onBlur={() => calculateYield(index)}
                   />
@@ -337,23 +337,23 @@ export default function CropDetailsStep() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink mb-2">
                     Local Name (Optional)
                   </label>
                   <input
                     {...register(`cropProductions.${index}.localName`)}
                     placeholder="e.g., Abelawo, Agbeli"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                    className="gmg-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink mb-2">
                     Category *
                   </label>
                   <select
                     {...register(`cropProductions.${index}.category`)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                    className="gmg-input"
                   >
                     <option value="">Select category</option>
                     {foodCategories.map((cat) => (
@@ -370,12 +370,12 @@ export default function CropDetailsStep() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink mb-2">
                     Variety/Cultivar *
                   </label>
                   <select
                     {...register(`cropProductions.${index}.variety`)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                    className="gmg-input"
                   >
                     <option value="">Select variety</option>
                     {watch(`cropProductions.${index}.cropName`) && 
@@ -394,10 +394,10 @@ export default function CropDetailsStep() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink mb-2">
                     Area Allocated (hectares) *
                     {totalFarmSize > 0 && (
-                      <span className="text-xs text-gray-500 ml-1">
+                      <span className="text-xs text-muted ml-1">
                         (of {totalFarmSize} ha total)
                       </span>
                     )}
@@ -408,7 +408,7 @@ export default function CropDetailsStep() {
                     max={totalFarmSize}
                     {...register(`cropProductions.${index}.areaAllocated`, { valueAsNumber: true })}
                     placeholder="e.g., 1.5"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                    className="gmg-input"
                     onChange={(e) => {
                       const value = parseFloat(e.target.value) || 0;
                       setValue(`cropProductions.${index}.areaAllocated`, value);
@@ -417,7 +417,7 @@ export default function CropDetailsStep() {
                     onBlur={() => calculateYield(index)}
                   />
                   {areaPercentages[index] && (
-                    <p className="mt-1 text-sm text-green-600">
+                    <p className="mt-1 text-sm text-moss">
                       📊 {areaPercentages[index]}% of total farm area
                     </p>
                   )}
@@ -429,7 +429,7 @@ export default function CropDetailsStep() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink mb-2">
                     Annual Production (kg) *
                   </label>
                   <input
@@ -437,7 +437,7 @@ export default function CropDetailsStep() {
                     step="0.1"
                     {...register(`cropProductions.${index}.annualProduction`, { valueAsNumber: true })}
                     placeholder="e.g., 2250"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                    className="gmg-input"
                   />
                   {errors.cropProductions?.[index]?.annualProduction && (
                     <p className="mt-1 text-sm text-red-600">
@@ -450,7 +450,7 @@ export default function CropDetailsStep() {
               {/* Production System & Cropping Pattern */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-ink mb-3">
                     <Target className="w-4 h-4 inline mr-1" />
                     Production System *
                   </label>
@@ -461,11 +461,11 @@ export default function CropDetailsStep() {
                           type="radio"
                           {...register(`cropProductions.${index}.productionSystem`)}
                           value={system.value}
-                          className="mt-1 text-green-600 focus:ring-green-500"
+                          className="mt-1 text-moss focus:ring-moss"
                         />
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">{system.label}</div>
-                          <div className="text-sm text-gray-600">{system.description}</div>
+                          <div className="font-medium text-ink">{system.label}</div>
+                          <div className="text-sm text-muted">{system.description}</div>
                         </div>
                       </label>
                     ))}
@@ -473,7 +473,7 @@ export default function CropDetailsStep() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-ink mb-3">
                     <Layers className="w-4 h-4 inline mr-1" />
                     Cropping Pattern *
                   </label>
@@ -485,11 +485,11 @@ export default function CropDetailsStep() {
                           {...register(`cropProductions.${index}.croppingPattern`)}
                           value={pattern.value}
                           onChange={() => handleCroppingPatternChange(index, pattern.value)}
-                          className="mt-1 text-green-600 focus:ring-green-500"
+                          className="mt-1 text-moss focus:ring-moss"
                         />
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900">{pattern.label}</div>
-                          <div className="text-sm text-gray-600">{pattern.description}</div>
+                          <div className="font-medium text-ink">{pattern.label}</div>
+                          <div className="text-sm text-muted">{pattern.description}</div>
                         </div>
                       </label>
                     ))}
@@ -503,28 +503,28 @@ export default function CropDetailsStep() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-green-50 rounded-lg p-4 mb-6"
+                  className="bg-moss/10 rounded-lg p-4 mb-6"
                 >
-                  <h5 className="font-medium text-green-900 mb-3">Intercropping Details</h5>
+                  <h5 className="font-medium text-ink mb-3">Intercropping Details</h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-ink mb-2">
                         Intercropping Partners
                       </label>
                       <input
                         {...register(`cropProductions.${index}.intercroppingPartners.0`)}
                         placeholder="e.g., Groundnuts, Beans"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                        className="gmg-input"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-ink mb-2">
                         Additional Partners
                       </label>
                       <input
                         {...register(`cropProductions.${index}.intercroppingPartners.1`)}
                         placeholder="e.g., Cowpea"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                        className="gmg-input"
                       />
                     </div>
                   </div>
@@ -532,15 +532,15 @@ export default function CropDetailsStep() {
               )}
 
               {/* Seasonal Information */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h5 className="font-medium text-blue-900 mb-4 flex items-center">
+              <div className="bg-moss/10 rounded-lg p-4">
+                <h5 className="font-medium text-ink mb-4 flex items-center">
                   <Calendar className="w-4 h-4 mr-2" />
                   Seasonal Pattern
                 </h5>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Planting Months *
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -559,7 +559,7 @@ export default function CropDetailsStep() {
                                   : currentValues.filter((m: number) => m !== monthIndex + 1);
                                 handleSeasonalityChange(index, 'plantingMonths', newValues);
                               }}
-                              className="text-green-600 focus:ring-green-500 rounded"
+                              className="text-moss focus:ring-moss rounded"
                             />
                             <span className="text-xs">{month.slice(0, 3)}</span>
                           </label>
@@ -569,7 +569,7 @@ export default function CropDetailsStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Harvesting Months *
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -588,7 +588,7 @@ export default function CropDetailsStep() {
                                   : currentValues.filter((m: number) => m !== monthIndex + 1);
                                 handleSeasonalityChange(index, 'harvestingMonths', newValues);
                               }}
-                              className="text-green-600 focus:ring-green-500 rounded"
+                              className="text-moss focus:ring-moss rounded"
                             />
                             <span className="text-xs">{month.slice(0, 3)}</span>
                           </label>
@@ -598,7 +598,7 @@ export default function CropDetailsStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Growing Period (days) *
                     </label>
                     <input
@@ -607,22 +607,22 @@ export default function CropDetailsStep() {
                       max="365"
                       {...register(`cropProductions.${index}.seasonality.growingPeriod`, { valueAsNumber: true })}
                       placeholder="e.g., 120"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {watch(`cropProductions.${index}.seasonality.growingPeriod`) && (
-                      <p className="mt-1 text-sm text-blue-600">
+                      <p className="mt-1 text-sm text-moss">
                         📅 ~{Math.round(watch(`cropProductions.${index}.seasonality.growingPeriod`) / 30 * 10) / 10} months
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Crops per Year *
                     </label>
                     <select
                       {...register(`cropProductions.${index}.seasonality.cropsPerYear`, { valueAsNumber: true })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                      className="gmg-input"
                     >
                       <option value={1}>1 crop per year</option>
                       <option value={2}>2 crops per year</option>
@@ -641,15 +641,15 @@ export default function CropDetailsStep() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300"
+          className="text-center py-12 bg-surface rounded-xl border-2 border-dashed border-line"
         >
-          <Sprout className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No crops added yet</h3>
-          <p className="text-gray-600 mb-4">Start by adding the crops you grow on your farm</p>
+          <Sprout className="w-16 h-16 text-muted mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-ink mb-2">No crops added yet</h3>
+          <p className="text-muted mb-4">Start by adding the crops you grow on your farm</p>
           <button
             type="button"
             onClick={addNewCrop}
-            className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center space-x-2"
+            className="bg-spruce text-white px-6 py-3 rounded-lg hover:bg-ink transition-colors inline-flex items-center space-x-2"
           >
             <Plus className="w-5 h-5" />
             <span>Add Your First Crop</span>
@@ -662,13 +662,13 @@ export default function CropDetailsStep() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="bg-yellow-50 border border-yellow-200 rounded-lg p-4"
+          className="bg-amber/10 border border-amber/30 rounded-lg p-4"
         >
-          <div className="flex items-center space-x-2 text-yellow-800">
+          <div className="flex items-center space-x-2 text-spruce">
             <AlertCircle className="w-5 h-5" />
             <span className="font-medium">Area Allocation Warning:</span>
           </div>
-          <div className="mt-2 text-sm text-yellow-700">
+          <div className="mt-2 text-sm text-amber">
             <ul className="list-disc list-inside space-y-1">
               {getTotalAllocationErrors().map((error, index) => (
                 <li key={index}>{error}</li>
@@ -720,11 +720,11 @@ export default function CropDetailsStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-green-50 border border-green-200 rounded-lg p-4"
+        className="bg-moss/10 border border-moss/30 rounded-lg p-4"
       >
         <div className="flex items-start space-x-3">
-          <Info className="w-5 h-5 text-green-600 mt-0.5" />
-          <div className="text-sm text-green-700">
+          <Info className="w-5 h-5 text-moss mt-0.5" />
+          <div className="text-sm text-spruce">
             <strong>Tip:</strong> Include all crops you grow, even small plots. Intercropping and crop 
             rotation information helps us calculate more accurate environmental impacts and provide 
             better sustainability recommendations.
@@ -738,11 +738,11 @@ export default function CropDetailsStep() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+          className="bg-moss/10 border border-line rounded-lg p-4"
         >
           <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-700">
+            <Info className="w-5 h-5 text-moss mt-0.5" />
+            <div className="text-sm text-spruce">
               <strong>Form Progress:</strong> For each crop, please complete the basic information (name, category, variety), 
               production details (area, annual production), and seasonal pattern. You can fill them in any order - 
               the form will guide you through any missing required fields when you try to proceed.

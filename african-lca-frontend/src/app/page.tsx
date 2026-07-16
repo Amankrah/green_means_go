@@ -68,7 +68,7 @@ export default function HomePage() {
               </h1>
               <p className="mt-7 max-w-xl text-lg leading-relaxed text-muted sm:text-xl">
                 Turn the real details of a farm or food facility into a transparent environmental
-                assessment—grounded in ISO 14040/14044 principles and built for action.
+                assessment. It is grounded in ISO 14040/14044 principles and built for action.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link href="/signup" className="button-primary">

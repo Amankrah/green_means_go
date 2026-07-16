@@ -46,15 +46,15 @@ export default function PestManagementStep() {
             <Shield className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Pest & Disease Management</h3>
-            <p className="text-sm text-gray-600">How do you protect your crops from pests and diseases?</p>
+            <h3 className="text-lg font-semibold text-ink">Pest & Disease Management</h3>
+            <p className="text-sm text-muted">How do you protect your crops from pests and diseases?</p>
           </div>
         </div>
 
         <div className="space-y-6">
           {/* Primary Pests */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Primary Pests Encountered
             </label>
             <div className="space-y-2">
@@ -69,7 +69,7 @@ export default function PestManagementStep() {
                       setPrimaryPests(newPests);
                     }}
                     placeholder="e.g., Fall armyworm, Stem borer"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                    className="flex-1 gmg-input"
                   />
                   <button
                     type="button"
@@ -98,7 +98,7 @@ export default function PestManagementStep() {
 
           {/* Primary Diseases */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Primary Diseases Encountered
             </label>
             <div className="space-y-2">
@@ -113,7 +113,7 @@ export default function PestManagementStep() {
                       setPrimaryDiseases(newDiseases);
                     }}
                     placeholder="e.g., Leaf blight, Root rot"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                    className="flex-1 gmg-input"
                   />
                   <button
                     type="button"
@@ -141,12 +141,12 @@ export default function PestManagementStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Management Approach *
             </label>
             <select
               {...register('pestManagement.managementApproach')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select approach</option>
               {Object.values(PestManagementApproach).map((approach) => (
@@ -162,12 +162,12 @@ export default function PestManagementStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Monitoring Frequency *
             </label>
             <select
               {...register('pestManagement.pestMonitoringFrequency')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select frequency</option>
               {Object.values(MonitoringFrequency).map((freq) => (
@@ -187,9 +187,9 @@ export default function PestManagementStep() {
               <input
                 type="checkbox"
                 {...register('pestManagement.usesIPM')}
-                className="text-green-600 focus:ring-green-500 rounded"
+                className="text-moss focus:ring-moss rounded"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-ink">
                 I use Integrated Pest Management (IPM)
               </span>
             </label>
@@ -198,9 +198,9 @@ export default function PestManagementStep() {
               <input
                 type="checkbox"
                 {...register('pestManagement.usesEconomicThresholds')}
-                className="text-green-600 focus:ring-green-500 rounded"
+                className="text-moss focus:ring-moss rounded"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-ink">
                 I use economic thresholds for pest control
               </span>
             </label>
@@ -213,16 +213,16 @@ export default function PestManagementStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-orange-50 rounded-xl p-6"
+        className="bg-amber/10 rounded-xl p-6"
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Bug className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 bg-amber/10 rounded-lg flex items-center justify-center">
+              <Bug className="w-5 h-5 text-amber" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Pesticides Used</h3>
-              <p className="text-sm text-gray-600">Chemical pesticides and their application details</p>
+              <h3 className="text-lg font-semibold text-ink">Pesticides Used</h3>
+              <p className="text-sm text-muted">Chemical pesticides and their application details</p>
             </div>
           </div>
           <button
@@ -237,7 +237,7 @@ export default function PestManagementStep() {
               cost: undefined,
               safetyPrecautions: []
             })}
-            className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 bg-amber text-white rounded-lg hover:bg-ink transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Add Pesticide</span>
@@ -245,8 +245,8 @@ export default function PestManagementStep() {
         </div>
 
         {pesticideFields.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Bug className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <div className="text-center py-8 text-muted">
+            <Bug className="w-12 h-12 mx-auto mb-4 text-line" />
             <p>No pesticides added yet. Click &quot;Add Pesticide&quot; to get started.</p>
             <p className="text-xs mt-2">Leave empty if you don&apos;t use chemical pesticides</p>
           </div>
@@ -257,10 +257,10 @@ export default function PestManagementStep() {
                 key={field.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-orange-200 rounded-lg p-4"
+                className="bg-white border border-amber/30 rounded-lg p-4"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium text-gray-900">Pesticide #{index + 1}</h4>
+                  <h4 className="font-medium text-ink">Pesticide #{index + 1}</h4>
                   <button
                     type="button"
                     onClick={() => removePesticide(index)}
@@ -274,12 +274,12 @@ export default function PestManagementStep() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Pesticide Type *
                     </label>
                     <select
                       {...register(`pestManagement.pesticides.${index}.pesticideType`)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                      className="gmg-input"
                     >
                       <option value="">Select type</option>
                       {Object.values(PesticideType).map((type) => (
@@ -295,14 +295,14 @@ export default function PestManagementStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Brand Name *
                     </label>
                     <input
                       type="text"
                       {...register(`pestManagement.pesticides.${index}.brandName`)}
                       placeholder="e.g., Karate, Confidor"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.brandName && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -313,14 +313,14 @@ export default function PestManagementStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Active Ingredient *
                     </label>
                     <input
                       type="text"
                       {...register(`pestManagement.pesticides.${index}.activeIngredient`)}
                       placeholder="e.g., Lambda-cyhalothrin, Imidacloprid"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.activeIngredient && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -331,7 +331,7 @@ export default function PestManagementStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Application Rate (L or kg/ha) *
                     </label>
                     <input
@@ -341,7 +341,7 @@ export default function PestManagementStep() {
                       max="100"
                       {...register(`pestManagement.pesticides.${index}.applicationRate`, { valueAsNumber: true })}
                       placeholder="e.g., 2.5"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.applicationRate && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -352,7 +352,7 @@ export default function PestManagementStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Applications Per Season *
                     </label>
                     <input
@@ -361,7 +361,7 @@ export default function PestManagementStep() {
                       max="20"
                       {...register(`pestManagement.pesticides.${index}.applicationsPerSeason`, { valueAsNumber: true })}
                       placeholder="e.g., 3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                      className="gmg-input"
                     />
                     {errors.pestManagement?.pesticides?.[index]?.applicationsPerSeason && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -372,7 +372,7 @@ export default function PestManagementStep() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-ink mb-2">
                       Cost Per Application (optional)
                     </label>
                     <input
@@ -381,9 +381,9 @@ export default function PestManagementStep() {
                       step="0.01"
                       {...register(`pestManagement.pesticides.${index}.cost`, { valueAsNumber: true })}
                       placeholder="e.g., 15000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-gray-900"
+                      className="gmg-input"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted mt-1">
                       Total cost per hectare for one application (local currency)
                     </p>
                   </div>
@@ -399,21 +399,21 @@ export default function PestManagementStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-green-50 rounded-xl p-6"
+        className="bg-moss/10 rounded-xl p-6"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-            <Leaf className="w-5 h-5 text-green-600" />
+          <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+            <Leaf className="w-5 h-5 text-moss" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">IPM Practices</h3>
-            <p className="text-sm text-gray-600">Integrated Pest Management techniques you use</p>
+            <h3 className="text-lg font-semibold text-ink">IPM Practices</h3>
+            <p className="text-sm text-muted">Integrated Pest Management techniques you use</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Select IPM Practices You Use
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -429,9 +429,9 @@ export default function PestManagementStep() {
                         setSelectedIPMPractices(selectedIPMPractices.filter(p => p !== practice));
                       }
                     }}
-                    className="text-green-600 focus:ring-green-500 rounded"
+                    className="text-moss focus:ring-moss rounded"
                   />
-                  <span className="text-sm text-gray-700">{practice}</span>
+                  <span className="text-sm text-ink">{practice}</span>
                 </label>
               ))}
             </div>
@@ -439,7 +439,7 @@ export default function PestManagementStep() {
 
           {/* Biological Controls */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Biological Controls Used
             </label>
             <div className="space-y-2">
@@ -454,7 +454,7 @@ export default function PestManagementStep() {
                       setBiologicalControls(newControls);
                     }}
                     placeholder="e.g., Beneficial insects, Predatory mites"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    className="flex-1 gmg-input"
                   />
                   <button
                     type="button"
@@ -473,7 +473,7 @@ export default function PestManagementStep() {
               <button
                 type="button"
                 onClick={() => setBiologicalControls([...biologicalControls, ''])}
-                className="flex items-center space-x-2 px-3 py-2 text-green-600 hover:text-green-800 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+                className="flex items-center space-x-2 px-3 py-2 text-moss hover:text-spruce border border-line rounded-lg hover:bg-moss/10 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Biological Control</span>
@@ -509,11 +509,11 @@ export default function PestManagementStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+        className="bg-moss/10 border border-line rounded-lg p-4"
       >
         <div className="flex items-start space-x-3">
-          <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div className="text-sm text-blue-700">
+          <Info className="w-5 h-5 text-moss mt-0.5" />
+          <div className="text-sm text-spruce">
             <strong>Note:</strong> Your pest management practices affect environmental impact through 
             pesticide use, beneficial insect conservation, and overall ecosystem health.
           </div>

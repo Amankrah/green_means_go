@@ -31,7 +31,7 @@ const PRINCIPLES = [
   {
     icon: Users,
     title: 'Design for the operator',
-    body: 'Professional assessment should be usable by the people who hold the knowledge—not only by specialists.',
+    body: 'Professional assessment should be usable by the people who hold the knowledge, not only by specialists.',
   },
 ];
 
@@ -72,7 +72,7 @@ export default function AboutPage() {
           <div className="max-w-xl lg:justify-self-end">
             <p className="text-xl leading-relaxed text-muted">
               Green Means Go helps farms and food facilities turn operational knowledge into a
-              traceable life-cycle assessment—without hiding the method behind the result.
+              traceable life-cycle assessment without hiding the method behind the result.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/signup" className="button-primary">Get started <ArrowRight className="h-4 w-4" /></Link>

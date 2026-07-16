@@ -89,19 +89,19 @@ export default function ManagementPracticesStep() {
             <Layers className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Soil Management</h3>
-            <p className="text-sm text-gray-600">How do you maintain and improve your soil?</p>
+            <h3 className="text-lg font-semibold text-ink">Soil Management</h3>
+            <p className="text-sm text-muted">How do you maintain and improve your soil?</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Predominant Soil Type *
             </label>
             <select
               {...register('managementPractices.soilManagement.soilType')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select soil type</option>
               {Object.values(SoilType).map((type) => (
@@ -117,12 +117,12 @@ export default function ManagementPracticesStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Soil Testing Frequency *
             </label>
             <select
               {...register('managementPractices.soilManagement.soilTestingFrequency')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select frequency</option>
               {Object.values(TestingFrequency).map((freq) => (
@@ -138,12 +138,12 @@ export default function ManagementPracticesStep() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Soil pH
             </label>
             <select
               {...register('managementPractices.soilManagement.soilpH')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Not known</option>
               <option value="3.0">Very acidic (3.0)</option>
@@ -156,16 +156,16 @@ export default function ManagementPracticesStep() {
               <option value="8.0">Moderately alkaline (8.0)</option>
               <option value="9.0">Strongly alkaline (9.0)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">Select &quot;Not known&quot; if you haven&apos;t tested your soil pH</p>
+            <p className="text-xs text-muted mt-1">Select &quot;Not known&quot; if you haven&apos;t tested your soil pH</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Organic Matter Content (%)
             </label>
             <select
               {...register('managementPractices.soilManagement.organicMatterContent')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Not known</option>
               <option value="1">Low (1%)</option>
@@ -175,13 +175,13 @@ export default function ManagementPracticesStep() {
               <option value="5">High (5%)</option>
               <option value="7">Very High (7%+)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">Select &quot;Not known&quot; if you haven&apos;t tested your soil organic matter</p>
+            <p className="text-xs text-muted mt-1">Select &quot;Not known&quot; if you haven&apos;t tested your soil organic matter</p>
           </div>
         </div>
 
         {/* Soil Conservation Practices */}
         <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-medium text-ink mb-3">
             Soil Conservation Practices (select all that apply - optional)
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -191,9 +191,9 @@ export default function ManagementPracticesStep() {
                   type="checkbox"
                   {...register('managementPractices.soilManagement.conservationPractices')}
                   value={practice}
-                  className="text-green-600 focus:ring-green-500 rounded"
+                  className="text-moss focus:ring-moss rounded"
                 />
-                <span className="text-sm text-gray-700">{practice}</span>
+                <span className="text-sm text-ink">{practice}</span>
               </label>
             ))}
           </div>
@@ -205,7 +205,7 @@ export default function ManagementPracticesStep() {
             <input
               type="checkbox"
               {...register('managementPractices.soilManagement.compostUse.usesCompost')}
-              className="text-green-600 focus:ring-green-500 rounded"
+              className="text-moss focus:ring-moss rounded"
               onChange={(e) => {
                 setValue('managementPractices.soilManagement.compostUse.usesCompost', e.target.checked);
                 // If disabling compost, reset to NONE and clear other fields
@@ -216,7 +216,7 @@ export default function ManagementPracticesStep() {
                 }
               }}
             />
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-ink">
               I use compost or organic matter
             </label>
           </div>
@@ -228,12 +228,12 @@ export default function ManagementPracticesStep() {
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Compost Source
                 </label>
                 <select
                   {...register('managementPractices.soilManagement.compostUse.compostsource')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                  className="gmg-input"
                 >
                   {Object.values(CompostSource).map((source) => (
                     <option key={source} value={source}>{source}</option>
@@ -248,7 +248,7 @@ export default function ManagementPracticesStep() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Application Rate (tons/hectare/year)
                 </label>
                 <input
@@ -256,7 +256,7 @@ export default function ManagementPracticesStep() {
                   step="0.1"
                   {...register('managementPractices.soilManagement.compostUse.applicationRate')}
                   placeholder="e.g., 2.0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                  className="gmg-input"
                 />
               </div>
             </motion.div>
@@ -269,15 +269,15 @@ export default function ManagementPracticesStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-green-50 rounded-xl p-6"
+        className="bg-moss/10 rounded-xl p-6"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-            <Leaf className="w-5 h-5 text-green-600" />
+          <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+            <Leaf className="w-5 h-5 text-moss" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Fertilizer Management</h3>
-            <p className="text-sm text-gray-600">What fertilizers do you use and how?</p>
+            <h3 className="text-lg font-semibold text-ink">Fertilizer Management</h3>
+            <p className="text-sm text-muted">What fertilizers do you use and how?</p>
           </div>
         </div>
 
@@ -287,7 +287,7 @@ export default function ManagementPracticesStep() {
             <input
               type="checkbox"
               {...register('managementPractices.fertilization.usesFertilizers')}
-              className="text-green-600 focus:ring-green-500 rounded"
+              className="text-moss focus:ring-moss rounded"
               onChange={(e) => {
                 setValue('managementPractices.fertilization.usesFertilizers', e.target.checked);
                 if (!e.target.checked) {
@@ -296,7 +296,7 @@ export default function ManagementPracticesStep() {
                 }
               }}
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-ink">
               I use chemical/synthetic fertilizers
             </span>
           </label>
@@ -311,7 +311,7 @@ export default function ManagementPracticesStep() {
             {/* Fertilizer Applications */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-md font-medium text-gray-900">Fertilizers Used</h4>
+                <h4 className="text-md font-medium text-ink">Fertilizers Used</h4>
                 <button
                   type="button"
                   onClick={() => append({
@@ -322,7 +322,7 @@ export default function ManagementPracticesStep() {
                     applicationsPerSeason: 1,
                     cost: 0
                   })}
-                  className="flex items-center space-x-2 text-green-600 hover:text-green-700"
+                  className="flex items-center space-x-2 text-moss hover:text-spruce"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Fertilizer</span>
@@ -333,7 +333,7 @@ export default function ManagementPracticesStep() {
                 {fields.map((field, index) => (
                   <div key={field.id} className="bg-white rounded-lg p-4 border">
                     <div className="flex items-center justify-between mb-4">
-                      <h5 className="font-medium text-gray-900">Fertilizer {index + 1}</h5>
+                      <h5 className="font-medium text-ink">Fertilizer {index + 1}</h5>
                       {fields.length > 1 && (
                         <button
                           type="button"
@@ -349,12 +349,12 @@ export default function ManagementPracticesStep() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink mb-1">
                           Type *
                         </label>
                         <select
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.fertilizerType`)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                          className="gmg-input"
                         >
                           {Object.values(FertilizerType).map((type) => (
                             <option key={type} value={type}>{type}</option>
@@ -363,29 +363,29 @@ export default function ManagementPracticesStep() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink mb-1">
                           Brand Name
                         </label>
                         <input
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.brandName`)}
                           placeholder="e.g., Golden Harvest"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                          className="gmg-input"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink mb-1">
                           NPK Ratio
                         </label>
                         <input
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.npkRatio`)}
                           placeholder="e.g., 15-15-15"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                          className="gmg-input"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink mb-1">
                           Rate (kg/hectare/season) *
                         </label>
                         <input
@@ -393,7 +393,7 @@ export default function ManagementPracticesStep() {
                           step="0.1"
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.applicationRate`, { valueAsNumber: true })}
                           placeholder="e.g., 200"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                          className="gmg-input"
                         />
                         {errors.managementPractices?.fertilization?.fertilizerApplications?.[index]?.applicationRate && (
                           <p className="mt-1 text-xs text-red-600 flex items-center">
@@ -404,7 +404,7 @@ export default function ManagementPracticesStep() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink mb-1">
                           Applications per Season *
                         </label>
                         <input
@@ -413,7 +413,7 @@ export default function ManagementPracticesStep() {
                           max="10"
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.applicationsPerSeason`, { valueAsNumber: true })}
                           placeholder="e.g., 2"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                          className="gmg-input"
                         />
                         {errors.managementPractices?.fertilization?.fertilizerApplications?.[index]?.applicationsPerSeason && (
                           <p className="mt-1 text-xs text-red-600 flex items-center">
@@ -424,7 +424,7 @@ export default function ManagementPracticesStep() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-ink mb-1">
                           Cost per kg (local currency)
                         </label>
                         <input
@@ -432,9 +432,9 @@ export default function ManagementPracticesStep() {
                           step="0.01"
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.cost`)}
                           placeholder="e.g., 1500 (per kg)"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                          className="gmg-input"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Price per kilogram of fertilizer</p>
+                        <p className="text-xs text-muted mt-1">Price per kilogram of fertilizer</p>
                       </div>
                     </div>
                   </div>
@@ -445,12 +445,12 @@ export default function ManagementPracticesStep() {
             {/* Application Method & Timing */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Application Method
                 </label>
                 <select
                   {...register('managementPractices.fertilization.applicationMethod')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                  className="gmg-input"
                 >
                   <option value="">Select method</option>
                   {Object.values(ApplicationMethod).map((method) => (
@@ -460,12 +460,12 @@ export default function ManagementPracticesStep() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink mb-2">
                   Timing Strategy
                 </label>
                 <select
                   {...register('managementPractices.fertilization.timingStrategy')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900"
+                  className="gmg-input"
                 >
                   <option value="">Select timing</option>
                   {Object.values(TimingStrategy).map((timing) => (
@@ -481,9 +481,9 @@ export default function ManagementPracticesStep() {
                 <input
                   type="checkbox"
                   {...register('managementPractices.fertilization.soilTestBased')}
-                  className="text-green-600 focus:ring-green-500 rounded"
+                  className="text-moss focus:ring-moss rounded"
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-ink">
                   Fertilizer application based on soil test results
                 </span>
               </label>
@@ -492,9 +492,9 @@ export default function ManagementPracticesStep() {
                 <input
                   type="checkbox"
                   {...register('managementPractices.fertilization.followsNutrientPlan')}
-                  className="text-green-600 focus:ring-green-500 rounded"
+                  className="text-moss focus:ring-moss rounded"
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-ink">
                   I follow a nutrient management plan
                 </span>
               </label>
@@ -508,22 +508,22 @@ export default function ManagementPracticesStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-blue-50 rounded-xl p-6"
+        className="bg-moss/10 rounded-xl p-6"
       >
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Droplets className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 bg-moss/10 rounded-lg flex items-center justify-center">
+            <Droplets className="w-5 h-5 text-moss" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Water Management</h3>
-            <p className="text-sm text-gray-600">How do you source and manage water for your crops?</p>
+            <h3 className="text-lg font-semibold text-ink">Water Management</h3>
+            <p className="text-sm text-muted">How do you source and manage water for your crops?</p>
           </div>
         </div>
 
         <div className="space-y-6">
           {/* Water Sources */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-ink mb-3">
               Water Sources (select all that apply) *
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -533,9 +533,9 @@ export default function ManagementPracticesStep() {
                     type="checkbox"
                     {...register('managementPractices.waterManagement.waterSource')}
                     value={source}
-                    className="text-blue-600 focus:ring-blue-500 rounded"
+                    className="text-moss focus:ring-moss rounded"
                   />
-                  <span className="text-sm text-gray-700">{source}</span>
+                  <span className="text-sm text-ink">{source}</span>
                 </label>
               ))}
             </div>
@@ -549,12 +549,12 @@ export default function ManagementPracticesStep() {
 
           {/* Irrigation System */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink mb-2">
               Irrigation System (if used)
             </label>
             <select
               {...register('managementPractices.waterManagement.irrigationSystem')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+              className="gmg-input"
             >
               <option value="">Select irrigation system</option>
               {Object.values(IrrigationSystem).map((system) => (
@@ -569,9 +569,9 @@ export default function ManagementPracticesStep() {
               <input
                 type="checkbox"
                 {...register('managementPractices.waterManagement.drainageSystem')}
-                className="text-blue-600 focus:ring-blue-500 rounded"
+                className="text-moss focus:ring-moss rounded"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-ink">
                 I have a drainage system
               </span>
             </label>
@@ -584,9 +584,9 @@ export default function ManagementPracticesStep() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-100 border border-gray-300 rounded-lg p-4"
+          className="bg-paper border border-line rounded-lg p-4"
         >
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-ink">
             <strong>Debug Info:</strong>
             <div className="mt-2 space-y-1">
               <p>Soil Type: {watch('managementPractices.soilManagement.soilType') || 'Not set'}</p>
@@ -691,11 +691,11 @@ export default function ManagementPracticesStep() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-green-50 border border-green-200 rounded-lg p-4"
+        className="bg-moss/10 border border-moss/30 rounded-lg p-4"
       >
         <div className="flex items-start space-x-3">
-          <Info className="w-5 h-5 text-green-600 mt-0.5" />
-          <div className="text-sm text-green-700">
+          <Info className="w-5 h-5 text-moss mt-0.5" />
+          <div className="text-sm text-spruce">
             <strong>Why this matters:</strong> Your soil and fertilizer management practices directly 
             impact greenhouse gas emissions, water quality, and soil health. This information helps 
             us calculate accurate environmental impacts and suggest improvements.
