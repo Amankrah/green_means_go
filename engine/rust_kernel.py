@@ -37,6 +37,13 @@ SUBSTANCE_MAP = {
 # Sources that mean UPSTREAM production (come from the supply-chain solver) -> drop.
 _UPSTREAM_MARKERS = ("production", "mining", "transport of")
 
+# On-farm fuel/electricity COMBUSTION CO2 the Rust kernel emits (source "... consumption:
+# NNN L/year" / "... consumption: NNN kWh/year"). This is ALSO produced by the supply-chain
+# solver: ecoinvent "diesel, burned in agricultural machinery" is the combustion process
+# and the electricity market carries generation emissions. Keeping the Rust value too would
+# double-count fuel/grid CO2, so we drop it and let the supply-chain solver own it.
+_ENERGY_COMBUSTION_MARKERS = ("consumption:",)
+
 
 def _binary() -> Path | None:
     return next((b for b in BINARIES if b.exists()), None)
@@ -67,7 +74,7 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
     """From a Rust result, return (on_farm_lci, notes). Keeps direct field emissions,
     drops upstream production and pre-aggregated CO2-eq."""
     inv = (result.get("results") or {}).get("lci_inventory") or result.get("lci_inventory") or []
-    onfarm, notes, dropped = [], [], 0
+    onfarm, notes, dropped, dropped_energy = [], [], 0, 0
     for item in inv:
         sub = item.get("substance", "")
         src = (item.get("source") or "").lower()
@@ -75,6 +82,11 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
             continue                                    # pre-aggregated, already CO2-eq
         if any(mk in src for mk in _UPSTREAM_MARKERS):
             dropped += 1                                # upstream -> supply-chain solver
+            continue
+        # Drop on-farm fuel/electricity combustion CO2 — the supply-chain solver's ecoinvent
+        # diesel-burning and electricity processes already include these emissions.
+        if sub == "Carbon dioxide (CO2)" and any(mk in src for mk in _ENERGY_COMBUSTION_MARKERS):
+            dropped_energy += 1
             continue
         key = SUBSTANCE_MAP.get(sub)
         if not key:
@@ -84,6 +96,9 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
                        "unit": item.get("unit")})
     if dropped:
         notes.append(f"dropped {dropped} upstream-production flow(s) (covered by supply-chain solver)")
+    if dropped_energy:
+        notes.append(f"dropped {dropped_energy} on-farm fuel/electricity CO2 flow(s) "
+                     "(combustion covered by supply-chain solver, avoids double-count)")
     return onfarm, notes
 
 

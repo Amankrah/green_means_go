@@ -33,12 +33,20 @@ LEGUME_N2O_CREDIT = 0.20
 
 
 def _has_legume_partner(assessment: dict) -> bool:
+    """True if a crop has a legume *partner* (intercrop) or a legume in its *rotation* that
+    supplies biological nitrogen and lowers this crop's synthetic-N need. Deliberately does
+    NOT count the crop's own legume identity: a legume grown for itself still receives the
+    synthetic N the farmer applied, so it must not self-credit (would over-apply)."""
     for f in assessment.get("foods") or []:
+        own = str(f.get("name", "")).lower()
         pattern = (f.get("cropping_pattern") or "").lower()
         partners = [str(p).lower() for p in (f.get("intercropping_partners") or [])]
         rotation = [str(p).lower() for p in (f.get("rotation_sequence") or [])]
         if "intercrop" in pattern or partners:
-            for name in partners + rotation + [f.get("name", "").lower()]:
+            # legume neighbours/rotation only — exclude this crop's own name
+            for name in partners + rotation:
+                if name == own:
+                    continue
                 if any(leg in name for leg in LEGUMES):
                     return True
     return False

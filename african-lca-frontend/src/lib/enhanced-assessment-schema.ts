@@ -102,7 +102,7 @@ export const farmProfileSchema = z.object({
     .min(2, "Farm name must be at least 2 characters")
     .max(100, "Farm name must be less than 100 characters"),
   
-  country: z.enum(['Ghana', 'Nigeria'], {
+  country: z.enum(['Ghana', 'Nigeria', 'Canada'], {
     message: "Please select your country"
   }),
   
@@ -159,7 +159,7 @@ export const cropProductionSchema = z.array(z.object({
     
     annualProduction: z.number()
       .min(0.1, "Production must be at least 0.1 kg")
-      .max(1000000, "Please verify annual production"),
+      .max(100000000, "Please verify annual production"),  // up to ~100k tonnes for large commercial farms
     
     productionSystem: z.nativeEnum(ProductionSystem, {
       message: "Please select production system"
@@ -415,6 +415,11 @@ export const REGIONS_BY_COUNTRY = {
     "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi",
     "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
     "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", "FCT"
+  ],
+  Canada: [
+    "Alberta", "British Columbia", "Manitoba", "New Brunswick",
+    "Newfoundland and Labrador", "Nova Scotia", "Ontario",
+    "Prince Edward Island", "Quebec", "Saskatchewan"
   ]
 };
 
@@ -428,8 +433,11 @@ export const COMMON_CROPS_BY_REGION = {
 
 export const CROP_VARIETIES = {
   "Maize": [
-    "SAMMAZ 15", "SAMMAZ 16", "SAMMAZ 17", "SAMMAZ 52", "FARO 61", "FARO 62", 
-    "Oba Super 1", "Oba Super 2", "Suwan 1", "DMR-ESR-Y", "Local variety"
+    "SAMMAZ 15", "SAMMAZ 16", "SAMMAZ 17", "SAMMAZ 52", "FARO 61", "FARO 62",
+    "Oba Super 1", "Oba Super 2", "Obatanpa", "Suwan 1", "DMR-ESR-Y", "Local variety"
+  ],
+  "Wheat": [
+    "AAC Brandon", "CDC Go", "CDC Landmark", "Katepwa", "Norwell", "Local variety"
   ],
   "Rice": [
     "FARO 44", "FARO 52", "FARO 57", "FARO 60", "FARO 66", "NERICA 1", "NERICA 2", 
@@ -445,7 +453,7 @@ export const CROP_VARIETIES = {
   ],
   "Cowpea": [
     "IT90K-277-2", "IT07K-243-1-2", "Sampea 6", "Sampea 7", "Sampea 8", 
-    "Sampea 9", "Sampea 10", "Sampea 11", "Sampea 12", "Local variety"
+    "Sampea 9", "Sampea 10", "Sampea 11", "Sampea 12", "Songotra", "Local variety"
   ],
   "Groundnuts": [
     "Samnut 10", "Samnut 11", "Samnut 21", "Samnut 22", "Samnut 23", "Samnut 24", 

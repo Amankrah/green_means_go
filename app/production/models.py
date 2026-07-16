@@ -266,5 +266,9 @@ class AssessmentResponse(BaseModel):
     benchmarking: Optional[BenchmarkingResults] = None
     recommendations: Optional[List[Recommendation]] = None
 
+    # Purchased-input match report (name -> matched background process, location, score);
+    # kept for transparency so users can audit which datasets were used.
+    input_matches: Optional[List[Dict[str, Any]]] = None
+
     # Deterministic, data-backed ISO 14040/14044 report structure (four phases + review)
     iso_report: Optional[Dict[str, Any]] = None

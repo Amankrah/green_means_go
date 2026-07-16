@@ -2,6 +2,7 @@
 
 import { AssessmentRequest, AssessmentResult } from '@/types/assessment';
 import { EnhancedAssessmentRequest, FertilizerApplication, PesticideApplication } from '@/types/enhanced-assessment';
+import { COUNTRY_TO_REGION } from '@/lib/country-examples';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -80,10 +81,18 @@ class AssessmentAPI {
   }
 
   private transformEnhancedAssessmentToBackend(data: EnhancedAssessmentRequest): AssessmentRequest {
+    // Map the UI country to the country the API accepts + the engine region. Canada is
+    // sent as country "Global" + region "CA" (the engine has a CA region but no Canada
+    // country). Sending region explicitly is also what makes Ghana->GH and Nigeria->NG
+    // resolve reliably instead of being re-derived from the country string.
+    const mapped = COUNTRY_TO_REGION[data.farmProfile.country as string]
+      ?? { country: data.farmProfile.country, region: undefined };
+
     // Transform the comprehensive frontend data to backend format
     const backendData: AssessmentRequest = {
       company_name: `${data.farmProfile.farmerName} - ${data.farmProfile.farmName}`,
-      country: data.farmProfile.country,
+      country: mapped.country as AssessmentRequest['country'],
+      region: mapped.region,
       farm_profile: {
         farmer_name: data.farmProfile.farmerName,
         farm_name: data.farmProfile.farmName,
@@ -96,7 +105,9 @@ class AssessmentAPI {
       },
       management_practices: {
         soil_management: {
-          soil_type: data.managementPractices.soilManagement.soilType,
+          // Backend SoilType enum is space-less PascalCase (ClayLoam), the UI uses spaces
+          // ("Clay Loam"); strip the space so multi-word soil types validate.
+          soil_type: data.managementPractices.soilManagement.soilType?.replace(/ /g, ''),
           uses_compost: data.managementPractices.soilManagement.compostUse.usesCompost,
           compost_source: data.managementPractices.soilManagement.compostUse.compostsource,
           conservation_practices: data.managementPractices.soilManagement.conservationPractices,

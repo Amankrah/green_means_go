@@ -1,7 +1,9 @@
 // Core Types for the African LCA Assessment System
 
 // Basic enums and country types
-export type Country = 'Ghana' | 'Nigeria' | 'Global';
+// UI-level countries. 'Global' is the backend country used for Canada (which is sent with
+// region 'CA'); the api transform maps 'Canada' -> 'Global' before the request leaves.
+export type Country = 'Ghana' | 'Nigeria' | 'Global' | 'Canada';
 
 export type FoodCategory = 
   | 'Cereals' 

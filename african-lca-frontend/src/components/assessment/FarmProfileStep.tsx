@@ -18,20 +18,35 @@ import {
   FarmingSystem, 
   CertificationType 
 } from '@/types/enhanced-assessment';
-import { 
+import {
   EnhancedAssessmentFormData,
   REGIONS_BY_COUNTRY
 } from '@/lib/enhanced-assessment-schema';
+import { COUNTRY_EXAMPLES } from '@/lib/country-examples';
 
 export default function FarmProfileStep() {
-  const { 
-    register, 
-    formState: { errors }, 
-    watch, 
-    setValue 
+  const {
+    register,
+    formState: { errors },
+    watch,
+    setValue,
+    reset,
+    getValues
   } = useFormContext<EnhancedAssessmentFormData>();
 
   const selectedCountry = watch('farmProfile.country');
+  const countryField = register('farmProfile.country');
+
+  // When the user picks a country, load that country's example farm (from the validated
+  // case studies) so the defaults reflect a real farm for the region. We merge the example
+  // over the current values so no required field is ever dropped.
+  const onCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    countryField.onChange(e);                       // keep react-hook-form in sync
+    const example = COUNTRY_EXAMPLES[e.target.value];
+    if (example) {
+      reset({ ...getValues(), ...example } as EnhancedAssessmentFormData);
+    }
+  };
   const totalFarmSize = watch('farmProfile.totalFarmSize');
 
   // Auto-select farm type based on size
@@ -169,12 +184,14 @@ export default function FarmProfileStep() {
               Country *
             </label>
             <select
-              {...register('farmProfile.country')}
+              {...countryField}
+              onChange={onCountryChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900"
             >
               <option value="">Select your country</option>
               <option value="Ghana">🇬🇭 Ghana</option>
               <option value="Nigeria">🇳🇬 Nigeria</option>
+              <option value="Canada">🇨🇦 Canada</option>
             </select>
             {errors.farmProfile?.country && (
               <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -182,6 +199,9 @@ export default function FarmProfileStep() {
                 {errors.farmProfile.country.message}
               </p>
             )}
+            <p className="mt-1 text-xs text-gray-500">
+              Choosing a country loads a matching example farm you can then edit.
+            </p>
           </div>
 
           <div>
