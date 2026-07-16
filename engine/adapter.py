@@ -253,6 +253,14 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
     iso = build_iso_report(assessment, result, engine, midpoints, single_meta, total_kg,
                            per_crop, assessment_id=assessment_id)
 
+    # Raw LCI + per-source contribution, per functional unit, for programmatic auditing
+    # (the ISO report embeds display-ready summaries of the same data).
+    cbs = getattr(result, "contribution_by_source", None) or {}
+    contribution_by_source = {
+        src: {cat: {"value": (v.get("value") or 0.0) / total_kg, "unit": v.get("unit")}
+              for cat, v in imp.items()}
+        for src, imp in cbs.items()}
+
     return {
         "id": assessment_id,
         "company_name": assessment.get("company_name", ""),
@@ -271,8 +279,14 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
             "methodology": single_meta["methodology"],
         },
         "data_quality": {
-            "overall_confidence": "Medium",
-            "completeness_score": 0.8,
+            # derived from the pedigree scorecard, not asserted. Map the scorecard rating
+            # (Good/Medium/Limited) to the response's High/Medium/Low confidence vocabulary.
+            "overall_confidence": {"Good": "High", "Medium": "Medium", "Limited": "Low"}.get(
+                iso["interpretation"]["data_quality_scorecard"]["overall"], "Medium"),
+            "completeness_score": (
+                len([m for m in (result.input_matches or []) if m.get("matched")])
+                / len(result.input_matches)) if result.input_matches else 1.0,
+            "scorecard": iso["interpretation"]["data_quality_scorecard"]["indicators"],
             "regional_adaptation": True,
             "warnings": [],
             "recommendations": [],
@@ -281,5 +295,7 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
         "breakdown_by_food": breakdown,
         "sensitivity_analysis": {"contribution": result.contribution},
         "input_matches": result.input_matches,
+        "inventory": iso["inventory_analysis"]["inventory_results"],
+        "contribution_by_source": contribution_by_source,
         "iso_report": iso,
     }

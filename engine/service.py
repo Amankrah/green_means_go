@@ -97,11 +97,21 @@ def _sum_results(per_crop: dict):
             for cat, v in imp.items():
                 s = dst.setdefault(cat, {"value": 0.0, "unit": v.get("unit")})
                 s["value"] += v["value"]
+        for src, imp in res.contribution_by_source.items():
+            dst = farm.contribution_by_source.setdefault(src, {})
+            for cat, v in imp.items():
+                s = dst.setdefault(cat, {"value": 0.0, "unit": v.get("unit")})
+                s["value"] += v["value"]
         for uid, r in res.inventory.items():
             slot = farm.inventory.setdefault(uid, {"name": r["name"], "unit": r["unit"], "amount": 0.0})
             slot["amount"] += r["amount"]
         farm.input_matches += res.input_matches
         farm.notes += res.notes
+    # collapse identical notes repeated once per crop (e.g. "field N2O scaled …",
+    # "dropped N upstream …"); genuinely per-crop notes (different compost N amounts)
+    # differ as strings and are preserved.
+    seen: set[str] = set()
+    farm.notes = [n for n in farm.notes if not (n in seen or seen.add(n))]
     return farm
 
 

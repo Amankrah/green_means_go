@@ -49,6 +49,7 @@ class AssessmentResult:
     method: str
     impacts: dict = field(default_factory=dict)            # total midpoints
     contribution: dict = field(default_factory=dict)       # {"on_farm":{}, "supply_chain":{}}
+    contribution_by_source: dict = field(default_factory=dict)  # {source label: {category: {value,unit}}}
     input_matches: list = field(default_factory=list)
     notes: list = field(default_factory=list)
     inventory: dict = field(default_factory=dict)          # merged {flow_uid: {name,unit,amount}}
@@ -142,6 +143,10 @@ class FarmLCA:
                 sc = self.q.cradle_to_gate(m["uid"], amount=float(inp["amount"]))
                 for uid, ef in sc.elementary_flows.items():
                     _add(supply, uid, ef["amount"], ef.get("name"), ef.get("unit"))
+                # per-source contribution: characterize THIS input's flows on their own so
+                # the report can attribute each impact category to the input that drove it.
+                res.contribution_by_source[inp["name"]] = self.q.characterize_flows(
+                    sc.elementary_flows, self.method)
             except Exception as e:
                 res.notes.append(f"solve failed for '{inp['name']}' -> {m['name']}: {e}")
             # The amount MUST be in the matched process's reference unit. Surface it so a
@@ -159,6 +164,8 @@ class FarmLCA:
         # 3) characterize: parts (for the split) + merged total, all via the validated path
         res.contribution["on_farm"] = self.q.characterize_flows(onfarm, self.method)
         res.contribution["supply_chain"] = self.q.characterize_flows(supply, self.method)
+        # field emissions as a named contribution source alongside the purchased inputs
+        res.contribution_by_source["Field emissions (on-farm)"] = res.contribution["on_farm"]
         merged = {uid: dict(r) for uid, r in onfarm.items()}
         for uid, r in supply.items():
             _add(merged, uid, r["amount"], r["name"], r["unit"])

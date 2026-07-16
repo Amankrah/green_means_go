@@ -499,10 +499,14 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
               className="mb-12"
             >
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-200">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  🔬 Assessment Methodology
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  🔬 What drives the single score
                 </h3>
-                <p className="text-sm text-gray-900 mb-6 max-w-3xl">
+                <p className="text-sm text-gray-800 mb-4 max-w-3xl">
+                  Each card below is one impact category&apos;s <strong>share of the single score</strong> shown above.
+                  The categories at the top are what the number is being driven by — that is where a change would move it most.
+                </p>
+                <p className="text-xs text-gray-600 mb-6 max-w-3xl">
                   {results.single_score.methodology}
                 </p>
 
@@ -537,8 +541,11 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
 
                 <div className="mt-6 p-4 bg-white bg-opacity-60 rounded-lg border border-blue-200">
                   <p className="text-xs text-gray-900">
-                    <strong>Note:</strong> This assessment follows ISO 14044 standards with African-context normalization
-                    and priorities-based weighting to ensure relevance for African agricultural systems.
+                    <strong>Note:</strong> This assessment follows ISO 14040/14044. The single score normalises each category
+                    against a global reference set (as stated above) and combines them with <strong>equal weighting</strong> —
+                    a transparent value choice applied the same way in every region, not a regional preference. Region-specific
+                    adaptation is applied to the <em>inventory</em> (climate-appropriate emission factors and local grid/background
+                    data), not to the normalisation or weighting.
                   </p>
                 </div>
               </div>

@@ -294,8 +294,8 @@ export const getScoreInterpretation = (score: number) => {
   if (score < 0.3) {
     return {
       category: 'excellent',
-      title: 'Excellent Performance',
-      description: 'Your farm is in the top 10% for sustainability!',
+      title: 'Low Impact',
+      description: 'Low environmental footprint per kg of product.',
       color: 'text-green-700 bg-green-50 border-green-200',
       recommendations: [
         'Share your practices with other farmers',
@@ -306,8 +306,8 @@ export const getScoreInterpretation = (score: number) => {
   } else if (score < 0.45) {
     return {
       category: 'good',
-      title: 'Good Performance',
-      description: 'Your farm performs better than average in West Africa',
+      title: 'Lower than typical',
+      description: 'Lower environmental footprint per kg than a typical product.',
       color: 'text-blue-700 bg-blue-50 border-blue-200',
       recommendations: [
         'Small improvements can make you a sustainability leader',

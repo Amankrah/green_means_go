@@ -43,16 +43,23 @@ interface IsoReport {
     data_sources: string[]; foreground_data: string; background_data: string; on_farm_lci: string;
     calculation_procedure: string; reference_flows: RefFlow[]; inputs_matched: string;
     pedigree_uncertainty: string; data_validation: string; notes: string[]; unlinked_flows?: string[];
+    inventory_results?: { basis: string; n_flows_total: number; n_shown: number;
+                          flows: { flow: string; amount: number; unit: string }[] };
   };
   impact_assessment: {
     method: string; rationale: string; mandatory_elements: Record<string, string>;
     optional_elements: Record<string, string>; results_are_relative_expressions: string;
     n_categories_reported: number;
+    results_table?: { category: string; result: number; unit: string }[];
   };
   interpretation: {
     significant_issues: string[]; data_quality_assessment: string; completeness_check: string;
     consistency_check: string; sensitivity_and_uncertainty: string; conclusions: string[];
     recommendations: string[]; limitations: string[]; public_disclosure: string;
+    contribution_analysis?: { indicator: string;
+      by_source: { source: string; per_kg: number; share: number }[] };
+    data_quality_scorecard?: { overall: string;
+      indicators: { indicator: string; rating: string; basis: string }[] };
   };
   critical_review: {
     required: boolean; status: string; trigger: string; reviewer_requirements: string[];
@@ -75,6 +82,34 @@ function Bullets({ items }: { items: string[] }) {
     <ul className="text-sm text-gray-800 space-y-1 list-disc pl-5 leading-relaxed">
       {items.map((it, i) => <li key={i}>{it}</li>)}
     </ul>
+  );
+}
+
+function fmt(n: number): string {
+  if (n === 0) return '0';
+  const a = Math.abs(n);
+  if (a < 1e-3 || a >= 1e5) return n.toExponential(2);
+  return n.toPrecision(4).replace(/\.?0+$/, '');
+}
+
+function DataTable({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
+        <thead className="bg-gray-50">
+          <tr>{headers.map(h => (
+            <th key={h} className="text-left font-semibold text-gray-600 px-3 py-2 border-b border-gray-200">{h}</th>
+          ))}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="odd:bg-white even:bg-gray-50/50">
+              {r.map((c, j) => <td key={j} className="px-3 py-2 border-b border-gray-100 align-top">{c}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -232,6 +267,14 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
               </table>
             </div>
           </Field>
+          {lci.inventory_results && lci.inventory_results.flows.length > 0 && (
+            <Field label={`Inventory results — dominant elementary flows (${lci.inventory_results.n_shown} of ${lci.inventory_results.n_flows_total}, ${lci.inventory_results.basis})`}>
+              <DataTable
+                headers={['Elementary flow', 'Amount', 'Unit']}
+                rows={lci.inventory_results.flows.map(f => [f.flow, fmt(f.amount), f.unit])}
+              />
+            </Field>
+          )}
           <Field label="Inputs matched">{lci.inputs_matched}</Field>
           <Field label="Data pedigree & uncertainty">{lci.pedigree_uncertainty}</Field>
           <Field label="Data validation">{lci.data_validation}</Field>
@@ -250,6 +293,14 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
           <Field label="Optional steps">
             <Bullets items={Object.values(lcia.optional_elements)} />
           </Field>
+          {lcia.results_table && lcia.results_table.length > 0 && (
+            <Field label="Category indicator results (per kilogram of crop)">
+              <DataTable
+                headers={['Impact category', 'Result', 'Unit']}
+                rows={lcia.results_table.map(r => [r.category, fmt(r.result), r.unit])}
+              />
+            </Field>
+          )}
           <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3">
             <div className="text-[13px] font-bold text-red-800 mb-1">Important note on how to read these results</div>
             <div className="text-sm text-gray-700 leading-relaxed">{lcia.results_are_relative_expressions}</div>
@@ -259,7 +310,36 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
         {/* 5. Interpretation */}
         <Phase num="5" title="Interpretation" clause="What the results mean" defaultOpen>
           <Field label="What stands out"><Bullets items={interpretation.significant_issues} /></Field>
-          <Field label="How good is the data">{interpretation.data_quality_assessment}</Field>
+          {interpretation.contribution_analysis && interpretation.contribution_analysis.by_source.length > 0 && (
+            <Field label={`Contribution analysis — ${interpretation.contribution_analysis.indicator} by source`}>
+              <div className="space-y-2">
+                {interpretation.contribution_analysis.by_source.map((s, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between text-xs mb-0.5">
+                      <span className="text-gray-700">{s.source}</span>
+                      <span className="text-gray-500">{fmt(s.per_kg)} ({(s.share * 100).toFixed(0)}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${Math.min(s.share * 100, 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Field>
+          )}
+          <Field label="How good is the data">
+            <p className="mb-2">{interpretation.data_quality_assessment}</p>
+            {interpretation.data_quality_scorecard && (
+              <DataTable
+                headers={['Data-quality indicator', 'Rating', 'Basis']}
+                rows={interpretation.data_quality_scorecard.indicators.map(x => [
+                  x.indicator,
+                  <span key="r" className={`font-semibold ${x.rating === 'Good' ? 'text-green-700' : x.rating === 'Fair' ? 'text-amber-700' : 'text-red-700'}`}>{x.rating}</span>,
+                  x.basis,
+                ])}
+              />
+            )}
+          </Field>
           <Field label="Is anything missing">{interpretation.completeness_check}</Field>
           <Field label="Is it internally consistent">{interpretation.consistency_check}</Field>
           <Field label="How sensitive are the results">{interpretation.sensitivity_and_uncertainty}</Field>

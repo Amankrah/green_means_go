@@ -271,5 +271,10 @@ class AssessmentResponse(BaseModel):
     # kept for transparency so users can audit which datasets were used.
     input_matches: Optional[List[Dict[str, Any]]] = None
 
+    # Auditable LCI: dominant merged elementary flows (per kg), and the per-source
+    # contribution breakdown (which input/stage drove each impact category, per kg).
+    inventory: Optional[Dict[str, Any]] = None
+    contribution_by_source: Optional[Dict[str, Any]] = None
+
     # Deterministic, data-backed ISO 14040/14044 report structure (four phases + review)
     iso_report: Optional[Dict[str, Any]] = None

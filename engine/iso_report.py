@@ -34,6 +34,60 @@ def _pct(part, whole):
     return (100.0 * part / whole) if whole else None
 
 
+def _data_quality_scorecard(matches: list, unlinked_notes: list, region_name: str) -> tuple[str, list]:
+    """Derive a pedigree-style data-quality assessment (Weidema indicators) from the ACTUAL
+    matches and coverage, instead of asserting a rating. Returns (overall, indicators)."""
+    matched = [m for m in matches if m.get("matched")]
+    n, nm = len(matches), len(matched)
+    rn = (region_name or "").lower()
+    loc = lambda m: (m.get("location") or "").lower()
+
+    # Completeness — how much of the declared inventory is actually represented.
+    if n == 0:
+        completeness = ("Good", "No purchased inputs to match; on-farm emissions modelled directly.")
+    elif nm == n and not unlinked_notes:
+        completeness = ("Good", f"All {n} purchased inputs matched to a background dataset; no unlinked flows.")
+    elif nm >= 0.7 * n:
+        completeness = ("Fair", f"{nm} of {n} inputs matched"
+                        + (f"; {len(unlinked_notes)} flow(s) unlinked." if unlinked_notes else "."))
+    else:
+        completeness = ("Limited", f"only {nm} of {n} inputs matched to a dataset.")
+
+    # Geographical representativeness — region-specific data vs global/RoW proxies.
+    region_hits = sum(1 for m in matched if rn and rn in loc(m))
+    frac_geo = (region_hits / nm) if nm else 0.0
+    if frac_geo >= 0.5:
+        geographical = ("Good", f"{region_hits} of {nm} datasets are specific to {region_name}.")
+    elif region_hits > 0:
+        geographical = ("Fair", f"{region_hits} of {nm} datasets are {region_name}-specific (e.g. the grid); "
+                        f"the rest use global/Rest-of-World proxies where no {region_name} dataset exists.")
+    else:
+        geographical = ("Limited", "no region-specific background datasets were available; all use global/Rest-of-World proxies.")
+
+    # Technological representativeness — specific vs generic/unspecified datasets.
+    proxy = sum(1 for m in matched if any(k in (m.get("matched") or "").lower()
+                for k in ("unspecified", "market for compost")))
+    if proxy == 0:
+        technological = ("Good", "Representative, specific datasets used for every input.")
+    elif proxy <= 0.3 * max(nm, 1):
+        technological = ("Fair", f"{proxy} input(s) modelled with a generic/unspecified dataset (e.g. pesticide or compost).")
+    else:
+        technological = ("Limited", f"{proxy} of {nm} inputs modelled with generic/unspecified datasets.")
+
+    temporal = ("Good", "Background from ecoinvent 3.11 and field factors from the IPCC 2019 Refinement — both recent.")
+    reliability = ("Fair", "Field emissions are modelled with IPCC Tier 1 factors, not measured on site; "
+                   "purchased inputs are matched by assisted retrieval and not independently verified.")
+
+    indicators = [("Reliability", *reliability), ("Completeness", *completeness),
+                  ("Temporal representativeness", *temporal),
+                  ("Geographical representativeness", *geographical),
+                  ("Technological representativeness", *technological)]
+    rate = {"Good": 3, "Fair": 2, "Limited": 1}
+    avg = sum(rate[r] for _, r, _ in indicators) / len(indicators)
+    overall = "Good" if avg >= 2.6 else "Medium" if avg >= 1.8 else "Limited"
+    return overall, [{"indicator": i, "rating": r, "basis": b} for i, r, b in indicators]
+
+
 def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                      single_meta: dict, total_kg: float, per_crop=None,
                      assessment_id: str | None = None, intended_for_public: bool = True) -> dict:
@@ -89,6 +143,44 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             f"Emissions released in the field make up about {_pct(clim_f, clim_f+clim_s):.0f}% "
             f"of the climate impact, and the inputs the farm buys in make up the other "
             f"{_pct(clim_s, clim_f+clim_s):.0f}%")
+
+    total_kg_safe = total_kg or 1.0
+
+    # Inventory results (openLCA "Inventory Results" tab): the dominant elementary flows in
+    # the merged cradle-to-gate inventory, expressed per functional unit. On-farm flows are
+    # stored under short kernel keys; give them readable names for the table.
+    _flow_pretty = {"N2O": "Dinitrogen monoxide (N2O), air", "CO2": "Carbon dioxide, air",
+                    "CH4_bio": "Methane, biogenic, air", "CH4": "Methane, air",
+                    "NO3": "Nitrate, water", "land_occ": "Occupation, annual crop",
+                    "water": "Water", "NH3": "Ammonia, air", "PO4": "Phosphate, water"}
+    inv = getattr(result, "inventory", None) or {}
+    top_flows = sorted(inv.values(), key=lambda r: -abs(r.get("amount") or 0.0))[:30]
+    inventory_results = {
+        "basis": "per kilogram of crop at the farm gate",
+        "n_flows_total": len(inv),
+        "n_shown": len(top_flows),
+        "flows": [{"flow": _flow_pretty.get(r.get("name"), r.get("name")),
+                   "amount": (r.get("amount") or 0.0) / total_kg_safe, "unit": r.get("unit")}
+                  for r in top_flows],
+    }
+
+    # LCIA results table: every reported midpoint category, per functional unit.
+    results_table = [{"category": name, "result": (m.get("value") or 0.0),
+                      "unit": (m.get("unit") or "").replace(" per kg", "")}
+                     for name, m in midpoints.items()]
+
+    # Contribution analysis (openLCA contribution-tree, lite): share of the climate result
+    # by source, so the reader sees which input drove it.
+    cbs = getattr(result, "contribution_by_source", None) or {}
+    clim = {s: ((imp.get("Climate change") or {}).get("value", 0.0) or 0.0) for s, imp in cbs.items()}
+    clim_tot = sum(clim.values())
+    contribution_analysis = {
+        "indicator": "Climate change (kg CO2-eq)",
+        "by_source": sorted(
+            [{"source": s, "per_kg": v / total_kg_safe, "share": (v / clim_tot if clim_tot else 0.0)}
+             for s, v in clim.items() if v],
+            key=lambda x: -x["per_kg"]),
+    }
 
     # reference-flow table (Process / Material, Amount, Source, Adaptation)
     reference_flows = []
@@ -241,6 +333,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "example the electricity needed to make steel, which is itself needed to make "
             "electricity. Energy is tracked in energy units, and electricity uses the region's grid mix."),
         "reference_flows": reference_flows,
+        "inventory_results": inventory_results,
         "inputs_matched": f"{len(matched)} of {len(matches)} bought-in inputs were matched to a background dataset.",
         "pedigree_uncertainty": (
             "Results carry a rough uncertainty of about plus or minus 30 to 40 percent, shown as a "
@@ -277,16 +370,22 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         },
         "results_are_relative_expressions": RELATIVE_EXPRESSION,
         "n_categories_reported": len(categories),
+        "results_table": results_table,
     }
 
     # ---- 5. Interpretation ----
-    dqa = (f"Overall the data quality is medium, which suits a screening study. The background "
-           f"data is recent and comes from ecoinvent, adjusted to {region_name}, and the field "
-           "emissions use the IPCC 2019 method. Completeness, consistency and sensitivity are "
-           "covered below. A formal, dataset-by-dataset quality score is still to be added.")
+    dq_overall, dq_indicators = _data_quality_scorecard(matches, unlinked_notes, region_name)
+    _worst = [x for x in dq_indicators if x["rating"] != "Good"]
+    dqa = (f"Overall data quality is rated {dq_overall.lower()}, scored across the five pedigree "
+           "indicators below rather than asserted. "
+           + ("It is held back mainly by "
+              + ", ".join(f"{x['indicator'].lower()} ({x['rating'].lower()})" for x in _worst)
+              + "." if _worst else "All indicators rate good at this screening level."))
     interpretation = {
         "significant_issues": significant or ["No single contributor clearly stands out."],
+        "contribution_analysis": contribution_analysis,
         "data_quality_assessment": dqa,
+        "data_quality_scorecard": {"overall": dq_overall, "indicators": dq_indicators},
         "completeness_check": (
             f"{len(matched)} of {len(matches)} bought-in inputs were linked to a background dataset"
             + (f", and {len(unlinked_notes)} could not be matched and are noted." if unlinked_notes
