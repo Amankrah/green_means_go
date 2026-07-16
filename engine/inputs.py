@@ -29,11 +29,22 @@ def extract_purchased_inputs(assessment: dict) -> tuple[list[dict], list[str]]:
     total_area = sum((f.get("area_allocated") or 0) for f in foods)
 
     mp = assessment.get("management_practices") or {}
-    fert = mp.get("fertilization") or {}
-    if fert.get("uses_fertilizers"):
+    fert = mp.get("fertilization")
+    # Accept either the documented dict shape ({uses_fertilizers, fertilizer_applications})
+    # or a bare list of applications (some payloads send the list directly). Anything else
+    # is ignored with a note rather than crashing the whole assessment.
+    if isinstance(fert, list):
+        fert = {"uses_fertilizers": bool(fert), "fertilizer_applications": fert}
+    elif not isinstance(fert, dict):
+        if fert is not None:
+            notes.append("fertilisation data in an unexpected format; skipped")
+        fert = {}
+    if fert.get("uses_fertilizers") or fert.get("fertilizer_applications"):
         if not total_area:
             notes.append("fertiliser reported but no crop area — cannot scale fertiliser inputs")
         for app in fert.get("fertilizer_applications") or []:
+            if not isinstance(app, dict):
+                continue
             rate = app.get("application_rate") or 0
             n = app.get("applications_per_season") or 1
             kg = rate * n * total_area
@@ -69,6 +80,37 @@ def extract_purchased_inputs(assessment: dict) -> tuple[list[dict], list[str]]:
             if kwh > 0:
                 inputs.append({"name": "electricity low voltage", "amount": kwh, "unit": "kWh",
                                "kind": "electricity"})
+
+    # Pesticides: production burden of the agrochemicals applied. These were previously
+    # missing entirely (the Rust kernel drops their production and nothing re-added them).
+    # Amount = product rate (kg/ha) × applications × cropped area. Match the active
+    # ingredient to a background process; fall back to a generic pesticide if unmatched.
+    pm = mp.get("pest_management") or {}
+    pests = pm if isinstance(pm, list) else (pm.get("pesticides") if isinstance(pm, dict) else None)
+    for p in pests or []:
+        if not isinstance(p, dict):
+            continue
+        rate = p.get("application_rate") or 0
+        n = p.get("applications_per_season") or 1
+        kg = rate * n * total_area
+        if kg <= 0:
+            continue
+        ai = (p.get("active_ingredient") or p.get("pesticide_type") or "pesticide").strip()
+        # Match to a representative agrochemical dataset, not the exotic active-ingredient
+        # name: most active ingredients are absent from ecoinvent, and free-text matching
+        # returns nonsense (e.g. tebuconazole -> "tellurium production"). The generic
+        # "pesticide, unspecified" is the defensible screening choice; the actual ingredient
+        # is kept as the display name so the report stays transparent.
+        inputs.append({"name": ai, "match_as": "pesticide production, unspecified",
+                       "amount": kg, "unit": "kg", "kind": "pesticide"})
+
+    # Purchased compost / organic amendment: only a supply-chain burden when it is bought
+    # in (farm-made compost has none). We lack a mass here, so we cannot quantify it; note
+    # it rather than invent a number. Its nitrogen contribution to field N2O is handled in
+    # the field-emission model when a rate is available.
+    sm = mp.get("soil_management") or {}
+    if sm.get("uses_compost") and "purchas" in (sm.get("compost_source") or "").lower():
+        notes.append("purchased compost reported but no mass given; its production burden is not quantified")
 
     if not inputs:
         notes.append("no purchased inputs extracted (no fertiliser/fuel/electricity data)")

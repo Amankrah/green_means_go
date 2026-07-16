@@ -93,11 +93,15 @@ class FarmLCA:
         field emissions, then combine with the supply-chain LCI and characterize."""
         try:
             from .rust_kernel import onfarm_lci_from_assessment
+            from .field_model import adjust_field_emissions
         except ImportError:
             from rust_kernel import onfarm_lci_from_assessment
+            from field_model import adjust_field_emissions
         on_farm_lci, rust_notes = onfarm_lci_from_assessment(rust_assessment)
+        # expert-level field-emission adjustments (regional climate N2O, legume intercrop credit)
+        on_farm_lci, field_notes = adjust_field_emissions(on_farm_lci, rust_assessment, self.region)
         res = self.assess(on_farm_lci, purchased_inputs, expand_matching)
-        res.notes = rust_notes + res.notes
+        res.notes = rust_notes + field_notes + res.notes
         return res
 
     def assess(self, on_farm_lci: list[dict], purchased_inputs: list[dict],
@@ -118,7 +122,16 @@ class FarmLCA:
         # 2) supply chain: match + solve each purchased input
         supply: dict = {}
         for inp in purchased_inputs:
-            m = self._match_input(inp["name"], expand=expand_matching)
+            # match_as: match against a representative dataset name but keep inp["name"]
+            # as the display label (used for pesticides -> generic agrochemical).
+            target = inp.get("match_as") or inp["name"]
+            m = self._match_input(target, expand=expand_matching)
+            if not m and inp.get("fallback"):
+                m = self._match_input(inp["fallback"], expand=expand_matching)
+                if m:
+                    res.notes.append(f"'{inp['name']}' not found; used representative '{inp['fallback']}'")
+            if inp.get("match_as") and m:
+                res.notes.append(f"pesticide '{inp['name']}' modelled with a representative agrochemical dataset")
             if not m:
                 res.input_matches.append({**inp, "matched": None})
                 res.notes.append(f"input '{inp['name']}' had no match; excluded")

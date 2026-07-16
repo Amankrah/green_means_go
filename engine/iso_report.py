@@ -55,6 +55,13 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     farm = fp.get("farm_name") or assessment.get("company_name") or "the farm"
     commissioner = f"{farmer}, {farm}" if farmer else farm
     certifications = fp.get("certifications") or []
+    # post-harvest losses reported per crop (affects impact per kg of marketable crop)
+    losses = [f.get("post_harvest_losses") for f in foods if f.get("post_harvest_losses")]
+    avg_loss = (sum(losses) / len(losses)) if losses else 0.0
+    _mp = assessment.get("management_practices") or {}
+    _pm = _mp.get("pest_management") or {}
+    has_pesticide = bool(_pm.get("pesticides") if isinstance(_pm, dict) else _pm)
+    uses_compost = bool((_mp.get("soil_management") or {}).get("uses_compost"))
     # read the crop list naturally: "maize", "maize and cassava", "maize, cassava and yam"
     _names = [f.get("name", "crop").lower() for f in foods]
     if len(_names) > 1:
@@ -192,11 +199,17 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                            "matched to representative datasets and adjusted to the region wherever "
                            "a regional version exists."),
         },
-        "assumptions_and_limitations": [
-            "Field emissions are estimated with standard IPCC 2019 factors adjusted for the region, rather than measured directly on this farm.",
+        "assumptions_and_limitations": [f for f in [
+            "Field emissions are estimated with standard IPCC 2019 factors adjusted for the region's climate, rather than measured directly on this farm.",
             "Each bought-in input is matched to a representative dataset with assisted search, and the top candidates are kept on record so the choice can be checked.",
+            ("The pesticides applied are included through the production of their active ingredients; where a specific ingredient is not in the database, a representative pesticide is used."
+             if has_pesticide else None),
+            ("Compost is used on the farm. If it is made on-farm it carries no purchasing burden; its nitrogen still adds to field emissions where a rate is known."
+             if uses_compost else None),
+            (f"Post-harvest losses average about {avg_loss:.0f}%. Figures here are per kilogram at the farm gate; per kilogram of marketable crop they would be roughly {avg_loss:.0f}% higher."
+             if avg_loss else None),
             "If a crop grown on the farm is not in the background database, a close stand-in is used, or the farm's own field data on its own, and this is noted.",
-        ],
+        ] if f],
         "value_choices": [
             "The single score adds up the categories with equal weight. That is a judgement call, and the score is not used to make public claims of being better than another product.",
             ("Results use the hierarchist time perspective." if is_hierarchist else "Results use the method's default time perspective."),

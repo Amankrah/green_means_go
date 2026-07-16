@@ -1,0 +1,144 @@
+{
+  "company_name": "Fatima Bello - Kano Rice Estates",
+  "country": "Nigeria",
+  "region": "NG",
+  "farm_profile": {
+    "farmer_name": "Fatima Bello",
+    "farm_name": "Kano Rice Estates",
+    "total_farm_size": 12.0,
+    "farming_experience": 22,
+    "farm_type": "Commercial",
+    "primary_farming_system": "Commercial",
+    "certifications": [],
+    "participates_in_programs": [
+      "Water Conservation Program",
+      "Sustainable Intensification"
+    ]
+  },
+  "management_practices": {
+    "soil_management": {
+      "soil_type": "ClayLoam",
+      "uses_compost": false,
+      "compost_source": null,
+      "conservation_practices": [
+        "Bunds/Ridges"
+      ],
+      "soil_testing_frequency": "Annually"
+    },
+    "fertilization": {
+      "uses_fertilizers": true,
+      "fertilizer_applications": [
+        {
+          "fertilizer_type": "NPK Compound",
+          "npk_ratio": "15-15-15",
+          "application_rate": 200,
+          "applications_per_season": 1,
+          "cost": 420
+        },
+        {
+          "fertilizer_type": "Urea",
+          "npk_ratio": "46-0-0",
+          "application_rate": 50,
+          "applications_per_season": 2,
+          "cost": 310
+        }
+      ],
+      "soil_test_based": true,
+      "follows_nutrient_plan": true
+    },
+    "water_management": {
+      "water_source": [
+        "Borehole",
+        "Dam/Reservoir"
+      ],
+      "irrigation_system": "Sprinkler",
+      "water_conservation_practices": [
+        "Alternate wetting and drying"
+      ]
+    },
+    "pest_management": {
+      "management_approach": "Chemical pesticides only",
+      "uses_ipm": false,
+      "pesticides": [
+        {
+          "pesticide_type": "Herbicide",
+          "active_ingredient": "Glyphosate",
+          "application_rate": 3.0,
+          "applications_per_season": 1,
+          "target_pests": [
+            "Weeds"
+          ]
+        },
+        {
+          "pesticide_type": "Insecticide",
+          "active_ingredient": "Chlorantraniliprole",
+          "application_rate": 0.4,
+          "applications_per_season": 2,
+          "target_pests": [
+            "Rice stem borer"
+          ]
+        }
+      ],
+      "pest_monitoring_frequency": "Weekly"
+    }
+  },
+  "equipment_energy": {
+    "equipment": [
+      {
+        "equipment_type": "Large Tractor (>100HP)",
+        "power_source": "Diesel engine",
+        "age": 5,
+        "hours_per_year": 420,
+        "fuel_efficiency": 14.0
+      },
+      {
+        "equipment_type": "Sprayer",
+        "power_source": "Diesel engine",
+        "age": 3,
+        "hours_per_year": 60,
+        "fuel_efficiency": 3.0
+      },
+      {
+        "equipment_type": "Water Pump",
+        "power_source": "Diesel engine",
+        "age": 2,
+        "hours_per_year": 900,
+        "fuel_efficiency": 4.5
+      }
+    ],
+    "energy_sources": [
+      {
+        "energy_type": "Diesel Generator",
+        "monthly_consumption": 220,
+        "primary_use": "Irrigation pumping",
+        "cost": 1850,
+        "currency": "NGN"
+      }
+    ],
+    "fuel_consumption": [
+      {
+        "fuel_type": "Diesel",
+        "monthly_consumption": 220,
+        "primary_use": "Irrigation pumping",
+        "cost": 1850
+      }
+    ]
+  },
+  "foods": [
+    {
+      "id": "crop_rice",
+      "name": "Rice",
+      "quantity_kg": 50400,
+      "category": "Cereals",
+      "crop_type": "FARO 44",
+      "origin_country": "Nigeria",
+      "production_system": "Irrigated",
+      "seasonal_factor": "DrySeason",
+      "variety": "FARO 44",
+      "area_allocated": 12.0,
+      "cropping_pattern": "Monoculture",
+      "intercropping_partners": [],
+      "post_harvest_losses": 10
+    }
+  ]
+}

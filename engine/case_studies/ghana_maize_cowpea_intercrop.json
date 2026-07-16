@@ -1,0 +1,138 @@
+{
+  "company_name": "Abubakar Yakubu - Tamale Agro Ventures",
+  "country": "Ghana",
+  "region": "GH",
+  "farm_profile": {
+    "farmer_name": "Abubakar Yakubu",
+    "farm_name": "Tamale Agro Ventures",
+    "total_farm_size": 4.2,
+    "farming_experience": 12,
+    "farm_type": "Smallholder",
+    "primary_farming_system": "SemiCommercial",
+    "certifications": [],
+    "participates_in_programs": [
+      "Climate Smart Agriculture",
+      "Integrated Pest Management"
+    ]
+  },
+  "management_practices": {
+    "soil_management": {
+      "soil_type": "Lateritic",
+      "uses_compost": true,
+      "compost_source": "Animal manure",
+      "conservation_practices": [
+        "Mulching",
+        "Contour Plowing"
+      ],
+      "soil_testing_frequency": "Every 2-3 years"
+    },
+    "fertilization": {
+      "uses_fertilizers": true,
+      "fertilizer_applications": [
+        {
+          "fertilizer_type": "NPK Compound",
+          "npk_ratio": "15-15-15",
+          "application_rate": 200,
+          "applications_per_season": 1,
+          "cost": 165
+        },
+        {
+          "fertilizer_type": "Urea",
+          "npk_ratio": "46-0-0",
+          "application_rate": 75,
+          "applications_per_season": 1,
+          "cost": 95
+        }
+      ],
+      "soil_test_based": false,
+      "follows_nutrient_plan": true
+    },
+    "water_management": {
+      "water_source": [
+        "Rainfall only"
+      ],
+      "irrigation_system": "None (Rainfed)",
+      "water_conservation_practices": []
+    },
+    "pest_management": {
+      "management_approach": "Integrated Pest Management (IPM)",
+      "uses_ipm": true,
+      "pesticides": [
+        {
+          "pesticide_type": "Insecticide",
+          "active_ingredient": "Lambda-cyhalothrin",
+          "application_rate": 0.25,
+          "applications_per_season": 2,
+          "target_pests": [
+            "Fall armyworm",
+            "Stem borer"
+          ]
+        }
+      ],
+      "pest_monitoring_frequency": "Bi-weekly"
+    }
+  },
+  "equipment_energy": {
+    "equipment": [
+      {
+        "equipment_type": "Animal-drawn implements",
+        "power_source": "Animal power",
+        "age": 6,
+        "hours_per_year": 180,
+        "fuel_efficiency": null
+      },
+      {
+        "equipment_type": "Water Pump",
+        "power_source": "Diesel engine",
+        "age": 4,
+        "hours_per_year": 90,
+        "fuel_efficiency": 2.5
+      }
+    ],
+    "energy_sources": [],
+    "fuel_consumption": [
+      {
+        "fuel_type": "Diesel",
+        "monthly_consumption": 45,
+        "primary_use": "Land preparation and water pumping",
+        "cost": 520
+      }
+    ]
+  },
+  "foods": [
+    {
+      "id": "crop_maize",
+      "name": "Maize",
+      "quantity_kg": 3500,
+      "category": "Cereals",
+      "crop_type": "Obatanpa",
+      "origin_country": "Ghana",
+      "production_system": "Rainfed",
+      "seasonal_factor": "WetSeason",
+      "variety": "Obatanpa",
+      "area_allocated": 2.5,
+      "cropping_pattern": "Intercropping",
+      "intercropping_partners": [
+        "Cowpea"
+      ],
+      "post_harvest_losses": 15
+    },
+    {
+      "id": "crop_cowpea",
+      "name": "Cowpea",
+      "quantity_kg": 850,
+      "category": "Legumes",
+      "crop_type": "Songotra",
+      "origin_country": "Ghana",
+      "production_system": "Rainfed",
+      "seasonal_factor": "WetSeason",
+      "variety": "Songotra",
+      "area_allocated": 1.7,
+      "cropping_pattern": "Intercropping",
+      "intercropping_partners": [
+        "Maize"
+      ],
+      "post_harvest_losses": 10
+    }
+  ]
+}

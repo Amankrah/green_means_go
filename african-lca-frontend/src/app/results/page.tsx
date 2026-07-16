@@ -553,11 +553,35 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
             className="mb-12"
           >
             <div className="bg-white rounded-2xl p-8 shadow-lg">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
                 <BarChart3 className="w-6 h-6 text-green-600 mr-3" />
                 Environmental Impact Categories
               </h3>
-              
+
+              {/* Whole-farm totals: per-kg figures don't change with farm size, so show the
+                  total footprint too, which does scale with the farm. */}
+              {(() => {
+                const climateRaw = results.midpoint_impacts['Global warming'];
+                const climatePerKg = isAlreadyPerKg(climateRaw)
+                  ? extractValue(climateRaw)
+                  : calculatePerUnitImpact(extractValue(climateRaw), totalProductionKg);
+                const totalClimate = climatePerKg * totalProductionKg;
+                const fmtT = totalClimate >= 1000
+                  ? `${(totalClimate / 1000).toFixed(1)} t CO₂-eq`
+                  : `${totalClimate.toFixed(0)} kg CO₂-eq`;
+                return (
+                  <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+                    <div className="text-sm text-gray-600">
+                      Figures below are <span className="font-semibold text-gray-800">per kilogram of crop</span>, so they stay the same whether the farm is large or small.
+                    </div>
+                    <div className="sm:ml-auto flex gap-6 text-sm">
+                      <div><span className="text-gray-500">Total production: </span><span className="font-bold text-gray-900">{totalProductionKg.toLocaleString()} kg</span></div>
+                      <div><span className="text-gray-500">Whole-farm climate: </span><span className="font-bold text-gray-900">{fmtT}</span></div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Key Impact Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[

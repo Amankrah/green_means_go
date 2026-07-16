@@ -69,9 +69,13 @@ async def create_assessment(request: AssessmentRequest):
             print(f"✗ Skipped equipment_energy (falsy value)")
 
         if USE_VALIDATED_ENGINE:
-            # NEW validated pipeline: Rust LCI kernel + supply-chain solver + canonical CFs
+            # NEW validated pipeline: Rust LCI kernel + supply-chain solver + canonical CFs.
+            # It is CPU-bound and can run for a minute or two (cold engine build + per-crop
+            # solves), so run it in a worker thread — otherwise it blocks uvicorn's event
+            # loop and the client connection is dropped (ERR_EMPTY_RESPONSE).
+            from starlette.concurrency import run_in_threadpool
             from engine.service import run_farm_assessment
-            result = run_farm_assessment(rust_input, region=request.region)
+            result = await run_in_threadpool(run_farm_assessment, rust_input, region=request.region)
         else:
             result = await call_rust_backend(rust_input)   # legacy Rust hardcoded LCIA
 
@@ -111,8 +115,9 @@ async def create_comprehensive_assessment(request: AssessmentRequest):
             rust_input["equipment_energy"] = request.equipment_energy.model_dump()
 
         if USE_VALIDATED_ENGINE:
+            from starlette.concurrency import run_in_threadpool
             from engine.service import run_farm_assessment
-            result = run_farm_assessment(rust_input, region=request.region)
+            result = await run_in_threadpool(run_farm_assessment, rust_input, region=request.region)
         else:
             result = await call_rust_backend(rust_input)
 

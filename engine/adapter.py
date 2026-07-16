@@ -132,15 +132,35 @@ def _bands() -> dict:
     return _BANDS_CACHE
 
 
-def single_score(midpoints: dict, ep: dict) -> tuple:
-    """Proper normalized single score: normalise each midpoint by its ReCiPe 2016
-    per-capita reference (person-equivalents), equal-weight and sum, express in
-    micro-person-equivalents (µPt) per kg. Transparent and standard — replaces both the
-    old misleading sigmoid and the earlier GWP proxy. Also returns a qualitative band
-    whose Low/Moderate/High cutoffs are empirically calibrated (see _bands)."""
+# Environmental Footprint (EF) 3.1 global normalization factors, per person per year
+# (JRC EF reference package). Used when the method is EF, since EF midpoints are in
+# different units/magnitudes than ReCiPe — normalising EF values with ReCiPe factors
+# produces a nonsense score (e.g. EF land-use points ÷ ReCiPe m2a).
+EF_NF = {
+    "Global warming": 7550.0,            # kg CO2-eq
+    "Terrestrial acidification": 55.6,   # mol H+-eq (EF "Acidification")
+    "Freshwater eutrophication": 1.61,   # kg P-eq
+    "Marine eutrophication": 19.5,       # kg N-eq
+    "Land use": 819000.0,                # dimensionless points (Pt)
+    "Mineral depletion": 0.0636,         # kg Sb-eq
+    "Particulate matter formation": 5.95e-4,  # disease incidence
+    "Photochemical oxidation": 40.9,     # kg NMVOC-eq
+    "Water consumption": 11500.0,        # m3 world-eq deprived
+    "Fossil depletion": 65000.0,         # MJ
+}
+
+
+def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, midpoint (H)") -> tuple:
+    """Proper normalized single score: normalise each midpoint by its per-capita reference
+    (person-equivalents), equal-weight and sum, express in micro-person-equivalents (µPt)
+    per kg. The normalization set is chosen to MATCH the LCIA method (ReCiPe vs EF), so the
+    factors are in the same units as the values. Transparent and standard. Also returns a
+    qualitative band whose Low/Moderate/High cutoffs are empirically calibrated (see _bands)."""
+    is_ef = bool(method) and "EF" in method and "ReCiPe" not in method
+    nf_set = EF_NF if is_ef else RECIPE_NF
     total = 0.0
     per_cat: dict = {}
-    for cat, nf in RECIPE_NF.items():
+    for cat, nf in nf_set.items():
         v = midpoints.get(cat, {}).get("value")
         if v is not None and nf:
             per_cat[cat] = v / nf     # person-equivalents from this category
@@ -154,19 +174,21 @@ def single_score(midpoints: dict, ep: dict) -> tuple:
     # footprint). Cutoffs come from single_score_bands.json when present.
     b = _bands()
     band = ("Low" if micro < b["low"] else "Moderate" if micro < b["high"] else "High")
+    nf_name = "Environmental Footprint 3.1" if is_ef else "ReCiPe 2016 [World, Hierarchist]"
+    # The band cutoffs are calibrated on ReCiPe scores; for EF they are only indicative.
+    band_basis = b["basis"] if not is_ef else (b["basis"] + " (calibrated on ReCiPe; indicative for the EF method)")
     return micro, {
         "unit": "µPt per kg",
         "band": band,
-        "band_basis": b["basis"],
+        "band_basis": band_basis,
         "band_cutoffs": {"low": b["low"], "high": b["high"], "calibrated": b["calibrated"]},
         "person_equivalents_per_kg": total,
         "weighting_factors": {c: 1.0 for c in used},   # equal weighting
         "contributions": contributions,                # share of the single score per category
         "methodology": (
-            f"Normalized single score = Σ(midpoint ÷ ReCiPe 2016 midpoint normalization "
-            f"[World, Hierarchist]) over {len(used)} categories, equal weighting, in "
-            f"micro-person-equivalents (µPt) per kg product. 1e6 µPt ≈ one person's total "
-            f"annual environmental footprint."),
+            f"Normalized single score = Σ(midpoint ÷ {nf_name} midpoint normalization) over "
+            f"{len(used)} categories, equal weighting, in micro-person-equivalents (µPt) per kg "
+            f"product. 1e6 µPt ≈ one person's total annual environmental footprint."),
     }
 
 
@@ -222,7 +244,7 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
             breakdown[label] = {MIDPOINT_MAP[c][0]: _midpoint(v["value"] * share, _norm_unit(v.get("unit")) or MIDPOINT_MAP[c][1])
                                 for c, v in result.impacts.items() if c in MIDPOINT_MAP}
 
-    single, single_meta = single_score(midpoints, ep)
+    single, single_meta = single_score(midpoints, ep, engine.method)
 
     try:
         from .iso_report import build_iso_report
