@@ -41,19 +41,18 @@ except Exception as e:
     print(f"[FAIL] Processing routes import failed: {e}")
 
 try:
-    print("\nTesting AI report generator import...")
-    from services.ai_report_generator import AIReportGenerator
-    print("[OK] AI report generator module imported successfully")
-    print("  Note: AIReportGenerator requires ANTHROPIC_API_KEY to initialize")
+    print("\nTesting results grounding import...")
+    from services.report_grounding import format_grounding_for_prompt
+    print("[OK] Results grounding module imported successfully")
 except Exception as e:
-    print(f"[FAIL] AI report generator import failed: {e}")
+    print(f"[FAIL] Results grounding import failed: {e}")
 
 try:
-    print("\nTesting reports routes import...")
-    from reports.routes import router as reports_router
-    print("[OK] Reports routes imported successfully")
+    print("\nTesting chat routes import...")
+    from chat.routes import router as chat_router
+    print("[OK] Chat routes imported successfully")
 except Exception as e:
-    print(f"[FAIL] Reports routes import failed: {e}")
+    print(f"[FAIL] Chat routes import failed: {e}")
 
 print("\n" + "="*60)
 print("Import test complete!")

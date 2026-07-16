@@ -181,7 +181,9 @@ def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, mi
         "unit": "µPt per kg",
         "band": band,
         "band_basis": band_basis,
-        "band_cutoffs": {"low": b["low"], "high": b["high"], "calibrated": b["calibrated"]},
+        "band_cutoffs": {"low": b["low"], "high": b["high"], "calibrated": b["calibrated"],
+                         "benchmark_min": (b.get("percentiles") or {}).get("min"),
+                         "benchmark_max": (b.get("percentiles") or {}).get("max")},
         "person_equivalents_per_kg": total,
         "weighting_factors": {c: 1.0 for c in used},   # equal weighting
         "contributions": contributions,                # share of the single score per category

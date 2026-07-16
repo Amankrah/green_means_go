@@ -571,8 +571,29 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "So the goal is met on both counts: the footprint is quantified per kilogram at the farm gate, and "
         "the activities that matter most, which are the ones the farm can act on, are clearly identified.")
 
+    # Structured chart data (derived from the same numbers as the prose, so the figures
+    # cannot drift from the text). The frontend renders these; if absent it falls back to text.
+    _cutoffs = single_meta.get("band_cutoffs") or {}
+    single_score_composition = [
+        {"category": c, "share": s}
+        for c, s in sorted(contributions.items(), key=lambda kv: -kv[1]) if s
+    ]
+    single_score_gauge = {
+        "value": _micro,
+        "unit": single_meta.get("unit", "µPt per kg"),
+        "band": single_meta.get("band"),
+        "low_cut": _cutoffs.get("low"),
+        "high_cut": _cutoffs.get("high"),
+        "benchmark_min": _cutoffs.get("benchmark_min"),
+        "benchmark_max": _cutoffs.get("benchmark_max"),
+        "calibrated": _cutoffs.get("calibrated"),
+        "basis": single_meta.get("band_basis"),
+    }
+
     interpretation = {
         "results_interpretation": results_interpretation,
+        "single_score_gauge": single_score_gauge,
+        "single_score_composition": single_score_composition,
         "significant_issues": significant or ["No single contributor clearly stands out."],
         "contribution_analysis": contribution_analysis,
         "data_quality_assessment": dqa,

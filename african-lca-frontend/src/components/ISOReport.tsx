@@ -2,6 +2,11 @@
 
 import React, { useState } from 'react';
 import { FileCheck, ChevronDown, ShieldAlert, AlertTriangle, ClipboardList } from 'lucide-react';
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
+  BarChart, Bar, XAxis, YAxis,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+} from 'recharts';
 
 /**
  * ISOReport — renders the deterministic, data-backed ISO 14040/14044 report block
@@ -60,6 +65,12 @@ interface IsoReport {
   };
   interpretation: {
     results_interpretation?: string;
+    single_score_gauge?: {
+      value: number; unit: string; band?: string;
+      low_cut?: number; high_cut?: number; benchmark_min?: number; benchmark_max?: number;
+      calibrated?: boolean; basis?: string;
+    };
+    single_score_composition?: { category: string; share: number }[];
     significant_issues: string[]; data_quality_assessment: string; completeness_check: string;
     consistency_check: string; sensitivity_and_uncertainty: string; conclusions: string[];
     recommendations: string[]; limitations: string[]; public_disclosure: string;
@@ -96,7 +107,10 @@ function fmt(n: number): string {
   if (n === 0) return '0';
   const a = Math.abs(n);
   if (a < 1e-3 || a >= 1e5) return n.toExponential(2);
-  return n.toPrecision(4).replace(/\.?0+$/, '');
+  const s = n.toPrecision(4);
+  // Only trim trailing zeros when there is a decimal point, so integers like 1990 or
+  // 1000 keep their significant final zero (a bare replace turns "1990" into "199").
+  return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
 }
 
 function DataTable({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) {
@@ -116,6 +130,135 @@ function DataTable({ headers, rows }: { headers: string[]; rows: React.ReactNode
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// Emerald-to-teal palette for category slices; the last entry is the muted "Other" bucket.
+const SLICE_COLORS = ['#059669', '#0d9488', '#10b981', '#14b8a6', '#34d399', '#5eead4', '#84cc16', '#a3e635'];
+const OTHER_COLOR = '#cbd5e1';
+
+/** Donut of how each impact category contributes to the single score. Groups the small
+ * remainder into "Other" so the figure stays readable, matching the significant-issues text. */
+function CompositionDonut({ data }: { data: { category: string; share: number }[] }) {
+  const sorted = [...data].filter(d => d.share > 0).sort((a, b) => b.share - a.share);
+  const head = sorted.slice(0, 6);
+  const tailShare = sorted.slice(6).reduce((s, d) => s + d.share, 0);
+  const slices = tailShare > 0.0005 ? [...head, { category: 'Other categories', share: tailShare }] : head;
+  return (
+    <div className="w-full">
+      {/* Fixed height wraps the CHART ONLY; the legend flows below so it cannot overflow
+          the box and collide with the section beneath it. */}
+      <div style={{ height: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={slices} dataKey="share" nameKey="category" cx="50%" cy="50%"
+              innerRadius={48} outerRadius={80} paddingAngle={1} stroke="none">
+              {slices.map((s, i) => (
+                <Cell key={i} fill={s.category === 'Other categories' ? OTHER_COLOR : SLICE_COLORS[i % SLICE_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v: number, n: string) => [`${(v * 100).toFixed(1)}%`, n]}
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3">
+        {slices.map((s, i) => (
+          <span key={i} className="flex items-center gap-1.5 text-xs text-gray-700">
+            <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0"
+              style={{ background: s.category === 'Other categories' ? OTHER_COLOR : SLICE_COLORS[i % SLICE_COLORS.length] }} />
+            <span className="truncate">{s.category}</span>
+            <span className="text-gray-400 ml-auto flex-shrink-0">{(s.share * 100).toFixed(0)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Horizontal strip showing where this farm's single score sits against the benchmark
+ * Low/Moderate/High bands, with a marker at the farm's value. */
+function BandStrip({ g }: { g: NonNullable<IsoReport['interpretation']['single_score_gauge']> }) {
+  const low = g.low_cut, high = g.high_cut;
+  if (low == null || high == null) return null;
+  // Axis is capped just past the High cutoff so the three bands stay visually balanced.
+  // (Anchoring to the benchmark max, ~7383, would crush Low and Moderate into a sliver.)
+  // A very high score still reads correctly: its marker sits hard against the right edge.
+  const axisMax = Math.max(high * 1.5, g.value * 1.08);
+  const pct = (x: number) => `${Math.min(Math.max(x / axisMax, 0), 1) * 100}%`;
+  const band = (g.band || '').toLowerCase();
+  const markerColor = band === 'low' ? '#047857' : band === 'moderate' ? '#b45309' : '#b91c1c';
+  return (
+    <div>
+      <div className="relative h-7 rounded-md overflow-hidden flex text-[10px] font-semibold text-white/95">
+        <div className="flex items-center justify-center bg-emerald-500" style={{ width: pct(low) }}>Low</div>
+        <div className="flex items-center justify-center bg-amber-500" style={{ width: `${((high - low) / axisMax) * 100}%` }}>Moderate</div>
+        <div className="flex items-center justify-center bg-red-500" style={{ flexGrow: 1 }}>High</div>
+      </div>
+      {/* marker */}
+      <div className="relative h-0">
+        <div className="absolute -top-9 -translate-x-1/2 flex flex-col items-center" style={{ left: pct(g.value) }}>
+          <span className="text-[11px] font-bold whitespace-nowrap" style={{ color: markerColor }}>
+            {fmt(g.value)} {g.unit?.replace(' per kg', '')}
+          </span>
+          <span className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[7px] border-l-transparent border-r-transparent"
+            style={{ borderTopColor: markerColor }} />
+        </div>
+      </div>
+      <div className="flex justify-between text-[10px] text-gray-400 mt-1.5">
+        <span>0</span>
+        <span>{fmt(low)}</span>
+        <span>{fmt(high)}</span>
+        <span>{fmt(axisMax)}</span>
+      </div>
+    </div>
+  );
+}
+
+const RATING_SCORE: Record<string, number> = { Good: 3, Fair: 2, Limited: 1, Poor: 1 };
+/** Radar of the five data-quality (pedigree) indicators, mapping the ordinal rating to a 1-3 scale. */
+function DataQualityRadar({ indicators }: { indicators: { indicator: string; rating: string }[] }) {
+  const data = indicators.map(i => ({
+    indicator: i.indicator.replace(' representativeness', ''),
+    score: RATING_SCORE[i.rating] ?? 2,
+    rating: i.rating,
+  }));
+  return (
+    <div className="w-full" style={{ height: 240 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <RadarChart data={data} outerRadius="70%">
+          <PolarGrid stroke="#e5e7eb" />
+          <PolarAngleAxis dataKey="indicator" tick={{ fontSize: 11, fill: '#374151' }} />
+          <PolarRadiusAxis domain={[0, 3]} tickCount={4} tick={{ fontSize: 9, fill: '#9ca3af' }}
+            tickFormatter={(v: number) => ({ 0: '', 1: 'Limited', 2: 'Fair', 3: 'Good' } as Record<number, string>)[v] ?? ''} />
+          <Radar dataKey="score" stroke="#059669" fill="#10b981" fillOpacity={0.35} />
+          <Tooltip formatter={(_v: number, _n: string, p: { payload?: { rating?: string } }) => [p?.payload?.rating ?? '', 'Rating']}
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Horizontal bar chart of a single impact category (e.g. climate) split by source. */
+function SourceBars({ data }: { data: { source: string; per_kg: number; share: number }[] }) {
+  const rows = [...data].sort((a, b) => b.per_kg - a.per_kg);
+  return (
+    <div className="w-full" style={{ height: Math.max(140, rows.length * 34) }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 48, top: 4, bottom: 4 }}>
+          <XAxis type="number" hide />
+          <YAxis type="category" dataKey="source" width={150}
+            tick={{ fontSize: 11, fill: '#374151' }} tickLine={false} axisLine={false} />
+          <Tooltip formatter={(v: number, _n: string, p: { payload?: { share?: number } }) =>
+            [`${fmt(v)} (${((p?.payload?.share ?? 0) * 100).toFixed(0)}%)`, 'Climate']}
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
+          <Bar dataKey="per_kg" fill="#059669" radius={[0, 4, 4, 0]}
+            label={{ position: 'right', fontSize: 10, fill: '#6b7280',
+              formatter: (v: React.ReactNode) => fmt(Number(v)) }} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -373,35 +516,44 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
               <div className="text-sm text-gray-700 leading-relaxed">{interpretation.results_interpretation}</div>
             </div>
           )}
-          <Field label="What stands out"><Bullets items={interpretation.significant_issues} /></Field>
+          {interpretation.single_score_gauge && interpretation.single_score_gauge.low_cut != null && (
+            <Field label="Single score against the benchmark bands">
+              <div className="pt-8">
+                <BandStrip g={interpretation.single_score_gauge} />
+              </div>
+              {interpretation.single_score_gauge.basis && (
+                <p className="text-xs text-gray-500 mt-3 leading-relaxed">{interpretation.single_score_gauge.basis}.</p>
+              )}
+            </Field>
+          )}
+          <div className="grid md:grid-cols-2 gap-x-6 gap-y-2 items-start">
+            <Field label="What stands out"><Bullets items={interpretation.significant_issues} /></Field>
+            {interpretation.single_score_composition && interpretation.single_score_composition.length > 0 && (
+              <div className="mb-4">
+                <div className="text-[13px] font-bold text-gray-900 mb-1">What makes up the single score</div>
+                <CompositionDonut data={interpretation.single_score_composition} />
+              </div>
+            )}
+          </div>
           {interpretation.contribution_analysis && interpretation.contribution_analysis.by_source.length > 0 && (
             <Field label={`Contribution analysis: ${interpretation.contribution_analysis.indicator} by source`}>
-              <div className="space-y-2">
-                {interpretation.contribution_analysis.by_source.map((s, i) => (
-                  <div key={i}>
-                    <div className="flex justify-between text-xs mb-0.5">
-                      <span className="text-gray-700">{s.source}</span>
-                      <span className="text-gray-500">{fmt(s.per_kg)} ({(s.share * 100).toFixed(0)}%)</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${Math.min(s.share * 100, 100)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <SourceBars data={interpretation.contribution_analysis.by_source} />
             </Field>
           )}
           <Field label="How good is the data">
             <p className="mb-2">{interpretation.data_quality_assessment}</p>
             {interpretation.data_quality_scorecard && (
-              <DataTable
-                headers={['Data-quality indicator', 'Rating', 'Basis']}
-                rows={interpretation.data_quality_scorecard.indicators.map(x => [
-                  x.indicator,
-                  <span key="r" className={`font-semibold ${x.rating === 'Good' ? 'text-green-700' : x.rating === 'Fair' ? 'text-amber-700' : 'text-red-700'}`}>{x.rating}</span>,
-                  x.basis,
-                ])}
-              />
+              <>
+                <DataQualityRadar indicators={interpretation.data_quality_scorecard.indicators} />
+                <DataTable
+                  headers={['Data-quality indicator', 'Rating', 'Basis']}
+                  rows={interpretation.data_quality_scorecard.indicators.map(x => [
+                    x.indicator,
+                    <span key="r" className={`font-semibold ${x.rating === 'Good' ? 'text-green-700' : x.rating === 'Fair' ? 'text-amber-700' : 'text-red-700'}`}>{x.rating}</span>,
+                    x.basis,
+                  ])}
+                />
+              </>
             )}
           </Field>
           <Field label="Is anything missing">{interpretation.completeness_check}</Field>

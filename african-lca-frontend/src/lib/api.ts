@@ -6,26 +6,10 @@ import { COUNTRY_TO_REGION } from '@/lib/country-examples';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Report types
-export interface Report {
-  report_id: string;
-  generated_at: string;
-  report_type: 'comprehensive' | 'executive' | 'farmer_friendly';
-  assessment_id?: string;
-  company_name?: string;
-  country?: string;
-  assessment_date?: string;
-  sections: Record<string, string>;
-  metadata?: {
-    model_used?: string;
-    generation_timestamp?: string;
-    temperature?: number;
-    chain_of_thought_enabled?: boolean;
-    iso_14044_compliant?: boolean;
-    data_quality_level?: string;
-    validation_warnings?: string[];
-    sections_generated?: number;
-  };
+// Chat types
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 class AssessmentAPI {
@@ -227,59 +211,70 @@ class AssessmentAPI {
     return this.fetchAPI('/health');
   }
 
-  // Report Generation APIs
-  async generateReport(
-    assessmentId: string,
-    reportType: 'comprehensive' | 'executive' | 'farmer_friendly' = 'comprehensive',
-    assessmentData?: AssessmentResult  // Optional: include to survive backend restarts
-  ): Promise<Report> {
-    // Build request body
-    const requestBody: Record<string, unknown> = {
-      assessment_id: assessmentId,
-      report_type: reportType
-    };
-    
-    // Include assessment data if provided (fixes "not found" after backend restart)
-    if (assessmentData) {
-      requestBody.assessment_data = assessmentData;
+  // Plain-language results chat (streaming SSE). Bypasses fetchAPI because it reads a
+  // token stream rather than a single JSON body. Calls onChunk for each text delta.
+  async streamChat(
+    messages: ChatMessage[],
+    opts: {
+      assessmentData?: AssessmentResult;
+      assessmentId?: string | null;
+      onChunk: (text: string) => void;
+      signal?: AbortSignal;
     }
-    
-    return this.fetchAPI('/reports/generate', {
+  ): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
-      body: JSON.stringify(requestBody)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages,
+        assessment_data: opts.assessmentData,
+        assessment_id: opts.assessmentId ?? undefined,
+      }),
+      signal: opts.signal,
     });
-  }
-
-  async getReport(reportId: string): Promise<Report> {
-    return this.fetchAPI(`/reports/report/${reportId}`);
-  }
-
-  async listReportsForAssessment(assessmentId: string): Promise<{ assessment_id: string; reports: Report[]; total: number }> {
-    return this.fetchAPI(`/reports/assessment/${assessmentId}/reports`);
-  }
-
-  async exportReportMarkdown(reportId: string): Promise<{ report_id: string; format: string; content: string }> {
-    return this.fetchAPI(`/reports/report/${reportId}/export/markdown`);
-  }
-
-  async downloadReportPDF(reportId: string, assessmentId: string): Promise<Blob> {
-    const url = `${API_BASE_URL}/reports/report/${reportId}/download/pdf?assessment_id=${assessmentId}`;
-
-    const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`Failed to download PDF: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      const detail = errorData.detail;
+      throw new Error(typeof detail === 'string' ? detail : `Chat failed: ${response.status}`);
     }
+    if (!response.body) throw new Error('No response stream from the server.');
 
-    return response.blob();
-  }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-  async exportReportJSON(reportId: string): Promise<Report> {
-    return this.fetchAPI(`/reports/report/${reportId}/export/json`);
-  }
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-  async checkReportHealth(): Promise<{ status: string; service: string; ai_enabled: boolean; reports_generated: number; supported_types: string[] }> {
-    return this.fetchAPI('/reports/health');
+      // SSE events are separated by a blank line; keep any incomplete trailing event.
+      const events = buffer.split('\n\n');
+      buffer = events.pop() ?? '';
+
+      for (const evt of events) {
+        let eventType = 'message';
+        const dataLines: string[] = [];
+        for (const line of evt.split('\n')) {
+          if (line.startsWith('event:')) eventType = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+        }
+        if (!dataLines.length) continue;
+        const dataStr = dataLines.join('\n');
+
+        if (eventType === 'error') {
+          let msg = 'The chat ran into an error.';
+          try { msg = JSON.parse(dataStr).error || msg; } catch { /* keep default */ }
+          throw new Error(msg);
+        }
+        if (eventType === 'done') return;
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (parsed.delta) opts.onChunk(parsed.delta as string);
+        } catch { /* ignore keep-alives / partial frames */ }
+      }
+    }
   }
 }
 

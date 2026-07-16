@@ -26,7 +26,7 @@ import {
   RadialBar
 } from 'recharts';
 import Layout from '@/components/Layout';
-import ProfessionalReportViewer from '@/components/ProfessionalReportViewer';
+import ResultsChat from '@/components/ResultsChat';
 import ISOReport from '@/components/ISOReport';
 import { assessmentAPI, getScoreInterpretation } from '@/lib/api';
 import { AssessmentResult } from '@/types/assessment';
@@ -54,6 +54,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rerunning, setRerunning] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (assessmentId) {
@@ -978,31 +979,51 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
             </motion.div>
           )}
 
-          {/* Deterministic ISO 14044 report (data-backed compliant backbone) */}
+          {/* What this means for your farm — interactive plain-language chat */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.05 }}
+            className="mb-12"
+          >
+            <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/70 to-white p-6 md:p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                What this means for your farm
+              </h2>
+              <p className="text-gray-600 mb-5 max-w-2xl">
+                Get a plain-language summary of your results and ask any questions about them.
+                The answers are based only on this assessment. The technical ISO draft is below.
+              </p>
+              <button
+                type="button"
+                onClick={() => setChatOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-white font-semibold shadow-sm hover:bg-emerald-700 transition-colors"
+              >
+                <Leaf className="w-5 h-5" />
+                Plain-language summary
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Technical report (ISO 14044 draft) — collapsed by default */}
           {(results as { iso_report?: unknown }).iso_report ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.05 }}
+              transition={{ duration: 0.6, delay: 1.1 }}
               className="mb-12"
             >
-              <ISOReport report={(results as { iso_report?: Parameters<typeof ISOReport>[0]['report'] }).iso_report} />
+              <details className="bg-white rounded-2xl shadow-lg border border-gray-200">
+                <summary className="cursor-pointer p-6 text-xl font-bold text-gray-900 list-none flex items-center justify-between">
+                  <span>Technical report (ISO 14044 draft)</span>
+                  <span className="text-sm font-normal text-gray-500">Click to expand</span>
+                </summary>
+                <div className="px-6 pb-6 border-t border-gray-100">
+                  <ISOReport report={(results as { iso_report?: Parameters<typeof ISOReport>[0]['report'] }).iso_report} />
+                </div>
+              </details>
             </motion.div>
           ) : null}
-
-          {/* AI-Powered Professional Report with Charts */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.1 }}
-            className="mb-12"
-          >
-            <ProfessionalReportViewer
-              assessmentId={assessmentId || ''}
-              companyName={results.company_name}
-              assessmentData={results}
-            />
-          </motion.div>
 
           {/* Actions */}
           <motion.div
@@ -1049,6 +1070,13 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
           </motion.div>
         </div>
       </div>
+
+      <ResultsChat
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        assessmentData={results}
+        assessmentId={assessmentId}
+      />
     </Layout>
   );
 }

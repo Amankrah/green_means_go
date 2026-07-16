@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Import processing, production, and reports modules
+# Import processing, production, and chat modules
 from processing.routes import router as processing_router
 from production.routes import router as production_router
-from reports.routes import router as reports_router
+from chat.routes import router as chat_router
 from inventory.routes import router as inventory_router
 from farm.routes import router as farm_router
 
@@ -22,7 +22,7 @@ IS_PRODUCTION = os.getenv("ENVIRONMENT", "development") == "production"
 # Disable docs in production for security
 app = FastAPI(
     title="African Environmental Sustainability Assessment API",
-    description="Comprehensive LCA API for food companies, farmers, and processing facilities in Africa - supports farm and processing assessments with AI-powered report generation",
+    description="Comprehensive LCA API for food companies, farmers, and processing facilities in Africa - supports farm and processing assessments with AI plain-language guides",
     version="2.1.0",
     docs_url=None if IS_PRODUCTION else "/docs",
     redoc_url=None if IS_PRODUCTION else "/redoc",
@@ -50,10 +50,10 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-# Include processing, production, and reports routes
+# Include processing, production, chat, and other routes
 app.include_router(processing_router)
 app.include_router(production_router)
-app.include_router(reports_router)
+app.include_router(chat_router)
 app.include_router(inventory_router)
 app.include_router(farm_router)
 

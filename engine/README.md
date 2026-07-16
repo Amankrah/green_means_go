@@ -66,6 +66,12 @@ DRAFT with the critical review marked REQUIRED and PENDING and the review statem
 empty (issued only when a real panel accepts the study). Rendered by
 `african-lca-frontend/src/components/ISOReport.tsx`.
 
+### AI plain-language guide (optional second layer)
+`app/services/ai_report_generator.py` interprets the ISO draft on demand via
+`POST /reports/generate`. It does **not** regenerate ISO sections or invent LCA facts.
+See `AI_REPORT_ENHANCEMENTS.md` for report types (`farmer_friendly`, `executive`,
+`comprehensive` commentary). Requires `iso_report` in assessment data.
+
 ## Remaining refinements
 1. **Cross-unit input amounts** (kg diesel vs MJ process): surfaced as a note when
    `amount_unit != ref_unit`; needs substance-specific conversion (e.g. diesel LHV) or
