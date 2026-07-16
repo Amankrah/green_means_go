@@ -31,6 +31,49 @@ LEGUMES = {"cowpea", "groundnut", "peanut", "soybean", "soya", "bean", "pea",
 # assumption; legume fixation substitutes for part of the synthetic N requirement).
 LEGUME_N2O_CREDIT = 0.20
 
+# ---- Compost / manure organic-N -> field N2O (IPCC 2019 Vol.4 Ch.11) --------------------
+# Representative total-N content of the organic amendment, as a fraction of the fresh
+# applied mass, by source (screening defaults; real values vary widely with moisture and
+# feedstock). Application rate arrives in tonnes/ha/year.
+COMPOST_N_FRACTION = {
+    "Animal manure": 0.005,
+    "Farm-made compost": 0.012,
+    "Purchased compost": 0.012,
+    "Green waste/crop residues": 0.008,
+    "Mixed sources": 0.010,
+}
+DEFAULT_COMPOST_N = 0.010
+# IPCC 2019 indirect-N2O parameters for applied organic N.
+FRAC_GASM = 0.21     # fraction of organic N volatilised as NH3/NOx
+EF4 = 0.010          # N2O from atmospheric N deposition
+FRAC_LEACH = 0.24    # fraction of N leached/run off (non-arid climates)
+EF5 = 0.011          # N2O from leaching/runoff
+N2O_N_TO_N2O = 44.0 / 28.0
+
+
+def _compost_n2o(assessment: dict, region) -> tuple[float, str | None]:
+    """Direct + indirect field N2O (kg) from applied compost/manure organic N, per IPCC
+    2019 Tier 1. Returns (n2o_kg, note). Zero if no rate is given."""
+    sm = ((assessment.get("management_practices") or {}).get("soil_management")) or {}
+    rate_t_ha = sm.get("compost_application_rate")
+    if not rate_t_ha or not sm.get("uses_compost"):
+        return 0.0, None
+    total_area = sum((f.get("area_allocated") or 0) for f in (assessment.get("foods") or []))
+    if total_area <= 0:
+        return 0.0, None
+    source = sm.get("compost_source") or ""
+    n_frac = COMPOST_N_FRACTION.get(source, DEFAULT_COMPOST_N)
+    ef1 = getattr(region, "ipcc_n2o_ef1", RUST_EF1) or RUST_EF1
+    # organic N applied (kg) = rate(t/ha) × 1000 × area(ha) × N-fraction
+    f_on = rate_t_ha * 1000.0 * total_area * n_frac
+    n2o = f_on * (ef1 + FRAC_GASM * EF4 + FRAC_LEACH * EF5) * N2O_N_TO_N2O
+    if n2o <= 0:
+        return 0.0, None
+    note = (f"compost/manure applied ({rate_t_ha:g} t/ha, {source or 'unspecified'}, "
+            f"~{n_frac*100:.1f}% N): added {f_on:.0f} kg organic N -> {n2o:.1f} kg field N2O "
+            "(IPCC 2019 direct + indirect, screening N content)")
+    return n2o, note
+
 
 def _has_legume_partner(assessment: dict) -> bool:
     """True if a crop has a legume *partner* (intercrop) or a legume in its *rotation* that
@@ -71,15 +114,25 @@ def adjust_field_emissions(on_farm_lci: list[dict], assessment: dict, region) ->
             f"legume intercrop present: field N2O reduced by {int(LEGUME_N2O_CREDIT*100)}% "
             "for biological nitrogen fixation substituting synthetic fertiliser (screening assumption)")
 
+    # Scale the synthetic-N N2O (region climate + legume credit)
     if factor == 1.0:
-        return on_farm_lci, notes
+        adjusted = list(on_farm_lci)
+    else:
+        adjusted = []
+        for f in on_farm_lci:
+            if f.get("substance") == "N2O":
+                g = dict(f)
+                g["quantity"] = (g.get("quantity") or 0.0) * factor
+                adjusted.append(g)
+            else:
+                adjusted.append(f)
 
-    adjusted = []
-    for f in on_farm_lci:
-        if f.get("substance") == "N2O":
-            g = dict(f)
-            g["quantity"] = (g.get("quantity") or 0.0) * factor
-            adjusted.append(g)
-        else:
-            adjusted.append(f)
+    # Add compost/manure organic-N N2O (at the region EF1, not legume-credited — it is a
+    # separate organic input, not a synthetic-N substitution).
+    compost_n2o, compost_note = _compost_n2o(assessment, region)
+    if compost_n2o > 0:
+        adjusted.append({"substance": "N2O", "quantity": compost_n2o, "unit": "kg"})
+        if compost_note:
+            notes.append(compost_note)
+
     return adjusted, notes

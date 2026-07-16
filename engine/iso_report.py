@@ -204,8 +204,9 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "Each bought-in input is matched to a representative dataset with assisted search, and the top candidates are kept on record so the choice can be checked.",
             ("The pesticides applied are included through the production of their active ingredients; where a specific ingredient is not in the database, a representative pesticide is used."
              if has_pesticide else None),
-            ("Compost is used on the farm. If it is made on-farm it carries no purchasing burden; its nitrogen still adds to field emissions where a rate is known."
+            ("Compost or manure is applied; its organic nitrogen is included in the field N2O calculation using IPCC 2019 factors (direct and indirect), with a screening estimate of the amendment's nitrogen content. On-farm compost carries no purchasing burden."
              if uses_compost else None),
+            "Change in soil organic carbon from tillage and cover cropping is deliberately excluded. It can be significant, but it is highly uncertain and strongly time-dependent, and common practice (IPCC, PAS 2050) is to exclude it or report it separately rather than fold an unreliable figure into the result.",
             (f"Post-harvest losses average about {avg_loss:.0f}%. Figures here are per kilogram at the farm gate; per kilogram of marketable crop they would be roughly {avg_loss:.0f}% higher."
              if avg_loss else None),
             "If a crop grown on the farm is not in the background database, a close stand-in is used, or the farm's own field data on its own, and this is noted.",

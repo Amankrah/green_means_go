@@ -110,6 +110,7 @@ class AssessmentAPI {
           soil_type: data.managementPractices.soilManagement.soilType?.replace(/ /g, ''),
           uses_compost: data.managementPractices.soilManagement.compostUse.usesCompost,
           compost_source: data.managementPractices.soilManagement.compostUse.compostsource,
+          compost_application_rate: data.managementPractices.soilManagement.compostUse.applicationRate,
           conservation_practices: data.managementPractices.soilManagement.conservationPractices,
           soil_testing_frequency: data.managementPractices.soilManagement.soilTestingFrequency,
         },

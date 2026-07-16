@@ -75,6 +75,7 @@ class SoilManagement(BaseModel):
     soil_type: Optional[SoilType] = None
     uses_compost: bool = False
     compost_source: Optional[str] = None
+    compost_application_rate: Optional[float] = None  # tonnes/ha/year (organic N -> field N2O)
     conservation_practices: List[str] = []
     soil_testing_frequency: Optional[str] = None
 
