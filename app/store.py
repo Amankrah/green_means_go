@@ -39,6 +39,7 @@ def save_assessment(
     farm_id: Optional[str] = None,
     facility_id: Optional[str] = None,
     title: Optional[str] = None,
+    request_payload: Optional[dict[str, Any]] = None,
 ) -> Assessment:
     """Persist an engine result as an owned Assessment row. Uses the engine-minted id
     from the payload as the primary key so existing id-based links keep working."""
@@ -54,16 +55,69 @@ def save_assessment(
         farm_id=farm_id,
         facility_id=facility_id,
         title=title,
-        company_name=payload.get("company_name"),
+        company_name=payload.get("company_name")
+        or (payload.get("facility_profile") or {}).get("company_name"),
         country=payload.get("country"),
         region=payload.get("region"),
         single_score=extract_single_score(payload),
         payload_json=payload,
+        request_json=request_payload,
     )
     db.add(assessment)
     db.commit()
     db.refresh(assessment)
     return assessment
+
+
+def replace_assessment(
+    db: Session,
+    assessment: Assessment,
+    *,
+    payload: dict[str, Any],
+    title: Optional[str] = None,
+    farm_id: Optional[str] = None,
+    facility_id: Optional[str] = None,
+    request_payload: Optional[dict[str, Any]] = None,
+) -> Assessment:
+    """Overwrite an existing assessment in place (same id) after a re-run."""
+    payload = dict(payload)
+    payload["id"] = assessment.id
+
+    assessment.payload_json = payload
+    assessment.company_name = payload.get("company_name") or (
+        (payload.get("facility_profile") or {}).get("company_name")
+    )
+    assessment.country = payload.get("country")
+    assessment.region = payload.get("region")
+    assessment.single_score = extract_single_score(payload)
+    assessment.status = "completed"
+    if title is not None:
+        assessment.title = title
+    if farm_id is not None:
+        assessment.farm_id = farm_id
+    if facility_id is not None:
+        assessment.facility_id = facility_id
+    if request_payload is not None:
+        assessment.request_json = request_payload
+
+    db.add(assessment)
+    db.commit()
+    db.refresh(assessment)
+    return assessment
+
+
+def delete_owned_assessment(
+    db: Session,
+    user: User,
+    assessment_id: str,
+) -> bool:
+    """Delete if owned by `user`. Returns True when a row was removed."""
+    assessment = get_owned_assessment(db, user, assessment_id)
+    if assessment is None:
+        return False
+    db.delete(assessment)
+    db.commit()
+    return True
 
 
 def get_owned_assessment(

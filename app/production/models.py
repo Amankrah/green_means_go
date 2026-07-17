@@ -191,6 +191,9 @@ class AssessmentRequest(BaseModel):
     farm_profile: Optional[FarmProfile] = None
     management_practices: Optional[ManagementPractices] = None
     equipment_energy: Optional[EquipmentEnergy] = None
+
+    # Opaque client wizard snapshot for edit/re-run UX (not used by the engine).
+    form_snapshot: Optional[Dict[str, Any]] = None
     
     @field_validator('country')
     @classmethod
@@ -267,6 +270,9 @@ class AssessmentResponse(BaseModel):
     single_score: Union[float, SingleScoreResult]
     data_quality: Union[Dict, DataQuality]
     breakdown_by_food: Dict[str, Dict[str, Union[float, MidpointResult]]]
+
+    # Echoed from the request so results/reports show the farmer's own names
+    farm_profile: Optional[FarmProfile] = None
     
     # Enhanced analysis results
     sensitivity_analysis: Optional[Dict[str, Any]] = None

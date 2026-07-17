@@ -3,8 +3,8 @@ workspace/routes.py — the authenticated user's own records: the farms and faci
 they manage, plus a unified list of their saved assessments for dashboards.
 
 Farms are managed by farmers (their own) and extension officers (one per client farm).
-Facilities are managed by processors. Everything here is scoped to the current user;
-there is no cross-user visibility.
+Facilities are managed by processors. Researchers manage both. Everything here is scoped
+to the current user; there is no cross-user visibility.
 """
 from __future__ import annotations
 
@@ -19,11 +19,14 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models import Facility, Farm, User, UserRole
 from auth.deps import get_current_user, require_role
-from store import list_owned_assessments
+from store import delete_owned_assessment, get_owned_assessment, list_owned_assessments
 
 router = APIRouter(tags=["workspace"])
 
-_farm_roles = require_role(UserRole.farmer, UserRole.extension_officer)
+# Only owners keep a farm/facility registry. Extension officers and researchers are
+# external agents: they run assessments (filling the wizard) but do not create or
+# manage Farm / Facility records on behalf of others.
+_farm_roles = require_role(UserRole.farmer)
 _facility_roles = require_role(UserRole.processor)
 
 
@@ -211,8 +214,51 @@ def my_assessments(user: User = Depends(get_current_user), db: Session = Depends
                 "status": row.status,
                 "assessment_date": row.payload_json.get("assessment_date"),
                 "created_at": row.created_at,
+                "can_rerun": bool(
+                    row.request_json and row.request_json.get("form")
+                ),
             }
             for row in rows
         ],
         "total": len(rows),
     }
+
+
+@router.get("/me/assessments/{assessment_id}/request")
+def get_assessment_request(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the stored submit payload so the owner can edit inputs and re-run."""
+    row = get_owned_assessment(db, user, assessment_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    if not row.request_json:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This assessment was saved before edit/re-run support. "
+                "Run a new assessment instead, or delete this one."
+            ),
+        )
+    return {
+        "id": row.id,
+        "type": row.type.value if hasattr(row.type, "value") else str(row.type),
+        "title": row.title,
+        "farm_id": row.farm_id,
+        "facility_id": row.facility_id,
+        "api": row.request_json.get("api"),
+        "form": row.request_json.get("form"),
+    }
+
+
+@router.delete("/me/assessments/{assessment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_assessment(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete one of the current user's assessments. Not owned → 404."""
+    if not delete_owned_assessment(db, user, assessment_id):
+        raise HTTPException(status_code=404, detail="Assessment not found")

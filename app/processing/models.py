@@ -289,6 +289,9 @@ class ProcessingAssessmentRequest(BaseModel):
     facility_id: Optional[str] = None  # attach to a Facility the user owns
     title: Optional[str] = None        # human label for the saved assessment
 
+    # Opaque client form snapshot for edit/re-run UX (not used by the engine).
+    form_snapshot: Optional[Dict[str, Any]] = None
+
     @field_validator('country')
     @classmethod
     def validate_country(cls, v):

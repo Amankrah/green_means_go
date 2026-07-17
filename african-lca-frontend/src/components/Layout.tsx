@@ -28,6 +28,7 @@ const ROLE_LABEL: Record<string, string> = {
   farmer: 'Farmer',
   extension_officer: 'Extension officer',
   processor: 'Processor',
+  researcher: 'Researcher',
 };
 
 function initials(name: string): string {

@@ -13,7 +13,12 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models import Assessment, AssessmentType, Farm, User
 from auth.deps import get_current_user
-from store import get_owned_assessment, list_owned_assessments, save_assessment
+from store import (
+    get_owned_assessment,
+    list_owned_assessments,
+    replace_assessment,
+    save_assessment,
+)
 
 # The validated engine (Rust LCI kernel + supply-chain solver + canonical CFs) is the
 # default served path. Set USE_LEGACY_RUST_LCIA=1 to fall back to the old Rust
@@ -50,6 +55,44 @@ def _resolve_farm_id(request: AssessmentRequest, user: User, db: Session) -> Opt
     return farm.id
 
 
+def _request_archive(request: AssessmentRequest) -> dict:
+    """Persistable request for later edit/re-run (engine input + optional form snapshot)."""
+    return {
+        "api": request.model_dump(mode="json", exclude={"form_snapshot"}),
+        "form": request.form_snapshot,
+    }
+
+
+def _build_farm_rust_input(request: AssessmentRequest) -> dict:
+    rust_input = {
+        "company_name": request.company_name,
+        "country": request.country,
+        "foods": [food.model_dump(exclude_none=False) for food in request.foods],
+    }
+    if request.region:
+        rust_input["region"] = request.region
+    if request.farm_profile:
+        rust_input["farm_profile"] = request.farm_profile.model_dump()
+    if request.management_practices:
+        rust_input["management_practices"] = request.management_practices.model_dump()
+    if request.equipment_energy:
+        rust_input["equipment_energy"] = request.equipment_energy.model_dump()
+        print("[OK] Added equipment_energy to rust_input")
+    else:
+        print("[SKIP] Skipped equipment_energy (falsy value)")
+    return rust_input
+
+
+async def _run_farm_engine(request: AssessmentRequest) -> dict:
+    rust_input = _build_farm_rust_input(request)
+    if USE_VALIDATED_ENGINE:
+        # CPU-bound; run in a worker thread so uvicorn's event loop stays responsive.
+        from starlette.concurrency import run_in_threadpool
+        from engine.service import run_farm_assessment
+        return await run_in_threadpool(run_farm_assessment, rust_input, region=request.region)
+    return await call_rust_backend(rust_input)
+
+
 @router.post("/assess", response_model=AssessmentResponse)
 async def create_assessment(
     request: AssessmentRequest,
@@ -61,50 +104,12 @@ async def create_assessment(
     """
     try:
         farm_id = _resolve_farm_id(request, user, db)
-
-        # Prepare data for Rust backend - include all available fields
-        rust_input = {
-            "company_name": request.company_name,
-            "country": request.country,
-            "foods": [food.model_dump(exclude_none=False) for food in request.foods]
-        }
-
-        # Add region if provided
-        if request.region:
-            rust_input["region"] = request.region
-
-        # Add farm profile if provided (comprehensive assessment)
-        if request.farm_profile:
-            rust_input["farm_profile"] = request.farm_profile.model_dump()
-
-        # Add management practices if provided (comprehensive assessment)
-        if request.management_practices:
-            rust_input["management_practices"] = request.management_practices.model_dump()
-
-        # Add equipment/energy data if provided (comprehensive assessment)
-        if request.equipment_energy:
-            rust_input["equipment_energy"] = request.equipment_energy.model_dump()
-            print(f"✓ Added equipment_energy to rust_input")
-        else:
-            print(f"✗ Skipped equipment_energy (falsy value)")
-
-        if USE_VALIDATED_ENGINE:
-            # NEW validated pipeline: Rust LCI kernel + supply-chain solver + canonical CFs.
-            # It is CPU-bound and can run for a minute or two (cold engine build + per-crop
-            # solves), so run it in a worker thread — otherwise it blocks uvicorn's event
-            # loop and the client connection is dropped (ERR_EMPTY_RESPONSE).
-            from starlette.concurrency import run_in_threadpool
-            from engine.service import run_farm_assessment
-            result = await run_in_threadpool(run_farm_assessment, rust_input, region=request.region)
-        else:
-            result = await call_rust_backend(rust_input)   # legacy Rust hardcoded LCIA
-
-        # Persist under the current user's account.
+        result = await _run_farm_engine(request)
         save_assessment(
             db, user_id=user.id, a_type=AssessmentType.farm, payload=result,
             farm_id=farm_id, title=request.title,
+            request_payload=_request_archive(request),
         )
-
         return AssessmentResponse(**result)
 
     except HTTPException:
@@ -129,39 +134,46 @@ async def create_comprehensive_assessment(
 
     try:
         farm_id = _resolve_farm_id(request, user, db)
-        # Prepare comprehensive data for Rust backend
-        rust_input = {
-            "company_name": request.company_name,
-            "country": request.country,
-            "region": request.region,
-            "foods": [food.model_dump(exclude_none=False) for food in request.foods],
-            "farm_profile": request.farm_profile.model_dump(),
-            "management_practices": request.management_practices.model_dump()
-        }
-
-        # Add equipment/energy data if provided
-        if request.equipment_energy:
-            rust_input["equipment_energy"] = request.equipment_energy.model_dump()
-
-        if USE_VALIDATED_ENGINE:
-            from starlette.concurrency import run_in_threadpool
-            from engine.service import run_farm_assessment
-            result = await run_in_threadpool(run_farm_assessment, rust_input, region=request.region)
-        else:
-            result = await call_rust_backend(rust_input)
-
-        # Persist under the current user's account.
+        result = await _run_farm_engine(request)
         save_assessment(
             db, user_id=user.id, a_type=AssessmentType.farm, payload=result,
             farm_id=farm_id, title=request.title,
+            request_payload=_request_archive(request),
         )
-
         return AssessmentResponse(**result)
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Comprehensive assessment failed: {str(e)}")
+
+
+@router.post("/assess/{assessment_id}/rerun", response_model=AssessmentResponse)
+async def rerun_assessment(
+    assessment_id: str,
+    request: AssessmentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Re-run a farm assessment in place. Replaces scores/report for the same id.
+    Requires ownership; not found and not owned both return 404."""
+    existing = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    try:
+        farm_id = _resolve_farm_id(request, user, db)
+        result = await _run_farm_engine(request)
+        replace_assessment(
+            db, existing, payload=result,
+            farm_id=farm_id, title=request.title,
+            request_payload=_request_archive(request),
+        )
+        return AssessmentResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Assessment re-run failed: {str(e)}")
 
 @router.get("/assess/{assessment_id}", response_model=AssessmentResponse)
 async def get_assessment(
@@ -176,6 +188,29 @@ async def get_assessment(
     if assessment is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
     return AssessmentResponse(**assessment.payload_json)
+
+
+@router.get("/assess/{assessment_id}/recommendations")
+async def get_assessment_recommendations(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Practical, costed, sequenced actions for one saved farm assessment.
+
+    Fully deterministic: the engine's hotspot attribution is matched against the curated
+    measure library and screened for affordability/payback. No LLM produces any number
+    here — the results chat explains this output, it does not generate it.
+    """
+    assessment = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    from recommendations.service import build_recommendations
+    from starlette.concurrency import run_in_threadpool
+    return await run_in_threadpool(
+        build_recommendations, assessment.payload_json, assessment.request_json,
+        is_processing=False,
+    )
 
 @router.get("/assessments")
 async def list_assessments(
@@ -276,12 +311,12 @@ async def call_rust_backend(data: dict) -> dict:
     try:
         # DEBUG: Log what we're sending to Rust
         print("\n" + "="*80)
-        print("🔍 DATA BEING SENT TO RUST BACKEND:")
+        print("DATA BEING SENT TO RUST BACKEND:")
         print("="*80)
         if "equipment_energy" in data:
-            print(f"✓ equipment_energy present: {data['equipment_energy']}")
+            print(f"[OK] equipment_energy present: {data['equipment_energy']}")
         else:
-            print("✗ equipment_energy MISSING!")
+            print("[WARN] equipment_energy MISSING!")
         print("="*80 + "\n")
 
         # Write input to temporary file
@@ -289,7 +324,7 @@ async def call_rust_backend(data: dict) -> dict:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump(data, f, indent=2)
             temp_file = f.name
-            print(f"📄 Temp file written: {temp_file}")
+            print(f"Temp file written: {temp_file}")
         
         # Call Rust binary - Check environment variable first, then fallback to local paths
         rust_binary = os.environ.get('RUST_BACKEND_PATH')
@@ -328,7 +363,7 @@ async def call_rust_backend(data: dict) -> dict:
 
         # Print Rust stderr for debugging
         if result.stderr:
-            print("📋 RUST STDERR OUTPUT:")
+            print("RUST STDERR OUTPUT:")
             print(result.stderr)
             print("="*80)
         

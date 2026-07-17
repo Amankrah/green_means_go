@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Plus, Pencil, Trash2, Sprout, MapPin, X } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Loader2, Plus, Pencil, Trash2, Sprout, MapPin, X, Eye } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import DashboardShell from '@/components/DashboardShell';
-import { useAuth } from '@/contexts/AuthContext';
 import { assessmentAPI, AssessmentSummary, Farm } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
@@ -35,8 +35,8 @@ const EMPTY: FarmForm = {
 };
 
 function FarmsContent() {
-  const { user } = useAuth();
-  const isOfficer = user?.role === 'extension_officer';
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [farms, setFarms] = useState<Farm[]>([]);
   const [assessments, setAssessments] = useState<AssessmentSummary[]>([]);
@@ -55,8 +55,10 @@ function FarmsContent() {
       const [f, a] = await Promise.all([assessmentAPI.getFarms(), assessmentAPI.getMyAssessments()]);
       setFarms(f);
       setAssessments(a.assessments);
+      return f;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your farms.');
+      return [] as Farm[];
     } finally {
       setLoading(false);
     }
@@ -94,6 +96,18 @@ function FarmsContent() {
     setFormError(null);
     setModalOpen(true);
   };
+
+  // Profile page "Edit" lands here with ?edit=<farmId>
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || farms.length === 0) return;
+    const farm = farms.find((f) => f.id === editId);
+    if (farm) {
+      openEdit(farm);
+      router.replace('/dashboard/farms', { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when list + query are ready
+  }, [searchParams, farms, router]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,14 +149,14 @@ function FarmsContent() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <p className="text-gray-600">
-          {isOfficer ? 'The client farms you manage. Add one per farm you support.' : 'Your farm records.'}
+          Your farm profiles. Starting an assessment from a farm prefills its details.
         </p>
         <button
           type="button"
           onClick={openAdd}
           className="inline-flex items-center gap-2 rounded-lg bg-spruce px-4 py-2.5 font-medium text-white hover:bg-ink transition-colors"
         >
-          <Plus className="w-4 h-4" /> {isOfficer ? 'Add client farm' : 'Add farm'}
+          <Plus className="w-4 h-4" /> Add farm
         </button>
       </div>
 
@@ -157,15 +171,13 @@ function FarmsContent() {
       ) : farms.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
           <Sprout className="w-8 h-8 text-moss mx-auto" />
-          <p className="mt-3 text-gray-600">
-            {isOfficer ? 'No client farms yet. Add the first farm you support.' : 'No farms yet. Add your farm to get started.'}
-          </p>
+          <p className="mt-3 text-gray-600">No farms yet. Add your farm to get started.</p>
           <button
             type="button"
             onClick={openAdd}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-spruce px-4 py-2 font-medium text-white hover:bg-ink transition-colors"
           >
-            <Plus className="w-4 h-4" /> {isOfficer ? 'Add client farm' : 'Add farm'}
+            <Plus className="w-4 h-4" /> Add farm
           </button>
         </div>
       ) : (
@@ -176,7 +188,12 @@ function FarmsContent() {
               <div key={farm.id} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{farm.name}</h3>
+                    <Link
+                      href={`/dashboard/farms/${farm.id}`}
+                      className="font-semibold text-gray-900 hover:text-spruce"
+                    >
+                      {farm.name}
+                    </Link>
                     {(farm.location || farm.country) && (
                       <p className="mt-0.5 flex items-center gap-1 text-sm text-gray-500">
                         <MapPin className="w-3.5 h-3.5" />
@@ -185,6 +202,13 @@ function FarmsContent() {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    <Link
+                      href={`/dashboard/farms/${farm.id}`}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                      aria-label="View farm profile"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Link>
                     <button
                       type="button"
                       onClick={() => openEdit(farm)}
@@ -204,7 +228,7 @@ function FarmsContent() {
                   </div>
                 </div>
 
-                {isOfficer && farm.farmer_name && (
+                {farm.farmer_name && (
                   <p className="mt-2 text-sm text-gray-600">
                     Farmer: <span className="font-medium">{farm.farmer_name}</span>
                     {farm.farmer_contact ? ` · ${farm.farmer_contact}` : ''}
@@ -212,16 +236,24 @@ function FarmsContent() {
                 )}
                 {farm.size_ha != null && <p className="mt-1 text-sm text-gray-500">{farm.size_ha} ha</p>}
 
-                <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="mt-4 flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
                   <span className="text-sm text-gray-500">
                     {count} {count === 1 ? 'assessment' : 'assessments'}
                   </span>
-                  <Link
-                    href={`/assessment?farmId=${farm.id}`}
-                    className="text-sm font-medium text-moss hover:text-spruce"
-                  >
-                    New assessment →
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/dashboard/farms/${farm.id}`}
+                      className="text-sm font-medium text-gray-600 hover:text-spruce"
+                    >
+                      View profile
+                    </Link>
+                    <Link
+                      href={`/assessment?farmId=${farm.id}`}
+                      className="text-sm font-medium text-moss hover:text-spruce"
+                    >
+                      New assessment →
+                    </Link>
+                  </div>
                 </div>
               </div>
             );
@@ -235,7 +267,7 @@ function FarmsContent() {
           <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                {editing ? 'Edit farm' : isOfficer ? 'Add client farm' : 'Add farm'}
+                {editing ? 'Edit farm' : 'Add farm'}
               </h3>
               <button type="button" onClick={() => setModalOpen(false)} className="p-1 text-gray-400 hover:text-gray-700">
                 <X className="w-5 h-5" />
@@ -264,11 +296,19 @@ function FarmsContent() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Region / province">
+                <Field label="Region / province" hint="e.g. Ashanti, Northern, Kano">
                   <input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="input" />
                 </Field>
-                <Field label="Location">
-                  <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input" />
+                <Field
+                  label="Town / village / site"
+                  hint="More specific than region — village, town, or street address of the farm"
+                >
+                  <input
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    className="input"
+                    placeholder="e.g. Ejura, near Kumasi"
+                  />
                 </Field>
                 <Field label="Size (hectares)">
                   <input
@@ -282,16 +322,14 @@ function FarmsContent() {
                 </Field>
               </div>
 
-              {isOfficer && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Farmer name">
-                    <input value={form.farmer_name} onChange={(e) => setForm({ ...form, farmer_name: e.target.value })} className="input" />
-                  </Field>
-                  <Field label="Farmer contact">
-                    <input value={form.farmer_contact} onChange={(e) => setForm({ ...form, farmer_contact: e.target.value })} className="input" />
-                  </Field>
-                </div>
-              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Primary contact name" hint="Optional — who to reach about this farm">
+                  <input value={form.farmer_name} onChange={(e) => setForm({ ...form, farmer_name: e.target.value })} className="input" />
+                </Field>
+                <Field label="Contact phone or email">
+                  <input value={form.farmer_contact} onChange={(e) => setForm({ ...form, farmer_contact: e.target.value })} className="input" />
+                </Field>
+              </div>
 
               <Field label="Notes">
                 <textarea
@@ -347,7 +385,17 @@ function FarmsContent() {
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <span className="block text-sm font-medium text-gray-700">
@@ -355,15 +403,18 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {required && <span className="text-red-500"> *</span>}
       </span>
       {children}
+      {hint && <span className="mt-1 block text-xs text-gray-500">{hint}</span>}
     </label>
   );
 }
 
 export default function FarmsPage() {
   return (
-    <RequireAuth roles={['farmer', 'extension_officer']}>
+    <RequireAuth roles={['farmer']}>
       <DashboardShell active="farms" title="Farms">
-        <FarmsContent />
+        <Suspense fallback={<div className="text-gray-500 text-sm">Loading…</div>}>
+          <FarmsContent />
+        </Suspense>
       </DashboardShell>
     </RequireAuth>
   );

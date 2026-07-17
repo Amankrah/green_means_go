@@ -2,7 +2,7 @@
 // the access token and refreshes it) and the AuthContext (which mirrors it into React
 // state). Kept as a plain module so api.ts and the context don't import each other.
 
-export type UserRole = 'extension_officer' | 'farmer' | 'processor';
+export type UserRole = 'extension_officer' | 'farmer' | 'processor' | 'researcher';
 
 export interface AuthUser {
   id: string;

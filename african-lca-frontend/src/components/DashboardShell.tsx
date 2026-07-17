@@ -17,10 +17,10 @@ import {
   Menu,
   LogOut,
   ChevronDown,
-  Plus,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/lib/auth-storage';
+import NewAssessmentButton from '@/components/NewAssessmentButton';
 
 export type DashboardSection = 'overview' | 'assessments' | 'farms' | 'facilities';
 
@@ -28,6 +28,7 @@ const ROLE_LABEL: Record<string, string> = {
   farmer: 'Farmer',
   extension_officer: 'Extension officer',
   processor: 'Processor',
+  researcher: 'Researcher',
 };
 
 function initials(name: string): string {
@@ -45,10 +46,11 @@ interface NavItem {
 
 function navForRole(role: UserRole | undefined): NavItem[] {
   const items: NavItem[] = [
-    { key: 'overview', label: 'Overview', href: '/dashboard', icon: LayoutDashboard, roles: ['farmer', 'extension_officer', 'processor'] },
-    { key: 'assessments', label: 'Assessments', href: '/dashboard/assessments', icon: FileBarChart, roles: ['farmer', 'extension_officer', 'processor'] },
-    { key: 'farms', label: role === 'extension_officer' ? 'Clients & farms' : 'My farms', href: '/dashboard/farms', icon: Sprout, roles: ['farmer', 'extension_officer'] },
-    { key: 'facilities', label: 'Facilities', href: '/dashboard/facilities', icon: Factory, roles: ['processor'] },
+    { key: 'overview', label: 'Overview', href: '/dashboard', icon: LayoutDashboard, roles: ['farmer', 'extension_officer', 'processor', 'researcher'] },
+    { key: 'assessments', label: 'Assessments', href: '/dashboard/assessments', icon: FileBarChart, roles: ['farmer', 'extension_officer', 'processor', 'researcher'] },
+    // Only owners keep a registry. Officers/researchers assess via the wizard instead.
+    { key: 'farms', label: 'My farms', href: '/dashboard/farms', icon: Sprout, roles: ['farmer'] },
+    { key: 'facilities', label: 'My facilities', href: '/dashboard/facilities', icon: Factory, roles: ['processor'] },
   ];
   return items.filter((i) => (role ? i.roles.includes(role) : false));
 }
@@ -68,8 +70,6 @@ export default function DashboardShell({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const nav = navForRole(user?.role);
-  const isProcessor = user?.role === 'processor';
-  const newAssessmentHref = isProcessor ? '/processing-assessment' : '/assessment';
 
   const handleSignOut = async () => {
     setUserMenuOpen(false);
@@ -105,13 +105,7 @@ export default function DashboardShell({
       </nav>
 
       <div className="p-3">
-        <Link
-          href={newAssessmentHref}
-          onClick={() => setSidebarOpen(false)}
-          className="flex items-center justify-center gap-2 rounded-lg bg-spruce px-3 py-2.5 text-sm font-medium text-white hover:bg-ink transition-colors"
-        >
-          <Plus className="w-4 h-4" /> New assessment
-        </Link>
+        <NewAssessmentButton block onNavigate={() => setSidebarOpen(false)} />
       </div>
     </div>
   );

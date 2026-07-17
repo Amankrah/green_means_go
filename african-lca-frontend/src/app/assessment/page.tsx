@@ -91,10 +91,18 @@ const stepIcons = {
   [FormStep.REVIEW_SUBMIT]: BarChart3,
 };
 
-function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
+function ComprehensiveAssessmentPage({
+  farmId,
+  rerunFrom,
+}: {
+  farmId?: string | null;
+  rerunFrom?: string | null;
+}) {
   const [currentStep, setCurrentStep] = useState<FormStep>(FormStep.FARM_PROFILE);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [linkedFarmName, setLinkedFarmName] = useState<string | null>(null);
+  const [rerunId, setRerunId] = useState<string | null>(rerunFrom ?? null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitResult, setSubmitResult] = useState<{
     success: boolean;
     message: string;
@@ -328,10 +336,46 @@ function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
 
   const { handleSubmit, trigger, formState: { errors } } = methods;
 
+  // Re-run path: restore the exact wizard snapshot saved with the assessment.
+  useEffect(() => {
+    if (!rerunFrom) return;
+    let active = true;
+    (async () => {
+      try {
+        const archive = await assessmentAPI.getAssessmentRequest(rerunFrom);
+        if (!active) return;
+        if (archive.type === 'processing') {
+          setLoadError('This is a processing assessment. Open it from Processing instead.');
+          return;
+        }
+        if (!archive.form) {
+          setLoadError(
+            'No editable form was stored for this assessment. Run a new assessment instead.'
+          );
+          return;
+        }
+        setRerunId(archive.id);
+        const form = archive.form as EnhancedAssessmentFormData;
+        methods.reset(form);
+        if (form.farmProfile?.farmName) {
+          setLinkedFarmName(form.farmProfile.farmName);
+        }
+      } catch (err) {
+        if (active) {
+          setLoadError(err instanceof Error ? err.message : 'Could not load assessment for editing.');
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [rerunFrom, methods]);
+
   // When launched from a saved farm (New assessment → /assessment?farmId=…), prefill the
   // farm profile from that record and remember the link so the result is saved against it.
+  // Skipped when re-running — the snapshot already has the farm identity.
   useEffect(() => {
-    if (!farmId) return;
+    if (!farmId || rerunFrom) return;
     let active = true;
     assessmentAPI
       .getFarm(farmId)
@@ -352,7 +396,12 @@ function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
     return () => {
       active = false;
     };
-  }, [farmId, methods]);
+  }, [farmId, rerunFrom, methods]);
+
+  // Keep the new step in view — Next/Back leave the scroll at the previous footer otherwise.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, [currentStep]);
 
   const handleNextStep = async () => {
     // Only validate the current step fields
@@ -426,10 +475,14 @@ function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
       // Submit comprehensive assessment to backend
       console.log('Submitting comprehensive assessment:', apiData);
       
-      const result = await assessmentAPI.submitComprehensiveAssessment(apiData, {
+      const submitOpts = {
         farmId: farmId ?? undefined,
         title: data.farmProfile?.farmName || undefined,
-      });
+        formSnapshot: data,
+      };
+      const result = rerunId
+        ? await assessmentAPI.rerunFarmAssessment(rerunId, apiData, submitOpts)
+        : await assessmentAPI.submitComprehensiveAssessment(apiData, submitOpts);
 
       // Store result in localStorage for persistence (survives backend restarts)
       localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
@@ -437,7 +490,9 @@ function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
       
       setSubmitResult({
         success: true,
-        message: 'Comprehensive assessment completed successfully!',
+        message: rerunId
+          ? 'Assessment updated — scores and report have been replaced.'
+          : 'Comprehensive assessment completed successfully!',
         assessmentId: result.id,
       });
 
@@ -676,6 +731,17 @@ function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-moss/10 border border-moss/30 px-4 py-1.5 text-sm font-medium text-spruce">
                 <Sprout className="w-4 h-4" />
                 Assessing: {linkedFarmName}
+              </div>
+            )}
+            {rerunId && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-4 py-1.5 text-sm font-medium text-amber-900">
+                <AlertTriangle className="w-4 h-4" />
+                Editing saved assessment — submit will replace its scores and report
+              </div>
+            )}
+            {loadError && (
+              <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 max-w-2xl mx-auto">
+                {loadError}
               </div>
             )}
           </motion.div>
@@ -1050,12 +1116,13 @@ function ComprehensiveAssessmentPage({ farmId }: { farmId?: string | null }) {
 function AssessmentPageInner() {
   const searchParams = useSearchParams();
   const farmId = searchParams.get('farmId');
-  return <ComprehensiveAssessmentPage farmId={farmId} />;
+  const rerunFrom = searchParams.get('rerunFrom');
+  return <ComprehensiveAssessmentPage farmId={farmId} rerunFrom={rerunFrom} />;
 }
 
 export default function AssessmentPage() {
   return (
-    <RequireAuth roles={['farmer', 'extension_officer']}>
+    <RequireAuth roles={['farmer', 'extension_officer', 'researcher']}>
       <Suspense fallback={null}>
         <AssessmentPageInner />
       </Suspense>

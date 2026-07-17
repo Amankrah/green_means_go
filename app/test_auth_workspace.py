@@ -123,13 +123,34 @@ def test_role_gating_farms_and_facilities(client):
     assert client.get("/farms", headers=_auth(processor)).status_code == 403
 
 
-def test_extension_officer_can_manage_farms(client):
+def test_external_agents_cannot_manage_farms_or_facilities(client):
+    """Researchers and extension officers run assessments but do not own farm/facility
+    registries — those belong to farmers and processors."""
+    researcher = _signup(client, "research@example.com", role="researcher").json()["access_token"]
     officer = _signup(client, "officer@example.com", role="extension_officer").json()["access_token"]
-    resp = client.post("/farms", headers=_auth(officer), json={
+
+    assert client.get("/farms", headers=_auth(researcher)).status_code == 403
+    assert client.get("/facilities", headers=_auth(researcher)).status_code == 403
+    assert client.get("/farms", headers=_auth(officer)).status_code == 403
+    assert client.post("/farms", headers=_auth(officer), json={
         "name": "Client Farm", "country": "Canada", "farmer_name": "Jane Doe",
-    })
-    assert resp.status_code == 201, resp.text
-    assert resp.json()["farmer_name"] == "Jane Doe"
+    }).status_code == 403
+
+
+def test_researcher_can_reach_both_assessment_types(client):
+    """The processing endpoints are role-gated; the farm ones only need a login. Assert a
+    researcher is not 403'd by either gate (a 422 here is schema validation, i.e. past it)."""
+    researcher = _signup(client, "research2@example.com", role="researcher").json()["access_token"]
+
+    for path in ("/assess", "/processing/assess"):
+        resp = client.post(path, headers=_auth(researcher), json={})
+        assert resp.status_code != 403, f"{path} rejected researcher: {resp.text}"
+
+
+def test_farmer_still_cannot_run_processing_assessment(client):
+    """Adding the researcher role must not widen anyone else's access."""
+    farmer = _signup(client, "farmer2@example.com", role="farmer").json()["access_token"]
+    assert client.post("/processing/assess", headers=_auth(farmer), json={}).status_code == 403
 
 
 # --- assessment ownership --------------------------------------------------------
@@ -179,3 +200,16 @@ def test_me_assessments_lists_only_own(client):
 
     b_list = client.get("/me/assessments", headers=_auth(token_b)).json()
     assert b_list["total"] == 0
+
+
+def test_owner_can_delete_others_cannot(client):
+    token_a, aid = _make_assessment_for("del-owner@example.com", client)
+    token_b = _signup(client, "del-intruder@example.com").json()["access_token"]
+
+    # Not owned looks like not found
+    assert client.delete(f"/me/assessments/{aid}", headers=_auth(token_b)).status_code == 404
+    # Owner deletes
+    assert client.delete(f"/me/assessments/{aid}", headers=_auth(token_a)).status_code == 204
+    # Gone for owner too
+    assert client.get(f"/assess/{aid}", headers=_auth(token_a)).status_code == 404
+    assert client.delete(f"/me/assessments/{aid}", headers=_auth(token_a)).status_code == 404

@@ -271,6 +271,8 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
         "id": assessment_id,
         "company_name": assessment.get("company_name", ""),
         "country": assessment.get("country", ""),
+        # Echo identity fields so results/reports never fall back to demo placeholders.
+        "farm_profile": assessment.get("farm_profile") or None,
         "assessment_date": datetime.now(timezone.utc).isoformat(),
         "midpoint_impacts": midpoints,
         "endpoint_impacts": ep,

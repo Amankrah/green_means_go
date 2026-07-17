@@ -59,3 +59,20 @@ def init_db() -> None:
     import models  # noqa: F401  (ensure models are registered on Base.metadata)
 
     Base.metadata.create_all(bind=engine)
+    _ensure_sqlite_columns()
+
+
+def _ensure_sqlite_columns() -> None:
+    """Add columns introduced after the first create_all for local SQLite DBs.
+    Alembic handles this in production; create_all alone never ALTERs existing tables."""
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "assessments" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("assessments")}
+    with engine.begin() as conn:
+        if "request_json" not in existing:
+            conn.execute(text("ALTER TABLE assessments ADD COLUMN request_json JSON"))

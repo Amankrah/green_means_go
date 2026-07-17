@@ -15,14 +15,30 @@ Endpoints (prefix /inventory):
     GET /inventory/cradle-to-gate/{uid}?method=&top=   solve the supply chain
     GET /inventory/match?q=&top=&expand=          AI: free-text -> candidate processes
     POST /inventory/reindex                        rebuild the matcher embedding index
+
+Auth: /match and /reindex can trigger billable AI work (LLM query expansion and
+re-embedding ~46k processes via the OpenAI embeddings API), so both require an
+authenticated user. /reindex is an operator action — re-embedding the whole store
+is expensive and denial-of-wallet-prone — so it additionally requires the admin
+token (INVENTORY_ADMIN_TOKEN, sent as the `X-Admin-Token` header). The read-only
+lookup endpoints stay open.
 """
 from __future__ import annotations
 
+import asyncio
+import os
+import secrets
 import sqlite3
 import sys
+import time
+from collections import deque
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
+
+from auth.deps import get_current_user
+from models import User
 
 # make the ingestion package importable
 _ING = Path(__file__).resolve().parents[2] / "ingestion"
@@ -36,6 +52,55 @@ from matching import ProcessMatcher             # noqa: E402
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
 _matcher: ProcessMatcher | None = None
+
+# Only one reindex may run at a time: it re-embeds ~46k processes and mutates the
+# shared matcher + on-disk cache. Concurrent runs would waste money and race on the
+# cache file. A second request while one is in flight gets 409 instead of piling on.
+_reindex_lock = asyncio.Lock()
+
+# In-process per-user rate limit for /match. Each /match with expand=true bills an
+# LLM completion, so even authenticated users are capped. Sliding-window over
+# monotonic timestamps. NOTE: in-memory and per-process — with multiple workers the
+# effective limit is MATCH_RATE_MAX * num_workers. For a hard global cap, back this
+# with Redis; this is a cheap first line of defense against a single account looping.
+MATCH_RATE_MAX = int(os.getenv("INVENTORY_MATCH_RATE_MAX", "30"))   # requests...
+MATCH_RATE_WINDOW = float(os.getenv("INVENTORY_MATCH_RATE_WINDOW", "60"))  # ...per this many seconds
+_match_hits: dict[str, deque[float]] = {}
+
+
+def _rate_limit_match(user: User) -> None:
+    now = time.monotonic()
+    hits = _match_hits.setdefault(user.id, deque())
+    cutoff = now - MATCH_RATE_WINDOW
+    while hits and hits[0] < cutoff:
+        hits.popleft()
+    if len(hits) >= MATCH_RATE_MAX:
+        retry_after = max(1, int(hits[0] + MATCH_RATE_WINDOW - now))
+        raise HTTPException(
+            status_code=429,
+            detail="Too many match requests; slow down.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    hits.append(now)
+
+
+def match_rate_limited_user(user: User = Depends(get_current_user)) -> User:
+    """Auth + per-user rate limit for /match, in one dependency."""
+    _rate_limit_match(user)
+    return user
+
+
+def require_admin(x_admin_token: str | None = Header(default=None)) -> None:
+    """Gate for operator-only actions. Requires INVENTORY_ADMIN_TOKEN to be set
+    server-side and matched by the caller's X-Admin-Token header. Compared with a
+    constant-time check to avoid leaking the token via timing."""
+    expected = os.getenv("INVENTORY_ADMIN_TOKEN")
+    if not expected:
+        # Fail closed: if no admin token is configured, the action is unavailable
+        # rather than silently open.
+        raise HTTPException(status_code=503, detail="Admin operations are not configured.")
+    if not x_admin_token or not secrets.compare_digest(x_admin_token, expected):
+        raise HTTPException(status_code=403, detail="Admin token required.")
 
 
 def _store_ready() -> bool:
@@ -146,16 +211,35 @@ async def cradle_to_gate(uid: str, method: str | None = None, top: int = 25):
 
 
 @router.get("/match")
-async def match(q: str = Query(..., min_length=1), top: int = 5, expand: bool = False):
+async def match(
+    q: str = Query(..., min_length=1),
+    top: int = 5,
+    expand: bool = False,
+    user: User = Depends(match_rate_limited_user),
+):
     _require_store()
-    return {"query": q, "candidates": get_matcher().match(q, top_k=top, expand=expand)}
+    # match() embeds the query (and, with expand, calls an LLM) — CPU/network work
+    # that would otherwise block the event loop. Run it in the threadpool.
+    candidates = await run_in_threadpool(
+        lambda: get_matcher().match(q, top_k=top, expand=expand)
+    )
+    return {"query": q, "candidates": candidates}
 
 
-@router.post("/reindex")
-async def reindex():
-    _require_store()
+def _do_reindex() -> dict:
     global _matcher
     m = ProcessMatcher(_q())
     n = m.build_index(force=True)
     _matcher = m
     return {"status": "ok", "indexed_processes": n, "embedder": m.embedder.name}
+
+
+@router.post("/reindex", dependencies=[Depends(require_admin)])
+async def reindex(user: User = Depends(get_current_user)):
+    _require_store()
+    if _reindex_lock.locked():
+        raise HTTPException(status_code=409, detail="A reindex is already in progress.")
+    async with _reindex_lock:
+        # Re-embedding ~46k processes is heavy CPU/network work; keep it off the
+        # event loop so the server stays responsive during the rebuild.
+        return await run_in_threadpool(_do_reindex)

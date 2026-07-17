@@ -46,6 +46,8 @@ export interface AssessmentRequest {
   region?: string;
   farm_id?: string; // attach the saved assessment to a Farm the user owns
   title?: string;   // human label for the saved assessment
+  /** Opaque wizard snapshot so edit/re-run can restore the form exactly. */
+  form_snapshot?: unknown;
   farm_profile?: Record<string, unknown>; // Enhanced farm profile data
   management_practices?: Record<string, unknown>; // Enhanced management practices data
   equipment_energy?: {
@@ -75,14 +77,23 @@ export interface AssessmentRequest {
 // Assessment Results
 export interface AssessmentResult {
   id: string;
-  company_name: string;
+  // Farm results carry company_name; processing results carry facility_profile instead.
+  company_name?: string;
+  farm_profile?: {
+    farmer_name?: string;
+    farm_name?: string;
+    [k: string]: unknown;
+  };
+  facility_profile?: { facility_name?: string; [k: string]: unknown };
   country: string;
   assessment_date: string;
   midpoint_impacts: Record<string, MidpointResult>;
   endpoint_impacts: Record<string, EndpointResult>;
   single_score: SingleScoreResult;
   data_quality: DataQuality;
-  breakdown_by_food: Record<string, Record<string, MidpointResult>>;
+  // Present on farm results only — a processing result keys its breakdown by product.
+  breakdown_by_food?: Record<string, Record<string, MidpointResult>>;
+  breakdown_by_product?: Record<string, Record<string, MidpointResult>>;
   sensitivity_analysis?: SensitivityAnalysis;
   comparative_analysis?: ComparativeAnalysis;
   management_analysis?: ManagementAnalysis;

@@ -12,7 +12,12 @@ from db import get_db
 from models import AssessmentType, Facility, User
 from auth.deps import require_role
 from models import UserRole
-from store import get_owned_assessment, list_owned_assessments, save_assessment
+from store import (
+    get_owned_assessment,
+    list_owned_assessments,
+    replace_assessment,
+    save_assessment,
+)
 
 from .models import (
     ProcessingAssessmentRequest, 
@@ -33,8 +38,9 @@ from .models import (
 # Create router for processing endpoints
 router = APIRouter(prefix="/processing", tags=["processing"])
 
-# Processing assessments are for processor accounts.
-_require_processor = require_role(UserRole.processor)
+# Processing assessments are for processor accounts, and for researchers, who study both
+# sides of the food system and so run farm and processing assessments alike.
+_require_processor = require_role(UserRole.processor, UserRole.researcher)
 
 
 def _resolve_facility_id(request: ProcessingAssessmentRequest, user: User, db: Session) -> Optional[str]:
@@ -45,6 +51,31 @@ def _resolve_facility_id(request: ProcessingAssessmentRequest, user: User, db: S
     if facility is None or facility.created_by_user_id != user.id:
         raise HTTPException(status_code=404, detail="Facility not found")
     return facility.id
+
+
+def _request_archive(request: ProcessingAssessmentRequest) -> dict:
+    return {
+        "api": request.model_dump(mode="json", exclude={"form_snapshot"}),
+        "form": request.form_snapshot,
+    }
+
+
+async def _run_processing_engine(request: ProcessingAssessmentRequest) -> dict:
+    if os.getenv("USE_LEGACY_RUST_LCIA") == "1":
+        rust_input = {
+            "country": request.country,
+            "facility_profile": request.facility_profile.model_dump(),
+            "processing_operations": request.processing_operations.model_dump(),
+            "processed_products": [p.model_dump() for p in request.processed_products],
+        }
+        if request.region:
+            rust_input["region"] = request.region
+        return await call_rust_processing_backend(rust_input)
+
+    from starlette.concurrency import run_in_threadpool
+    from engine.process_service import run_process_assessment
+    request_dict = request.model_dump(mode="json", exclude={"form_snapshot"})
+    return await run_in_threadpool(run_process_assessment, request_dict, request.region)
 
 
 @router.post("/assess", response_model=ProcessingAssessmentResponse)
@@ -58,38 +89,45 @@ async def create_processing_assessment(
     """
     try:
         facility_id = _resolve_facility_id(request, user, db)
-
-        if os.getenv("USE_LEGACY_RUST_LCIA") == "1":
-            # Legacy path: the Rust hardcoded-factor kernel, kept behind a flag for comparison.
-            rust_input = {
-                "country": request.country,
-                "facility_profile": request.facility_profile.model_dump(),
-                "processing_operations": request.processing_operations.model_dump(),
-                "processed_products": [p.model_dump() for p in request.processed_products],
-            }
-            if request.region:
-                rust_input["region"] = request.region
-            result = await call_rust_processing_backend(rust_input)
-        else:
-            # Validated engine: ecoinvent supply-chain solve + ReCiPe/EF characterization +
-            # co-product allocation + processing ISO report (mirrors the farm /assess path).
-            from starlette.concurrency import run_in_threadpool
-            from engine.process_service import run_process_assessment
-            request_dict = request.model_dump(mode="json")
-            result = await run_in_threadpool(run_process_assessment, request_dict, request.region)
-
-        # Persist under the current user's account.
+        result = await _run_processing_engine(request)
         save_assessment(
             db, user_id=user.id, a_type=AssessmentType.processing, payload=result,
             facility_id=facility_id, title=request.title,
+            request_payload=_request_archive(request),
         )
-
         return ProcessingAssessmentResponse(**result)
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing assessment failed: {str(e)}")
+
+
+@router.post("/assess/{assessment_id}/rerun", response_model=ProcessingAssessmentResponse)
+async def rerun_processing_assessment(
+    assessment_id: str,
+    request: ProcessingAssessmentRequest,
+    user: User = Depends(_require_processor),
+    db: Session = Depends(get_db),
+):
+    """Re-run a processing assessment in place. Same id; scores/report replaced."""
+    existing = get_owned_assessment(db, user, assessment_id, AssessmentType.processing)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Processing assessment not found")
+
+    try:
+        facility_id = _resolve_facility_id(request, user, db)
+        result = await _run_processing_engine(request)
+        replace_assessment(
+            db, existing, payload=result,
+            facility_id=facility_id, title=request.title,
+            request_payload=_request_archive(request),
+        )
+        return ProcessingAssessmentResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Processing assessment re-run failed: {str(e)}")
 
 @router.get("/assess/{assessment_id}", response_model=ProcessingAssessmentResponse)
 async def get_processing_assessment(
@@ -104,6 +142,25 @@ async def get_processing_assessment(
     if assessment is None:
         raise HTTPException(status_code=404, detail="Processing assessment not found")
     return ProcessingAssessmentResponse(**assessment.payload_json)
+
+
+@router.get("/assess/{assessment_id}/recommendations")
+async def get_processing_recommendations(
+    assessment_id: str,
+    user: User = Depends(_require_processor),
+    db: Session = Depends(get_db),
+):
+    """Practical, costed, sequenced actions for one saved processing assessment.
+    Deterministic (see the farm equivalent); the LLM never produces a number here."""
+    assessment = get_owned_assessment(db, user, assessment_id, AssessmentType.processing)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="Processing assessment not found")
+    from recommendations.service import build_recommendations
+    from starlette.concurrency import run_in_threadpool
+    return await run_in_threadpool(
+        build_recommendations, assessment.payload_json, assessment.request_json,
+        is_processing=True,
+    )
 
 @router.get("/assessments")
 async def list_processing_assessments(

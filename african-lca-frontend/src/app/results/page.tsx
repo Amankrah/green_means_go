@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import RequireAuth from '@/components/RequireAuth';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 // Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,8 @@ import {
   Download,
   Share,
   ArrowRight,
-  RefreshCw
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -29,6 +31,7 @@ import {
 import Layout from '@/components/Layout';
 import ResultsChat from '@/components/ResultsChat';
 import ISOReport from '@/components/ISOReport';
+import RecommendationsPanel from '@/components/RecommendationsPanel';
 import { assessmentAPI, getScoreInterpretation } from '@/lib/api';
 import { AssessmentResult } from '@/types/assessment';
 
@@ -48,17 +51,28 @@ const SCORE_COLORS = {
 
 interface ResultsContentProps {
   assessmentId: string | null;
+  isProcessing?: boolean;
 }
 
-function ResultsContent({ assessmentId }: ResultsContentProps) {
+function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentProps) {
+  const router = useRouter();
   const [results, setResults] = useState<AssessmentResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [rerunning, setRerunning] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [shareLabel, setShareLabel] = useState('Share Results');
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const [pendingRerun, setPendingRerun] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [canRerun, setCanRerun] = useState(false);
 
   const handleDownload = () => window.print();
+
+  const displayName =
+    results?.farm_profile?.farm_name
+    || results?.facility_profile?.facility_name
+    || results?.company_name
+    || 'this assessment';
 
   const handleShare = async () => {
     try {
@@ -77,12 +91,15 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
       // Load most recent results or show empty state
       setLoading(false);
     }
-  }, [assessmentId]);
+  }, [assessmentId, isProcessing]);
+
+  const fetchAssessment = (id: string) =>
+    isProcessing ? assessmentAPI.getProcessingAssessment(id) : assessmentAPI.getAssessment(id);
 
   const loadResults = async (id: string) => {
     try {
       setLoading(true);
-      
+
       // Try localStorage first (survives backend restarts)
       const cachedResult = localStorage.getItem(`assessment_${id}`);
       if (cachedResult) {
@@ -90,9 +107,9 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
         const parsed = JSON.parse(cachedResult);
         setResults(parsed);
         setLoading(false);
-        
+
         // Try to sync with backend in background (non-blocking)
-        assessmentAPI.getAssessment(id)
+        fetchAssessment(id)
           .then(backendResult => {
             console.log('🔄 Synced with backend, updating cache');
             localStorage.setItem(`assessment_${id}`, JSON.stringify(backendResult));
@@ -105,7 +122,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
       }
       
       // No cache, fetch from backend
-      const result = await assessmentAPI.getAssessment(id);
+      const result = await fetchAssessment(id);
       console.log('🔍 Results data from backend:', result);
       
       // Cache for future use
@@ -126,21 +143,51 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
     }
   };
 
-  const handleRerun = async () => {
+  useEffect(() => {
+    if (!assessmentId) {
+      setCanRerun(false);
+      return;
+    }
+    let active = true;
+    assessmentAPI
+      .getAssessmentRequest(assessmentId)
+      .then(() => {
+        if (active) setCanRerun(true);
+      })
+      .catch(() => {
+        if (active) setCanRerun(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [assessmentId]);
+
+  const confirmDelete = async () => {
     if (!assessmentId) return;
-    
+    setActionBusy(true);
     try {
-      setRerunning(true);
-      setError(null);
-      
-      // Refresh the assessment results
-      const updatedResult = await assessmentAPI.getAssessment(assessmentId);
-      console.log('🔄 Refreshed results data from backend:', updatedResult);
-      setResults(updatedResult);
+      await assessmentAPI.deleteAssessment(assessmentId);
+      try {
+        localStorage.removeItem(`assessment_${assessmentId}`);
+      } catch {
+        /* ignore */
+      }
+      router.push('/dashboard/assessments');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh assessment results');
+      setError(err instanceof Error ? err.message : 'Failed to delete assessment');
+      setPendingDelete(false);
     } finally {
-      setRerunning(false);
+      setActionBusy(false);
+    }
+  };
+
+  const confirmRerun = () => {
+    if (!assessmentId) return;
+    setPendingRerun(false);
+    if (isProcessing) {
+      router.push(`/processing-assessment?rerunFrom=${assessmentId}`);
+    } else {
+      router.push(`/assessment?rerunFrom=${assessmentId}`);
     }
   };
 
@@ -311,10 +358,14 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
     return totalImpact / totalQuantityKg;
   };
 
+  // Farm results key the breakdown by crop, processing results by product. Either may be
+  // absent, so callers below must never assume the field exists.
+  const breakdown = results.breakdown_by_food ?? results.breakdown_by_product ?? {};
+
   // Calculate total production quantity from breakdown
   const getTotalProductionQuantity = (): number => {
     // Try to extract from crop breakdown data or use a reasonable estimate
-    const cropEntries = Object.entries(results.breakdown_by_food);
+    const cropEntries = Object.entries(breakdown);
     if (cropEntries.length > 0) {
       // Extract quantity from crop name if it includes quantity info
       // Look for patterns like "Cassava (48000kg)" in crop names
@@ -391,8 +442,16 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
               className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-white max-w-3xl mx-auto"
             >
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {results.company_name}
+                {results.farm_profile?.farm_name
+                  || results.facility_profile?.facility_name
+                  || results.company_name
+                  || 'Assessment'}
               </h2>
+              {results.farm_profile?.farmer_name && (
+                <p className="text-gray-600 mb-4">
+                  {results.farm_profile.farmer_name}
+                </p>
+              )}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-gray-700">
                 <div className="flex items-center space-x-2">
                   <span className="text-2xl">📍</span>
@@ -665,7 +724,7 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
 
 
           {/* Crop Breakdown */}
-          {Object.keys(results.breakdown_by_food).length > 0 && (
+          {Object.keys(breakdown).length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -674,11 +733,11 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
             >
               <div className="bg-white rounded-2xl p-8 shadow-lg">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                  Impact by Crop
+                  {isProcessing ? 'Impact by Product' : 'Impact by Crop'}
                 </h3>
-                
+
                 <div className="space-y-6">
-                  {Object.entries(results.breakdown_by_food).map(([cropName, impacts], index) => {
+                  {Object.entries(breakdown).map(([cropName, impacts], index) => {
                     // Extract crop quantity from crop name (e.g., "Cassava (48000kg)")
                     const quantityMatch = cropName.match(/\((\d+(?:,\d+)*)kg\)/);
                     const cropQuantityKg = quantityMatch ? parseInt(quantityMatch[1].replace(/,/g, '')) : 1;
@@ -1019,6 +1078,18 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
             </div>
           </motion.div>
 
+          {/* Practical, costed, sequenced recommendations (deterministic engine) */}
+          {assessmentId && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.05 }}
+              className="mb-12"
+            >
+              <RecommendationsPanel assessmentId={assessmentId} isProcessing={isProcessing} />
+            </motion.div>
+          )}
+
           {/* Technical report (ISO 14044 draft) — collapsed by default */}
           {(results as { iso_report?: unknown }).iso_report ? (
             <motion.div
@@ -1052,16 +1123,18 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                 Use these insights to improve your farm&apos;s sustainability and productivity
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  type="button"
-                  onClick={handleRerun}
-                  disabled={rerunning || !assessmentId}
-                  className="bg-white text-green-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all"
-                >
-                  <RefreshCw className={`w-5 h-5 ${rerunning ? 'animate-spin' : ''}`} />
-                  <span>{rerunning ? 'Refreshing...' : 'Refresh Results'}</span>
-                </button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+                {canRerun && (
+                  <button
+                    type="button"
+                    onClick={() => setPendingRerun(true)}
+                    disabled={!assessmentId || actionBusy}
+                    className="bg-white text-green-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all"
+                  >
+                    <Pencil className="w-5 h-5" />
+                    <span>Update &amp; re-run</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1070,6 +1143,16 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
                 >
                   <Download className="w-5 h-5" />
                   <span>Download Report</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPendingDelete(true)}
+                  disabled={!assessmentId || actionBusy}
+                  className="border-2 border-red-200 bg-red-50/10 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-600 flex items-center space-x-2 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span>Delete</span>
                 </button>
 
                 <button
@@ -1099,6 +1182,37 @@ function ResultsContent({ assessmentId }: ResultsContentProps) {
         onClose={() => setChatOpen(false)}
         assessmentData={results}
         assessmentId={assessmentId}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete}
+        title="Delete this assessment?"
+        description={
+          <>
+            This permanently removes <strong>{displayName}</strong> and its scores, ISO draft,
+            and chat grounding. This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete assessment"
+        requireText={String(displayName)}
+        busy={actionBusy}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(false)}
+      />
+
+      <ConfirmDialog
+        open={pendingRerun}
+        title="Update and re-run?"
+        description={
+          <>
+            Change the inputs for <strong>{displayName}</strong>. When you submit, the existing
+            scores and report will be <strong>replaced</strong> — the assessment id stays the same.
+          </>
+        }
+        confirmLabel="Continue to editor"
+        tone="warning"
+        onConfirm={confirmRerun}
+        onCancel={() => setPendingRerun(false)}
       />
     </Layout>
   );
@@ -1130,6 +1244,7 @@ export default function ResultsPage() {
 function ResultsPageContent() {
   const searchParams = useSearchParams();
   const assessmentId = searchParams.get('id');
+  const isProcessing = searchParams.get('type') === 'processing';
 
-  return <ResultsContent assessmentId={assessmentId} />;
+  return <ResultsContent assessmentId={assessmentId} isProcessing={isProcessing} />;
 }

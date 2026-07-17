@@ -21,7 +21,9 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
 RUST_DIR = _ROOT / "african_lca_backend"
-BINARIES = [RUST_DIR / "target/release/server", RUST_DIR / "target/debug/server"]
+# Cargo appends .exe on Windows; check both so the same lookup works on either platform.
+_EXE = ".exe" if os.name == "nt" else ""
+BINARIES = [RUST_DIR / f"target/release/server{_EXE}", RUST_DIR / f"target/debug/server{_EXE}"]
 
 # Rust InventoryItem.substance  ->  flowmap.ONFARM_FLOWS key
 SUBSTANCE_MAP = {
@@ -58,9 +60,13 @@ def run_kernel(assessment: dict, timeout: int = 120) -> dict:
     fd, tmp = tempfile.mkstemp(suffix=".json")
     os.close(fd)
     try:
-        json.dump(assessment, open(tmp, "w"))
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(assessment, fh)
+        # The kernel writes UTF-8; decoding with the Windows locale codec (cp1252) would
+        # raise on its non-latin1 output, so pin the encoding rather than inherit it.
         r = subprocess.run([str(b), tmp], capture_output=True, text=True,
-                           timeout=timeout, cwd=str(RUST_DIR))
+                           timeout=timeout, cwd=str(RUST_DIR),
+                           encoding="utf-8", errors="replace")
         out = r.stdout
         start = out.find("{")
         if start < 0:

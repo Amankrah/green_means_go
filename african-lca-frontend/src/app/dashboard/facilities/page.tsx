@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Plus, Pencil, Trash2, Factory, MapPin, X } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Loader2, Plus, Pencil, Trash2, Factory, MapPin, X, Eye } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import DashboardShell from '@/components/DashboardShell';
 import { assessmentAPI, AssessmentSummary, Facility } from '@/lib/api';
@@ -27,6 +28,8 @@ type FacilityForm = {
 const EMPTY: FacilityForm = { name: '', facility_type: 'General', country: 'Canada', region: '', location: '', notes: '' };
 
 function FacilitiesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [assessments, setAssessments] = useState<AssessmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +85,18 @@ function FacilitiesContent() {
     setModalOpen(true);
   };
 
+  // Profile page "Edit" lands here with ?edit=<facilityId>
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || facilities.length === 0) return;
+    const facility = facilities.find((f) => f.id === editId);
+    if (facility) {
+      openEdit(facility);
+      router.replace('/dashboard/facilities', { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when list + query are ready
+  }, [searchParams, facilities, router]);
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -119,7 +134,9 @@ function FacilitiesContent() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <p className="text-gray-600">Your processing facilities. Add one per site you operate.</p>
+        <p className="text-gray-600">
+          Your facility profiles. Starting an assessment from a facility prefills its details.
+        </p>
         <button
           type="button"
           onClick={openAdd}
@@ -157,7 +174,12 @@ function FacilitiesContent() {
               <div key={facility.id} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{facility.name}</h3>
+                    <Link
+                      href={`/dashboard/facilities/${facility.id}`}
+                      className="font-semibold text-gray-900 hover:text-spruce"
+                    >
+                      {facility.name}
+                    </Link>
                     <p className="mt-0.5 text-sm text-gray-500">{facility.facility_type}</p>
                     {(facility.location || facility.country) && (
                       <p className="mt-0.5 flex items-center gap-1 text-sm text-gray-500">
@@ -167,6 +189,13 @@ function FacilitiesContent() {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    <Link
+                      href={`/dashboard/facilities/${facility.id}`}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                      aria-label="View facility profile"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Link>
                     <button
                       type="button"
                       onClick={() => openEdit(facility)}
@@ -186,16 +215,24 @@ function FacilitiesContent() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="mt-4 flex items-center justify-between gap-3 pt-4 border-t border-gray-100">
                   <span className="text-sm text-gray-500">
                     {count} {count === 1 ? 'assessment' : 'assessments'}
                   </span>
-                  <Link
-                    href={`/processing-assessment?facilityId=${facility.id}`}
-                    className="text-sm font-medium text-moss hover:text-spruce"
-                  >
-                    New assessment →
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/dashboard/facilities/${facility.id}`}
+                      className="text-sm font-medium text-gray-600 hover:text-spruce"
+                    >
+                      View profile
+                    </Link>
+                    <Link
+                      href={`/processing-assessment?facilityId=${facility.id}`}
+                      className="text-sm font-medium text-moss hover:text-spruce"
+                    >
+                      New assessment →
+                    </Link>
+                  </div>
                 </div>
               </div>
             );
@@ -240,11 +277,19 @@ function FacilitiesContent() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Region / province">
+                <Field label="Region / province" hint="e.g. Ashanti, Western, Lagos">
                   <input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="input" />
                 </Field>
-                <Field label="Location">
-                  <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input" />
+                <Field
+                  label="Town / site address"
+                  hint="More specific than region — town, industrial area, or street address of the facility"
+                >
+                  <input
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    className="input"
+                    placeholder="e.g. Takoradi industrial area"
+                  />
                 </Field>
               </div>
               <Field label="Notes">
@@ -296,7 +341,17 @@ function FacilitiesContent() {
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <span className="block text-sm font-medium text-gray-700">
@@ -304,6 +359,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {required && <span className="text-red-500"> *</span>}
       </span>
       {children}
+      {hint && <span className="mt-1 block text-xs text-gray-500">{hint}</span>}
     </label>
   );
 }
@@ -312,7 +368,9 @@ export default function FacilitiesPage() {
   return (
     <RequireAuth roles={['processor']}>
       <DashboardShell active="facilities" title="Facilities">
-        <FacilitiesContent />
+        <Suspense fallback={<div className="text-gray-500 text-sm">Loading…</div>}>
+          <FacilitiesContent />
+        </Suspense>
       </DashboardShell>
     </RequireAuth>
   );

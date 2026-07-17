@@ -4,7 +4,7 @@ import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Sprout, Users, Factory } from 'lucide-react';
+import { Loader2, Sprout, Users, Factory, FlaskConical } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/lib/auth-storage';
 
@@ -28,6 +28,12 @@ const ROLES: { value: UserRole; label: string; blurb: string; icon: React.Elemen
     label: 'Industrial processor',
     blurb: 'Assess the footprint of your food processing facilities.',
     icon: Factory,
+  },
+  {
+    value: 'researcher',
+    label: 'Researcher',
+    blurb: 'Run both farm and processing assessments for research and analysis.',
+    icon: FlaskConical,
   },
 ];
 

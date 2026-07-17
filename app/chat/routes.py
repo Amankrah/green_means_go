@@ -79,14 +79,20 @@ class ChatRequest(BaseModel):
     assessment_data: Optional[dict] = None
 
 
-def retrieve_context(query: str) -> List[str]:
-    """RAG seam for a future farmer-guide knowledge base.
+def retrieve_context(assessment: dict) -> List[str]:
+    """Grounded guidance for the farmer-guide layer.
 
-    Given the farmer's latest question, return a list of short, relevant reference
-    snippets (e.g. good-practice guidance) to append to the grounding context. A vector
-    store over curated guide documents will plug in here. Returns nothing for now.
+    Returns short, cited practice snippets drawn from the deterministic recommendation
+    engine — matched to THIS farm's hotspots and read from structured measure records, so
+    there is nothing for the model to invent. Assessment-driven (not query-driven) so the
+    grounding block stays byte-stable across a conversation and keeps the prompt cache.
+    Never raises: guidance is additive, and chat must work even if it's unavailable.
     """
-    return []
+    try:
+        from recommendations.service import guidance_for_chat
+        return guidance_for_chat(assessment)
+    except Exception:
+        return []
 
 
 def _resolve_assessment(req: ChatRequest, user: User, db: Session) -> dict:
@@ -104,14 +110,23 @@ def _resolve_assessment(req: ChatRequest, user: User, db: Session) -> dict:
     )
 
 
-def _build_system(grounding: str, latest_query: str) -> list[dict]:
+def _build_system(grounding: str, assessment: dict) -> list[dict]:
     """System prompt as two blocks: static instructions, then this farm's grounding
     (plus any retrieved guidance). The grounding block is marked cacheable so repeated
-    turns in the same conversation do not re-pay for it."""
+    turns in the same conversation do not re-pay for it.
+
+    The guidance is labelled distinctly from the farm's own measured results, and each
+    line carries a source, so the model can tell 'this farm measured X' from 'general
+    practice guidance says Y' — a grounding requirement, not decoration."""
     context = "GROUNDING (this farm's computed results, JSON):\n" + grounding
-    extra = retrieve_context(latest_query)
+    extra = retrieve_context(assessment)
     if extra:
-        context += "\n\nADDITIONAL GUIDANCE:\n" + "\n".join(f"- {s}" for s in extra)
+        context += (
+            "\n\nPRACTICAL GUIDANCE (general good-practice measures matched to this "
+            "farm's biggest impact sources; each is a suggestion with a source, NOT a "
+            "measured result for this farm — present them as options and cite the source "
+            "if asked):\n" + "\n".join(f"- {s}" for s in extra)
+        )
     return [
         {"type": "text", "text": SYSTEM_INSTRUCTIONS},
         {"type": "text", "text": context, "cache_control": {"type": "ephemeral"}},
@@ -143,7 +158,7 @@ async def chat_stream(
     except MissingIsoReportError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    system = _build_system(grounding, req.messages[-1].content)
+    system = _build_system(grounding, assessment)
     messages = [{"role": m.role, "content": m.content} for m in req.messages][-MAX_TURNS:]
 
     async def event_stream():

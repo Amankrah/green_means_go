@@ -30,11 +30,12 @@ from db import Base
 
 
 class UserRole(str, enum.Enum):
-    """The three kinds of platform users."""
+    """The kinds of platform users."""
 
-    extension_officer = "extension_officer"  # manages many farmers/farms
-    farmer = "farmer"                          # manages their own farm(s)
-    processor = "processor"                    # manages processing facilities
+    extension_officer = "extension_officer"  # runs farm assessments for clients (no farm registry)
+    farmer = "farmer"                          # owns farm profile(s); runs farm assessments
+    processor = "processor"                    # owns facility profile(s); runs processing assessments
+    researcher = "researcher"                  # runs farm + processing assessments (no registry)
 
 
 class AssessmentType(str, enum.Enum):
@@ -74,9 +75,9 @@ class User(Base):
 
 
 class Farm(Base):
-    """A farm assessed on the platform. A farmer owns their own farm(s); an extension
-    officer creates one Farm per client farm they manage (``farmer_name`` /
-    ``farmer_contact`` capture the client's details)."""
+    """A farm profile owned by a farmer user. Used to prefill assessments and keep a
+    stable record. Extension officers and researchers do not own Farm rows — they enter
+    farm details in the assessment wizard when assessing on a client's behalf."""
 
     __tablename__ = "farms"
 
@@ -135,6 +136,9 @@ class Assessment(Base):
     status: Mapped[str] = mapped_column(String(16), default="completed", nullable=False)
     single_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     payload_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # Original submit payload so the owner can edit inputs and re-run in place.
+    # Shape: {"api": <AssessmentRequest dump>, "form": <optional client form snapshot>}.
+    request_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now, server_default=func.now()

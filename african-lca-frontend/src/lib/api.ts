@@ -1,6 +1,7 @@
 // API service for the Green Means Go Backend
 
 import { AssessmentRequest, AssessmentResult } from '@/types/assessment';
+import { RecommendationsResponse } from '@/types/recommendations';
 import { EnhancedAssessmentRequest, FertilizerApplication, PesticideApplication } from '@/types/enhanced-assessment';
 import { COUNTRY_TO_REGION } from '@/lib/country-examples';
 import {
@@ -53,6 +54,18 @@ export interface AssessmentSummary {
   status?: string;
   assessment_date?: string | null;
   created_at?: string | null;
+  /** True when the server stored the original submit payload for edit/re-run. */
+  can_rerun?: boolean;
+}
+
+export interface AssessmentRequestArchive {
+  id: string;
+  type: 'farm' | 'processing' | string;
+  title?: string | null;
+  farm_id?: string | null;
+  facility_id?: string | null;
+  api: Record<string, unknown> | null;
+  form: Record<string, unknown> | null;
 }
 
 export interface Farm {
@@ -213,6 +226,39 @@ class AssessmentAPI {
     return this.fetchAPI('/me/assessments');
   }
 
+  async getAssessmentRequest(id: string): Promise<AssessmentRequestArchive> {
+    return this.fetchAPI(`/me/assessments/${id}/request`);
+  }
+
+  async deleteAssessment(id: string): Promise<void> {
+    await this.fetchAPI(`/me/assessments/${id}`, { method: 'DELETE' });
+  }
+
+  async rerunFarmAssessment(
+    id: string,
+    data: EnhancedAssessmentRequest,
+    opts?: { farmId?: string; title?: string; formSnapshot?: unknown }
+  ): Promise<AssessmentResult> {
+    const backendData = this.transformEnhancedAssessmentToBackend(data);
+    if (opts?.farmId) backendData.farm_id = opts.farmId;
+    if (opts?.title) backendData.title = opts.title;
+    if (opts?.formSnapshot !== undefined) backendData.form_snapshot = opts.formSnapshot;
+    return this.fetchAPI(`/assess/${id}/rerun`, {
+      method: 'POST',
+      body: JSON.stringify(backendData),
+    });
+  }
+
+  async rerunProcessingAssessment(
+    id: string,
+    data: Record<string, unknown>
+  ): Promise<AssessmentResult> {
+    return this.fetchAPI(`/processing/assess/${id}/rerun`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getFarms(): Promise<Farm[]> {
     return this.fetchAPI('/farms');
   }
@@ -235,6 +281,10 @@ class AssessmentAPI {
 
   async getFacilities(): Promise<Facility[]> {
     return this.fetchAPI('/facilities');
+  }
+
+  async getFacility(id: string): Promise<Facility> {
+    return this.fetchAPI(`/facilities/${id}`);
   }
 
   async createFacility(data: Partial<Facility> & { name: string }): Promise<Facility> {
@@ -264,12 +314,13 @@ class AssessmentAPI {
 
   async submitComprehensiveAssessment(
     data: EnhancedAssessmentRequest,
-    opts?: { farmId?: string | null; title?: string | null }
+    opts?: { farmId?: string | null; title?: string | null; formSnapshot?: unknown }
   ): Promise<AssessmentResult> {
     // Transform enhanced assessment data to backend format
     const backendData = this.transformEnhancedAssessmentToBackend(data);
     if (opts?.farmId) backendData.farm_id = opts.farmId;
     if (opts?.title) backendData.title = opts.title;
+    if (opts?.formSnapshot !== undefined) backendData.form_snapshot = opts.formSnapshot;
 
     return this.fetchAPI('/assess', {
       method: 'POST',
@@ -402,6 +453,19 @@ class AssessmentAPI {
 
   async getAssessment(assessmentId: string): Promise<AssessmentResult> {
     return this.fetchAPI(`/assess/${assessmentId}`);
+  }
+
+  // Processing assessments live in their own namespace; /assess/{id} filters to farm
+  // assessments and 404s on a processing id.
+  async getProcessingAssessment(assessmentId: string): Promise<AssessmentResult> {
+    return this.fetchAPI(`/processing/assess/${assessmentId}`);
+  }
+
+  // Deterministic, costed, sequenced recommendations for a saved assessment. Farm and
+  // processing live in separate namespaces, mirroring getAssessment/getProcessingAssessment.
+  async getRecommendations(assessmentId: string, isProcessing = false): Promise<RecommendationsResponse> {
+    const base = isProcessing ? '/processing/assess' : '/assess';
+    return this.fetchAPI(`${base}/${assessmentId}/recommendations`);
   }
 
   async getAssessments(): Promise<{ assessments: AssessmentResult[]; total: number }> {

@@ -192,6 +192,27 @@ export const COUNTRY_EXAMPLES: Record<string, typeof GHANA_EXAMPLE> = {
   Canada: CANADA_EXAMPLE,
 };
 
+/** Demo/default identity strings. Country switches may replace these; custom names are kept. */
+export const EXAMPLE_FARMER_NAMES = new Set([
+  'Sarah Thompson',       // assessment page initial default
+  'Abubakar Yakubu',
+  'Fatima Bello',
+  'James Mitchell',
+]);
+
+export const EXAMPLE_FARM_NAMES = new Set([
+  'Thompson Prairie Farm', // assessment page initial default
+  'Tamale Agro Ventures',
+  'Kano Rice Estates',
+  'Prairie Horizon Farms Ltd',
+]);
+
+/** True when the field is empty or still a known demo placeholder. */
+export function isExampleIdentity(value: string | undefined | null, known: Set<string>): boolean {
+  const trimmed = (value || '').trim();
+  return !trimmed || known.has(trimmed);
+}
+
 // Backend contract: UI country -> the country string the API accepts + the engine region.
 export const COUNTRY_TO_REGION: Record<string, { country: string; region: string }> = {
   Ghana: { country: 'Ghana', region: 'GH' },

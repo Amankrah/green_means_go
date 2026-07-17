@@ -22,7 +22,12 @@ import {
   EnhancedAssessmentFormData,
   REGIONS_BY_COUNTRY
 } from '@/lib/enhanced-assessment-schema';
-import { COUNTRY_EXAMPLES } from '@/lib/country-examples';
+import {
+  COUNTRY_EXAMPLES,
+  EXAMPLE_FARM_NAMES,
+  EXAMPLE_FARMER_NAMES,
+  isExampleIdentity,
+} from '@/lib/country-examples';
 
 export default function FarmProfileStep() {
   const {
@@ -38,13 +43,29 @@ export default function FarmProfileStep() {
   const countryField = register('farmProfile.country');
 
   // When the user picks a country, load that country's example farm (from the validated
-  // case studies) so the defaults reflect a real farm for the region. We merge the example
-  // over the current values so no required field is ever dropped.
+  // case studies) so agronomic defaults reflect a real farm for the region. Custom
+  // farmer/farm names are preserved — only empty or known demo placeholders are replaced.
   const onCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     countryField.onChange(e);                       // keep react-hook-form in sync
     const example = COUNTRY_EXAMPLES[e.target.value];
     if (example) {
-      reset({ ...getValues(), ...example } as EnhancedAssessmentFormData);
+      const current = getValues();
+      const keepFarmer = !isExampleIdentity(current.farmProfile?.farmerName, EXAMPLE_FARMER_NAMES);
+      const keepFarm = !isExampleIdentity(current.farmProfile?.farmName, EXAMPLE_FARM_NAMES);
+      reset({
+        ...current,
+        ...example,
+        farmProfile: {
+          ...example.farmProfile,
+          farmerName: keepFarmer
+            ? current.farmProfile.farmerName
+            : example.farmProfile.farmerName,
+          farmName: keepFarm
+            ? current.farmProfile.farmName
+            : example.farmProfile.farmName,
+          country: e.target.value as EnhancedAssessmentFormData['farmProfile']['country'],
+        },
+      } as EnhancedAssessmentFormData);
     }
   };
   const totalFarmSize = watch('farmProfile.totalFarmSize');

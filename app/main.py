@@ -2,9 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from datetime import datetime
+import sys
 import uvicorn
 import os
 from dotenv import load_dotenv
+
+# Windows consoles default to a legacy codepage (cp1252), so any log line
+# carrying a non-latin1 character raises UnicodeEncodeError mid-request.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 # Load environment variables from .env file
 load_dotenv()
