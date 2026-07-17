@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-economics.py — the feasibility screen: does a measure make economic sense for THIS farm,
+economics.py - the feasibility screen: does a measure make economic sense for THIS farm,
 and when does it pay back?
 
 Given the matcher's ranked measures plus the farm's own quantities and the Ghana price
 feed, this estimates annual revenue, annualises each measure's cost/saving, computes
 payback, assigns an affordability tier, and sequences everything into a phased plan
-(do-now / this-year / plan-ahead) — the concrete answer to "over months and years".
+(do-now / this-year / plan-ahead) - the concrete answer to "over months and years".
 
 All of it is plain arithmetic. No model touches a number here; the recommendation layer
 above only explains what this returns. Every estimate carries its assumptions and gaps
@@ -30,7 +30,7 @@ except ImportError:
     from prices import PriceBook, PriceQuote, PRICE_UNIT
     from schema import AbatementMeasure, Horizon
 
-# Ghana smallholder cost tiers (GHS capex). Deliberately low-scale — this maps onto the
+# Ghana smallholder cost tiers (GHS capex). Deliberately low-scale - this maps onto the
 # existing Recommendation.cost_category vocabulary.
 _TIER_BOUNDS = [(0, "NoCost"), (500, "LowCost"), (5000, "MediumCost"), (float("inf"), "HighCost")]
 
@@ -165,7 +165,7 @@ def _annualise_opex(m: AbatementMeasure, size_ha: Optional[float],
         return econ.opex_delta * size_ha * seasons_per_year, gaps
     if "season" in per:
         return econ.opex_delta * seasons_per_year, gaps
-    # unknown basis — treat the figure as already annual but flag it
+    # unknown basis - treat the figure as already annual but flag it
     gaps.append(f"opex basis '{econ.opex_per}' assumed annual")
     return econ.opex_delta, gaps
 
@@ -192,7 +192,7 @@ def _affordability(capex: Optional[float], m: AbatementMeasure,
             return "affordable", []
         return "needs_finance", [f"capex is {share:.0%} of estimated annual revenue"]
     # no capital signal and no revenue estimate
-    return ("needs_finance" if m.horizon.requires_finance else "unknown"), \
+    return ("needs_finance" if m.requires_finance else "unknown"), \
            ["no capital or revenue figure to judge affordability"]
 
 
@@ -269,14 +269,16 @@ class Recommendation:
 
 def recommend(payload: dict[str, Any], *, pricebook: Optional[PriceBook] = None,
               region_code: Optional[str] = None, as_of: Optional[date] = None,
-              reviewed_only: bool = False, context: Optional[dict[str, Any]] = None,
+              reviewed_only: bool = False, commercial: bool = False,
+              context: Optional[dict[str, Any]] = None,
               top_n: Optional[int] = None) -> Recommendation:
     """Run the whole deterministic pipeline: match hotspots -> measures, screen the
     economics, sequence into a plan. The LLM layer (Phase 3) explains this; it does not
     change any number in it."""
     pb = pricebook or PriceBook.load()
     matched = match_measures(payload, region_code=region_code, as_of=as_of,
-                             reviewed_only=reviewed_only, context=context, top_n=top_n)
+                             reviewed_only=reviewed_only, commercial=commercial,
+                             context=context, top_n=top_n)
     rev = estimate_annual_revenue(payload, pb, region=region_code, as_of=as_of, context=context)
     screened = screen_measures(matched, payload, pb, revenue=rev, region=region_code,
                                as_of=as_of, context=context)

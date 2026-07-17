@@ -1,0 +1,38 @@
+{
+  "id": "ef.grid.gh",
+  "type": "reference_factor",
+  "title": "Ghana national grid emission factor",
+  "description": "CO2 emitted per unit of electricity generated and supplied into Ghana's national grid. Extracted from the Energy Commission's official statistics, resolving the data gap noted in RECOMMENDATION_ENGINE_PLAN.md (previously only a stale IEA-2011 / Climatiq estimate of 0.2629 was available).",
+  "factors": {
+    "all_other_projects": {
+      "value": 0.35,
+      "unit": "kgCO2e/kWh",
+      "unit_source": "0.35 tCO2/MWh, which equals 0.35 kgCO2e/kWh",
+      "year": 2024,
+      "use_for": "General grid-electricity consumption accounting (e.g. a processing facility drawing from the grid)."
+    },
+    "wind_solar_projects": {
+      "value": 0.32,
+      "unit": "kgCO2e/kWh",
+      "year": 2024,
+      "use_for": "Projects that DISPLACE grid electricity (e.g. solar drying); the combined-margin factor per CDM-style methodology."
+    }
+  },
+  "history_tco2_per_mwh": {
+    "all_other_projects": {"2000": 0.53, "2010": 0.33, "2015": 0.55, "2019": 0.44, "2020": 0.38, "2021": 0.43, "2022": 0.37, "2023": 0.37, "2024": 0.35},
+    "wind_solar_projects": {"2000": 0.38, "2010": 0.30, "2015": 0.55, "2019": 0.38, "2020": 0.33, "2021": 0.37, "2022": 0.33, "2023": 0.32, "2024": 0.32}
+  },
+  "provenance": {
+    "source": "Ghana-EnergyCommission-2025-EnergyStatistics",
+    "table": "Table 6.3: Energy Indicators",
+    "span": "Grid emission factor is the amount of CO2 emitted per unit of electricity generated and supplied into the national electricity grid. Row 'Grid Emission Factor (all other projects)', 2024 column = 0.35 tCO2/MWh; 'Grid Emission Factor (wind/solar projects)', 2024 = 0.32 tCO2/MWh.",
+    "publication": "2025 Energy Statistics, Energy Commission of Ghana",
+    "file": "data/recommendations/Tier2/2025 Energy Statistics.pdf",
+    "licence": "Ghana govt publication; reuse terms not formally confirmed (cite; see LICENCES.md)",
+    "extracted_by": "pdftotext -layout on 17 July 2026",
+    "extraction_caveat": "Column-to-year alignment was inferred from a flattened -layout extraction (2017 and 2018 columns appear blank). Verify the 2024 value against the source table visually before using it in published figures."
+  },
+  "valid_from": "2025-01-01",
+  "staleness_policy": "annual",
+  "supersedes": {"value": 0.2629, "unit": "kgCO2e/kWh", "source": "Climatiq / IEA 2011", "note": "15-year-old third-party estimate; do not use."}
+}

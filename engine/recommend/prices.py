@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-prices.py — the Ghana commodity price feed (MoFA SRID), loaded into a queryable book.
+prices.py - the Ghana commodity price feed (MoFA SRID), loaded into a queryable book.
 
 This is the revenue side of the economic screen. It answers price(commodity) -> GHS/kg
 so the recommender can estimate a farm's annual revenue from the quantities the
@@ -11,7 +11,7 @@ Two honesty constraints, both from RECOMMENDATION_ENGINE_PLAN.md:
   1. UNIT ASSUMPTION. The SRID export has a bare "Price" column with no unit. We assume
      GHS per kilogram (the dominant convention for these retail/wholesale staple series)
      and surface that assumption on every quote, because a wrong unit scales every
-     revenue estimate silently — the exact failure mode the plan flags (unit errors).
+     revenue estimate silently - the exact failure mode the plan flags (unit errors).
 
   2. FRESHNESS. The gathered file spans Jul-Oct 2025. A price has a date; a quote carries
      a `stale` flag vs the caller's as_of and the feed's own biweekly policy. Embeddings
@@ -30,12 +30,12 @@ from pathlib import Path
 from typing import Optional
 
 # The SRID file lives under the untracked data/ tree; resolve from repo root but never
-# hard-fail if it's absent (a deployment may not ship it) — an empty book degrades to
+# hard-fail if it's absent (a deployment may not ship it) - an empty book degrades to
 # "no price data" rather than crashing the recommender.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_CSV = _REPO_ROOT / "data" / "recommendations" / "Tier1" / "Commodity prices _04.11.25.csv"
 
-PRICE_UNIT = "GHS/kg (assumed — SRID export carries no unit column)"
+PRICE_UNIT = "GHS/kg (assumed - SRID export carries no unit column)"
 _STALE_AFTER_DAYS = 30  # SRID is biweekly; a quote older than this is flagged stale
 
 
@@ -95,7 +95,7 @@ class PriceBook:
         p = path or _DEFAULT_CSV
         rows: list[_Row] = []
         if not p.exists():
-            return cls(rows)  # empty book — callers see "no price data", not a crash
+            return cls(rows)  # empty book - callers see "no price data", not a crash
         with open(p, encoding="utf-8-sig", newline="") as fh:
             reader = csv.DictReader(fh)
             for raw in reader:

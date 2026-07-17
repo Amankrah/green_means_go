@@ -3,7 +3,7 @@
 // Compact "next steps" card for the dashboard overview. The overview only holds
 // assessment summary rows, so this takes the most recent one and fetches its full
 // recommendations, showing the top few. It renders nothing (not an error) when there's
-// no assessment or nothing matched — a secondary widget shouldn't clutter the dashboard.
+// no assessment or nothing matched - a secondary widget shouldn't clutter the dashboard.
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';

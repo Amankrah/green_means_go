@@ -1,8 +1,8 @@
 """
-recommend — the practical-action layer that sits on top of the LCA engine.
+recommend - the practical-action layer that sits on top of the LCA engine.
 
 The ISO report answers "what is my footprint and is it defensible?". This package
-answers "what do I do about it, what does it cost, and when does it pay back?" — by
+answers "what do I do about it, what does it cost, and when does it pay back?" - by
 matching the engine's per-source hotspot attribution against a curated library of
 abatement measures.
 

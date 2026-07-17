@@ -1,0 +1,15 @@
+# Agronomist sign-off ledger for the abatement measure library.
+# Append one JSON object per review decision. This is the audit trail that lets a
+# measure pass the production reviewed_only gate. It is append-only: to change a
+# decision, add a new line (last line per measure_id wins).
+#
+# Record shape:
+#   {"measure_id": "meas.n.split_application.gh", "reviewer": "Dr Ama Owusu",
+#    "reviewed_at": "2026-07-20", "decision": "approved",
+#    "notes": "Effect magnitude conservative; timing guidance sound for Ghana."}
+#
+# decision: "approved" | "rejected" | "needs_changes"
+# Only "approved" stamps provenance.reviewed_by and flips is_reviewed.
+#
+# Use  python review.py  to generate the worksheet an agronomist reviews against.
+# No measures are approved yet: the whole library is draft until this ledger is filled.

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-test_economics.py — proves the economic screen against the REAL gathered price CSV.
+test_economics.py - proves the economic screen against the REAL gathered price CSV.
 
 Run:  python3 test_economics.py   (from engine/recommend/)
 
 If the SRID CSV isn't present (data/ is untracked), the price-dependent tests skip
-rather than fail — the code degrades to "no price data", and that path is tested too.
+rather than fail - the code degrades to "no price data", and that path is tested too.
 """
 from __future__ import annotations
 
@@ -152,7 +152,7 @@ def test_screen_payback_for_capex_measure() -> None:
 
 
 def test_per_ha_opex_needs_farm_size() -> None:
-    """A per-hectare opex can't be annualised without a farm size — it must be a gap,
+    """A per-hectare opex can't be annualised without a farm size - it must be a gap,
     not a silently-wrong annual figure."""
     pb = PriceBook.load()
     from matcher import match_measures

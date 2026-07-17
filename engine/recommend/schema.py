@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-schema.py — the abatement-measure record (record type 5) and its loader.
+schema.py - the abatement-measure record (record type 5) and its loader.
 
 This is the typed store the recommendation layer draws numbers from. Every guard in
 this file exists to defeat a documented failure mode of LLM-over-PDF systems
@@ -15,13 +15,14 @@ MeasureValidationError with the offending id + reason rather than loading a bad 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
 _DEFAULT_LIBRARY = Path(__file__).resolve().parent / "measures.jsonl"
+_DEFAULT_REVIEWS = Path(__file__).resolve().parent / "reviews.jsonl"
 
 
 class MeasureValidationError(ValueError):
@@ -30,7 +31,7 @@ class MeasureValidationError(ValueError):
 
 
 class EffectUnit(str, Enum):
-    """How to read effect.value. Typed so the engine — never the model — does the
+    """How to read effect.value. Typed so the engine - never the model - does the
     arithmetic, and so a wrong-unit intermediate can't propagate silently."""
 
     # value is a signed fraction of the driver source's own impact in the target
@@ -44,7 +45,7 @@ class EffectUnit(str, Enum):
 
 class EffectBasis(str, Enum):
     """Where the effect size comes from. A modelled figure must never be presented as
-    a measured one — this field is what lets the UI say so."""
+    a measured one - this field is what lets the UI say so."""
 
     MEASURED = "measured"                 # observed in a field trial / survey
     MODELLED = "modelled"                 # EX-ACT / IPCC Tier calculation
@@ -63,7 +64,7 @@ class Horizon(str, Enum):
 class Applicability:
     """Hard filters, evaluated BEFORE any ranking. This is what stops a UK measure
     reaching a Ghanaian farm (RECOMMENDATION_ENGINE_PLAN.md §3). Empty list / None on a
-    dimension means 'unconstrained on that dimension' — the measure applies regardless."""
+    dimension means 'unconstrained on that dimension' - the measure applies regardless."""
 
     regions: tuple[str, ...] = ()               # e.g. ("GH",); () = any region
     climate_zones: tuple[str, ...] = ()
@@ -87,7 +88,7 @@ class Effect:
 
 @dataclass(frozen=True)
 class Economics:
-    """Currency and as_of are mandatory when any figure is present — a cost without a
+    """Currency and as_of are mandatory when any figure is present - a cost without a
     date is not usable in a 20%-inflation economy. price_refs point at live price
     records (dereferenced at runtime), never inlined."""
 
@@ -131,6 +132,7 @@ class AbatementMeasure:
     staleness_policy: str                        # biweekly|quarterly|seasonal|annual|assessment_cycle
     valid_until: Optional[str] = None
     action_detail: str = ""                      # one-line "what to actually do"
+    requires_finance: bool = False               # from horizon.requires_finance in the library
 
     @property
     def is_reviewed(self) -> bool:
@@ -197,13 +199,14 @@ def _measure_from_dict(d: dict[str, Any]) -> AbatementMeasure:
     prov = d.get("provenance") or {}
     _require(bool(prov.get("source")), mid, "provenance.source is required (non-null)")
     _require(bool(prov.get("span")), mid,
-             "provenance.span is required — a measure must quote its exact source, not paraphrase")
+             "provenance.span is required - a measure must quote its exact source, not paraphrase")
 
     try:
         horizon = Horizon(d.get("horizon", {}).get("band"))
     except ValueError:
         raise MeasureValidationError(
             f"measure '{mid}': horizon.band '{d.get('horizon', {}).get('band')}' is not a known Horizon")
+    requires_finance = bool((d.get("horizon") or {}).get("requires_finance", False))
 
     ap = d.get("applicability") or {}
     scale = ap.get("scale_ha") or {}
@@ -277,14 +280,54 @@ def _measure_from_dict(d: dict[str, Any]) -> AbatementMeasure:
         valid_until=d.get("valid_until"),
         staleness_policy=d["staleness_policy"],
         action_detail=d.get("action_detail", ""),
+        requires_finance=requires_finance,
     )
 
 
-def load_measures(path: Optional[Path] = None) -> list[AbatementMeasure]:
-    """Load and validate every measure in the JSONL library. Raises
-    MeasureValidationError on the first bad record so a malformed measure can never
-    reach the matcher. Blank lines and `# ...` comment lines are skipped."""
+_VALID_DECISIONS = {"approved", "rejected", "needs_changes"}
+
+
+def load_reviews(path: Optional[Path] = None) -> dict[str, dict[str, Any]]:
+    """Read the sign-off ledger (reviews.jsonl) and return {measure_id: latest_review}.
+
+    The ledger is append-only: an agronomist adds a line per decision, so a measure can
+    be reviewed more than once (e.g. rejected, then approved after a fix). Last line for a
+    measure_id wins, which is what lets a re-review supersede an earlier decision. Missing
+    file -> no reviews (every measure stays draft). A malformed line raises, because a
+    silently-dropped sign-off is a safety hole, not a convenience."""
+    p = path or _DEFAULT_REVIEWS
+    latest: dict[str, dict[str, Any]] = {}
+    if not p.exists():
+        return latest
+    with open(p, encoding="utf-8") as fh:
+        for lineno, raw in enumerate(fh, start=1):
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise MeasureValidationError(f"{p.name}:{lineno}: invalid JSON: {e}") from e
+            mid = r.get("measure_id")
+            _require(bool(mid), mid or "<no id>", "review needs a measure_id")
+            _require(bool(r.get("reviewer")), mid, "review needs a reviewer")
+            _require(r.get("decision") in _VALID_DECISIONS, mid,
+                     f"review decision must be one of {sorted(_VALID_DECISIONS)}")
+            latest[mid] = r
+    return latest
+
+
+def load_measures(path: Optional[Path] = None,
+                  reviews_path: Optional[Path] = None) -> list[AbatementMeasure]:
+    """Load and validate every measure in the JSONL library, then apply the review
+    ledger. Raises MeasureValidationError on the first bad record so a malformed measure
+    can never reach the matcher. Blank lines and `# ...` comment lines are skipped.
+
+    A measure with an 'approved' review gets provenance.reviewed_by stamped with the
+    reviewer, which flips is_reviewed and lets it pass the production reviewed_only gate.
+    Other decisions leave it draft."""
     p = path or _DEFAULT_LIBRARY
+    reviews = load_reviews(reviews_path)
     measures: list[AbatementMeasure] = []
     seen: set[str] = set()
     with open(p, encoding="utf-8") as fh:
@@ -300,5 +343,9 @@ def load_measures(path: Optional[Path] = None) -> list[AbatementMeasure]:
             if m.id in seen:
                 raise MeasureValidationError(f"duplicate measure id '{m.id}' at {p.name}:{lineno}")
             seen.add(m.id)
+            r = reviews.get(m.id)
+            if r and r["decision"] == "approved" and not m.provenance.reviewed_by:
+                by = f"{r['reviewer']} ({r.get('reviewed_at', '')})".strip()
+                m = replace(m, provenance=replace(m.provenance, reviewed_by=by))
             measures.append(m)
     return measures

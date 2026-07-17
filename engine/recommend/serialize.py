@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-serialize.py — turn the deterministic Recommendation into the JSON the API returns and
+serialize.py - turn the deterministic Recommendation into the JSON the API returns and
 the chat grounds on. One canonical shape, used by both, so the endpoint and the RAG seam
 never drift.
 
@@ -81,7 +81,8 @@ def _revenue_to_dict(r: RevenueEstimate) -> dict[str, Any]:
 
 
 def recommendation_to_dict(rec: Recommendation, *, assessment_id: str | None = None,
-                           generated_at: str | None = None) -> dict[str, Any]:
+                           generated_at: str | None = None,
+                           is_processing: bool = False) -> dict[str, Any]:
     """The full API payload. `pending_review` is true whenever any surfaced measure is
     unreviewed, so the UI can badge draft guidance rather than present it as signed off."""
     measures = [_measure_to_dict(s) for s in rec.screened]
@@ -93,13 +94,15 @@ def recommendation_to_dict(rec: Recommendation, *, assessment_id: str | None = N
         ]
     }
     pending = any(not m["reviewed"] for m in measures)
+    reviewer = "a processing specialist" if is_processing else "an agronomist"
     return {
         "assessment_id": assessment_id,
         "generated_at": generated_at,
         "pending_review": pending,
+        "is_processing": is_processing,
         "disclaimer": (
-            "Draft guidance. These measures are screening-level and have not yet been "
-            "reviewed by an agronomist; figures carry uncertainty and prices may be dated."
+            f"Draft guidance. These measures are screening-level and have not yet been "
+            f"reviewed by {reviewer}; figures carry uncertainty and prices may be dated."
             if pending else ""
         ),
         "revenue": _revenue_to_dict(rec.revenue),
@@ -110,7 +113,7 @@ def recommendation_to_dict(rec: Recommendation, *, assessment_id: str | None = N
 
 def guidance_snippets(rec: Recommendation, *, limit: int = 4) -> list[str]:
     """Short, cited lines for the chat RAG seam. Reads only structured measure fields, so
-    there is nothing for the model to hallucinate — it explains what these say."""
+    there is nothing for the model to hallucinate - it explains what these say."""
     out: list[str] = []
     for s in rec.screened[:limit]:
         m = s.measure

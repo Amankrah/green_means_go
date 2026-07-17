@@ -1,4 +1,4 @@
-// Shape of GET /assess/{id}/recommendations — the deterministic, costed action plan.
+// Shape of GET /assess/{id}/recommendations - the deterministic, costed action plan.
 // Mirrors engine/recommend/serialize.py::recommendation_to_dict. Every number here is
 // produced by the engine; the chat only explains it.
 
@@ -44,7 +44,7 @@ export interface RecommendationMeasure {
   effect: MeasureEffect;
   economics: MeasureEconomics;
   provenance: MeasureProvenance;
-  reviewed: boolean;             // false until an agronomist signs the measure off
+  reviewed: boolean;             // false until a domain specialist signs the measure off
   data_gaps: string[];
 }
 

@@ -32,7 +32,7 @@ const PHASE_ICON: Record<string, React.ElementType> = {
 };
 
 function ghs(n: number | null | undefined): string {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined) return '-';
   return `GH₵${Math.round(n).toLocaleString()}`;
 }
 
@@ -176,9 +176,11 @@ export default function RecommendationsPanel({ assessmentId, isProcessing = fals
     <div className="space-y-6">
       {/* header: revenue context + draft banner */}
       <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-green-50/60 to-white p-5">
-        <h3 className="text-xl font-bold text-gray-900">Practical steps for your farm</h3>
+        <h3 className="text-xl font-bold text-gray-900">
+          {isProcessing ? 'Practical steps for your facility' : 'Practical steps for your farm'}
+        </h3>
         <p className="mt-1 text-sm text-gray-600">
-          Actions matched to what drives your footprint, ordered by when to act — with a
+          Actions matched to what drives your footprint, ordered by when to act, with a
           rough sense of cost and payback.
         </p>
         {rev.total_ghs !== null && (

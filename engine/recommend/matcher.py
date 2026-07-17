@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-matcher.py — deterministic hotspot -> measure matcher.
+matcher.py - deterministic hotspot -> measure matcher.
 
 Consumes a saved assessment payload (the AssessmentResponse dict that lands in
 Assessment.payload_json) and returns ranked candidate measures. No model, no
@@ -9,7 +9,7 @@ already computed. This is the half of the recommendation layer that must be corr
 construction; the LLM layer only explains what this returns.
 
 Matching is a funnel:
-  1. HARD filters first — region, crop, system, scale, prerequisites — evaluated before
+  1. HARD filters first - region, crop, system, scale, prerequisites - evaluated before
      any ranking (RECOMMENDATION_ENGINE_PLAN.md §3). A measure that fails a filter we can
      evaluate is dropped; a filter we cannot evaluate (data absent from the payload)
      passes and is recorded as a data_gap, because the payload is a screening artifact
@@ -17,7 +17,7 @@ Matching is a funnel:
   2. The measure must target a source that is actually a hotspot in this assessment.
   3. Survivors are ranked by (hotspot share x effect magnitude).
 
-Effects are NEVER summed across measures — measure interactions are non-additive
+Effects are NEVER summed across measures - measure interactions are non-additive
 (OECD 2015). v1 returns one measure per hotspot source.
 """
 from __future__ import annotations
@@ -28,8 +28,10 @@ from typing import Any, Optional
 
 try:
     from .schema import AbatementMeasure, EffectUnit, load_measures
+    from .licences import is_commercial_ok
 except ImportError:  # allow running as a plain script from the package dir
     from schema import AbatementMeasure, EffectUnit, load_measures
+    from licences import is_commercial_ok
 
 
 # --- region resolution ------------------------------------------------------------
@@ -154,25 +156,33 @@ class MatchedMeasure:
 
 def match_measures(payload: dict[str, Any], *, measures: Optional[list[AbatementMeasure]] = None,
                    region_code: Optional[str] = None, as_of: Optional[date] = None,
-                   reviewed_only: bool = False, top_n: Optional[int] = None,
-                   min_share: float = 0.02,
+                   reviewed_only: bool = False, commercial: bool = False,
+                   top_n: Optional[int] = None, min_share: float = 0.02,
                    context: Optional[dict[str, Any]] = None) -> list[MatchedMeasure]:
     """Return measures applicable to this assessment, ranked most-impactful first.
 
     reviewed_only=True drops measures no human has signed off (provenance.reviewed_by is
-    null) — production callers should pass True; tests and previews may pass False.
+    null) - production callers should pass True; tests and previews may pass False.
+
+    commercial=True drops measures whose source licence forbids commercial use as it
+    stands (CC BY-NC, IPCC-permission-pending, or unconfirmed). Pass True for a commercial
+    deployment so a licence-blocked measure can never reach a paying user.
 
     min_share drops measures whose target source contributes less than that fraction of
     climate impact (default 2%). This is what stops us recommending IPM to a farm whose
     pesticide impact rounds to zero.
 
     context lets a caller that holds the original request (e.g. the /assess route) supply
-    farm structure the saved response omits — {"farm_size_ha": float, "system": str,
-    "flags": {name: bool}} — so the scale/system/prerequisite filters become real instead
+    farm structure the saved response omits - {"farm_size_ha": float, "system": str,
+    "flags": {name: bool}} - so the scale/system/prerequisite filters become real instead
     of a recorded data gap. Omit it and those filters pass permissively as before.
     """
     lib = measures if measures is not None else load_measures()
     ctx = context or {}
+    # A processing assessment keys its breakdown by product; a farm one by food. This
+    # decides whether facility measures or farm measures apply, independent of whether the
+    # caller supplied a `system`.
+    is_processing = "breakdown_by_product" in payload
     region = _resolve_region(payload, region_code)
     crops = _crops(payload)
     kinds = _source_kinds(payload)
@@ -182,7 +192,7 @@ def match_measures(payload: dict[str, Any], *, measures: Optional[list[Abatement
     ctx_flags = ctx.get("flags") or {}
 
     # The library's `systems` is a production-practice axis (conventional/organic/
-    # agroforestry/processing). A caller may hand us a value off a different axis — e.g.
+    # agroforestry/processing). A caller may hand us a value off a different axis - e.g.
     # the request's primary_farming_system uses market orientation (SemiCommercial,
     # Subsistence). Only treat the context system as a hard filter when it's actually in
     # the library vocabulary; otherwise it's a different axis we can't filter on, so leave
@@ -195,6 +205,8 @@ def match_measures(payload: dict[str, Any], *, measures: Optional[list[Abatement
 
     for m in lib:
         if reviewed_only and not m.is_reviewed:
+            continue
+        if commercial and not is_commercial_ok(m.provenance.source):
             continue
         if not m.is_fresh(as_of):
             continue
@@ -246,14 +258,25 @@ def match_measures(payload: dict[str, Any], *, measures: Optional[list[Abatement
             else:
                 gaps.append("farm size not in payload")
 
-        # --- system filter: hard when supplied, else a data gap (processing measures are
-        # gated by the crop filter instead, so don't flag them) ---
-        if ap.systems and "processing" not in ap.systems:
-            if system is not None:
-                if not _any_match(ap.systems, {system}):
-                    continue
-            else:
-                gaps.append("farming system not in payload")
+        # --- system filter ---
+        # `systems` spans two axes at once: 'processing' marks a facility measure, and the
+        # rest (conventional/organic/agroforestry) are farm production practices. Route by
+        # what kind of assessment this is (derived from the payload, since the request's
+        # `system` context is often absent), then refine on the farm practice when known.
+        if ap.systems:
+            sys_lower = {s.lower() for s in ap.systems}
+            has_processing = "processing" in sys_lower
+            has_farm = bool(sys_lower - {"processing"})
+            if is_processing and not has_processing:
+                continue  # farm-only measure on a processing assessment
+            if not is_processing and not has_farm:
+                continue  # facility-only measure on a farm assessment
+            if not is_processing:
+                if system is not None:
+                    if not _any_match(ap.systems, {system}):
+                        continue
+                elif has_farm:
+                    gaps.append("production system not in payload")
 
         score = round(target_share * abs(m.effect.value), 6)
         # the data-quality measure has zero effect; give it a tiny floor so it ranks last

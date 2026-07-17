@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-test_recommend.py — proves the measure library loads with every guarantee intact and
+test_recommend.py - proves the measure library loads with every guarantee intact and
 the matcher applies hard filters before ranking.
 
 Run:  python3 test_recommend.py   (from engine/recommend/)
@@ -49,7 +49,7 @@ def _ghana_maize_payload() -> dict:
 
 
 def _canada_payload() -> dict:
-    """Same driver profile but a Canadian farm — every Ghana-scoped measure must drop."""
+    """Same driver profile but a Canadian farm - every Ghana-scoped measure must drop."""
     p = _ghana_maize_payload()
     p["country"] = "Canada"
     return p
@@ -85,13 +85,13 @@ def test_library_loads_with_guarantees() -> None:
         assert m.provenance.span, f"{m.id}: empty provenance.span (must quote source)"
         assert m.valid_from, f"{m.id}: missing valid_from"
         assert m.staleness_policy, f"{m.id}: missing staleness_policy"
-    # every measure is unreviewed in v1 — the human gate has not run yet
+    # every measure is unreviewed in v1 - the human gate has not run yet
     assert all(not m.is_reviewed for m in measures), "v1 measures must be unreviewed"
     print(f"[ok] library loads: {len(measures)} measures, all with provenance + freshness")
 
 
 def test_bad_record_rejected() -> None:
-    """A record missing provenance.span must fail to load — not silently pass."""
+    """A record missing provenance.span must fail to load - not silently pass."""
     import json
     import tempfile
     import os
@@ -147,7 +147,7 @@ def test_ghana_maize_ranks_fertiliser_first() -> None:
 
 def test_region_filter_excludes_canada() -> None:
     """Every measure in v1 is Ghana-scoped, so a Canadian farm gets nothing (except
-    nothing — the region filter is hard)."""
+    nothing - the region filter is hard)."""
     res = match_measures(_canada_payload(), reviewed_only=False, as_of=date(2026, 7, 15))
     assert res == [], f"Ghana-scoped measures leaked to a Canadian farm: {[r.id for r in res]}"
     print("[ok] region filter: Canada farm matches 0 Ghana measures")
@@ -199,7 +199,7 @@ def test_reviewed_only_gate() -> None:
 
 def test_min_share_drops_negligible_source() -> None:
     """A pesticide contributing 0.5% of climate impact must not surface an IPM
-    recommendation — that's noise, and the real engine produced exactly this case for a
+    recommendation - that's noise, and the real engine produced exactly this case for a
     farm already practising IPM."""
     p = _ghana_maize_payload()
     p["input_matches"].append({"input": "Lambda-cyhalothrin", "kind": "pesticide", "matched": "..."})
@@ -208,7 +208,7 @@ def test_min_share_drops_negligible_source() -> None:
         {"source": "Lambda-cyhalothrin", "per_kg": 0.005, "share": 0.005})
     res = match_measures(p, reviewed_only=False, as_of=date(2026, 7, 15))  # default min_share=0.02
     assert "meas.pest.ipm.gh" not in [r.id for r in res], "IPM surfaced on a 0.5% pesticide source"
-    # lowering the floor lets it back in — proves the filter, not a missing measure
+    # lowering the floor lets it back in - proves the filter, not a missing measure
     res_low = match_measures(p, reviewed_only=False, as_of=date(2026, 7, 15), min_share=0.0)
     assert "meas.pest.ipm.gh" in [r.id for r in res_low]
     print("[ok] min_share drops a negligible (0.5%) pesticide source")
@@ -234,7 +234,7 @@ def test_context_scale_filter_is_hard() -> None:
 def test_off_axis_system_does_not_nuke_everything() -> None:
     """The request's primary_farming_system ('SemiCommercial') is a market-orientation
     axis, not the measure production-practice axis. Passing it must NOT drop every farm
-    measure — it's simply not comparable, so it's a data gap, not a hard filter."""
+    measure - it's simply not comparable, so it's a data gap, not a hard filter."""
     off = match_measures(_ghana_maize_payload(), reviewed_only=False, as_of=date(2026, 7, 15),
                          context={"system": "SemiCommercial"})
     assert len(off) >= 3, f"off-axis system collapsed the plan to {len(off)} measures"

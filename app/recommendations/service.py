@@ -1,10 +1,10 @@
 """
-recommendations/service.py — bridge between a saved assessment and the deterministic
+recommendations/service.py - bridge between a saved assessment and the deterministic
 recommendation engine (engine/recommend).
 
 It pulls the farm/facility context the *response* payload drops (farm size, production
 system, practice flags) out of the archived *request*, runs the deterministic pipeline,
-and serialises the result. No LLM here — every number is produced by engine/recommend and
+and serialises the result. No LLM here - every number is produced by engine/recommend and
 is correct by construction. The chat layer explains this output; it never changes it.
 """
 from __future__ import annotations
@@ -16,10 +16,16 @@ from typing import Any, Optional
 from engine.recommend import recommend, recommendation_to_dict, guidance_snippets
 from engine.recommend.prices import PriceBook
 
-# The v1 measure library is unreviewed. Until an agronomist signs measures off, we still
-# surface them (badged as draft) so the feature is usable — flip this to "1" once the
-# reviewed_by gate is populated and only signed-off measures should reach users.
+# The v1 measure library is unreviewed. Until a domain specialist signs measures off
+# (agronomist for farms, processing specialist for facilities), we still surface them
+# (badged as draft) so the feature is usable - flip this to "1" once the reviewed_by
+# gate is populated and only signed-off measures should reach users.
 _REVIEWED_ONLY = os.getenv("RECOMMENDATIONS_REVIEWED_ONLY", "0") == "1"
+
+# Set to "1" for a commercial deployment: drops measures whose source licence forbids
+# commercial use as it stands (CC BY-NC, IPCC-permission-pending, unconfirmed). See
+# engine/recommend/licences.py and docs/lca_engineer/LICENCES.md.
+_COMMERCIAL = os.getenv("RECOMMENDATIONS_COMMERCIAL", "0") == "1"
 
 # The price book is process-wide and read-only; load it once.
 _PRICEBOOK: Optional[PriceBook] = None
@@ -42,7 +48,7 @@ def _api_request(request_json: Optional[dict]) -> dict:
 
 def _farm_context(api: dict) -> dict[str, Any]:
     """Farm size, production system, and practice flags for the matcher/screen. Absent
-    fields simply don't appear — the pipeline treats them as data gaps, not failures."""
+    fields simply don't appear - the pipeline treats them as data gaps, not failures."""
     ctx: dict[str, Any] = {}
     fp = api.get("farm_profile") or {}
     if fp.get("total_farm_size") is not None:
@@ -105,7 +111,8 @@ def _processing_context(api: dict) -> dict[str, Any]:
     if "cassava" in ftype:
         flags["gari_processing"] = True
     flags["drying_step"] = True  # most processing has a drying/dewatering step
-    return {"flags": flags}
+    # Hard-filter the library to processing measures so farm practices never surface here.
+    return {"system": "processing", "flags": flags}
 
 
 def build_recommendations(payload: dict, request_json: Optional[dict], *,
@@ -119,23 +126,26 @@ def build_recommendations(payload: dict, request_json: Optional[dict], *,
         pricebook=_pricebook(),
         region_code=region_code,
         reviewed_only=_REVIEWED_ONLY,
+        commercial=_COMMERCIAL,
         context=context,
     )
     return recommendation_to_dict(
         rec,
         assessment_id=payload.get("id"),
         generated_at=datetime.now(timezone.utc).isoformat(),
+        is_processing=is_processing,
     )
 
 
 def guidance_for_chat(payload: dict, *, limit: int = 4) -> list[str]:
     """Short, cited guidance lines for the chat RAG seam. Assessment-driven (not
     query-driven), so it's stable across a conversation's turns and doesn't break the
-    prompt cache. Returns [] on any failure — chat must never break because the
+    prompt cache. Returns [] on any failure - chat must never break because the
     recommender did."""
     try:
         is_proc = "breakdown_by_product" in payload
         rec = recommend(payload, pricebook=_pricebook(), reviewed_only=_REVIEWED_ONLY,
+                        commercial=_COMMERCIAL,
                         context=(_processing_context({}) if is_proc else None))
         return guidance_snippets(rec, limit=limit)
     except Exception:

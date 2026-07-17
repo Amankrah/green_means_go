@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from datetime import datetime
+import logging
 import sys
 import uvicorn
 import os
@@ -39,13 +43,39 @@ app = FastAPI(
     openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
+class CatchUnhandledErrorsMiddleware(BaseHTTPMiddleware):
+    """Turn an uncaught exception into a JSON 500 *inside* the CORS layer.
+
+    Starlette's built-in ServerErrorMiddleware sits OUTSIDE CORSMiddleware, so an
+    unhandled exception's 500 is emitted above CORS and reaches the browser with no
+    Access-Control-Allow-Origin header. The browser then reports it as a CORS error,
+    masking the real server error. This middleware is added BEFORE CORSMiddleware (so
+    CORS wraps it); catching here keeps the CORS headers on error responses, so a 500
+    shows up in the browser as a real 500 with a readable message, not a phantom CORS block.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            logging.getLogger("uvicorn.error").exception(
+                "Unhandled error on %s %s", request.method, request.url.path
+            )
+            return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
 # Trusted hosts middleware - prevent host header attacks
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["greenmeansgo.ai", "www.greenmeansgo.ai", "localhost", "127.0.0.1"],
 )
 
-# Add CORS middleware - restrict to known origins
+# Catch-all error handler. Added BEFORE CORS so CORS remains the outer wrapper and its
+# headers are present on the 500 responses this produces (see the class docstring).
+app.add_middleware(CatchUnhandledErrorsMiddleware)
+
+# Add CORS middleware - restrict to known origins. Added LAST so it is the OUTERMOST
+# middleware, wrapping the catch-all above and thus every error response.
 ALLOWED_ORIGINS = [
     "https://greenmeansgo.ai",
     "https://www.greenmeansgo.ai",
