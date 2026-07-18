@@ -2,7 +2,7 @@
   "id": "ef.grid.gh",
   "type": "reference_factor",
   "title": "Ghana national grid emission factor",
-  "description": "CO2 emitted per unit of electricity generated and supplied into Ghana's national grid. Extracted from the Energy Commission's official statistics, resolving the data gap noted in RECOMMENDATION_ENGINE_PLAN.md (previously only a stale IEA-2011 / Climatiq estimate of 0.2629 was available).",
+  "description": "CO2 emitted per kWh supplied into Ghana's national grid. Extracted from the Energy Commission's official statistics, resolving the data gap noted in RECOMMENDATION_ENGINE_PLAN.md (previously only a stale IEA-2011 / Climatiq estimate of 0.2629 was available). Corroborated independently: Ghana's 2024 generation mix is 61% thermal / 39% hydro (same bulletin, S3.2), which computes to ~0.35-0.39 at low voltage after ~20% T&D losses. ecoinvent 3.11's GH low-voltage dataset characterises to only ~0.16, a hydro-dominant vintage that predates the thermal shift; engine/grid_calibration.py corrects for this. Note: the Energy Commission value is a CDM-style grid emission factor that converges with the attributional average under thermal dominance.",
   "factors": {
     "all_other_projects": {
       "value": 0.35,

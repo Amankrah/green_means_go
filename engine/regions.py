@@ -27,6 +27,14 @@ class Region:
     aware_country: str                    # key into the AWARE water-scarcity CFs
     default_method: str                   # LCIA method name in the canonical store
     location_prefer: tuple = ()           # ranked store/ecoinvent locations for backgrounds
+    # Official national grid climate factor (kg CO2e/kWh), where an authoritative national
+    # figure exists. See engine/recommend/reference/ghana_grid_ef.json for provenance. The
+    # ecoinvent GH low-voltage market characterises to ~0.16 kg CO2e/kWh, understating the
+    # official 2024 figure of 0.35 by ~2.2x: ecoinvent 3.11's underlying GH grid-mix data is
+    # a hydro-dominant vintage, whereas Ghana's actual 2024 mix is 61% thermal / 39% hydro,
+    # which computes to ~0.35 at low voltage. engine/grid_calibration.py APPLIES this at the
+    # inventory level (climate-only) for electricity inputs; toggle USE_OFFICIAL_GRID_EF.
+    grid_ef_kgco2_per_kwh: float | None = None
 
 
 # IPCC 2019 Refinement, Vol 4 Ch 11: EF1 disaggregated by climate.
@@ -37,6 +45,7 @@ REGIONS: dict[str, Region] = {
         climate_zone="wet tropical", ipcc_n2o_ef1=0.016,
         aware_country="Ghana", default_method="ReCiPe 2016 v1.03, midpoint (H)",
         location_prefer=("GH", "Ghana", "WA", "RAF", "Rest of World", "RoW", "GLO"),
+        grid_ef_kgco2_per_kwh=0.35,  # Energy Commission of Ghana, 2025 Energy Statistics, Table 6.3 (2024)
     ),
     "NG": Region(
         code="NG", name="Nigeria", currency="NGN",

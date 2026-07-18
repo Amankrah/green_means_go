@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import sys
 from datetime import date
+from pathlib import Path
 
 try:
     from .schema import load_measures, MeasureValidationError, AbatementMeasure
@@ -77,6 +78,9 @@ def _gari_processor_payload() -> dict:
 
 # --- tests ------------------------------------------------------------------------
 
+_NO_REVIEWS = Path("this-reviews-ledger-does-not-exist.jsonl")  # hermetic: loader treats missing as empty
+
+
 def test_library_loads_with_guarantees() -> None:
     measures = load_measures()
     assert len(measures) >= 12, f"expected a populated library, got {len(measures)}"
@@ -85,8 +89,9 @@ def test_library_loads_with_guarantees() -> None:
         assert m.provenance.span, f"{m.id}: empty provenance.span (must quote source)"
         assert m.valid_from, f"{m.id}: missing valid_from"
         assert m.staleness_policy, f"{m.id}: missing staleness_policy"
-    # every measure is unreviewed in v1 - the human gate has not run yet
-    assert all(not m.is_reviewed for m in measures), "v1 measures must be unreviewed"
+    # with no review ledger, every measure is draft (the gate's default-closed posture)
+    draft = load_measures(reviews_path=_NO_REVIEWS)
+    assert all(not m.is_reviewed for m in draft), "an empty ledger should leave every measure draft"
     print(f"[ok] library loads: {len(measures)} measures, all with provenance + freshness")
 
 
@@ -191,10 +196,12 @@ def test_freshness_filter() -> None:
 
 
 def test_reviewed_only_gate() -> None:
-    """With reviewed_only=True and an all-unreviewed v1 library, nothing ships."""
-    res = match_measures(_ghana_maize_payload(), reviewed_only=True, as_of=date(2026, 7, 15))
+    """With reviewed_only=True and no approvals in the ledger, nothing ships."""
+    draft = load_measures(reviews_path=_NO_REVIEWS)
+    res = match_measures(_ghana_maize_payload(), measures=draft, reviewed_only=True,
+                         as_of=date(2026, 7, 15))
     assert res == [], "unreviewed measures leaked through the production gate"
-    print("[ok] reviewed_only gate: 0 measures until human sign-off")
+    print("[ok] reviewed_only gate: 0 measures until sign-off")
 
 
 def test_min_share_drops_negligible_source() -> None:

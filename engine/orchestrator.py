@@ -30,9 +30,11 @@ from ingestion.matching import ProcessMatcher             # noqa: E402
 try:
     from .regions import get_region, location_rank
     from .flowmap import OnFarmFlowMap
+    from . import grid_calibration
 except ImportError:
     from regions import get_region, location_rank
     from flowmap import OnFarmFlowMap
+    import grid_calibration
 
 
 def _add(inv: dict, uid: str, amount: float, name: str = None, unit: str = None) -> None:
@@ -151,6 +153,15 @@ class FarmLCA:
             ref_unit = proc.get("ref_unit")
             try:
                 sc = self.q.cradle_to_gate(m["uid"], amount=float(inp["amount"]))
+                # Correct grid electricity to the official national grid EF (climate-only,
+                # inventory-level) before the flows are consumed, so the per-source
+                # contribution, the merged total, and the single score are all consistent.
+                cal = grid_calibration.apply(self.q, inp, sc.elementary_flows, self.region, self.method)
+                if cal:
+                    res.notes.append(
+                        f"grid electricity climate calibrated to the official "
+                        f"{cal['ef']} kg CO2e/kWh national factor "
+                        f"({cal['climate_before']} -> {cal['climate_after']} kg CO2e)")
                 for uid, ef in sc.elementary_flows.items():
                     _add(supply, uid, ef["amount"], ef.get("name"), ef.get("unit"))
                 # per-source contribution: characterize THIS input's flows on their own so

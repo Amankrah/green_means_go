@@ -16,11 +16,11 @@ from typing import Any, Optional
 from engine.recommend import recommend, recommendation_to_dict, guidance_snippets
 from engine.recommend.prices import PriceBook
 
-# The v1 measure library is unreviewed. Until a domain specialist signs measures off
-# (agronomist for farms, processing specialist for facilities), we still surface them
-# (badged as draft) so the feature is usable - flip this to "1" once the reviewed_by
-# gate is populated and only signed-off measures should reach users.
-_REVIEWED_ONLY = os.getenv("RECOMMENDATIONS_REVIEWED_ONLY", "0") == "1"
+# Production posture: only signed-off measures reach users. The v1 library was team-
+# reviewed and approved on 2026-07-17 (see engine/recommend/reviews.jsonl), so this now
+# defaults ON. Any measure added later stays invisible until it too has an 'approved'
+# entry in the ledger. Set the env var to "0" only for a preview that wants draft measures.
+_REVIEWED_ONLY = os.getenv("RECOMMENDATIONS_REVIEWED_ONLY", "1") == "1"
 
 # Set to "1" for a commercial deployment: drops measures whose source licence forbids
 # commercial use as it stands (CC BY-NC, IPCC-permission-pending, unconfirmed). See

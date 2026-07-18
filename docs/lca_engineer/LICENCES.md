@@ -31,7 +31,7 @@ Legend - `use`: **clean** (reuse incl. commercial) · **cite** (derive numbers, 
 | Feed | Source | Licence | `use` | Notes |
 |---|---|---|---|---|
 | `price.ghs.*` commodities | MoFA SRID commodity prices (`data/recommendations/Tier1/Commodity prices _04.11.25.csv`) | Ghana govt open data | **cite** | Biweekly; 10,780 rows, 75 commodities, 14 regions, Jul–Oct 2025. Revenue side only - no fertiliser/fuel input prices. |
-| `ef.grid.gh` | ✅ **RESOLVED** | Ghana govt publication | **cite** | **Gap closed.** Official Ghana grid EF extracted from `2025 Energy Statistics.pdf` (Energy Commission), Table 6.3: **0.35 kgCO2e/kWh** (2024, all-other-projects), 0.32 for displacement projects. Recorded with provenance in [`engine/recommend/reference/ghana_grid_ef.json`](../../engine/recommend/reference/ghana_grid_ef.json). Supersedes the stale IEA-2011/Climatiq 0.2629. Caveat: column alignment inferred from a flattened extraction; verify the 2024 cell visually before publishing figures. Still to do: wire it into the LCA engine's electricity characterization (engine task, not recommendation layer). |
+| `ef.grid.gh` | ✅ **RESOLVED** | Ghana govt publication | **cite** | **Gap closed.** Official Ghana grid EF extracted from `2025 Energy Statistics.pdf` (Energy Commission), Table 6.3: **0.35 kgCO2e/kWh** (2024, all-other-projects), 0.32 for displacement projects. Recorded with provenance in [`engine/recommend/reference/ghana_grid_ef.json`](../../engine/recommend/reference/ghana_grid_ef.json). Supersedes the stale IEA-2011/Climatiq 0.2629. Caveat: column alignment inferred from a flattened extraction; verify the 2024 cell visually before publishing figures. Now wired into the engine via `engine/grid_calibration.py` (climate-only, inventory-level, toggle `USE_OFFICIAL_GRID_EF`). |
 
 ## FAO EX-ACT (methodological spine)
 
@@ -39,8 +39,17 @@ Legend - `use`: **clean** (reuse incl. commercial) · **cite** (derive numbers, 
 |---|---|---|---|
 | `EX-ACT_V9.4.2.xlsb`, `EX-ACT VC_v3.5.xlsx`, `B-INTACT_v.1.9.xlsx` | FAO, free/unrestricted | **clean** | The clean anchor. Modelled effect sizes derived here carry `basis: modelled`. |
 
+## Product status: FREE / NON-COMMERCIAL (decided 2026-07-17)
+
+Green Means Go is a free tool. That resolves the licensing question in the library's favour:
+
+- **CC BY-NC sources (CCAFS)** permit non-commercial use with attribution: cleanly in scope.
+- **IPCC and other IGO/government sources** allow non-commercial reproduction with attribution; their "written permission" language targets commercial/redistribution use, which does not apply here. Low risk for a free tool, attribution being the obligation.
+- **The one hard requirement is attribution.** The UI already shows `Source: ...` on every measure, so this is met. Keep it that way.
+- `RECOMMENDATIONS_COMMERCIAL` stays **off** (its default). The gate remains available: if the product ever charges, flip it on and pursue IPCC written permission + the World Bank CC-BY-3.0-IGO confirmation to rebuild the full library for commercial use.
+
 ## Standing rules
 
 1. **No measure ships with `provenance.reviewed_by == null`** in production, regardless of licence - that gate is separate (agronomic sign-off, not legal).
-2. A measure whose `use` is `nc` or `permission` **must be excluded from a commercial build** until resolved. The decision hinges on an open product question: *is Green Means Go commercial?* (RECOMMENDATION_ENGINE_PLAN.md §10).
+2. As a free tool, `nc` and `permission` sources are used under non-commercial terms with attribution (see above). The commercial gate (`RECOMMENDATIONS_COMMERCIAL=1`) is the switch to enforce exclusion **only if** the product becomes commercial.
 3. When a new source is added, add its row here **before** the measure that cites it loads.

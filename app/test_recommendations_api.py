@@ -107,7 +107,10 @@ def test_recommendations_returns_costed_sequenced_plan(client):
     # shape
     assert body["assessment_id"] == aid
     assert "revenue" in body and "plan" in body and "measures" in body
-    assert body["pending_review"] is True and body["disclaimer"]  # v1 library unreviewed
+    # The library was team-approved on go-live and the endpoint defaults to reviewed_only,
+    # so every surfaced measure is signed off: no pending-review banner, no draft measures.
+    assert body["pending_review"] is False
+    assert isinstance(body["disclaimer"], str)
 
     # a urea-dominated Ghana maize farm surfaces nitrogen measures targeting the urea hotspot
     ids = [m["id"] for m in body["measures"]]
@@ -115,7 +118,8 @@ def test_recommendations_returns_costed_sequenced_plan(client):
     top = body["measures"][0]
     assert top["targets_source"] == "Urea 46-0-0 fertiliser"
     assert top["provenance"]["source"], "measure missing provenance source"
-    assert top["reviewed"] is False
+    assert top["reviewed"] is True, "reviewed_only endpoint surfaced a draft measure"
+    assert all(m["reviewed"] for m in body["measures"]), "an unreviewed measure leaked"
 
     # the plan is phased, and every measure lands in exactly one phase
     phases = body["plan"]["phases"]

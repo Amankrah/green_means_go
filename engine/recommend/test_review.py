@@ -58,8 +58,9 @@ def _temp_reviews(records: list[dict]) -> Path:
 
 # --- review overlay ---------------------------------------------------------------
 
-def test_default_library_all_draft() -> None:
-    measures = load_measures()
+def test_empty_ledger_all_draft() -> None:
+    # hermetic: a non-existent ledger path is treated as "no reviews"
+    measures = load_measures(reviews_path=Path("this-ledger-does-not-exist.jsonl"))
     assert all(not m.is_reviewed for m in measures), "some measure is reviewed with an empty ledger"
     print("[ok] empty ledger -> every measure is draft")
 
