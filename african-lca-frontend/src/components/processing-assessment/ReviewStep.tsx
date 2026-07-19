@@ -4,6 +4,8 @@ import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { ChevronLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { ProcessingFormData } from '@/lib/processing-assessment-schema';
+import type { AssessmentProgressEvent } from '@/lib/api';
+import AssessmentProgress from '@/components/AssessmentProgress';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -18,14 +20,21 @@ export default function ReviewStep({
   onSubmit,
   isSubmitting,
   onPrevious,
+  progress,
 }: {
   onSubmit: () => void;
   isSubmitting: boolean;
   onPrevious: () => void;
+  progress?: AssessmentProgressEvent | null;
 }) {
   const { getValues, formState: { errors } } = useFormContext<ProcessingFormData>();
   const v = getValues();
   const hasErrors = Object.keys(errors).length > 0;
+
+  // While the (long) solve runs, show the staged progress view instead of the review.
+  if (isSubmitting) {
+    return <AssessmentProgress variant="processing" live={progress} />;
+  }
   const num = (n: number | undefined, unit = '') => (n || n === 0 ? `${n}${unit}` : '—');
 
   return (

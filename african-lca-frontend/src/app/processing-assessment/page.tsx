@@ -12,7 +12,7 @@ import {
 
 import Layout from '@/components/Layout';
 import RequireAuth from '@/components/RequireAuth';
-import { assessmentAPI } from '@/lib/api';
+import { assessmentAPI, AssessmentProgressEvent } from '@/lib/api';
 import { COUNTRY_TO_REGION } from '@/lib/country-examples';
 import {
   processingAssessmentSchema,
@@ -48,6 +48,7 @@ function ProcessingWizard() {
 
   const [currentStep, setCurrentStep] = useState<ProcessingStep>(ProcessingStep.FACILITY);
   const [submitting, setSubmitting] = useState(false);
+  const [liveProgress, setLiveProgress] = useState<AssessmentProgressEvent | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -99,10 +100,11 @@ function ProcessingWizard() {
 
   const onSubmit = async (data: ProcessingFormData) => {
     setSubmitError(null);
+    setLiveProgress(null);
     setSubmitting(true);
     try {
       const payload = buildProcessingPayload(data, COUNTRY_TO_REGION, { facilityId });
-      const result = await assessmentAPI.submitProcessingAssessment(payload);
+      const result = await assessmentAPI.submitProcessingAssessmentStream(payload, setLiveProgress);
       localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
       localStorage.setItem('lastAssessmentId', result.id);
       setDone(true);
@@ -124,7 +126,7 @@ function ProcessingWizard() {
       case ProcessingStep.PRODUCTS: return <ProductsStep />;
       case ProcessingStep.UTILITIES: return <UtilitiesStep />;
       case ProcessingStep.REVIEW:
-        return <ReviewStep onSubmit={handleSubmit(onSubmit)} isSubmitting={submitting} onPrevious={goPrevious} />;
+        return <ReviewStep onSubmit={handleSubmit(onSubmit)} isSubmitting={submitting} onPrevious={goPrevious} progress={liveProgress} />;
     }
   };
 

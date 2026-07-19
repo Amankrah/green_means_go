@@ -44,10 +44,48 @@ WASTE_MATCH = {
     "Mixed": "treatment of municipal solid waste, sanitary landfill",
 }
 
+# Already-refined / intermediate ingredients -> processed-product datasets. Checked BEFORE
+# farm-gate crop hints so "wheat flour" / "palm oil" do not collapse to grain / fruit bunch
+# and understate milling or refining. Longer / more specific keys are preferred.
+REFINED_MATERIAL_HINTS = {
+    "wheat flour": "wheat flour",
+    "maize flour": "maize flour",
+    "corn flour": "maize flour",
+    "soy flour": "soybean flour",
+    "flour": "wheat flour",
+    "wheat starch": "wheat starch production",
+    "maize starch": "maize starch production",
+    "corn starch": "maize starch production",
+    "potato starch": "potato starch production",
+    "starch": "maize starch production",
+    "palm oil": "palm oil",
+    "soybean oil": "soybean oil",
+    "soya oil": "soybean oil",
+    "soy oil": "soybean oil",
+    "rape oil": "rape oil",
+    "rapeseed oil": "rape oil",
+    "canola oil": "rape oil",
+    "sunflower oil": "sunflower oil",
+    "groundnut oil": "groundnut oil",
+    "peanut oil": "groundnut oil",
+    "vegetable oil": "rape oil",
+    "cocoa butter": "cocoa butter",
+    "chocolate": "dark chocolate production",
+    "butter": "butter production, from cow milk",
+    "cheese": "cheese production",
+    "glucose": "glucose production",
+    "sugar": "sugar production, from sugarcane",
+    "molasses": "molasses",
+    "soybean meal": "soybean meal",
+    "soy meal": "soybean meal",
+    "breadcrumbs": "breadcrumbs production",
+    "margarine": "margarine production",
+}
+
 # Raw-material crop-keyword hints -> a farm-gate PRODUCTION dataset to match against. This
 # steers free text like "Maize kernels" to "maize grain production" (the harvested crop),
 # not "maize seed production" (seed for sowing) or a consumer-stage Ciqual product. Keyed by
-# a substring found in the declared material name; first match wins.
+# a substring found in the declared material name; first match wins after refined hints.
 RAW_MATERIAL_HINTS = {
     "maize": "maize grain production", "corn": "maize grain production",
     "wheat": "wheat grain production", "rice": "rice production", "paddy": "rice production",
@@ -64,13 +102,16 @@ RAW_MATERIAL_HINTS = {
 }
 
 
-def _raw_material_match(name: str) -> str:
-    """Best farm-gate production dataset hint for a declared raw material name."""
+def _raw_material_match(name: str) -> tuple[str, bool]:
+    """Return (match hint, is_refined). Refined intermediates win over farm-gate crop keywords."""
     low = (name or "").lower()
-    for key, target in RAW_MATERIAL_HINTS.items():
+    for key in sorted(REFINED_MATERIAL_HINTS, key=len, reverse=True):
         if key in low:
-            return target
-    return f"{name} production"
+            return REFINED_MATERIAL_HINTS[key], True
+    for key in sorted(RAW_MATERIAL_HINTS, key=len, reverse=True):
+        if key in low:
+            return RAW_MATERIAL_HINTS[key], False
+    return f"{name} production", False
 
 
 # Transport mode -> representative freight dataset (ref unit tonne.km).
@@ -117,11 +158,24 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
             if name and kg > 0:
                 raw_totals[name] = raw_totals.get(name, 0.0) + kg
     for name, kg in raw_totals.items():
-        # Steer the match to a farm-gate PRODUCTION dataset (grain, not seed or a
-        # consumer-stage product) via a crop-keyword hint. Keep the declared name as the
+        # Prefer refined-product datasets when the name is already processed (flour, oil,
+        # sugar…); otherwise farm-gate crop production. Keep the declared name as the
         # display label so the report stays transparent.
-        inputs.append({"name": name, "match_as": _raw_material_match(name),
-                       "fallback": name, "amount": kg, "unit": "kg", "kind": "raw_material"})
+        hint, is_refined = _raw_material_match(name)
+        inputs.append({
+            "name": name,
+            "match_as": hint,
+            "fallback": name,
+            "amount": kg,
+            "unit": "kg",
+            "kind": "raw_material",
+            "refined": is_refined,
+        })
+        if is_refined:
+            notes.append(
+                f"raw material '{name}' treated as an already-processed ingredient "
+                f"(matched toward '{hint}', not farm-gate crop)"
+            )
     if not raw_totals:
         notes.append("no raw-material inputs were declared, so the cradle burden of the ingredients is not counted")
 
@@ -151,14 +205,28 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
         notes.append("no electricity consumption found (neither a facility meter nor per-step intensity)")
 
     # --- Fuel / process heat ---
+    # Prefer building-machine combustion (facility), then industrial heat, and only then
+    # agricultural machinery as a last-resort proxy (flagged by the orchestrator note).
     monthly_fuel = em.get("monthly_fuel_consumption")
     if monthly_fuel:
         litres = monthly_fuel * 12.0
         word, mj_per_l = _fuel_word(em.get("fuel_type"))
-        inputs.append({"name": f"{word} (facility fuel)",
-                       "match_as": f"{word}, burned in building machine",
-                       "fallback": f"{word}, burned in agricultural machinery",
-                       "amount": litres * mj_per_l, "unit": "MJ", "kind": "fuel"})
+        primary = f"{word}, burned in building machine"
+        fallbacks = [
+            "heat production, natural gas",  # industrial heat proxy before agri machinery
+            f"{word}, burned in agricultural machinery",
+        ]
+        # Deduplicate while preserving order; drop anything identical to the primary.
+        fallbacks = [f for f in dict.fromkeys(fallbacks) if f != primary]
+        inputs.append({
+            "name": f"{word} (facility fuel)",
+            "match_as": primary,
+            "fallback": fallbacks[0] if fallbacks else None,
+            "fallbacks": fallbacks,
+            "amount": litres * mj_per_l,
+            "unit": "MJ",
+            "kind": "fuel",
+        })
 
     # --- Water: facility meter, else summed per-step usage (L/tonne). ---
     wm = ops.get("water_management") or {}

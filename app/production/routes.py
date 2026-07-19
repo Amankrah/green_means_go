@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json
@@ -11,6 +12,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from db import get_db
+from assessment_stream import stream_assessment, SSE_MEDIA_TYPE, SSE_HEADERS
 from models import Assessment, AssessmentType, Farm, User
 from auth.deps import get_current_user
 from store import (
@@ -116,6 +118,43 @@ async def create_assessment(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Assessment failed: {str(e)}")
+
+
+@router.post("/assess/stream")
+async def create_assessment_stream(
+    request: AssessmentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Same as POST /assess (simple or comprehensive), but streams live per-stage progress
+    as Server-Sent Events and persists the result, ending with a terminal `result` (or
+    `error`) event. Uses the validated engine path."""
+    farm_id = _resolve_farm_id(request, user, db)
+    # Capture plain values now: the worker thread / SSE generator must not touch the
+    # request-scoped ORM session or lazy attributes.
+    rust_input = _build_farm_rust_input(request)
+    region = request.region
+    user_id = user.id
+    title = request.title
+    archive = _request_archive(request)
+
+    def run_fn(on_progress):
+        from engine.service import run_farm_assessment
+        return run_farm_assessment(rust_input, region=region, on_progress=on_progress)
+
+    def save_fn(result):
+        from db import SessionLocal
+        with SessionLocal() as session:
+            save_assessment(
+                session, user_id=user_id, a_type=AssessmentType.farm, payload=result,
+                farm_id=farm_id, title=title, request_payload=archive,
+            )
+
+    return StreamingResponse(
+        stream_assessment(run_fn, save_fn=save_fn),
+        media_type=SSE_MEDIA_TYPE, headers=SSE_HEADERS,
+    )
+
 
 @router.post("/assess/comprehensive", response_model=AssessmentResponse)
 async def create_comprehensive_assessment(

@@ -37,6 +37,17 @@ except ImportError:
     import grid_calibration
 
 
+def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
+    """Fire a progress callback if one was supplied. Never raises — progress reporting
+    must not be able to break an assessment."""
+    if cb is None:
+        return
+    try:
+        cb(stage, detail=detail, index=index, total=total)
+    except Exception:
+        pass
+
+
 def _add(inv: dict, uid: str, amount: float, name: str = None, unit: str = None) -> None:
     rec = inv.get(uid)
     if rec:
@@ -91,7 +102,7 @@ class FarmLCA:
         return pool[0]
 
     def assess_farm(self, rust_assessment: dict, purchased_inputs: list[dict],
-                    expand_matching: bool = False) -> AssessmentResult:
+                    expand_matching: bool = False, on_progress=None) -> AssessmentResult:
         """Full Option-A path: run the Rust LCI kernel on `rust_assessment` for on-farm
         field emissions, then combine with the supply-chain LCI and characterize."""
         try:
@@ -100,17 +111,21 @@ class FarmLCA:
         except ImportError:
             from rust_kernel import onfarm_lci_from_assessment
             from field_model import adjust_field_emissions
+        _emit(on_progress, "inventory", "Field emissions (IPCC 2019)")
         on_farm_lci, rust_notes = onfarm_lci_from_assessment(rust_assessment)
         # expert-level field-emission adjustments (regional climate N2O, legume intercrop credit)
         on_farm_lci, field_notes = adjust_field_emissions(on_farm_lci, rust_assessment, self.region)
-        res = self.assess(on_farm_lci, purchased_inputs, expand_matching)
+        res = self.assess(on_farm_lci, purchased_inputs, expand_matching, on_progress=on_progress)
         res.notes = rust_notes + field_notes + res.notes
         return res
 
     def assess(self, on_farm_lci: list[dict], purchased_inputs: list[dict],
-               expand_matching: bool = False) -> AssessmentResult:
+               expand_matching: bool = False, on_progress=None) -> AssessmentResult:
         """on_farm_lci: [{substance, quantity, unit}]  (substance keys per flowmap.ONFARM_FLOWS)
-        purchased_inputs: [{name, amount, unit}]  (amount in the process reference unit, usually kg)."""
+        purchased_inputs: [{name, amount, unit}]  (amount in the process reference unit, usually kg).
+
+        on_progress(stage, detail, index, total): optional callback fired at each stage
+        (match / solve per input / characterize) so a caller can stream live progress."""
         res = AssessmentResult(region=self.region.name, method=self.method)
 
         # 1) on-farm field emissions -> canonical store flows
@@ -123,27 +138,47 @@ class FarmLCA:
             _add(onfarm, uid, float(f["quantity"]), f["substance"], f.get("unit"))
 
         # 2) supply chain: match + solve each purchased input
+        _emit(on_progress, "match", "Matching inputs to background datasets")
         supply: dict = {}
-        for inp in purchased_inputs:
+        _n_inputs = len(purchased_inputs)
+        for _i, inp in enumerate(purchased_inputs):
+            _emit(on_progress, "solve", detail=inp.get("name", ""), index=_i + 1, total=_n_inputs)
             # match_as: match against a representative dataset name but keep inp["name"]
             # as the display label (used for pesticides -> generic agrochemical).
             target = inp.get("match_as") or inp["name"]
             m = self._match_input(target, expand=expand_matching)
-            if not m and inp.get("fallback"):
-                m = self._match_input(inp["fallback"], expand=expand_matching)
-                if m:
-                    res.notes.append(f"'{inp['name']}' not found; used representative '{inp['fallback']}'")
+            used_fallback = None
+            if not m:
+                # Prefer an explicit fallbacks list (facility fuel chain); else single fallback.
+                chain = list(inp.get("fallbacks") or [])
+                if inp.get("fallback") and inp["fallback"] not in chain:
+                    chain.append(inp["fallback"])
+                for fb in chain:
+                    m = self._match_input(fb, expand=expand_matching)
+                    if m:
+                        used_fallback = fb
+                        break
+                if used_fallback:
+                    note = f"'{inp['name']}' not found as '{target}'; used representative '{used_fallback}'"
+                    if "agricultural machinery" in used_fallback.lower():
+                        note += (" — agricultural machinery combustion is a last-resort proxy "
+                                 "for facility fuel and may misrepresent industrial emissions")
+                    res.notes.append(note)
             if inp.get("match_as") and m:
                 # match_as steers to a representative dataset while keeping the declared name.
                 # Word the note by kind so non-pesticide inputs (raw materials, packaging,
                 # utilities on the processing side) are not mislabelled as pesticides.
                 _kind = inp.get("kind") or "input"
-                _phrase = {"pesticide": "a representative agrochemical dataset",
-                           "raw_material": "a representative production dataset",
-                           "packaging": "a representative packaging dataset",
-                           "waste": "a representative waste-treatment dataset",
-                           "transport": "a representative freight dataset",
-                           "fuel": "a representative fuel-combustion dataset"}.get(_kind, "a representative dataset")
+                if _kind == "raw_material" and inp.get("refined"):
+                    _phrase = "a representative refined-ingredient dataset"
+                else:
+                    _phrase = {"pesticide": "a representative agrochemical dataset",
+                               "raw_material": "a representative production dataset",
+                               "packaging": "a representative packaging dataset",
+                               "waste": "a representative waste-treatment dataset",
+                               "transport": "a representative freight dataset",
+                               "fuel": "a representative fuel-combustion dataset"}.get(
+                                   _kind, "a representative dataset")
                 res.notes.append(f"'{inp['name']}' modelled with {_phrase}")
             if not m:
                 res.input_matches.append({**inp, "matched": None})
@@ -184,6 +219,7 @@ class FarmLCA:
             })
 
         # 3) characterize: parts (for the split) + merged total, all via the validated path
+        _emit(on_progress, "characterize", "Characterizing impacts")
         res.contribution["on_farm"] = self.q.characterize_flows(onfarm, self.method)
         res.contribution["supply_chain"] = self.q.characterize_flows(supply, self.method)
         # field emissions as a named contribution source alongside the purchased inputs

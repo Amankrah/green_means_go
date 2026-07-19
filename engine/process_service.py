@@ -25,7 +25,12 @@ except ImportError:
 
 def _resolve_region(request: dict, override: str | None) -> str:
     """Resolve to a known region code, tolerating free-text region names (e.g. a province or
-    'Greater Accra'): try the override, then the request region, then the country, else default."""
+    'Greater Accra'): try the override, then the request region, then the country, else default.
+
+    Canada is submitted as country \"Global\" + region \"CA\". If a free-text province overwrote
+    the region code and nothing resolves, prefer CA over the Ghana default — otherwise Canada
+    assessments silently run on Ghana backgrounds.
+    """
     for cand in (override, request.get("region"), request.get("country")):
         if not cand:
             continue
@@ -33,17 +38,35 @@ def _resolve_region(request: dict, override: str | None) -> str:
             return get_region(str(cand).strip()).code
         except KeyError:
             continue
+    country = str(request.get("country") or "").strip().lower()
+    if country in ("global", "canada", "ca"):
+        return "CA"
     return "GH"   # regions registry is the single source of truth for the default
 
 
+def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
+    if cb is None:
+        return
+    try:
+        cb(stage, detail=detail, index=index, total=total)
+    except Exception:
+        pass
+
+
 def run_process_assessment(request: dict, region: str | None = None,
-                           method: str | None = None, assessment_id: str | None = None) -> dict:
+                           method: str | None = None, assessment_id: str | None = None,
+                           on_progress=None) -> dict:
     """Full path: extract purchased utilities/materials -> supply-chain solve (no field
-    emissions) -> validated characterization -> processing response dict."""
+    emissions) -> validated characterization -> processing response dict.
+
+    on_progress(stage, detail, index, total): optional callback for live progress."""
+    _emit(on_progress, "prepare", "Reading your facility data")
     region_code = _resolve_region(request, region)
     eng, lock = _engine(region_code, method)
     inputs, notes, total_kg = extract_processing_inputs(request)
+    _emit(on_progress, "inventory", "Building the life-cycle inventory")
     with lock:
-        res = eng.assess(on_farm_lci=[], purchased_inputs=inputs)
+        res = eng.assess(on_farm_lci=[], purchased_inputs=inputs, on_progress=on_progress)
+    _emit(on_progress, "report", "Compiling your report")
     return to_process_response(res, request, eng, total_kg,
                                assessment_id or str(uuid.uuid4()), notes)

@@ -22,6 +22,15 @@ export interface ChatMessage {
   content: string;
 }
 
+// A live progress event streamed from the /assess/stream (SSE) endpoints. `stage` is one of
+// prepare | inventory | match | solve | characterize | report.
+export interface AssessmentProgressEvent {
+  stage: string;
+  detail?: string;
+  index?: number | null;
+  total?: number | null;
+}
+
 // Auth payloads
 export interface SignupRequest {
   email: string;
@@ -326,6 +335,88 @@ class AssessmentAPI {
       method: 'POST',
       body: JSON.stringify(backendData),
     });
+  }
+
+  // --- Streaming (SSE) assessment submit -------------------------------------------------
+  // Same result as the plain submit methods, but consumes the /assess/stream endpoints and
+  // calls onProgress for each live engine stage. Returns the final result once the stream's
+  // terminal `result` event arrives (throws on an `error` event).
+  private async streamAssess(
+    endpoint: string,
+    body: unknown,
+    onProgress?: (e: AssessmentProgressEvent) => void,
+    retryOn401 = true,
+  ): Promise<AssessmentResult> {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
+      body: JSON.stringify(body),
+    });
+
+    if (response.status === 401 && retryOn401) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) return this.streamAssess(endpoint, body, onProgress, false);
+    }
+    if (!response.ok || !response.body) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = errorData?.detail;
+      throw new ApiError(
+        typeof detail === 'string' ? detail : `API Error: ${response.status} ${response.statusText}`,
+        response.status,
+      );
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result: AssessmentResult | undefined;
+    let streamError: string | undefined;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep: number;
+      // SSE frames are separated by a blank line.
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        const dataLine = frame.split('\n').find((l) => l.startsWith('data:'));
+        if (!dataLine) continue;
+        let evt: { type?: string; data?: AssessmentResult; message?: string } & AssessmentProgressEvent;
+        try {
+          evt = JSON.parse(dataLine.slice(5).trim());
+        } catch {
+          continue;
+        }
+        if (evt.type === 'progress') onProgress?.(evt);
+        else if (evt.type === 'result') result = evt.data;
+        else if (evt.type === 'error') streamError = evt.message || 'Assessment failed';
+      }
+    }
+
+    if (streamError) throw new ApiError(streamError, 500);
+    if (!result) throw new ApiError('The assessment stream ended without a result.', 500);
+    return result;
+  }
+
+  async submitProcessingAssessmentStream(
+    data: Record<string, unknown>,
+    onProgress?: (e: AssessmentProgressEvent) => void,
+  ): Promise<AssessmentResult> {
+    return this.streamAssess('/processing/assess/stream', data, onProgress);
+  }
+
+  async submitComprehensiveAssessmentStream(
+    data: EnhancedAssessmentRequest,
+    opts?: { farmId?: string | null; title?: string | null; formSnapshot?: unknown },
+    onProgress?: (e: AssessmentProgressEvent) => void,
+  ): Promise<AssessmentResult> {
+    const backendData = this.transformEnhancedAssessmentToBackend(data);
+    if (opts?.farmId) backendData.farm_id = opts.farmId;
+    if (opts?.title) backendData.title = opts.title;
+    if (opts?.formSnapshot !== undefined) backendData.form_snapshot = opts.formSnapshot;
+    return this.streamAssess('/assess/stream', backendData, onProgress);
   }
 
   private transformEnhancedAssessmentToBackend(data: EnhancedAssessmentRequest): AssessmentRequest {

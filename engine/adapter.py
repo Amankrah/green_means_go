@@ -267,10 +267,15 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
               for cat, v in imp.items()}
         for src, imp in cbs.items()}
 
+    country_raw = assessment.get("country", "") or ""
+    country_display = (
+        "Canada" if str(country_raw).strip().lower() == "global" else country_raw
+    )
+
     return {
         "id": assessment_id,
         "company_name": assessment.get("company_name", ""),
-        "country": assessment.get("country", ""),
+        "country": country_display,
         # Echo identity fields so results/reports never fall back to demo placeholders.
         "farm_profile": assessment.get("farm_profile") or None,
         "assessment_date": datetime.now(timezone.utc).isoformat(),

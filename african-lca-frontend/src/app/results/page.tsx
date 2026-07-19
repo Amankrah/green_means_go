@@ -32,7 +32,7 @@ import Layout from '@/components/Layout';
 import ResultsChat from '@/components/ResultsChat';
 import ISOReport from '@/components/ISOReport';
 import RecommendationsPanel from '@/components/RecommendationsPanel';
-import { assessmentAPI, getScoreInterpretation } from '@/lib/api';
+import { assessmentAPI, getScoreInterpretation, ApiError } from '@/lib/api';
 import { AssessmentResult } from '@/types/assessment';
 
 // Color schemes for charts
@@ -59,6 +59,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
   const [results, setResults] = useState<AssessmentResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [shareLabel, setShareLabel] = useState('Share Results');
   const [pendingDelete, setPendingDelete] = useState(false);
@@ -96,45 +97,54 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
   const fetchAssessment = (id: string) =>
     isProcessing ? assessmentAPI.getProcessingAssessment(id) : assessmentAPI.getAssessment(id);
 
+  // A 404 means the assessment no longer exists on the server (deleted, or a stale
+  // link). That is different from a transient failure (network / 5xx), where the cached
+  // copy is still worth showing.
+  const isDeleted = (err: unknown) => err instanceof ApiError && err.status === 404;
+
+  const clearCached = (id: string) => {
+    try { localStorage.removeItem(`assessment_${id}`); } catch { /* ignore */ }
+  };
+
   const loadResults = async (id: string) => {
-    try {
-      setLoading(true);
+    setLoading(true);
+    setError(null);
+    setNotFound(false);
 
-      // Try localStorage first (survives backend restarts)
-      const cachedResult = localStorage.getItem(`assessment_${id}`);
-      if (cachedResult) {
-        console.log('📦 Loaded assessment from localStorage cache');
-        const parsed = JSON.parse(cachedResult);
-        setResults(parsed);
-        setLoading(false);
-
-        // Try to sync with backend in background (non-blocking)
-        fetchAssessment(id)
-          .then(backendResult => {
-            console.log('🔄 Synced with backend, updating cache');
-            localStorage.setItem(`assessment_${id}`, JSON.stringify(backendResult));
-            setResults(backendResult);
-          })
-          .catch(() => {
-            console.log('⚠️ Backend unavailable, using cached data');
-          });
-        return;
+    // Cache-first: show the cached copy immediately, then reconcile with the backend.
+    const cachedResult = localStorage.getItem(`assessment_${id}`);
+    if (cachedResult) {
+      try {
+        setResults(JSON.parse(cachedResult));
+      } catch {
+        clearCached(id); // corrupt cache entry
       }
-      
-      // No cache, fetch from backend
+      setLoading(false);
+      try {
+        const backendResult = await fetchAssessment(id);
+        localStorage.setItem(`assessment_${id}`, JSON.stringify(backendResult));
+        setResults(backendResult);
+      } catch (err) {
+        if (isDeleted(err)) {
+          // Deleted on the server: stop showing a ghost. Drop the stale cache and
+          // switch to a clean not-found state.
+          clearCached(id);
+          setResults(null);
+          setNotFound(true);
+        }
+        // Otherwise transient: keep the cached view as-is.
+      }
+      return;
+    }
+
+    // No cache: the backend is the only source.
+    try {
       const result = await fetchAssessment(id);
-      console.log('🔍 Results data from backend:', result);
-      
-      // Cache for future use
       localStorage.setItem(`assessment_${id}`, JSON.stringify(result));
       setResults(result);
     } catch (err) {
-      // Check localStorage as last resort
-      const cachedResult = localStorage.getItem(`assessment_${id}`);
-      if (cachedResult) {
-        console.log('📦 API failed, using localStorage cache');
-        setResults(JSON.parse(cachedResult));
-        setError(null);
+      if (isDeleted(err)) {
+        setNotFound(true);
       } else {
         setError(err instanceof Error ? err.message : 'Failed to load results');
       }
@@ -222,6 +232,46 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
               </div>
             </motion.div>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <Layout>
+        <div className="py-12 px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto"
+          >
+            <div className="bg-white border border-gray-200 rounded-3xl p-12 text-center shadow-xl">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle className="w-10 h-10 text-gray-400" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-3">Assessment not found</h1>
+              <p className="text-lg text-gray-600 mb-8">
+                This assessment may have been deleted, or the link is out of date.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  type="button"
+                  onClick={() => router.push('/dashboard/assessments')}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-spruce px-6 py-3 font-semibold text-white hover:bg-ink transition-colors"
+                >
+                  Back to my assessments
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/dashboard')}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-6 py-3 font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Go to dashboard
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </Layout>
     );
@@ -455,7 +505,9 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-gray-700">
                 <div className="flex items-center space-x-2">
                   <span className="text-2xl">📍</span>
-                  <span className="font-semibold">{results.country}</span>
+                  <span className="font-semibold">
+                    {results.country === 'Global' ? 'Canada' : results.country}
+                  </span>
                 </div>
                 <div className="hidden sm:block w-1 h-1 bg-gray-400 rounded-full"></div>
                 <div className="flex items-center space-x-2">

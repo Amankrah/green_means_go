@@ -115,11 +115,24 @@ def _sum_results(per_crop: dict):
     return farm
 
 
+def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
+    if cb is None:
+        return
+    try:
+        cb(stage, detail=detail, index=index, total=total)
+    except Exception:
+        pass
+
+
 def run_farm_assessment(assessment: dict, region: str | None = None,
-                        method: str | None = None, assessment_id: str | None = None) -> dict:
+                        method: str | None = None, assessment_id: str | None = None,
+                        on_progress=None) -> dict:
     """Full path: auto-extract inputs -> Rust field LCI + supply-chain solve ->
     validated characterization -> AssessmentResponse dict. With multiple crops, each is
-    run as its OWN product system (true per-crop) and summed for the farm total."""
+    run as its OWN product system (true per-crop) and summed for the farm total.
+
+    on_progress(stage, detail, index, total): optional callback for live progress."""
+    _emit(on_progress, "prepare", "Reading your farm data")
     region_code = _region_of(assessment, region)
     eng, lock = _engine(region_code, method)
     total = total_production_kg(assessment)
@@ -127,20 +140,30 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
     total_area = sum((f.get("area_allocated") or 0) for f in foods)
 
     if len(foods) > 1 and total_area > 0:
+        # Multiple product systems: report progress per crop rather than per input (per-input
+        # index would reset each crop and read as going backwards). The inner assess_farm runs
+        # without the fine-grained callback for the same reason.
+        _emit(on_progress, "inventory", "Building the life-cycle inventory")
         per_crop = {}
-        for food in foods:
+        n = len(foods)
+        for ci, food in enumerate(foods):
+            _emit(on_progress, "solve", detail=f"{food.get('name', 'crop')} ({ci + 1}/{n})",
+                  index=ci + 1, total=n)
             share = (food.get("area_allocated") or 0) / total_area
             sub = _sub_assessment(assessment, food, share)
             inputs, _ = extract_purchased_inputs(sub)
             with lock:
                 per_crop[_crop_label(food)] = eng.assess_farm(sub, inputs)
+        _emit(on_progress, "characterize", "Characterizing impacts")
         farm = _sum_results(per_crop)
+        _emit(on_progress, "report", "Compiling your report")
         return to_assessment_response(farm, assessment, eng, total,
                                       assessment_id or str(uuid.uuid4()), per_crop=per_crop)
 
-    # single crop / no area -> one whole-farm system
+    # single crop / no area -> one whole-farm system (fine-grained per-input progress)
     inputs, in_notes = extract_purchased_inputs(assessment)
     with lock:
-        res = eng.assess_farm(assessment, inputs)
+        res = eng.assess_farm(assessment, inputs, on_progress=on_progress)
+    _emit(on_progress, "report", "Compiling your report")
     return to_assessment_response(res, assessment, eng, total,
                                   assessment_id or str(uuid.uuid4()), in_notes)

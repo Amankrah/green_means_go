@@ -1,15 +1,15 @@
 {
   "methodology": "Empirical band calibration for processed-food products: single score computed for a benchmark basket of ecoinvent 3.11 processed-food products (1 kg, Cutoff) through the identical pipeline (cradle-to-gate solve -> ReCiPe 2016 v1.03 midpoint (H) -> normalization). Bands are the basket's tertiles.",
   "method": "ReCiPe 2016 v1.03, midpoint (H)",
-  "n_products": 9,
-  "low_cut_upt_per_kg": 3450.0,
-  "high_cut_upt_per_kg": 6650.0,
+  "n_products": 10,
+  "low_cut_upt_per_kg": 3230.0,
+  "high_cut_upt_per_kg": 4720.0,
   "percentiles": {
-    "p33": 3448.3,
-    "p67": 6652.4,
+    "p33": 3226.8,
+    "p67": 4721.0,
     "min": 2209.13,
     "max": 22953.74,
-    "median": 4178.9
+    "median": 3868.9
   },
   "basket": [
     {
@@ -18,6 +18,13 @@
       "process": "maize starch production | maize starch | Cutoff, U",
       "location": "Rest of World",
       "single_score_upt_per_kg": 2209.13
+    },
+    {
+      "product": "sugar (cane)",
+      "uid": "e65a4359-3907-3ed2-9324-c7b040c06fed",
+      "process": "sugarcane processing, traditional annexed plant | sugar, from sugarcane | Cutoff, U",
+      "location": "Rest of World",
+      "single_score_upt_per_kg": 2378.65
     },
     {
       "product": "glucose",
@@ -55,11 +62,11 @@
       "single_score_upt_per_kg": 4721.04
     },
     {
-      "product": "wine",
-      "uid": "eaaee222-f47b-3c01-ae93-a1d557f41b1c",
-      "process": "swine production | swine for slaughtering, live weight | Cutoff, U",
+      "product": "rape oil",
+      "uid": "ae99ed8b-affe-372b-9048-9cf3da946e6f",
+      "process": "rape oil mill operation | rape oil, crude | Cutoff, U",
       "location": "Rest of World",
-      "single_score_upt_per_kg": 10515.21
+      "single_score_upt_per_kg": 5840.76
     },
     {
       "product": "butter",

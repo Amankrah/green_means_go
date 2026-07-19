@@ -217,11 +217,14 @@ export function buildProcessingPayload(
 ): Record<string, unknown> {
   const f = data.facility;
   const u = data.utilities;
-  const mapped = countryMap[f.country] ?? { country: f.country, region: f.region || undefined };
+  // Engine region must be the mapped code (GH/NG/CA). Free-text province/state in
+  // facility.region must NOT override it — that used to send "Ontario" and cause the
+  // engine to fall through to the Ghana default for Canada (country is sent as "Global").
+  const mapped = countryMap[f.country] ?? { country: f.country, region: undefined };
 
   return {
     country: mapped.country,
-    region: f.region || mapped.region,
+    region: mapped.region,
     facility_id: opts?.facilityId ?? undefined,
     title: f.facilityName || f.companyName || undefined,
     allocation_basis: u.allocationBasis,
@@ -233,6 +236,8 @@ export function buildProcessingPayload(
       operational_hours_per_day: f.hoursPerDay,
       operational_days_per_year: f.daysPerYear,
       location_type: f.locationType,
+      // Kept for display/rerun context only; not an engine region code.
+      ...(f.region?.trim() ? { admin_region: f.region.trim() } : {}),
     },
     processing_operations: {
       energy_management: {

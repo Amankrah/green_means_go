@@ -57,14 +57,22 @@ REGIONS: dict[str, Region] = {
         code="CA", name="Canada", currency="CAD",
         climate_zone="cool temperate", ipcc_n2o_ef1=0.010,  # temperate ≈ aggregate default
         aware_country="Canada", default_method="EF v3.1",
-        location_prefer=("CA", "Canada", "CA-QC", "CA-ON", "US", "RNA",
-                         "Rest of World", "RoW", "GLO"),
+        # Prefer strings that actually appear in the canonical store ("Global",
+        # "Rest of World", "Canada, Quebec", …) — bare "GLO"/"RoW" rarely match.
+        location_prefer=("CA", "Canada", "Canada, Quebec", "Canada, Ontario",
+                         "CA-QC", "CA-ON", "US", "RNA",
+                         "Rest of World", "RoW", "Global", "GLO"),
     ),
 }
 
 ALIASES = {
     "ghana": "GH", "gh": "GH", "nigeria": "NG", "ng": "NG",
     "canada": "CA", "ca": "CA", "can": "CA",
+    # Backend country enum uses "Global" for Canada (no "Canada" country in the API).
+    "global": "CA",
+    # Common free-text provinces / states typed into the facility region field.
+    "ontario": "CA", "quebec": "CA", "québec": "CA", "saskatchewan": "CA",
+    "alberta": "CA", "manitoba": "CA", "british columbia": "CA", "bc": "CA",
 }
 
 

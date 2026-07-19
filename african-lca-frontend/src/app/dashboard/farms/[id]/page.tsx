@@ -19,7 +19,9 @@ import {
 import RequireAuth from '@/components/RequireAuth';
 import DashboardShell from '@/components/DashboardShell';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import FarmCropSummary from '@/components/FarmCropSummary';
 import { assessmentAPI, AssessmentSummary, Farm } from '@/lib/api';
+import { normalizeFarmSnapshot, type FarmSnapshot } from '@/lib/farm-snapshot';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +36,11 @@ function FarmProfileContent() {
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshot, setSnapshot] = useState<FarmSnapshot | null>(null);
+  const [snapshotSource, setSnapshotSource] = useState<AssessmentSummary | null>(null);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!farmId) return;
@@ -58,10 +65,99 @@ function FarmProfileContent() {
     };
   }, [farmId]);
 
+  const latestRerunnable = useMemo(() => {
+    return [...assessments]
+      .filter((a) => a.can_rerun)
+      .sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb - ta;
+      })[0] ?? null;
+  }, [assessments]);
+
+  useEffect(() => {
+    if (loading || !farm) return;
+
+    if (assessments.length === 0 || !latestRerunnable) {
+      setSnapshot(null);
+      setSnapshotSource(null);
+      setSnapshotError(null);
+      setSnapshotLoading(false);
+      return;
+    }
+
+    let active = true;
+    setSnapshotLoading(true);
+    setSnapshotError(null);
+    (async () => {
+      try {
+        const archive = await assessmentAPI.getAssessmentRequest(latestRerunnable.id);
+        if (!active) return;
+        setSnapshot(normalizeFarmSnapshot(archive));
+        setSnapshotSource(latestRerunnable);
+      } catch (err) {
+        if (active) {
+          setSnapshot(null);
+          setSnapshotSource(null);
+          setSnapshotError(
+            err instanceof Error ? err.message : 'Could not load crop details.'
+          );
+        }
+      } finally {
+        if (active) setSnapshotLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [loading, farm, assessments.length, latestRerunnable]);
+
   const locationLine = useMemo(() => {
     if (!farm) return '';
     return [farm.location, farm.region, farm.country].filter(Boolean).join(', ');
   }, [farm]);
+
+  const sizeDiffers =
+    farm?.size_ha != null &&
+    snapshot?.assessedSizeHa != null &&
+    Math.abs(farm.size_ha - snapshot.assessedSizeHa) > 0.001;
+
+  const cropSummaryNode = (() => {
+    if (!farm) return null;
+    if (snapshotLoading) return <FarmCropSummary mode="loading" />;
+    if (snapshotError) {
+      return (
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-red-700">
+            Crops &amp; land use
+          </h3>
+          <p className="mt-2 text-sm text-red-700">{snapshotError}</p>
+        </section>
+      );
+    }
+    if (assessments.length === 0) {
+      return <FarmCropSummary mode="empty" emptyKind="none" farmId={farm.id} />;
+    }
+    if (!latestRerunnable) {
+      return <FarmCropSummary mode="empty" emptyKind="legacy" farmId={farm.id} />;
+    }
+    if (snapshot && snapshotSource) {
+      if (snapshot.crops.length === 0) {
+        return <FarmCropSummary mode="empty" emptyKind="empty-crops" farmId={farm.id} />;
+      }
+      return (
+        <FarmCropSummary
+          mode="ready"
+          snapshot={snapshot}
+          assessmentId={snapshotSource.id}
+          assessmentDate={snapshotSource.created_at}
+          assessmentTitle={snapshotSource.title || snapshotSource.company_name}
+        />
+      );
+    }
+    return <FarmCropSummary mode="loading" />;
+  })();
 
   const confirmDelete = async () => {
     if (!farm) return;
@@ -143,11 +239,20 @@ function FarmProfileContent() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Profile details</h3>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <ProfileField icon={MapPin} label="Place" value={locationLine || '—'} />
-            <ProfileField
-              icon={Ruler}
-              label="Farm size"
-              value={farm.size_ha != null ? `${farm.size_ha} hectares` : '—'}
-            />
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
+                <Ruler className="w-3.5 h-3.5" />
+                Farm size
+              </dt>
+              <dd className="mt-1 text-sm text-gray-900">
+                {farm.size_ha != null ? `${farm.size_ha} hectares` : '—'}
+              </dd>
+              {sizeDiffers && snapshot?.assessedSizeHa != null && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Latest assessment: {snapshot.assessedSizeHa} hectares
+                </p>
+              )}
+            </div>
             <ProfileField icon={User} label="Farmer / owner" value={farm.farmer_name || '—'} />
             <ProfileField icon={Phone} label="Contact" value={farm.farmer_contact || '—'} />
             <ProfileField
@@ -204,6 +309,8 @@ function FarmProfileContent() {
           )}
         </section>
       </div>
+
+      {cropSummaryNode}
 
       <ConfirmDialog
         open={pendingDelete}

@@ -39,10 +39,10 @@ BASKET = {
     "butter":           ("butter production, from cow milk", "butter, from cow milk"),
     "cheese (soft)":    ("cheese production, soft, from cow milk", "cheese, from cow milk"),
     "breadcrumbs":      ("breadcrumbs production", "breadcrumbs"),
-    "sugar (beet)":     ("sugar production, from sugar beet", "sugar"),
-    "sugar (cane)":     ("sugar production, from sugarcane", "sugar"),
-    "rape oil":         ("rape oil production", "rape oil"),
-    "palm oil":         ("palm oil production", "palm oil"),
+    "sugar (beet)":     ("beet sugar production", "sugar"),
+    "sugar (cane)":     ("sugar, from sugarcane", "sugar"),
+    "rape oil":         ("rape oil, crude", "rape oil"),
+    "soybean oil (mill)": ("soybean oil, at oil mill", "soybean oil"),
     "margarine":        ("margarine production", "margarine"),
     "fatty acid":       ("fatty acid production, from vegetable oil", "fatty acid"),
     "wheat flour mix":  ("batter wheat mix production", "wheat flour mix"),
@@ -50,33 +50,50 @@ BASKET = {
     "wheat starch":     ("wheat starch production", "wheat starch"),
     "isolated soy protein": ("protein production, isolated, soy", "protein"),
     "beer":             ("beer production", "beer"),
-    "wine":             ("wine production", "wine"),
+    # Avoid bare "wine production" — SQL LIKE matches "swine production" (substring trap).
+    "wine":             ("grape wine", "wine"),
     "fish fillet":      ("fish fillet production", "fish"),
     "chocolate":        ("dark chocolate production", "chocolate"),
 }
 
 _EXCLUDE = ("treatment of", "market for", "market group", "residues", "sewage", "bottom ash",
-            "waste ", "wastewater", "organic")
+            "waste ", "wastewater", "organic", "[dummy]", "animal feed", "associated to deforestation",
+            "esterification", "citric acid")
 _LOC_RANK = {"Rest of World": 0, "RoW": 0, "Global": 1, "GLO": 1}
 
 
+def _has_phrase(haystack: str, needle: str) -> bool:
+    """Word-boundary-ish phrase match. Avoids LIKE '%wine production%' matching 'swine production'."""
+    h = f" {(haystack or '').lower()} "
+    n = (needle or "").lower().strip()
+    if not n:
+        return False
+    return f" {n} " in h or h.strip().startswith(n) or f"| {n} " in h
+
+
 def _pick(conn: sqlite3.Connection, name_like: str, ref_token: str):
+    # Broad SQL prefilter, then precise phrase checks in Python (see _has_phrase).
+    # Do not require the literal word "production" — many oil/sugar datasets use
+    # "at oil mill" / "beet sugar production" naming instead.
     rows = conn.execute(
         "SELECT uid, name, location FROM processes "
-        "WHERE source_id=2 AND name LIKE ? AND name LIKE '%production%'",
-        (f"%{name_like}%",),
+        "WHERE source_id=2 AND lower(name) LIKE ?",
+        (f"%{name_like.lower()}%",),
     ).fetchall()
     cands = []
     for r in rows:
         nm = (r["name"] or "").lower()
         if any(x in nm for x in _EXCLUDE):
             continue
+        if not _has_phrase(nm, name_like):
+            continue
         ref = conn.execute(
             "SELECT unit, flow_name FROM exchanges WHERE process_uid=? AND is_reference=1 LIMIT 1",
             (r["uid"],)).fetchone()
         if not ref or (ref["unit"] or "").lower() not in ("kg", "kilogram"):
             continue
-        if ref_token.lower() not in (ref["flow_name"] or "").lower():
+        flow = (ref["flow_name"] or "").lower()
+        if not _has_phrase(flow, ref_token) and ref_token.lower() not in flow:
             continue
         cands.append(r)
     if not cands:

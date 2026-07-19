@@ -37,8 +37,11 @@ export default function FacilityStep() {
           {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
         </select>
       </Field>
-      <Field label="Region / province" hint="Sharpens the regional grid and water data where available">
-        <input {...register('facility.region')} className={inputClass} placeholder="e.g. Greater Accra" />
+      <Field
+        label="Region / province"
+        hint="For your records (e.g. Ontario, Greater Accra). Country selects the LCA region."
+      >
+        <input {...register('facility.region')} className={inputClass} placeholder="e.g. Ontario" />
       </Field>
       <Field label="Processing capacity (tonnes/day)" required error={e?.capacity?.message}>
         <input type="number" min="0" step="any" {...register('facility.capacity')} className={inputClass} />

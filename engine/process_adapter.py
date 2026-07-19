@@ -165,10 +165,18 @@ def to_process_response(result, request: dict, engine, total_kg: float,
     iso = build_process_iso_report(request, result, engine, midpoints, single_meta, total_kg,
                                    allocation, extra_notes=run_notes, assessment_id=assessment_id)
 
+    region_code = getattr(getattr(engine, "region", None), "code", None) or request.get("region")
+    # API country enum uses "Global" for Canada; surface a clear display label.
+    country_raw = request.get("country", "") or ""
+    country_display = (
+        "Canada" if str(country_raw).strip().lower() == "global" else country_raw
+    )
+
     return {
         "id": assessment_id,
         "facility_profile": request.get("facility_profile"),
-        "country": request.get("country", ""),
+        "country": country_display,
+        "region": region_code,
         "assessment_date": datetime.now(timezone.utc).isoformat(),
         "midpoint_impacts": midpoints,
         "endpoint_impacts": ep,

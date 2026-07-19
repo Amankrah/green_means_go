@@ -145,6 +145,8 @@ class ProcessingFacilityProfile(BaseModel):
     employee_count: Optional[int] = None
     facility_size: Optional[float] = None  # m2
     location_type: LocationType = LocationType.RURAL
+    # Free-text province/state from the wizard (not an engine region code).
+    admin_region: Optional[str] = None
 
     @field_validator('processing_capacity')
     @classmethod

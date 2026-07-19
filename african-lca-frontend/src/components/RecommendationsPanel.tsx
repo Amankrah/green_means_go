@@ -6,7 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Loader2, TrendingDown, Clock, Info } from 'lucide-react';
-import { assessmentAPI } from '@/lib/api';
+import { assessmentAPI, ApiError } from '@/lib/api';
 import {
   RecommendationsResponse,
   RecommendationMeasure,
@@ -128,17 +128,24 @@ export default function RecommendationsPanel({ assessmentId, isProcessing = fals
   const [data, setData] = useState<RecommendationsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError(null);
+    setGone(false);
     assessmentAPI
       .getRecommendations(assessmentId, isProcessing)
       .then((r) => {
         if (active) setData(r);
       })
       .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : 'Could not load recommendations.');
+        if (!active) return;
+        // A 404 means the assessment no longer exists; the page handles that, so this
+        // secondary panel should stay quiet rather than show a scary error.
+        if (e instanceof ApiError && e.status === 404) setGone(true);
+        else setError(e instanceof Error ? e.message : 'Could not load recommendations.');
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -148,6 +155,8 @@ export default function RecommendationsPanel({ assessmentId, isProcessing = fals
     };
   }, [assessmentId, isProcessing]);
 
+  // Assessment gone (404): render nothing, matching the dashboard card's quiet fail.
+  if (gone) return null;
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-gray-500">

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json
@@ -9,6 +10,7 @@ import subprocess
 from sqlalchemy.orm import Session
 
 from db import get_db
+from assessment_stream import stream_assessment, SSE_MEDIA_TYPE, SSE_HEADERS
 from models import AssessmentType, Facility, User
 from auth.deps import require_role
 from models import UserRole
@@ -101,6 +103,42 @@ async def create_processing_assessment(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing assessment failed: {str(e)}")
+
+
+@router.post("/assess/stream")
+async def create_processing_assessment_stream(
+    request: ProcessingAssessmentRequest,
+    user: User = Depends(_require_processor),
+    db: Session = Depends(get_db),
+):
+    """Same as POST /assess, but streams live per-stage progress as Server-Sent Events and
+    persists the result, ending with a terminal `result` (or `error`) event. Uses the
+    validated engine path (the legacy Rust path cannot report per-stage progress)."""
+    facility_id = _resolve_facility_id(request, user, db)
+    # Capture plain values now: the worker thread / SSE generator must not touch the
+    # request-scoped ORM session or lazy attributes.
+    request_dict = request.model_dump(mode="json", exclude={"form_snapshot"})
+    region = request.region
+    user_id = user.id
+    title = request.title
+    archive = _request_archive(request)
+
+    def run_fn(on_progress):
+        from engine.process_service import run_process_assessment
+        return run_process_assessment(request_dict, region, on_progress=on_progress)
+
+    def save_fn(result):
+        from db import SessionLocal
+        with SessionLocal() as session:
+            save_assessment(
+                session, user_id=user_id, a_type=AssessmentType.processing, payload=result,
+                facility_id=facility_id, title=title, request_payload=archive,
+            )
+
+    return StreamingResponse(
+        stream_assessment(run_fn, save_fn=save_fn),
+        media_type=SSE_MEDIA_TYPE, headers=SSE_HEADERS,
+    )
 
 
 @router.post("/assess/{assessment_id}/rerun", response_model=ProcessingAssessmentResponse)

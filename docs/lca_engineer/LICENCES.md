@@ -24,6 +24,12 @@ Legend - `use`: **clean** (reuse incl. commercial) · **cite** (derive numbers, 
 | `UNDP-CleanerPalmOil` | UNDP Ghana, cleaner palm oil production | UN, journalistic article | **cite** | Diesel-cost figures attributed. Not a technical spec. |
 | `IFC-EHS-FoodBeverage` | IFC EHS Guidelines, Food & Beverage Processing | Reuse terms unconfirmed | **unconfirmed** | Used as generic engine/refrigeration/waste guidance. Industrial-scale - flagged as low-confidence for smallholder context. |
 | `UNIDO-RECP` | UNIDO Resource-Efficient & Cleaner Production | Reuse terms unconfirmed | **unconfirmed** | Solar-drying guidance is generic; verify. |
+| `COCOBOD-CSCocoa` | COCOBOD, Climate-Smart Cocoa / Cocoa Rehabilitation Programme (OCR'd) | Ghana govt agency | **cite** | Backs the cocoa rehabilitation + hybrid replanting measure. Gathered file was scanned; OCR'd 2026-07. |
+| `CS-Cocoa-ForestLandscapes` | Climate-smart cocoa in forest landscapes (institutional lessons) | Journal | **cite** | Backs the cocoa disease-management measure (CSSVD). |
+| `Cocoa-CSA-DecisionMaking` | Cocoa sector climate-smart awareness and decision-making | Report | **cite** | Backs the zone-specific shade-management measure. |
+| `Ghana-CleanCooking-CAP` | Ghana National Clean Cooking Action Plan | Ghana govt | **cite** | Corroborates cookstove cost/payback; qualitative strategy doc, no new effect sizes. |
+| `FAO-EXACT-v9.4.2-IPCC-Table5.5` | FAO EX-ACT v9.4.2 (embeds IPCC 2019 Table 5.5) | FAO free/unrestricted | **clean** | Tropical stock-change factors ([`reference/ipcc_stock_change_factors_gh.json`](../../engine/recommend/reference/ipcc_stock_change_factors_gh.json)); firms the conservation-tillage measure. |
+| `PURC-2026-nonresidential` | PURC non-residential tariff (research) | Ghana govt | **cite** | Screening electricity price; see the price-feeds table. |
 | `internal-data-quality` | Green Means Go data-quality policy | Internal | **clean** | Own content. |
 
 ## Price / feasibility feeds (Phase 2)
@@ -31,6 +37,7 @@ Legend - `use`: **clean** (reuse incl. commercial) · **cite** (derive numbers, 
 | Feed | Source | Licence | `use` | Notes |
 |---|---|---|---|---|
 | `price.ghs.*` commodities | MoFA SRID commodity prices (`data/recommendations/Tier1/Commodity prices _04.11.25.csv`) | Ghana govt open data | **cite** | Biweekly; 10,780 rows, 75 commodities, 14 regions, Jul–Oct 2025. Revenue side only - no fertiliser/fuel input prices. |
+| `price.ghs.electricity.gh` | PURC non-residential tariff (research) + ECG tariff proposal (gathered) | Ghana govt | **cite** | Screening electricity price GHS 2.16/kWh for processor opex ([`reference/ghana_electricity_tariff.json`](../../engine/recommend/reference/ghana_electricity_tariff.json)). ⚠️ The gathered ECG file is a **proposal** whose end-user rate tables did not extract; the billed rate is PURC's. Acquire the gazetted PURC decision to make this primary-sourced. |
 | `ef.grid.gh` | ✅ **RESOLVED** | Ghana govt publication | **cite** | **Gap closed.** Official Ghana grid EF extracted from `2025 Energy Statistics.pdf` (Energy Commission), Table 6.3: **0.35 kgCO2e/kWh** (2024, all-other-projects), 0.32 for displacement projects. Recorded with provenance in [`engine/recommend/reference/ghana_grid_ef.json`](../../engine/recommend/reference/ghana_grid_ef.json). Supersedes the stale IEA-2011/Climatiq 0.2629. Caveat: column alignment inferred from a flattened extraction; verify the 2024 cell visually before publishing figures. Now wired into the engine via `engine/grid_calibration.py` (climate-only, inventory-level, toggle `USE_OFFICIAL_GRID_EF`). |
 
 ## FAO EX-ACT (methodological spine)

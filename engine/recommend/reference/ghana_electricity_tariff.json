@@ -1,0 +1,30 @@
+{
+  "id": "price.ghs.electricity.gh",
+  "type": "reference_price",
+  "title": "Ghana non-residential electricity tariff (screening price for processor opex)",
+  "description": "Price per kWh a Ghanaian food processor (non-residential / SLT customer) pays, used by the economic screen for electricity-measure opex and payback. HONEST NOTE: the gathered ECG file is a tariff PROPOSAL (2025-2029), not the billed tariff, and its end-user rate tables did not extract (image/poorly-structured). The billed rate is set by PURC. The screening value below is the PURC non-residential band surfaced in research, pending acquisition of the gazetted PURC decision PDF.",
+  "screening_price": {
+    "value": 2.16,
+    "unit": "GHS/kWh",
+    "customer_class": "non-residential, >300 kWh/month (processor band)",
+    "as_of": "2026",
+    "provenance": {
+      "source": "PURC-2026-nonresidential",
+      "span": "PURC non-residential tariff band ~177.75-216.49 pesewas/kWh (0-300 vs 301+ kWh), April 2026; a processor (>300 kWh/month) falls in the upper band ~216 pesewas/kWh = GHS 2.16/kWh.",
+      "note": "From research, NOT from a gathered file. Acquire the PURC tariff decision PDF to make this a primary-sourced figure.",
+      "licence": "Ghana govt (PURC) - cite"
+    }
+  },
+  "context_from_gathered_ecg_proposal": {
+    "note": "Extractable facts from data/recommendations/Tier2/ECG Tarrifs proposal.pdf. These are ECG's PROPOSED / component figures, not the end-user billed tariff.",
+    "dsc1_distribution_charge": {"value": 19.0384, "unit": "GHp/kWh", "as_of": "2024-12",
+      "span": "the DSC1 increased ... to GHp19.0384 per kWh through the Automatic Adjustment Formula (distribution service charge only, not the full end-user tariff)"},
+    "proposed_cost_of_energy_2025": {"value": 253.78, "unit": "GHp/kWh",
+      "span": "253.78 GHp/kWh in 2025 to 302.73 GHp/kWh in 2029 (ECG proposed cost of energy projection; excludes reserve margin)"},
+    "caveat": "The 2022 review shows proposals are cut by the regulator: ECG's proposed DSC1 of GHp39.9513 was approved at GHp17.0429. Do not use proposed figures as billed rates.",
+    "provenance": {"source": "Ghana-ECG-TariffProposal-2025-2029", "file": "data/recommendations/Tier2/ECG Tarrifs proposal.pdf", "licence": "Ghana utility filing - cite"}
+  },
+  "valid_from": "2026-01-01",
+  "staleness_policy": "quarterly",
+  "acquire_next": "PURC gazetted tariff decision (approved non-residential end-user rate) - the authoritative billed price; not among the gathered files."
+}

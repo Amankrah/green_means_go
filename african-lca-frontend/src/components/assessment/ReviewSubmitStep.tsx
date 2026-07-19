@@ -16,14 +16,17 @@ import {
 } from 'lucide-react';
 
 import { EnhancedAssessmentFormData } from '@/lib/enhanced-assessment-schema';
+import type { AssessmentProgressEvent } from '@/lib/api';
+import AssessmentProgress from '@/components/AssessmentProgress';
 
 interface ReviewSubmitStepProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   onPrevious?: () => void;
+  progress?: AssessmentProgressEvent | null;
 }
 
-export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious }: ReviewSubmitStepProps) {
+export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, progress }: ReviewSubmitStepProps) {
   const { watch, formState: { errors } } = useFormContext<EnhancedAssessmentFormData>();
   
   const formData = watch();
@@ -227,6 +230,12 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious }:
   );
 
   const hasErrors = Object.keys(errors).length > 0;
+
+  // While the (long) solve runs, replace the review with the staged progress view so the
+  // wait is informative rather than a lone spinner.
+  if (isSubmitting) {
+    return <AssessmentProgress variant="farm" live={progress} />;
+  }
 
   return (
     <div className="space-y-8">

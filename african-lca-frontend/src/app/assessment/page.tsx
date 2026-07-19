@@ -25,7 +25,7 @@ import {
 
 import Layout from '@/components/Layout';
 import RequireAuth from '@/components/RequireAuth';
-import { assessmentAPI } from '@/lib/api';
+import { assessmentAPI, AssessmentProgressEvent } from '@/lib/api';
 import { 
   enhancedAssessmentSchema, 
   type EnhancedAssessmentFormData,
@@ -100,6 +100,7 @@ function ComprehensiveAssessmentPage({
 }) {
   const [currentStep, setCurrentStep] = useState<FormStep>(FormStep.FARM_PROFILE);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [liveProgress, setLiveProgress] = useState<AssessmentProgressEvent | null>(null);
   const [linkedFarmName, setLinkedFarmName] = useState<string | null>(null);
   const [rerunId, setRerunId] = useState<string | null>(rerunFrom ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -446,6 +447,7 @@ function ComprehensiveAssessmentPage({
   };
 
   const onSubmit = async (data: EnhancedAssessmentFormData) => {
+    setLiveProgress(null);
     setIsSubmitting(true);
     setSubmitResult(null);
 
@@ -482,7 +484,7 @@ function ComprehensiveAssessmentPage({
       };
       const result = rerunId
         ? await assessmentAPI.rerunFarmAssessment(rerunId, apiData, submitOpts)
-        : await assessmentAPI.submitComprehensiveAssessment(apiData, submitOpts);
+        : await assessmentAPI.submitComprehensiveAssessmentStream(apiData, submitOpts, setLiveProgress);
 
       // Store result in localStorage for persistence (survives backend restarts)
       localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
@@ -693,7 +695,7 @@ function ComprehensiveAssessmentPage({
       case FormStep.EQUIPMENT_ENERGY:
         return <EquipmentEnergyStep />;
       case FormStep.REVIEW_SUBMIT:
-        return <ReviewSubmitStep onSubmit={handleSubmit(onSubmit)} isSubmitting={isSubmitting} onPrevious={handlePreviousStep} />;
+        return <ReviewSubmitStep onSubmit={handleSubmit(onSubmit)} isSubmitting={isSubmitting} onPrevious={handlePreviousStep} progress={liveProgress} />;
       default:
         return <FarmProfileStep />;
     }

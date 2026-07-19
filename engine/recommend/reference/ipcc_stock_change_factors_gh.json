@@ -1,0 +1,32 @@
+{
+  "id": "ef.soc_stock_change.gh",
+  "type": "reference_factor_set",
+  "title": "IPCC 2019 cropland soil-carbon stock-change factors, tropical wet (Ghana)",
+  "description": "Relative soil organic carbon stock-change factors over 20 years for cropland management, IPCC 2019 Refinement Vol 4 Table 5.5. Extracted from FAO EX-ACT v9.4.2 (IPCC sheet, row 66 'Tropical wet', Ghana's climate zone). These back the soil-carbon effect of the tillage and organic-input measures with a modelled, tropical-specific factor rather than a screening estimate.",
+  "climate_zone": "tropical wet",
+  "factors": {
+    "FLU_long_term_cultivated": 0.83,
+    "FLU_perennial_tree_crop": 1.01,
+    "FMG_full_tillage": 1.0,
+    "FMG_reduced_tillage": 1.04,
+    "FMG_no_tillage": 1.10,
+    "FI_low_input": 0.92,
+    "FI_medium_input": 1.0,
+    "FI_high_input_no_manure": 1.11,
+    "FI_high_input_with_manure": 1.44
+  },
+  "interpretation": {
+    "no_till_vs_full_till": "No tillage raises the SOC stock factor from 1.0 to 1.10, i.e. ~+10% soil carbon over 20 years vs full tillage.",
+    "manure_vs_medium_input": "High input with manure raises the FI factor from 1.0 to 1.44, i.e. ~+44% soil carbon over 20 years vs medium input without manure."
+  },
+  "provenance": {
+    "source": "FAO-EXACT-v9.4.2-IPCC-Table5.5",
+    "span": "Relative Carbon stock change factors (FLU, FMG, FI) over 20 years for management activities on cropland; Tropical wet: FMG full 1.0, reduced 1.04, no tillage 1.10; FI low 0.92, medium 1.0, high no manure 1.11, high with manure 1.44. TABLE 5.5 (UPDATED), IPCC 2019.",
+    "underlying": "IPCC 2019 Refinement to the 2006 Guidelines, Vol 4 (AFOLU), Table 5.5",
+    "file": "data/recommendations/Tier1/EX-ACT_V9.4.2.xlsb",
+    "licence": "FAO EX-ACT free/unrestricted; underlying IPCC factors (see LICENCES.md)",
+    "extracted_by": "pyxlsb read of the IPCC sheet, 2026-07-17"
+  },
+  "valid_from": "2026-07-01",
+  "staleness_policy": "assessment_cycle"
+}

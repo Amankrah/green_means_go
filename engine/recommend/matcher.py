@@ -40,6 +40,7 @@ _REGION_ALIASES = {
     "ghana": "GH", "gh": "GH",
     "nigeria": "NG", "ng": "NG",
     "canada": "CA", "ca": "CA", "can": "CA",
+    "global": "CA",  # processing API country for Canada
 }
 
 
