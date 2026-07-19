@@ -12,7 +12,7 @@
 # Only "approved" stamps provenance.reviewed_by and flips is_reviewed.
 #
 # Use  python review.py  to generate the worksheet an agronomist reviews against.
-# No measures are approved yet: the whole library is draft until this ledger is filled.
+# v1 library (17) approved 2026-07-17; E3 cocoa cluster (3) approved 2026-07-18.
 {"measure_id": "meas.n.split_application.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-17", "decision": "approved", "notes": "Approved for go-live. Effect is a screening estimate (expert judgement), pending a Ghana trial; team accepts for evidence-based launch."}
 {"measure_id": "meas.n.nitrification_inhibitor.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-17", "decision": "approved", "notes": "Approved for go-live. Effect is a measured Ghana field/survey value."}
 {"measure_id": "meas.n.legume_rotation.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-17", "decision": "approved", "notes": "Approved for go-live. Effect is modelled (EX-ACT / IPCC Tier); reasonable for Ghana."}
@@ -30,3 +30,6 @@
 {"measure_id": "meas.proc.byproduct_utilisation.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-17", "decision": "approved", "notes": "Approved for go-live. Effect is a screening estimate (expert judgement), pending a Ghana trial; team accepts for evidence-based launch."}
 {"measure_id": "meas.data.gather_farm_records.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-17", "decision": "approved", "notes": "Approved for go-live. Effect is a screening estimate (expert judgement), pending a Ghana trial; team accepts for evidence-based launch."}
 {"measure_id": "meas.data.gather_facility_records.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-17", "decision": "approved", "notes": "Approved for go-live. Effect is a screening estimate (expert judgement), pending a Ghana trial; team accepts for evidence-based launch."}
+{"measure_id": "meas.cocoa.rehabilitate_with_hybrids.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-18", "decision": "approved", "notes": "Approved for go-live. Yield/intensity effect is a modelled screening estimate from COCOBOD CSC + rehabilitation programme (OCR'd); team accepts for Ghana cocoa coverage."}
+{"measure_id": "meas.cocoa.disease_phytosanitation.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-18", "decision": "approved", "notes": "Approved for go-live. Effect is expert judgement grounded in CSSVD/black-pod yield threat literature; magnitude is screening-level."}
+{"measure_id": "meas.cocoa.zone_shade_management.gh", "reviewer": "Green Means Go team", "reviewed_at": "2026-07-18", "decision": "approved", "notes": "Approved for go-live. Zone-specific shade practice from cocoa CSA decision-making sources; effect is a modelled screening estimate."}

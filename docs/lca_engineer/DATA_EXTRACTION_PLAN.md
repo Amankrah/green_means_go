@@ -8,42 +8,41 @@
 > [`reviews.jsonl`](../../engine/recommend/reviews.jsonl). No number is invented: if a
 > file does not state it, the field is null, not guessed.
 >
-> **Status:** Planning - **Scope:** Ghana - **Depends on:** [`RECOMMENDATION_ENGINE_PLAN.md`](./RECOMMENDATION_ENGINE_PLAN.md), [`LITERATURE_EXTRACTION.md`](./LITERATURE_EXTRACTION.md)
+> **Status:** E1–E5 tractable work delivered; full EX-ACT/B-INTACT deferred - **Scope:** Ghana - **Depends on:** [`RECOMMENDATION_ENGINE_PLAN.md`](./RECOMMENDATION_ENGINE_PLAN.md), [`LITERATURE_EXTRACTION.md`](./LITERATURE_EXTRACTION.md)
 
 ---
 
-## 1. Where we are (audit, verified 2026-07-17)
+## 1. Where we are (audit, verified 2026-07-18)
 
-Of 11 acquired files, 2 are fully extracted, 1 partial, 8 untouched. The live v1 library
-leans on web research (IPCC, CCAFS, SNV, UNDP, IFC), not on most of these files.
+Of 11 acquired files: **8 extracted or partially used**, **3 deferred** (full EX-ACT/B-INTACT calculators). Live library = 20 measures (17 v1 + 3 cocoa); all 20 have `approved` lines in [`reviews.jsonl`](../../engine/recommend/reviews.jsonl).
 
-| File | Status | Extractability (probed) |
+| File | Status | Notes |
 |---|---|---|
 | Tier1/Commodity prices CSV | ✅ done (PriceBook) | clean CSV |
-| Tier2/2025 Energy Statistics.pdf | ✅ done (grid EF + mix) | text PDF, clean |
-| Tier1/CSAIP for Ghana.txt | ⚠️ partial (2 measures) | plain text; annex tables not pulled |
-| Tier2/ECG Tarrifs proposal.pdf | ❌ untouched | **text PDF, clean** (~2k chars/pg) |
-| Tier2/Ghana Country Action Plan.pdf | ❌ untouched | **text PDF, clean**; it is a COOKSTOVE action plan (21 "cookstove" hits) |
-| Tier2/Climate-smart cocoa in forest landscapes.pdf | ❌ untouched | **text PDF, rich** (~22k chars/3pg) |
-| Tier2/COCOA...AWARENESS-AND-DECISION-MAKING.pdf | ❌ untouched | **text PDF, clean** |
-| Tier2/6-CS-Cocoa-COCOBOD.pdf | ❌ untouched | ⚠️ **scanned** (~700 chars/3pg) - needs OCR |
-| Tier1/EX-ACT_V9.4.2.xlsb | ❌ untouched | needs `pyxlsb`; binary macro workbook |
-| Tier1/EX-ACT VC_v3.5.xlsx | ❌ untouched | needs `openpyxl` |
-| Tier1/B-INTACT_v.1.9.xlsx | ❌ untouched | needs `openpyxl` |
+| Tier2/2025 Energy Statistics.pdf | ✅ done (grid EF + mix) | [`ghana_grid_ef.json`](../../engine/recommend/reference/ghana_grid_ef.json) |
+| Tier1/CSAIP for Ghana.txt | ✅ firmed (E5) | legume measure + Table 14; full annex walk still optional |
+| Tier2/ECG Tarrifs proposal.pdf | ⚠️ partial (E1) | proposal only; screening GHS 2.16/kWh from PURC research in [`ghana_electricity_tariff.json`](../../engine/recommend/reference/ghana_electricity_tariff.json) |
+| Tier2/Ghana Country Action Plan.pdf | ✅ used (E2) | corroborated cookstove cost/payback (no new effect sizes) |
+| Tier2/Climate-smart cocoa in forest landscapes.pdf | ✅ done (E3) | CSSVD / disease measure |
+| Tier2/COCOA...AWARENESS-AND-DECISION-MAKING.pdf | ✅ done (E3) | zone shade management |
+| Tier2/6-CS-Cocoa-COCOBOD.pdf | ✅ done (E3) | OCR'd; hybrid rehabilitation measure |
+| Tier1/EX-ACT_V9.4.2.xlsb | ⚠️ tractable only (E4) | IPCC Table 5.5 → [`ipcc_stock_change_factors_gh.json`](../../engine/recommend/reference/ipcc_stock_change_factors_gh.json); full calculator deferred |
+| Tier1/EX-ACT VC_v3.5.xlsx | ⏸ deferred | calculator, not coefficient table |
+| Tier1/B-INTACT_v.1.9.xlsx | ⏸ deferred | biodiversity MSA integration = separate feature |
 
-### Delivered 2026-07-17 (E1-E5 + tractable E4)
+### Delivered (E1-E5 + tractable E4)
 
-- **E1 electricity tariff:** the gathered ECG file is a PROPOSAL whose end-user rate tables did not extract; recorded what it does provide (DSC1, cost of energy) and set a screening price (GHS 2.16/kWh, PURC research) in [`reference/ghana_electricity_tariff.json`](../../engine/recommend/reference/ghana_electricity_tariff.json), linked from the solar-drying measure. Acquire the PURC decision PDF to firm it.
-- **E2 cookstove CAP:** a strategy doc; corroborated the two cookstove measures' cost/payback (no new effect sizes).
-- **E3 cocoa:** three new DRAFT cocoa measures (`rehabilitate_with_hybrids`, `disease_phytosanitation`, `zone_shade_management`) from the two text PDFs + the OCR'd COCOBOD standard. Library 17 -> 20.
-- **E5 CSAIP:** firmed the legume measure with CSAIP Table 14 (net -0.02 MtCO2, +40% yield boost, +11% maize).
-- **E4 EX-ACT/B-INTACT:** both are IPCC-Tier-1 / ESVD CALCULATORS, not coefficient tables, and their factors are largely IPCC values the engine already applies. Extracted the tractable win: IPCC 2019 Table 5.5 tropical stock-change factors ([`reference/ipcc_stock_change_factors_gh.json`](../../engine/recommend/reference/ipcc_stock_change_factors_gh.json), no-till FMG 1.10), firming the conservation-tillage measure. Full EX-ACT-as-carbon-engine / B-INTACT-biodiversity integration is deferred as a separate, larger feature with mostly-redundant coefficients.
+- **E1 electricity tariff:** ECG proposal end-user tables did not extract; screening price GHS 2.16/kWh (PURC research) in [`ghana_electricity_tariff.json`](../../engine/recommend/reference/ghana_electricity_tariff.json), linked from solar-drying. **Still needed:** gazetted PURC decision PDF.
+- **E2 cookstove CAP:** corroborated the two cookstove measures' cost/payback.
+- **E3 cocoa:** three cocoa measures approved 2026-07-18 (`meas.cocoa.rehabilitate_with_hybrids.gh`, `meas.cocoa.disease_phytosanitation.gh`, `meas.cocoa.zone_shade_management.gh`) from text PDFs + OCR'd COCOBOD standard. Library 17 → 20.
+- **E5 CSAIP:** firmed the legume measure with CSAIP Table 14.
+- **E4 EX-ACT/B-INTACT:** tractable win only (IPCC 2019 Table 5.5 FMG factors). Full EX-ACT-as-carbon-engine / B-INTACT-biodiversity integration deferred.
 
-**The concrete gaps these leave:**
+**Remaining gaps:**
 
-1. **No electricity input price** in the economic screen (ECG tariffs unextracted). Processor opex/payback on electricity measures falls back to the questionnaire.
-2. **One cocoa measure only**, sourced from the CSAIP rather than the three authoritative cocoa documents. A conspicuous hole for a Ghana-first tool.
-3. **Effect sizes lean on expert judgement.** Several measures are `basis: expert_judgement` because the modelled source (EX-ACT) was never opened.
+1. **Electricity price is screening-level** until a gazetted PURC tariff PDF is acquired (economic screen already uses the screening JSON where wired).
+2. **Full EX-ACT / B-INTACT** not integrated (mostly redundant with IPCC factors already in-engine).
+3. **Several effects remain `expert_judgement`** (acceptable for screening; Ghana trials would firm them).
 
 ---
 

@@ -18,6 +18,25 @@ const SUGGESTIONS = [
   'What does my single score mean?',
 ];
 
+/** Light markdown for chat bubbles (bold / italic). Avoids a full markdown dependency. */
+function ChatText({ text }: { text: string }) {
+  // Split on **bold** and *italic*, keeping delimiters so we can re-wrap them.
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+          return <strong key={i}>{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+          return <em key={i}>{part.slice(1, -1)}</em>;
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -146,13 +165,15 @@ export default function ResultsChat({ open, onClose, assessmentData, assessmentI
                     : 'bg-gray-100 text-gray-800 rounded-bl-sm'
                 }`}
               >
-                {m.content || (lastIsStreamingAssistant && i === messages.length - 1 ? (
+                {m.content ? (
+                  <ChatText text={m.content} />
+                ) : lastIsStreamingAssistant && i === messages.length - 1 ? (
                   <span className="inline-flex gap-1 py-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                   </span>
-                ) : null)}
+                ) : null}
               </div>
             </div>
           ))}
