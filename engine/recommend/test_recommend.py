@@ -142,12 +142,28 @@ def test_ghana_maize_ranks_fertiliser_first() -> None:
     diesel_rank = ids.index("meas.fuel.machinery_maintenance.gh")
     assert min(n_ranks) < diesel_rank, "a fertiliser measure should outrank the diesel one"
 
-    # the data-quality catch-all is present and ranked last
-    assert res[-1].id == "meas.data.gather_farm_records.gh", f"last is {res[-1].id}"
+    # data-quality catch-all stays off when fuel was measured (not activity-estimated)
+    assert "meas.data.gather_farm_records.gh" not in ids, (
+        "gather_farm_records should not surface when no activity estimates were used")
 
     # processing-only measures must NOT match a farm
     assert "meas.proc.efficient_gari_stove.gh" not in ids
     print(f"[ok] Ghana maize -> {len(res)} measures, top = {top.id} on {top.target_source}")
+
+
+def test_gather_farm_records_when_activity_estimated() -> None:
+    """When fuel/electricity came from activity defaults, the data-quality measure surfaces."""
+    p = _ghana_maize_payload()
+    p["input_matches"] = [
+        {"input": "Urea 46-0-0 fertiliser", "kind": "fertiliser", "matched": "urea..."},
+        {"input": "diesel, burned in agricultural machinery", "kind": "fuel",
+         "matched": "diesel...", "estimated": True},
+    ]
+    res = match_measures(p, reviewed_only=False, as_of=date(2026, 7, 15))
+    ids = [r.id for r in res]
+    assert "meas.data.gather_farm_records.gh" in ids
+    assert res[-1].id == "meas.data.gather_farm_records.gh"
+    print("[ok] gather_farm_records surfaces when activity estimates were used")
 
 
 def test_region_filter_excludes_canada() -> None:

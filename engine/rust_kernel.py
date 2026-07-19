@@ -40,11 +40,12 @@ SUBSTANCE_MAP = {
 _UPSTREAM_MARKERS = ("production", "mining", "transport of")
 
 # On-farm fuel/electricity COMBUSTION CO2 the Rust kernel emits (source "... consumption:
-# NNN L/year" / "... consumption: NNN kWh/year"). This is ALSO produced by the supply-chain
-# solver: ecoinvent "diesel, burned in agricultural machinery" is the combustion process
-# and the electricity market carries generation emissions. Keeping the Rust value too would
-# double-count fuel/grid CO2, so we drop it and let the supply-chain solver own it.
-_ENERGY_COMBUSTION_MARKERS = ("consumption:",)
+# NNN L/year" / "... consumption: NNN kWh/year", or legacy "(ESTIMATED...)" flat fallbacks).
+# This is ALSO produced by the supply-chain solver: ecoinvent "diesel, burned in agricultural
+# machinery" is the combustion process and the electricity market carries generation
+# emissions. Keeping the Rust value too would double-count fuel/grid CO2, so we drop it
+# and let the supply-chain solver own it (including Python activity defaults).
+_ENERGY_COMBUSTION_MARKERS = ("consumption:", "(estimated")
 
 
 def _binary() -> Path | None:

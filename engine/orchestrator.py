@@ -211,12 +211,17 @@ class FarmLCA:
                 res.notes.append(
                     f"unit mismatch for '{inp['name']}': amount given in "
                     f"'{inp['unit']}' but '{m['name']}' is per '{ref_unit}' — convert first.")
-            res.input_matches.append({
+            match_row = {
                 "input": inp["name"], "amount": inp["amount"], "amount_unit": inp.get("unit"),
                 "matched": m["name"], "ref_unit": ref_unit, "kind": inp.get("kind"),
                 "source": self.q.source_label(m["uid"]),
                 "location": m.get("location"), "score": m["score"],
-            })
+            }
+            if inp.get("estimated"):
+                match_row["estimated"] = True
+                if inp.get("estimate_meta"):
+                    match_row["estimate_meta"] = inp["estimate_meta"]
+            res.input_matches.append(match_row)
 
         # 3) characterize: parts (for the split) + merged total, all via the validated path
         _emit(on_progress, "characterize", "Characterizing impacts")

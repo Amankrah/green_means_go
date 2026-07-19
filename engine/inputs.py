@@ -81,6 +81,15 @@ def extract_purchased_inputs(assessment: dict) -> tuple[list[dict], list[str]]:
                 inputs.append({"name": "electricity low voltage", "amount": kwh, "unit": "kWh",
                                "kind": "electricity"})
 
+    # Ghana activity defaults when fuel/electricity were not measured. Goes through the
+    # supply-chain solver (ecoinvent match + grid calibration) instead of the retired
+    # Rust flat 80 L diesel/ha + 200 kWh/ha CO2-only fallback.
+    try:
+        from .activity_defaults import apply_activity_defaults
+    except ImportError:
+        from activity_defaults import apply_activity_defaults  # type: ignore
+    inputs = apply_activity_defaults(assessment, inputs, notes)
+
     # Pesticides: production burden of the agrochemicals applied. These were previously
     # missing entirely (the Rust kernel drops their production and nothing re-added them).
     # Amount = product rate (kg/ha) × applications × cropped area. Match the active

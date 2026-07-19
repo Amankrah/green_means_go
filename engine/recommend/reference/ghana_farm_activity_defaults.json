@@ -1,0 +1,162 @@
+{
+  "id": "activity.defaults.farm.gh",
+  "type": "activity_defaults",
+  "title": "Ghana farm activity defaults (diesel, electricity, yield guides)",
+  "description": "Screening-level diesel (L/ha/yr), grid electricity (kWh/ha/yr), and yield guides for Ghana farms when the Equipment & Energy step has no measured fuel/electricity. Keyed by mechanization × irrigated. Values are research-bounded Tier-1 activity defaults — not model outputs. Uncertainty is wide (factor ~2); pedigree = estimated / not measured. Apply only for Ghana assessments; never invent fertiliser rates here.",
+  "uncertainty_factor": 2.0,
+  "pedigree": "estimated",
+  "valid_from": "2026-07-01",
+  "staleness_policy": "annual",
+  "rows": [
+    {
+      "id": "rainfed_manual",
+      "mechanization": "fully_manual",
+      "irrigated": false,
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1500,
+        "cowpea": 800,
+        "cocoa": 400,
+        "cassava": 12000,
+        "yam": 8000,
+        "rice": 2000,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Ghana-activity-defaults-synthesis",
+        "span": "Most Ghana crop operations remain hand-tool / animal traction; MoFA and CSAIP characterise rainfed smallholders without tractor hire. Screening default: 0 L diesel/ha and 0 kWh grid/ha when production_system is rainfed and mechanization is fully manual (not the legacy flat 80 L + 200 kWh).",
+        "bounds": "diesel 0; electricity 0; yield guides MoFA/FAO national screening spans"
+      }
+    },
+    {
+      "id": "irrigated_manual_bucket",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "manual_bucket",
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 2500,
+        "rice": 3500,
+        "cowpea": 1000,
+        "_default": 2000
+      },
+      "provenance": {
+        "source": "Ghana-activity-defaults-synthesis",
+        "span": "Bucket/manual irrigation adds labour water lifting, not grid electricity or tractor diesel. Keep energy at 0/0; yield guide raised vs rainfed screening.",
+        "bounds": "diesel 0; electricity 0"
+      }
+    },
+    {
+      "id": "irrigated_manual_pumped",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "pumped",
+      "diesel_l_per_ha": 50,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 2500,
+        "rice": 3500,
+        "cowpea": 1000,
+        "_default": 2000
+      },
+      "provenance": {
+        "source": "Ghana-activity-defaults-synthesis",
+        "span": "Small-scale irrigation in Ghana commonly uses diesel pumpsets rather than grid pumps. Screening mid-range ~50 L diesel/ha/yr (literature band roughly 20–100 L/ha for seasonal pumping); grid kWh left at 0 unless the farmer reports electricity.",
+        "bounds": "diesel ~20–100 L/ha; electricity 0 unless reported"
+      }
+    },
+    {
+      "id": "rainfed_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 25,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 2000,
+        "cowpea": 900,
+        "cocoa": 450,
+        "_default": 1500
+      },
+      "provenance": {
+        "source": "Ghana-activity-defaults-synthesis",
+        "span": "Partial mechanization (hire plough / sheller) on rainfed land: modest diesel for land prep and haulage. Below the retired flat 80 L/ha assumption; West African hire-plough screening ~15–40 L/ha.",
+        "bounds": "diesel ~15–40 L/ha; electricity 0"
+      }
+    },
+    {
+      "id": "irrigated_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 55,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 2800,
+        "rice": 4000,
+        "_default": 2200
+      },
+      "provenance": {
+        "source": "Ghana-activity-defaults-synthesis",
+        "span": "Partial mechanization plus pumped irrigation: land-prep diesel plus pump diesel. Prefer diesel over grid kWh for Ghana SSI screening.",
+        "bounds": "diesel ~40–80 L/ha; electricity 0 unless reported"
+      }
+    },
+    {
+      "id": "rainfed_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 60,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 3000,
+        "rice": 3500,
+        "_default": 2200
+      },
+      "provenance": {
+        "source": "Ghana-activity-defaults-synthesis",
+        "span": "Fully mechanized rainfed operations (own/hired tractor suite): screening ~60 L diesel/ha/yr within the broader 50–150 L/ha mechanized band cited historically; no default grid electricity.",
+        "bounds": "diesel ~50–150 L/ha; electricity 0"
+      }
+    },
+    {
+      "id": "irrigated_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 70,
+      "electricity_kwh_per_ha": 80,
+      "yield_guides_kg_per_ha": {
+        "maize": 3500,
+        "rice": 4500,
+        "_default": 2800
+      },
+      "provenance": {
+        "source": "Ghana-activity-defaults-synthesis",
+        "span": "Fully mechanized + irrigated: diesel for field ops plus modest grid electricity when electric pumps are plausible. Still below the retired 80 L + 200 kWh flat pair; wide uncertainty (factor 2).",
+        "bounds": "diesel ~50–100 L/ha; electricity ~0–200 kWh/ha"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "key": "IPCC-2019",
+      "role": "method",
+      "note": "Tier 1 activity-data approach and wet-tropical EF1 already used in-engine; this table supplies missing activity amounts, not emission factors."
+    },
+    {
+      "key": "Ghana-CSAIP",
+      "role": "context",
+      "note": "CSAIP / MoFA smallholder characterisation: rainfed, largely manual operations dominate; irrigation and mechanization are the exception."
+    },
+    {
+      "key": "FAO-MoFA-yield-guides",
+      "role": "yield",
+      "note": "National screening yield guides (replace a single 1500 kg/ha maize figure with crop-group spans). Not used to overwrite farmer-reported quantity_kg."
+    },
+    {
+      "key": "WA-mechanization-SSI",
+      "role": "energy",
+      "note": "West African smallholder mechanization and SSI pump literature: fully manual ≈ 0 diesel; hire plough modest L/ha; SSI often diesel-pumped rather than grid."
+    }
+  ]
+}

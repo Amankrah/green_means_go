@@ -132,6 +132,19 @@ def _prerequisite_state(flag: str, payload: dict[str, Any], kinds: dict[str, str
         return True if (key in present or key in src_names) else None
     if flag == "diesel_processing":
         return True if ("fuel" in present or "diesel" in src_names) else None
+    if flag == "used_activity_estimates":
+        # True when Python activity defaults filled fuel/electricity (or recorded 0/0
+        # screening zeros); False when the assessment has matches and none were estimated.
+        if any(m.get("estimated") for m in (payload.get("input_matches") or [])):
+            return True
+        notes_blob = " ".join(
+            str(n) for n in ((payload.get("data_quality") or {}).get("notes") or [])
+        ).lower()
+        if "used activity defaults" in notes_blob or "activity default" in notes_blob:
+            return True
+        if payload.get("input_matches") is not None:
+            return False
+        return None
     # crop-implied processing flags are really enforced by the crop filter; treat as unknown here
     if flag in ("fish_smoking", "gari_processing", "drying_step", "irrigated_rice"):
         return None

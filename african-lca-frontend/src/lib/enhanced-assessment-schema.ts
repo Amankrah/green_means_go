@@ -395,6 +395,17 @@ export const enhancedAssessmentSchema = z.object({
   pestManagement: pestManagementSchema,
   equipmentEnergy: equipmentEnergySchema,
   assessmentParameters: assessmentParametersSchema
+}).superRefine((data, ctx) => {
+  const totalFarmSize = data.farmProfile?.totalFarmSize || 0;
+  if (totalFarmSize <= 0) return;
+  const totalAllocated = sumAllocatedArea(data.cropProductions || []);
+  if (totalAllocated > totalFarmSize + 1e-9) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['cropProductions'],
+      message: `Total allocated area (${totalAllocated.toFixed(2)} ha) exceeds farm size (${totalFarmSize} ha). ${Math.max(0, totalFarmSize - totalAllocated).toFixed(2)} ha would need to be freed.`,
+    });
+  }
 });
 
 export type EnhancedAssessmentFormData = z.infer<typeof enhancedAssessmentSchema>;
@@ -508,17 +519,46 @@ export function calculateAreaPercentage(areaAllocated: number, totalFarmSize: nu
   return Math.round((areaAllocated / totalFarmSize) * 100 * 100) / 100; // Round to 2 decimal places
 }
 
+/** Sum of areaAllocated across crops (ignores non-finite values). */
+export function sumAllocatedArea(crops: { areaAllocated?: number }[]): number {
+  return crops.reduce((sum, crop) => {
+    const n = Number(crop.areaAllocated);
+    return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+  }, 0);
+}
+
+/**
+ * Hectares still available on the farm. When `excludeIndex` is set, that crop's
+ * current allocation is treated as available again (for per-field max).
+ */
+export function remainingFarmArea(
+  crops: { areaAllocated?: number }[],
+  totalFarmSize: number,
+  excludeIndex?: number,
+): number {
+  if (!totalFarmSize || totalFarmSize <= 0) return 0;
+  const others = crops.reduce((sum, crop, i) => {
+    if (excludeIndex !== undefined && i === excludeIndex) return sum;
+    const n = Number(crop.areaAllocated);
+    return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+  }, 0);
+  return Math.max(0, Math.round((totalFarmSize - others) * 100) / 100);
+}
+
 /**
  * Validate that total allocated area doesn't exceed farm size
  */
 export function validateTotalAllocation(crops: { areaAllocated?: number }[], totalFarmSize: number): string[] {
   const errors: string[] = [];
-  const totalAllocated = crops.reduce((sum, crop) => sum + (crop.areaAllocated || 0), 0);
-  
-  if (totalAllocated > totalFarmSize) {
-    errors.push(`Total allocated area (${totalAllocated.toFixed(2)} ha) exceeds farm size (${totalFarmSize} ha)`);
+  const totalAllocated = sumAllocatedArea(crops);
+
+  if (totalAllocated > totalFarmSize + 1e-9) {
+    const over = totalAllocated - totalFarmSize;
+    errors.push(
+      `Total allocated area (${totalAllocated.toFixed(2)} ha) exceeds farm size (${totalFarmSize} ha) by ${over.toFixed(2)} ha`,
+    );
   }
-  
+
   return errors;
 }
 

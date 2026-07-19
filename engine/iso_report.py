@@ -133,8 +133,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     # what background databases were actually used, and whether any input relied on defaults
     _sources_used = {m.get("source") for m in _matches_all if m.get("matched") and m.get("source")}
     uses_agribalyse = any("agribalyse" in (s or "").lower() for s in _sources_used)
-    uses_defaults = any("estimated" in (n or "").lower() or "default" in (n or "").lower()
-                        for n in (result.notes or []))
+    uses_defaults = (
+        any("estimated" in (n or "").lower() or "default" in (n or "").lower()
+            for n in (result.notes or []))
+        or any(m.get("estimated") for m in _matches_all)
+    )
     # read the crop list naturally: "maize", "maize and cassava", "maize, cassava and yam"
     _names = [f.get("name", "crop").lower() for f in foods]
     if len(_names) > 1:

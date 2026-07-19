@@ -501,56 +501,14 @@ impl LCICalculator {
             return Ok(());
         }
 
-        // FALLBACK: Estimate based on farm size
-        warn!("No equipment/energy data provided. Using estimates based on farm size.");
-
-        // Get total farm area
-        let total_area_ha: f64 = assessment.foods.iter()
-            .filter_map(|f| f.area_allocated)
-            .sum();
-
-        if total_area_ha == 0.0 {
-            return Ok(());
-        }
-
-        // Estimate diesel consumption for smallholder farms
-        // Typical: 50-150 L diesel per hectare per year (plowing, transport)
-        // Conservative estimate: 80 L/ha/year for mixed manual-mechanized
-        let estimated_diesel_l_per_year = total_area_ha * 80.0;
-
-        let co2_from_diesel = estimated_diesel_l_per_year * self.emission_factors.co2_from_diesel.value;
-
-        self.add_inventory_item(InventoryItem {
-            substance: "Carbon dioxide (CO2)".to_string(),
-            quantity: co2_from_diesel,
-            unit: "kg".to_string(),
-            compartment: EnvironmentalCompartment::Air,
-            source: format!("Diesel consumption for farm operations (ESTIMATED: {} L/year based on {} ha)",
-                           estimated_diesel_l_per_year, total_area_ha),
-        });
-
-        // Estimate electricity use
-        // Typical: 100-500 kWh per hectare per year for irrigation pumps
-        let estimated_electricity_kwh = total_area_ha * 200.0;
-
-        let electricity_ef = match assessment.country {
-            Country::Ghana => self.emission_factors.co2_from_electricity_ghana.value,
-            Country::Nigeria => self.emission_factors.co2_from_electricity_nigeria.value,
-            _ => 0.50, // Global average
-        };
-
-        let co2_from_electricity = estimated_electricity_kwh * electricity_ef;
-
-        self.add_inventory_item(InventoryItem {
-            substance: "Carbon dioxide (CO2)".to_string(),
-            quantity: co2_from_electricity,
-            unit: "kg".to_string(),
-            compartment: EnvironmentalCompartment::Air,
-            source: format!("Grid electricity (ESTIMATED: {:.0} kWh/year based on {} ha)",
-                           estimated_electricity_kwh, total_area_ha),
-        });
-
-        warn!("⚠️ Energy emissions estimated. For accurate results, provide actual fuel/electricity consumption in Equipment & Energy step.");
+        // No equipment_energy object: do NOT invent flat 80 L diesel/ha + 200 kWh/ha.
+        // Provenanced Ghana activity defaults are applied in the Python supply-chain path
+        // (engine/activity_defaults.py) so estimates go through ecoinvent matching + grid
+        // calibration. Leaving zeros here avoids double-count and rainfed/manual overstatement.
+        warn!(
+            "No equipment/energy data on assessment; skipping Rust energy fallback \
+             (Python activity defaults own screening estimates when applicable)."
+        );
 
         Ok(())
     }

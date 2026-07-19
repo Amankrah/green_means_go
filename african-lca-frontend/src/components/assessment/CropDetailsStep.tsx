@@ -25,7 +25,9 @@ import {
   calculateEstimatedYield,
   getCropVarieties,
   calculateAreaPercentage,
-  validateTotalAllocation
+  validateTotalAllocation,
+  sumAllocatedArea,
+  remainingFarmArea,
 } from '@/lib/enhanced-assessment-schema';
 
 const foodCategories = [
@@ -86,6 +88,9 @@ export default function CropDetailsStep() {
   const country = farmProfile?.country || '';
   const totalFarmSize = farmProfile?.totalFarmSize || 0;
   const allCrops = watch('cropProductions') || [];
+  const totalAllocated = sumAllocatedArea(allCrops);
+  const remainingHa = remainingFarmArea(allCrops, totalFarmSize);
+  const canAddCrop = totalFarmSize <= 0 || remainingHa >= 0.01;
 
   // Get common crops for the region
   const getCommonCrops = () => {
@@ -110,13 +115,16 @@ export default function CropDetailsStep() {
   };
 
   const addNewCrop = () => {
+    if (!canAddCrop) return;
+    const leftover = remainingFarmArea(getValues('cropProductions') || [], totalFarmSize);
     append({
       cropId: `crop_${Date.now()}`,
       cropName: '',
       localName: '',
       category: '',
       variety: '',
-      areaAllocated: 0,
+      // Prefill with what's left so the next crop cannot silently overshoot.
+      areaAllocated: leftover > 0 ? leftover : 0,
       annualProduction: 0,
       productionSystem: ProductionSystem.RAINFED,
       croppingPattern: CroppingPattern.MONOCULTURE,
@@ -234,12 +242,40 @@ export default function CropDetailsStep() {
           <button
             type="button"
             onClick={addNewCrop}
-            className="flex items-center space-x-2 bg-spruce text-white px-4 py-2 rounded-lg hover:bg-ink transition-colors"
+            disabled={!canAddCrop}
+            title={!canAddCrop ? 'No farm area left to allocate' : undefined}
+            className="flex items-center space-x-2 bg-spruce text-white px-4 py-2 rounded-lg hover:bg-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-spruce"
           >
             <Plus className="w-4 h-4" />
             <span>Add Crop</span>
           </button>
         </div>
+
+        {totalFarmSize > 0 && (
+          <div className="bg-white border border-line rounded-lg p-4 mb-6 text-left">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+              <p className="text-sm text-ink">
+                <span className="font-medium">{totalAllocated.toFixed(2)} ha</span>
+                <span className="text-muted"> of </span>
+                <span className="font-medium">{totalFarmSize} ha</span>
+                <span className="text-muted"> allocated</span>
+              </p>
+              <p className={`text-sm font-medium ${remainingHa < 0.01 ? 'text-amber' : 'text-moss'}`}>
+                {remainingHa.toFixed(2)} ha left
+              </p>
+            </div>
+            <div className="h-2 rounded-full bg-surface overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  totalAllocated > totalFarmSize ? 'bg-amber' : 'bg-moss'
+                }`}
+                style={{
+                  width: `${Math.min(100, (totalAllocated / totalFarmSize) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Quick Add Common Crops */}
         {getCommonCrops().length > 0 && (
@@ -252,7 +288,9 @@ export default function CropDetailsStep() {
                 <button
                   key={cropName}
                   type="button"
+                  disabled={!canAddCrop}
                   onClick={() => {
+                    if (!canAddCrop) return;
                     addNewCrop();
                     const newIndex = fields.length;
                     setTimeout(() => {
@@ -263,12 +301,17 @@ export default function CropDetailsStep() {
                       setValue(`cropProductions.${newIndex}.category`, category);
                     }, 100);
                   }}
-                  className="text-xs bg-white border border-line text-spruce px-2 py-1 rounded hover:bg-moss/10"
+                  className="text-xs bg-white border border-line text-spruce px-2 py-1 rounded hover:bg-moss/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
                 >
                   + {cropName}
                 </button>
               ))}
             </div>
+            {!canAddCrop && (
+              <p className="mt-2 text-xs text-amber">
+                All {totalFarmSize} ha are allocated. Reduce a crop&apos;s area before adding another.
+              </p>
+            )}
           </div>
         )}
       </motion.div>
@@ -276,7 +319,12 @@ export default function CropDetailsStep() {
       {/* Crop Forms */}
       <div className="space-y-6">
         <AnimatePresence>
-          {fields.map((field, index) => (
+          {fields.map((field, index) => {
+            const maxForCrop = totalFarmSize > 0
+              ? remainingFarmArea(allCrops, totalFarmSize, index)
+              : undefined;
+            const otherAllocated = totalAllocated - (Number(allCrops[index]?.areaAllocated) || 0);
+            return (
             <motion.div
               key={field.id}
               initial={{ opacity: 0, x: -20 }}
@@ -398,27 +446,53 @@ export default function CropDetailsStep() {
                     Area Allocated (hectares) *
                     {totalFarmSize > 0 && (
                       <span className="text-xs text-muted ml-1">
-                        (of {totalFarmSize} ha total)
+                        (up to {maxForCrop?.toFixed(2)} ha of {totalFarmSize} ha total
+                        {otherAllocated > 0
+                          ? `; ${otherAllocated.toFixed(2)} ha used by other crops`
+                          : ''}
+                        )
                       </span>
                     )}
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    max={totalFarmSize}
+                    min={0}
+                    max={maxForCrop}
                     {...register(`cropProductions.${index}.areaAllocated`, { valueAsNumber: true })}
                     placeholder="e.g., 1.5"
                     className="gmg-input"
                     onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
-                      setValue(`cropProductions.${index}.areaAllocated`, value);
+                      let value = parseFloat(e.target.value);
+                      if (!Number.isFinite(value) || value < 0) value = 0;
+                      if (maxForCrop !== undefined && value > maxForCrop) {
+                        value = maxForCrop;
+                        e.target.value = String(value);
+                      }
+                      setValue(`cropProductions.${index}.areaAllocated`, value, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
                       updateAreaPercentage(index, value);
                     }}
                     onBlur={() => calculateYield(index)}
                   />
-                  {areaPercentages[index] && (
+                  {totalFarmSize > 0 && (
                     <p className="mt-1 text-sm text-moss">
-                      📊 {areaPercentages[index]}% of total farm area
+                      {calculateAreaPercentage(
+                        Number(watch(`cropProductions.${index}.areaAllocated`)) || 0,
+                        totalFarmSize,
+                      )}% of farm
+                      {maxForCrop !== undefined && (
+                        <span className="text-muted">
+                          {' · '}
+                          {(
+                            maxForCrop -
+                            (Number(watch(`cropProductions.${index}.areaAllocated`)) || 0)
+                          ).toFixed(2)}{' '}
+                          ha would remain after this crop
+                        </span>
+                      )}
                     </p>
                   )}
                   {errors.cropProductions?.[index]?.areaAllocated && (
@@ -632,7 +706,8 @@ export default function CropDetailsStep() {
                 </div>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </AnimatePresence>
       </div>
 
@@ -658,7 +733,8 @@ export default function CropDetailsStep() {
       )}
 
       {/* Total Allocation Warning */}
-      {getTotalAllocationErrors().length > 0 && (
+      {(getTotalAllocationErrors().length > 0 ||
+        (typeof errors.cropProductions?.message === 'string' && errors.cropProductions.message)) && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -673,6 +749,10 @@ export default function CropDetailsStep() {
               {getTotalAllocationErrors().map((error, index) => (
                 <li key={index}>{error}</li>
               ))}
+              {typeof errors.cropProductions?.message === 'string' &&
+                !getTotalAllocationErrors().includes(errors.cropProductions.message) && (
+                  <li>{errors.cropProductions.message}</li>
+                )}
             </ul>
           </div>
         </motion.div>

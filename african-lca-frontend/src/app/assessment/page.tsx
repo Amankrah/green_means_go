@@ -32,7 +32,8 @@ import {
   FORM_STEPS,
   getStepProgress,
   getNextStep,
-  getPreviousStep
+  getPreviousStep,
+  validateTotalAllocation,
 } from '@/lib/enhanced-assessment-schema';
 import {
   FormStep,
@@ -412,9 +413,19 @@ function ComprehensiveAssessmentPage({
       case FormStep.FARM_PROFILE:
         currentStepValid = await trigger(['farmProfile']);
         break;
-      case FormStep.CROP_DETAILS:
+      case FormStep.CROP_DETAILS: {
         currentStepValid = await trigger(['cropProductions']);
+        // Field-level trigger does not always run the parent superRefine; enforce
+        // farm-total area here so Next cannot leave an over-allocated step.
+        const crops = methods.getValues('cropProductions') || [];
+        const farmHa = methods.getValues('farmProfile.totalFarmSize') || 0;
+        const areaErrors = validateTotalAllocation(crops, farmHa);
+        if (areaErrors.length > 0) {
+          methods.setError('cropProductions', { type: 'manual', message: areaErrors[0] });
+          currentStepValid = false;
+        }
         break;
+      }
       case FormStep.MANAGEMENT_PRACTICES:
         currentStepValid = await trigger(['managementPractices']);
         break;

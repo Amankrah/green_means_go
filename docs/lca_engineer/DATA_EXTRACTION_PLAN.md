@@ -44,6 +44,16 @@ Of 11 acquired files: **8 extracted or partially used**, **3 deferred** (full EX
 2. **Full EX-ACT / B-INTACT** not integrated (mostly redundant with IPCC factors already in-engine).
 3. **Several effects remain `expert_judgement`** (acceptable for screening; Ghana trials would firm them).
 
+### Inventory activity defaults (Tier A) — shipped
+
+Provenanced Ghana diesel/electricity/yield-guide table:
+[`engine/recommend/reference/ghana_farm_activity_defaults.json`](../../engine/recommend/reference/ghana_farm_activity_defaults.json),
+applied in `engine/activity_defaults.py` when fuel/grid are unmeasured. Rust flat 80 L/ha + 200 kWh/ha fallback removed. Estimated flows flagged for ISO/DQ; `meas.data.gather_farm_records.gh` only surfaces when activity estimates were used.
+
+### Deferred: AI inventory assistant (Tier B)
+
+Do **not** build an LLM that authors LCI numbers. After Tier A is in production, an optional wizard co-pilot may *propose* activity values for farmer confirm (parse notes → structured fields); it must never write the solver inventory without a confirmed typed field. ML gap-filling (Tier C) stays deferred until a labelled Ghana farm corpus exists.
+
 ---
 
 ## 2. Cross-cutting rules (apply to every phase)
