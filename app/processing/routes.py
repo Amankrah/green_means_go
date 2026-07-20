@@ -156,12 +156,14 @@ async def rerun_processing_assessment(
     try:
         facility_id = _resolve_facility_id(request, user, db)
         result = await _run_processing_engine(request)
-        replace_assessment(
+        updated = replace_assessment(
             db, existing, payload=result,
             facility_id=facility_id, title=request.title,
             request_payload=_request_archive(request),
         )
-        return ProcessingAssessmentResponse(**result)
+        # Persist keeps the existing row id; return that payload so the client
+        # does not navigate to the engine's freshly minted uuid (404).
+        return ProcessingAssessmentResponse(**updated.payload_json)
     except HTTPException:
         raise
     except Exception as e:

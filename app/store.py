@@ -80,16 +80,18 @@ def replace_assessment(
     request_payload: Optional[dict[str, Any]] = None,
 ) -> Assessment:
     """Overwrite an existing assessment in place (same id) after a re-run."""
-    payload = dict(payload)
+    # Keep the existing row id. Mutate the caller's dict too so API responses that
+    # return the engine result dict do not expose a freshly minted uuid (404 on GET).
     payload["id"] = assessment.id
+    stored = dict(payload)
 
-    assessment.payload_json = payload
-    assessment.company_name = payload.get("company_name") or (
-        (payload.get("facility_profile") or {}).get("company_name")
+    assessment.payload_json = stored
+    assessment.company_name = stored.get("company_name") or (
+        (stored.get("facility_profile") or {}).get("company_name")
     )
-    assessment.country = payload.get("country")
-    assessment.region = payload.get("region")
-    assessment.single_score = extract_single_score(payload)
+    assessment.country = stored.get("country")
+    assessment.region = stored.get("region")
+    assessment.single_score = extract_single_score(stored)
     assessment.status = "completed"
     if title is not None:
         assessment.title = title

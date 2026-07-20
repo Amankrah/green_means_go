@@ -476,9 +476,23 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_redirect off;
-    proxy_read_timeout 300;
-    proxy_connect_timeout 300;
-    proxy_send_timeout 300;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_read_timeout 1800;
+    proxy_connect_timeout 60;
+    proxy_send_timeout 1800;
+
+    # Long-lived SSE assessment streams (must stay ahead of /api/)
+    location ~ ^/api/(assess/stream|processing/assess/stream)$ {
+        limit_req zone=api_limit burst=5 nodelay;
+        limit_conn conn_limit 10;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1800;
+        proxy_send_timeout 1800;
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://fastapi_backend;
+    }
 
     # API endpoints
     location /api/ {
@@ -501,6 +515,10 @@ server {
 
     location ~ ^/assess/(.*)$ {
         limit_req zone=api_limit burst=5 nodelay;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1800;
+        proxy_send_timeout 1800;
         proxy_pass http://fastapi_backend;
     }
 

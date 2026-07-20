@@ -70,8 +70,15 @@ async def stream_assessment(
     # Emit an immediate frame so the connection opens and the client shows progress at once.
     yield _frame({"type": "progress", "stage": "prepare", "detail": "Starting the assessment"})
 
+    # Engine stages can be quiet for several minutes (Rust match / solve). Nginx
+    # proxy_read_timeout resets only when bytes flow, so send SSE comments as keepalive.
+    heartbeat_s = 15.0
     while True:
-        item = await queue.get()
+        try:
+            item = await asyncio.wait_for(queue.get(), timeout=heartbeat_s)
+        except asyncio.TimeoutError:
+            yield ": keepalive\n\n"
+            continue
         yield _frame(item)
         if item["type"] in ("result", "error"):
             break

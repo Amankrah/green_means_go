@@ -203,12 +203,14 @@ async def rerun_assessment(
     try:
         farm_id = _resolve_farm_id(request, user, db)
         result = await _run_farm_engine(request)
-        replace_assessment(
+        updated = replace_assessment(
             db, existing, payload=result,
             farm_id=farm_id, title=request.title,
             request_payload=_request_archive(request),
         )
-        return AssessmentResponse(**result)
+        # Return the persisted payload (id kept as the existing row id). The engine
+        # mints a fresh uuid each run; navigating to that would 404.
+        return AssessmentResponse(**updated.payload_json)
     except HTTPException:
         raise
     except Exception as e:

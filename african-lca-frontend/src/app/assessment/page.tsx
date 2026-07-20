@@ -497,21 +497,25 @@ function ComprehensiveAssessmentPage({
         ? await assessmentAPI.rerunFarmAssessment(rerunId, apiData, submitOpts)
         : await assessmentAPI.submitComprehensiveAssessmentStream(apiData, submitOpts, setLiveProgress);
 
+      // Rerun updates in place — always navigate to the existing id, not a
+      // freshly minted engine uuid that is not a DB row.
+      const resultId = rerunId ?? result.id;
+
       // Store result in localStorage for persistence (survives backend restarts)
-      localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
-      localStorage.setItem('lastAssessmentId', result.id);
+      localStorage.setItem(`assessment_${resultId}`, JSON.stringify({ ...result, id: resultId }));
+      localStorage.setItem('lastAssessmentId', resultId);
       
       setSubmitResult({
         success: true,
         message: rerunId
           ? 'Assessment updated — scores and report have been replaced.'
           : 'Comprehensive assessment completed successfully!',
-        assessmentId: result.id,
+        assessmentId: resultId,
       });
 
       // Redirect to results page after a short delay
       setTimeout(() => {
-        window.location.href = `/results?id=${result.id}`;
+        window.location.href = `/results?id=${resultId}`;
       }, 2000);
 
     } catch (error) {
