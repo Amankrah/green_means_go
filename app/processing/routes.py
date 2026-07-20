@@ -6,6 +6,7 @@ import json
 import os
 import tempfile
 import subprocess
+from functools import partial
 
 from sqlalchemy.orm import Session
 
@@ -77,7 +78,9 @@ async def _run_processing_engine(request: ProcessingAssessmentRequest) -> dict:
     from starlette.concurrency import run_in_threadpool
     from engine.process_service import run_process_assessment
     request_dict = request.model_dump(mode="json", exclude={"form_snapshot"})
-    return await run_in_threadpool(run_process_assessment, request_dict, request.region)
+    return await run_in_threadpool(
+        partial(run_process_assessment, run_uncertainty=bool(request.run_uncertainty)),
+        request_dict, request.region)
 
 
 @router.post("/assess", response_model=ProcessingAssessmentResponse)
@@ -119,13 +122,15 @@ async def create_processing_assessment_stream(
     # request-scoped ORM session or lazy attributes.
     request_dict = request.model_dump(mode="json", exclude={"form_snapshot"})
     region = request.region
+    run_uncertainty = bool(request.run_uncertainty)
     user_id = user.id
     title = request.title
     archive = _request_archive(request)
 
     def run_fn(on_progress):
         from engine.process_service import run_process_assessment
-        return run_process_assessment(request_dict, region, on_progress=on_progress)
+        return run_process_assessment(request_dict, region, on_progress=on_progress,
+                                      run_uncertainty=run_uncertainty)
 
     def save_fn(result):
         from db import SessionLocal

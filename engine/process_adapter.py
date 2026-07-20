@@ -94,7 +94,10 @@ def _inventory_results(inventory: dict, total_kg: float, top_n: int = 20) -> dic
 
 
 def to_process_response(result, request: dict, engine, total_kg: float,
-                        assessment_id: str, extra_notes=None) -> dict:
+                        assessment_id: str, extra_notes=None,
+                        run_uncertainty: bool = True,
+                        uncertainty_n: int | None = None,
+                        uncertainty_seed: int | None = None) -> dict:
     """`result` = whole-facility AssessmentResult (impacts + inventory + input_matches)."""
     total_kg = total_kg or 1.0
 
@@ -124,6 +127,42 @@ def to_process_response(result, request: dict, engine, total_kg: float,
         midpoints["Global warming"] = gw
 
     single, single_meta = single_score(midpoints, ep, engine.method, bands=_process_bands())
+
+    # Pedigree screening Monte Carlo (parity with the farm path): scale category totals by
+    # data-class GSD without re-solving the LCI. The on-site refrigerant term is folded into
+    # the decomposition (as a measured on-site source) so the sampled base matches the GW
+    # midpoint that already includes it — otherwise the point estimate would sit above its own
+    # band. A shim is used rather than mutating `result`, whose contribution_by_source is
+    # reused below and would then double-count the refrigerant.
+    single_uncertainty = [single * 0.7, single * 1.4]
+    uncertainty_block = None
+    if run_uncertainty:
+        try:
+            from .uncertainty import run_pedigree_mc, apply_mc_to_midpoints, DEFAULT_N
+        except ImportError:
+            from uncertainty import run_pedigree_mc, apply_mc_to_midpoints, DEFAULT_N
+        from types import SimpleNamespace
+        cbs_raw = dict(getattr(result, "contribution_by_source", None) or {})
+        if ref_co2e:
+            cbs_raw["refrigerant leakage (on-site)"] = {
+                "Climate change": {"value": ref_co2e, "unit": "kg CO2-eq"}}
+        mc_result = SimpleNamespace(
+            contribution_by_source=cbs_raw,
+            input_matches=getattr(result, "input_matches", None),
+        )
+        uncertainty_block = run_pedigree_mc(
+            mc_result, midpoints, engine, total_kg,
+            n=uncertainty_n or DEFAULT_N,
+            seed=uncertainty_seed if uncertainty_seed is not None else 42,
+        )
+        apply_mc_to_midpoints(midpoints, uncertainty_block)
+        # Map GW relative p5/p95 onto the single score (bands stay on the point estimate).
+        gwp = (uncertainty_block.get("percentiles") or {}).get("Global warming") or {}
+        base = gwp.get("base") or 0.0
+        if base and gwp.get("p5") is not None and gwp.get("p95") is not None:
+            single_uncertainty = [single * (gwp["p5"] / base), single * (gwp["p95"] / base)]
+            uncertainty_block["single_score"] = {
+                "p5": single_uncertainty[0], "p50": single, "p95": single_uncertainty[1]}
 
     # Co-product allocation: split the facility total across products. `intensity` scales the
     # facility per-kg result to each product's own per-kg result (see _allocation). The facility
@@ -172,7 +211,7 @@ def to_process_response(result, request: dict, engine, total_kg: float,
         "Canada" if str(country_raw).strip().lower() == "global" else country_raw
     )
 
-    return {
+    resp = {
         "id": assessment_id,
         "facility_profile": request.get("facility_profile"),
         "country": country_display,
@@ -185,7 +224,7 @@ def to_process_response(result, request: dict, engine, total_kg: float,
             "unit": single_meta["unit"],
             "band": single_meta["band"],
             "band_basis": single_meta["band_basis"],
-            "uncertainty_range": [single * 0.7, single * 1.4],
+            "uncertainty_range": single_uncertainty,
             "weighting_factors": single_meta["weighting_factors"],
             "contributions": single_meta["contributions"],
             "methodology": single_meta["methodology"],
@@ -207,3 +246,6 @@ def to_process_response(result, request: dict, engine, total_kg: float,
         "contribution_by_source": contribution_by_source,
         "iso_report": iso,
     }
+    if uncertainty_block is not None:
+        resp["uncertainty"] = uncertainty_block
+    return resp

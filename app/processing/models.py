@@ -287,6 +287,12 @@ class ProcessingAssessmentRequest(BaseModel):
     processed_products: List[ProcessedProduct]
     allocation_basis: AllocationBasis = AllocationBasis.MASS  # how co-products split the total
 
+    # When true, run pedigree screening Monte Carlo and attach percentiles. Defaults on for
+    # parity with the farm path: real pedigree-driven p5/p95 bands are the deliverable, and the
+    # MC scales category totals rather than re-solving the LCI, so the cost is small. Pass False
+    # for the fast flat-band screening path.
+    run_uncertainty: bool = True
+
     # Optional linkage/labelling for saving under a user's account.
     facility_id: Optional[str] = None  # attach to a Facility the user owns
     title: Optional[str] = None        # human label for the saved assessment
@@ -330,3 +336,4 @@ class ProcessingAssessmentResponse(BaseModel):
     inventory: Optional[Dict[str, Any]] = None
     contribution_by_source: Optional[Dict[str, Any]] = None
     iso_report: Optional[Dict[str, Any]] = None
+    uncertainty: Optional[Dict[str, Any]] = None  # pedigree screening Monte Carlo percentiles

@@ -175,6 +175,29 @@ def test_api_model_defaults_uncertainty_on():
     assert AssessmentRequest.model_fields["run_uncertainty"].default is True
 
 
+def test_processing_model_defaults_uncertainty_on():
+    from app.processing.models import (
+        ProcessingAssessmentRequest,
+        ProcessingAssessmentResponse,
+    )
+
+    # Facility path defaults MC on for parity with the farm path...
+    assert ProcessingAssessmentRequest.model_fields["run_uncertainty"].default is True
+    # ...and the response can carry the MC block (else it is silently dropped).
+    assert "uncertainty" in ProcessingAssessmentResponse.model_fields
+
+
+def test_process_adapter_accepts_uncertainty_kwargs():
+    import inspect
+
+    from engine.process_adapter import to_process_response
+
+    params = inspect.signature(to_process_response).parameters
+    # process_service passes these through; a signature drift here is what broke the wiring
+    # once already, so lock it in.
+    assert {"run_uncertainty", "uncertainty_n", "uncertainty_seed"} <= set(params)
+
+
 def test_gsd_classes_present():
     assert "measured_match" in GSD_BY_CLASS
     assert "estimated_activity" in GSD_BY_CLASS

@@ -55,11 +55,14 @@ def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
 
 def run_process_assessment(request: dict, region: str | None = None,
                            method: str | None = None, assessment_id: str | None = None,
-                           on_progress=None) -> dict:
+                           on_progress=None, run_uncertainty: bool = False,
+                           uncertainty_n: int | None = None,
+                           uncertainty_seed: int | None = None) -> dict:
     """Full path: extract purchased utilities/materials -> supply-chain solve (no field
     emissions) -> validated characterization -> processing response dict.
 
-    on_progress(stage, detail, index, total): optional callback for live progress."""
+    on_progress(stage, detail, index, total): optional callback for live progress.
+    run_uncertainty: when True, attach pedigree screening Monte Carlo percentiles."""
     _emit(on_progress, "prepare", "Reading your facility data")
     region_code = _resolve_region(request, region)
     eng, lock = _engine(region_code, method)
@@ -67,6 +70,11 @@ def run_process_assessment(request: dict, region: str | None = None,
     _emit(on_progress, "inventory", "Building the life-cycle inventory")
     with lock:
         res = eng.assess(on_farm_lci=[], purchased_inputs=inputs, on_progress=on_progress)
+    if run_uncertainty:
+        _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
     _emit(on_progress, "report", "Compiling your report")
     return to_process_response(res, request, eng, total_kg,
-                               assessment_id or str(uuid.uuid4()), notes)
+                               assessment_id or str(uuid.uuid4()), notes,
+                               run_uncertainty=run_uncertainty,
+                               uncertainty_n=uncertainty_n,
+                               uncertainty_seed=uncertainty_seed)
