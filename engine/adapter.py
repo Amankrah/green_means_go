@@ -202,7 +202,7 @@ def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, mi
 
 def to_assessment_response(result, assessment: dict, engine, total_kg: float,
                            assessment_id: str, extra_notes=None, per_crop=None,
-                           run_uncertainty: bool = False,
+                           run_uncertainty: bool = True,
                            uncertainty_n: int | None = None,
                            uncertainty_seed: int | None = None) -> dict:
     """`result` = whole-farm AssessmentResult (summed impacts + merged inventory).
@@ -261,12 +261,12 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
     single_uncertainty = [single * 0.7, single * 1.4]
     if run_uncertainty:
         try:
-            from .uncertainty import run_pedigree_mc, apply_mc_to_midpoints
+            from .uncertainty import run_pedigree_mc, apply_mc_to_midpoints, DEFAULT_N
         except ImportError:
-            from uncertainty import run_pedigree_mc, apply_mc_to_midpoints
+            from uncertainty import run_pedigree_mc, apply_mc_to_midpoints, DEFAULT_N
         uncertainty_block = run_pedigree_mc(
             result, midpoints, engine, total_kg,
-            n=uncertainty_n or 500,
+            n=uncertainty_n or DEFAULT_N,
             seed=uncertainty_seed if uncertainty_seed is not None else 42,
         )
         apply_mc_to_midpoints(midpoints, uncertainty_block)

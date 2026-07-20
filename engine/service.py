@@ -160,7 +160,7 @@ def recharacterize_from_payload(payload: dict, assessment: dict, method: str,
 
 def run_farm_assessment(assessment: dict, region: str | None = None,
                         method: str | None = None, assessment_id: str | None = None,
-                        on_progress=None, run_uncertainty: bool = False,
+                        on_progress=None, run_uncertainty: bool = True,
                         uncertainty_n: int | None = None,
                         uncertainty_seed: int | None = None) -> dict:
     """Full path: auto-extract inputs -> Rust field LCI + supply-chain solve ->
@@ -168,7 +168,8 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
     run as its OWN product system (true per-crop) and summed for the farm total.
 
     on_progress(stage, detail, index, total): optional callback for live progress.
-    run_uncertainty: when True, attach pedigree screening Monte Carlo percentiles."""
+    run_uncertainty: when True (default), attach pedigree screening Monte Carlo
+    percentiles (N from engine.uncertainty.DEFAULT_N unless overridden)."""
     _emit(on_progress, "prepare", "Reading your farm data")
     region_code = _region_of(assessment, region)
     eng, lock = _engine(region_code, method)

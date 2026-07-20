@@ -153,6 +153,28 @@ def test_run_uncertainty_false_keeps_flat_band():
     assert resp.get("uncertainty") is None
 
 
+def test_run_uncertainty_true_replaces_flat_band_with_mc():
+    assessment = {
+        "company_name": "Test",
+        "country": "Ghana",
+        "foods": [{"name": "Maize", "quantity_kg": 1000, "area_allocated": 2.0}],
+    }
+    resp = to_assessment_response(
+        _FakeResult(gwp_per_kg=2.5), assessment, _FakeEngine(), 1000.0, "test-id",
+        run_uncertainty=True, uncertainty_n=50,
+    )
+    unc = resp.get("uncertainty")
+    assert unc is not None
+    assert unc["n"] == 50
+    assert "Global warming" in unc["percentiles"]
+
+
+def test_api_model_defaults_uncertainty_on():
+    from app.production.models import AssessmentRequest
+
+    assert AssessmentRequest.model_fields["run_uncertainty"].default is True
+
+
 def test_gsd_classes_present():
     assert "measured_match" in GSD_BY_CLASS
     assert "estimated_activity" in GSD_BY_CLASS

@@ -214,7 +214,10 @@ class AssessmentRequest(BaseModel):
     lcia_method: Optional[str] = None
 
     # When true, run pedigree screening Monte Carlo and attach percentiles.
-    run_uncertainty: bool = False
+    # Defaults on: real pedigree-driven p5/p95 bands are the deliverable, and the MC
+    # scales category totals rather than re-solving the LCI, so the cost is small.
+    # Explicitly pass False for the fast flat-band screening path.
+    run_uncertainty: bool = True
 
     # Optional study metadata (crop year / season / admin region) for research export.
     study_meta: Optional[StudyMeta] = None

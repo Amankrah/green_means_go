@@ -18,7 +18,7 @@ try:
 except ImportError:
     from adapter import MIDPOINT_MAP, single_score
 
-DEFAULT_N = 500
+DEFAULT_N = 1000  # screening MC default: stabilises the p5/p95 tail percentiles
 
 # Screening GSD by pedigree data class (median multiplier = 1).
 GSD_BY_CLASS = {
