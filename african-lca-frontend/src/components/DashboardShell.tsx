@@ -139,14 +139,16 @@ export default function DashboardShell({
         <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white/80 backdrop-blur px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Open navigation menu"
-                  className="lg:hidden p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80"
-                >
-                  <Menu className="w-5 h-5" />
-                </button>
+              <SheetTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="Open navigation menu"
+                    className="lg:hidden p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80"
+                  />
+                }
+              >
+                <Menu className="w-5 h-5" />
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-[280px] border-r-gray-200" showCloseButton={false}>
                 <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
@@ -158,20 +160,22 @@ export default function DashboardShell({
 
           {user && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 transition-colors"
-                >
-                  <span className="grid place-items-center w-8 h-8 rounded-full bg-spruce text-white text-sm font-semibold">
-                    {initials(user.full_name)}
-                  </span>
-                  <span className="hidden sm:block text-left mr-1">
-                    <span className="block text-sm font-medium text-gray-900 leading-tight">{user.full_name}</span>
-                    <span className="block text-[0.7rem] text-gray-500 leading-tight">{ROLE_LABEL[user.role]}</span>
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                </button>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 transition-colors"
+                  />
+                }
+              >
+                <span className="grid place-items-center w-8 h-8 rounded-full bg-spruce text-white text-sm font-semibold">
+                  {initials(user.full_name)}
+                </span>
+                <span className="hidden sm:block text-left mr-1">
+                  <span className="block text-sm font-medium text-gray-900 leading-tight">{user.full_name}</span>
+                  <span className="block text-[0.7rem] text-gray-500 leading-tight">{ROLE_LABEL[user.role]}</span>
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-400" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 mt-1 p-2 border border-gray-100 shadow-xl rounded-xl">
                 <div className="px-2 py-1.5 mb-1">
