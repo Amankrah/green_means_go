@@ -499,10 +499,9 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
              f"The p5–p95 ranges on each figure come from that simulation.")
             if uncertainty
             else (
-                "The plus or minus 30 to 40 percent range shown on each category is an indicative screening "
-                "figure applied across the board, not a value calculated for this particular farm. A proper, "
-                "dataset-by-dataset uncertainty (pedigree or Monte-Carlo) has not been run and would be the "
-                "next step for a fuller study.")),
+                "New assessments run a pedigree screening Monte Carlo by default (typically N=1000) and "
+                "report p5–p95 ranges by data class. This saved draft has no Monte Carlo block attached — "
+                "re-run the assessment to refresh the uncertainty ranges.")),
         "data_validation": (
             "This refers to the calculation engine, not to a separate check of this farm's numbers. The "
             "engine's method has been benchmarked once against established tools: ecoinvent products match "
@@ -557,9 +556,8 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         f"reflect p5–p95 percentiles from lognormal scaling by data class (measured match, "
         f"estimated activity defaults, field emission factors)."
         if uncertainty else
-        " Separately, each category result carries an indicative pedigree uncertainty of roughly "
-        "30 to 40 percent (shown as the range on each figure), which is a screening estimate "
-        "rather than a full Monte-Carlo propagation.")
+        " New assessments attach pedigree screening Monte Carlo p5–p95 ranges by default; "
+        "this draft has no Monte Carlo block — re-run to refresh the ranges.")
     if _src:
         sensitivity = (
             "Because the calculation is linear in the amounts used, each source's share of a result is "
@@ -573,8 +571,8 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             (f"Each category result carries p5–p95 ranges from a pedigree screening Monte Carlo "
              f"(N={_mc_n}) based on data-class GSDs."
              if uncertainty else
-             "Each category result carries an indicative pedigree uncertainty of roughly 30 to 40 percent "
-             "(shown as the range on each figure), a screening estimate rather than a full uncertainty propagation."))
+             "New assessments run pedigree screening Monte Carlo by default and report p5–p95 ranges; "
+             "this draft has no Monte Carlo block — re-run the assessment to refresh uncertainty."))
 
     # Recommendations driven by the actual hotspots (the top climate contributors), not a
     # fixed list, so the advice points at what is really moving this farm's result.
@@ -684,8 +682,8 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
              "to the category ranges shown."
              if uncertainty else
              "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
-             "A finer, dataset-by-dataset pedigree score with propagated uncertainty (rather than the "
-             "indicative range shown) has not been carried out."),
+             "Pedigree screening Monte Carlo is the default for new assessments; this draft has no "
+             "Monte Carlo block — re-run to attach p5–p95 ranges."),
             "The single score uses equal weighting, which is a judgement call, and it works best for comparing scenarios of the same crop rather than as an absolute verdict.",
         ],
         "public_disclosure": (

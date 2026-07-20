@@ -76,7 +76,6 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
     delta_single_score: number | null;
   } | null>(null);
   const [methodBusy, setMethodBusy] = useState(false);
-  const [uncBusy, setUncBusy] = useState(false);
 
   const handleDownload = () => window.print();
 
@@ -120,20 +119,6 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
       alert(e instanceof Error ? e.message : 'Recharacterize failed');
     } finally {
       setMethodBusy(false);
-    }
-  };
-
-  const runUncertainty = async () => {
-    if (!assessmentId) return;
-    setUncBusy(true);
-    try {
-      const res = await assessmentAPI.runAssessmentUncertainty(assessmentId);
-      setResults(res);
-    } catch (e) {
-      console.error(e);
-      alert(e instanceof Error ? e.message : 'Uncertainty run failed');
-    } finally {
-      setUncBusy(false);
     }
   };
 
@@ -1451,19 +1436,11 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
 
                 <div className="border-t border-gray-100 pt-4">
                   <h3 className="text-lg font-bold text-gray-900 mb-1">Uncertainty (pedigree MC)</h3>
-                  <p className="text-sm text-gray-600 mb-2">
+                  <p className="text-sm text-gray-600">
                     {results.uncertainty?.n
-                      ? `Monte Carlo N=${results.uncertainty.n}; ranges use p5–p95.`
-                      : 'Screening ranges are flat ±30–40% until you run MC.'}
+                      ? `Pedigree screening Monte Carlo ran with this assessment (N=${results.uncertainty.n}). Category and single-score ranges are p5–p95 from lognormal scaling by data class (measured match, estimated activity, field EF).`
+                      : 'New assessments run pedigree screening Monte Carlo by default. This saved result has no MC block — re-run the assessment to refresh ranges.'}
                   </p>
-                  <button
-                    type="button"
-                    disabled={uncBusy}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50"
-                    onClick={runUncertainty}
-                  >
-                    {uncBusy ? 'Running…' : 'Run screening Monte Carlo'}
-                  </button>
                 </div>
 
                 {results.contribution_sankey?.categories && (

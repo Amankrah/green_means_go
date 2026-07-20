@@ -26,7 +26,8 @@ def _product_phrase(products: list) -> str:
 
 def build_process_iso_report(request: dict, result, engine, midpoints: dict, single_meta: dict,
                              total_kg: float, allocation: dict, extra_notes=None,
-                             assessment_id: str | None = None, intended_for_public: bool = True) -> dict:
+                             assessment_id: str | None = None, intended_for_public: bool = True,
+                             uncertainty: dict | None = None) -> dict:
     from datetime import datetime, timezone
     total_kg_safe = total_kg or 1.0
     method = engine.method
@@ -128,18 +129,30 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
     }
 
     # ---- sensitivity + recommendations (data-driven from the top climate sources) ----
+    _mc_n = (uncertainty or {}).get("n")
+    _mc_tail = (
+        f" A pedigree screening Monte Carlo with N={_mc_n} was also run; category ranges "
+        f"reflect p5–p95 percentiles from lognormal scaling by data class."
+        if uncertainty else
+        " New assessments attach pedigree screening Monte Carlo p5–p95 ranges by default; "
+        "this draft has no Monte Carlo block — re-run to refresh the ranges."
+    )
     if _src:
         drivers = ", ".join(f"{s['source']} ({s['share']*100:.0f}%)" for s in _src[:3])
         sensitivity = (
             "Because the calculation is linear in the amounts used, each source's share of a result "
             "is also how sensitive the result is to it: change a source by one percent and the total "
             f"moves by about its share. On that basis the climate result is driven mainly by {drivers}, "
-            "so those are the figures worth getting right first. Each category result also carries an "
-            "indicative screening uncertainty of roughly 30 to 40 percent, which is a screening estimate "
-            "rather than a full Monte-Carlo propagation.")
+            "so those are the figures worth getting right first."
+            + _mc_tail)
     else:
-        sensitivity = ("Each category result carries an indicative screening uncertainty of roughly 30 to "
-                       "40 percent rather than a full Monte-Carlo propagation.")
+        sensitivity = (
+            (f"Each category result carries p5–p95 ranges from a pedigree screening Monte Carlo "
+             f"(N={_mc_n}) based on data-class GSDs.")
+            if uncertainty else
+            "New assessments run pedigree screening Monte Carlo by default and report p5–p95 ranges; "
+            "this draft has no Monte Carlo block — re-run the assessment to refresh uncertainty."
+        )
 
     def _rec_for(src: str) -> str:
         s = (src or "").lower()
@@ -299,10 +312,14 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
                                  "energy units, and electricity uses the region's grid mix."),
         "reference_flows": reference_flows,
         "inputs_matched": f"{len(matched)} of {len(matches)} purchased inputs were matched to a background dataset.",
-        "pedigree_uncertainty": ("The plus or minus 30 to 40 percent range shown on each category is an indicative "
-                                "screening figure applied across the board, not a value calculated for this particular "
-                                "facility. A proper, dataset-by-dataset uncertainty has not been run and would be the "
-                                "next step for a fuller study."),
+        "pedigree_uncertainty": (
+            (f"A pedigree screening Monte Carlo was run with N={uncertainty['n']} draws, "
+             f"scaling category totals by data class. The p5–p95 ranges on each figure come from that simulation.")
+            if uncertainty else
+            ("New assessments run a pedigree screening Monte Carlo by default (typically N=1000) and "
+             "report p5–p95 ranges by data class. This saved draft has no Monte Carlo block attached — "
+             "re-run the assessment to refresh the uncertainty ranges.")
+        ),
         "data_validation": ("This refers to the calculation engine, not to a separate check of this facility's numbers. "
                            "The engine's method has been benchmarked against established tools: ecoinvent products match "
                            "openLCA to within half a percent, and Agribalyse products match ADEME's published figures to "
@@ -367,7 +384,13 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
         "recommendations": _recs,
         "limitations": [
             "This is a screening study, so it uses standard datasets and average background data rather than site measurements throughout.",
-            "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. A finer, dataset-by-dataset pedigree score with propagated uncertainty has not been carried out.",
+            ("Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
+             f"A pedigree screening Monte Carlo (N={_mc_n}) propagated lognormal uncertainty by data class "
+             "to the category ranges shown."
+             if uncertainty else
+             "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
+             "Pedigree screening Monte Carlo is the default for new assessments; this draft has no "
+             "Monte Carlo block — re-run to attach p5–p95 ranges."),
             "The single score uses equal weighting, which is a judgement call, and it works best for comparing scenarios of the same product rather than as an absolute verdict.",
         ],
         "public_disclosure": (

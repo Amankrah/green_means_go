@@ -201,8 +201,11 @@ def to_process_response(result, request: dict, engine, total_kg: float,
         run_notes.append(ref_note)
 
     allocation = {"basis": basis_used, "note": alloc_note, "n_products": len(products)}
-    iso = build_process_iso_report(request, result, engine, midpoints, single_meta, total_kg,
-                                   allocation, extra_notes=run_notes, assessment_id=assessment_id)
+    iso = build_process_iso_report(
+        request, result, engine, midpoints, single_meta, total_kg,
+        allocation, extra_notes=run_notes, assessment_id=assessment_id,
+        uncertainty=uncertainty_block,
+    )
 
     region_code = getattr(getattr(engine, "region", None), "code", None) or request.get("region")
     # API country enum uses "Global" for Canada; surface a clear display label.
