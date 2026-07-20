@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Sprout } from 'lucide-react';
 import type { FarmSnapshot } from '@/lib/farm-snapshot';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 
 const SEGMENT_COLORS = [
   'bg-moss',
@@ -51,12 +52,16 @@ function humanize(value: string | null | undefined): string {
 export default function FarmCropSummary(props: FarmCropSummaryProps) {
   if (props.mode === 'loading') {
     return (
-      <section className="rounded-2xl border border-gray-200 bg-white p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Crops &amp; land use
-        </h3>
-        <p className="mt-3 text-sm text-gray-500">Loading crop details…</p>
-      </section>
+      <Card className="rounded-2xl border-gray-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Crops &amp; land use
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500">Loading crop details…</p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -69,23 +74,25 @@ export default function FarmCropSummary(props: FarmCropSummaryProps) {
           : 'No crops were entered in your latest assessment.';
 
     return (
-      <section className="rounded-2xl border border-gray-200 bg-white p-6">
-        <div className="flex items-center gap-2">
-          <Sprout className="w-4 h-4 text-moss" />
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <Card className="rounded-2xl border-gray-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
+            <Sprout className="w-4 h-4 text-moss" />
             Crops &amp; land use
-          </h3>
-        </div>
-        <p className="mt-3 text-sm text-gray-600">{copy}</p>
-        {(props.emptyKind === 'none' || props.emptyKind === 'legacy') && (
-          <Link
-            href={`/assessment?farmId=${props.farmId}`}
-            className="mt-4 inline-flex text-sm font-medium text-moss hover:text-spruce"
-          >
-            Start an assessment
-          </Link>
-        )}
-      </section>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600">{copy}</p>
+          {(props.emptyKind === 'none' || props.emptyKind === 'legacy') && (
+            <Link
+              href={`/assessment?farmId=${props.farmId}`}
+              className="mt-4 inline-flex text-sm font-medium text-moss hover:text-spruce focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 rounded-sm"
+            >
+              Start an assessment
+            </Link>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
@@ -122,126 +129,128 @@ export default function FarmCropSummary(props: FarmCropSummaryProps) {
     : '—';
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Sprout className="w-4 h-4 text-moss" />
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+    <Card className="rounded-2xl border-gray-200">
+      <CardHeader className="pb-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
+            <Sprout className="w-4 h-4 text-moss" />
             Crops &amp; land use
-          </h3>
-        </div>
-        <p className="text-xs text-gray-500">
-          From assessment on {dateLabel}
-          {assessmentTitle ? ` · ${assessmentTitle}` : ''}{' '}
-          <Link
-            href={`/results?id=${assessmentId}`}
-            className="font-medium text-moss hover:text-spruce"
-          >
-            View results
-          </Link>
-        </p>
-      </div>
-
-      {(snapshot.farmType || snapshot.primaryFarmingSystem || snapshot.assessedSizeHa != null) && (
-        <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700">
-          {snapshot.assessedSizeHa != null && (
-            <div>
-              <dt className="inline text-xs uppercase tracking-wide text-gray-400">
-                Assessed size{' '}
-              </dt>
-              <dd className="inline font-medium text-gray-900">
-                {formatHa(snapshot.assessedSizeHa)}
-              </dd>
-            </div>
-          )}
-          {snapshot.farmType && (
-            <div>
-              <dt className="inline text-xs uppercase tracking-wide text-gray-400">
-                Farm type{' '}
-              </dt>
-              <dd className="inline font-medium text-gray-900">
-                {humanize(snapshot.farmType)}
-              </dd>
-            </div>
-          )}
-          {snapshot.primaryFarmingSystem && (
-            <div>
-              <dt className="inline text-xs uppercase tracking-wide text-gray-400">
-                System{' '}
-              </dt>
-              <dd className="inline font-medium text-gray-900">
-                {humanize(snapshot.primaryFarmingSystem)}
-              </dd>
-            </div>
-          )}
-        </dl>
-      )}
-
-      {totalForBar > 0 && segments.length > 0 && (
-        <div className="mt-5">
-          <div
-            className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100"
-            role="img"
-            aria-label="Land use by crop area"
-          >
-            {segments.map((seg) => {
-              const pct = (seg.ha / totalForBar) * 100;
-              if (pct <= 0) return null;
-              return (
-                <div
-                  key={seg.key}
-                  className={`${seg.color} min-w-[2px]`}
-                  style={{ width: `${pct}%` }}
-                  title={`${seg.label}: ${formatHa(seg.ha)}`}
-                />
-              );
-            })}
-          </div>
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-600">
-            {segments.map((seg) => {
-              const pct = totalForBar > 0 ? (seg.ha / totalForBar) * 100 : 0;
-              return (
-                <li key={seg.key} className="inline-flex items-center gap-1.5">
-                  <span className={`inline-block h-2.5 w-2.5 rounded-sm ${seg.color}`} />
-                  <span>
-                    {seg.label}: {formatHa(seg.ha)} ({pct.toFixed(0)}%)
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {snapshot.crops.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">
-          No crops were entered in your latest assessment.
-        </p>
-      ) : (
-        <ul className="mt-5 divide-y divide-gray-100 border-t border-gray-100">
-          {snapshot.crops.map((crop, i) => (
-            <li
-              key={`${crop.name}-${i}`}
-              className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between"
+          </CardTitle>
+          <p className="text-xs text-gray-500">
+            From assessment on {dateLabel}
+            {assessmentTitle ? ` · ${assessmentTitle}` : ''}{' '}
+            <Link
+              href={`/results?id=${assessmentId}`}
+              className="font-medium text-moss hover:text-spruce focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 rounded-sm"
             >
+              View results
+            </Link>
+          </p>
+        </div>
+      </CardHeader>
+      
+      <CardContent>
+        {(snapshot.farmType || snapshot.primaryFarmingSystem || snapshot.assessedSizeHa != null) && (
+          <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700">
+            {snapshot.assessedSizeHa != null && (
               <div>
-                <div className="text-sm font-medium text-gray-900">{crop.name}</div>
-                <div className="text-xs text-gray-500">
-                  {humanize(crop.croppingPattern)}
-                  {crop.productionSystem ? ` · ${humanize(crop.productionSystem)}` : ''}
-                  {crop.partners?.length
-                    ? ` · with ${crop.partners.join(', ')}`
-                    : ''}
+                <dt className="inline text-xs uppercase tracking-wide text-gray-400">
+                  Assessed size{' '}
+                </dt>
+                <dd className="inline font-medium text-gray-900">
+                  {formatHa(snapshot.assessedSizeHa)}
+                </dd>
+              </div>
+            )}
+            {snapshot.farmType && (
+              <div>
+                <dt className="inline text-xs uppercase tracking-wide text-gray-400">
+                  Farm type{' '}
+                </dt>
+                <dd className="inline font-medium text-gray-900">
+                  {humanize(snapshot.farmType)}
+                </dd>
+              </div>
+            )}
+            {snapshot.primaryFarmingSystem && (
+              <div>
+                <dt className="inline text-xs uppercase tracking-wide text-gray-400">
+                  System{' '}
+                </dt>
+                <dd className="inline font-medium text-gray-900">
+                  {humanize(snapshot.primaryFarmingSystem)}
+                </dd>
+              </div>
+            )}
+          </dl>
+        )}
+
+        {totalForBar > 0 && segments.length > 0 && (
+          <div className="mt-5">
+            <div
+              className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100"
+              role="img"
+              aria-label="Land use by crop area"
+            >
+              {segments.map((seg) => {
+                const pct = (seg.ha / totalForBar) * 100;
+                if (pct <= 0) return null;
+                return (
+                  <div
+                    key={seg.key}
+                    className={`${seg.color} min-w-[2px]`}
+                    style={{ width: `${pct}%` }}
+                    title={`${seg.label}: ${formatHa(seg.ha)}`}
+                  />
+                );
+              })}
+            </div>
+            <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-600">
+              {segments.map((seg) => {
+                const pct = totalForBar > 0 ? (seg.ha / totalForBar) * 100 : 0;
+                return (
+                  <li key={seg.key} className="inline-flex items-center gap-1.5">
+                    <span className={`inline-block h-2.5 w-2.5 rounded-sm ${seg.color}`} />
+                    <span>
+                      {seg.label}: {formatHa(seg.ha)} ({pct.toFixed(0)}%)
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {snapshot.crops.length === 0 ? (
+          <p className="mt-4 text-sm text-gray-500">
+            No crops were entered in your latest assessment.
+          </p>
+        ) : (
+          <ul className="mt-5 divide-y divide-gray-100 border-t border-gray-100">
+            {snapshot.crops.map((crop, i) => (
+              <li
+                key={`${crop.name}-${i}`}
+                className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between"
+              >
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{crop.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {humanize(crop.croppingPattern)}
+                    {crop.productionSystem ? ` · ${humanize(crop.productionSystem)}` : ''}
+                    {crop.partners?.length
+                      ? ` · with ${crop.partners.join(', ')}`
+                      : ''}
+                  </div>
                 </div>
-              </div>
-              <div className="text-sm text-gray-700 sm:text-right">
-                <div>{formatHa(crop.areaHa)}</div>
-                <div className="text-xs text-gray-500">{formatKg(crop.productionKg)} / year</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+                <div className="text-sm text-gray-700 sm:text-right mt-1 sm:mt-0">
+                  <div>{formatHa(crop.areaHa)}</div>
+                  <div className="text-xs text-gray-500">{formatKg(crop.productionKg)} / year</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }

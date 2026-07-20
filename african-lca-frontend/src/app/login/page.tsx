@@ -5,39 +5,52 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 export const dynamic = 'force-dynamic';
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') || '/dashboard';
   const { login } = useAuth();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
+  const onSubmit = async (data: LoginFormData) => {
+    setSubmitError(null);
     try {
-      await login(email.trim(), password);
+      await login(data.email.trim(), data.password);
       router.push(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in. Please try again.');
-    } finally {
-      setSubmitting(false);
+      setSubmitError(err instanceof Error ? err.message : 'Could not sign in. Please try again.');
     }
   };
 
   return (
     <div className="min-h-screen bg-paper flex flex-col items-center justify-center px-4 py-12">
-      <Link href="/" className="flex items-center space-x-3 mb-8">
-        <Image src="/logo.svg" alt="Green Means Go" width={44} height={44} />
+      <Link href="/" className="flex items-center space-x-3 mb-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 rounded-md">
+        <Image src="/logo.svg" alt="Green Means Go" width={44} height={44} aria-hidden="true" />
         <span className="text-xl font-bold text-gray-900">Green Means Go</span>
       </Link>
 
@@ -45,51 +58,53 @@ function LoginForm() {
         <h1 className="text-2xl font-bold text-gray-900">Sign in</h1>
         <p className="mt-1 text-sm text-gray-500">Welcome back. Enter your details to continue.</p>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-            <input
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
               id="email"
               type="email"
               autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-moss focus:ring-2 focus:ring-moss/30 outline-none"
+              placeholder="jane@example.com"
+              {...register('email')}
+              aria-invalid={!!errors.email}
+              className={errors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}
             />
+            {errors.email && <p className="text-sm text-red-600 font-medium">{errors.email.message}</p>}
           </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-            <input
+          
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Password</Label>
+            <Input
               id="password"
               type="password"
               autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-moss focus:ring-2 focus:ring-moss/30 outline-none"
+              {...register('password')}
+              aria-invalid={!!errors.password}
+              className={errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}
             />
+            {errors.password && <p className="text-sm text-red-600 font-medium">{errors.password.message}</p>}
           </div>
 
-          {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-              {error}
+          {submitError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm font-medium text-red-700">
+              {submitError}
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
-            disabled={submitting}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-spruce px-4 py-2.5 font-medium text-white hover:bg-ink disabled:opacity-60 transition-colors"
+            disabled={isSubmitting}
+            className="w-full h-11 text-base bg-spruce hover:bg-ink text-white"
           >
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {submitting ? 'Signing in…' : 'Sign in'}
-          </button>
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {isSubmitting ? 'Signing in…' : 'Sign in'}
+          </Button>
         </form>
 
         <p className="mt-6 text-sm text-gray-600 text-center">
           New here?{' '}
-          <Link href="/signup" className="font-semibold text-moss hover:text-spruce">
+          <Link href="/signup" className="font-semibold text-moss hover:text-spruce focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 rounded-sm">
             Create an account
           </Link>
         </p>

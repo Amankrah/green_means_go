@@ -16,6 +16,7 @@ from assessment_stream import stream_assessment, SSE_MEDIA_TYPE, SSE_HEADERS
 from models import Assessment, AssessmentType, Farm, User
 from auth.deps import get_current_user
 from store import (
+    ConcurrencyError,
     get_owned_assessment,
     list_owned_assessments,
     replace_assessment,
@@ -232,6 +233,7 @@ async def rerun_assessment(
             db, existing, payload=result,
             farm_id=farm_id, title=request.title,
             request_payload=_request_archive(request),
+            reason="rerun",
         )
         # Return the persisted payload (id kept as the existing row id). The engine
         # mints a fresh uuid each run; navigating to that would 404.
@@ -310,10 +312,13 @@ async def create_scenario(
 async def recharacterize_assessment(
     assessment_id: str,
     body: RecharacterizeBody,
+    expected_version: Optional[int] = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Re-run characterization with an alternate LCIA method; cache on method_variants."""
+    """Re-run characterization with an alternate LCIA method; cache on method_variants.
+    Pass ``expected_version`` (the version the client last saw) for optimistic locking:
+    a 409 is returned if the assessment was modified in the meantime."""
     from .models import SUPPORTED_LCIA_METHODS
 
     existing = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
@@ -377,29 +382,51 @@ async def recharacterize_assessment(
     payload["method_variants"] = variants
     if variant.get("engine_inventory") and not payload.get("engine_inventory"):
         payload["engine_inventory"] = variant["engine_inventory"]
-    # If requested as active method, also replace primary midpoints.
+    # If requested as active method, replace the whole primary result with the variant so
+    # every method-dependent section (Top sources, per-source contribution, pedigree MC)
+    # reflects the promoted method rather than going stale against the old one.
     if body.apply_as_primary:
         payload["midpoint_impacts"] = variant.get("midpoint_impacts")
         payload["endpoint_impacts"] = variant.get("endpoint_impacts")
         payload["single_score"] = variant.get("single_score")
         payload["functional_units"] = variant.get("functional_units")
         payload["lcia_method"] = method
+        for key in (
+            "contribution_by_source",
+            "contribution_sankey",
+            "sensitivity_analysis",
+            "uncertainty",
+            "engine_inventory_by_source",
+            "data_quality",
+        ):
+            if variant.get(key) is not None:
+                payload[key] = variant[key]
         if variant.get("iso_report"):
             payload["iso_report"] = variant["iso_report"]
 
-    updated = replace_assessment(
-        db, existing, payload=payload, title=existing.title, request_payload=existing.request_json,
-    )
+    try:
+        updated = replace_assessment(
+            db, existing, payload=payload, title=existing.title,
+            request_payload=existing.request_json, reason="recharacterize",
+            expected_version=expected_version,
+        )
+    except ConcurrencyError as e:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Assessment changed (version {e.actual}); re-fetch and retry.",
+        ) from e
     return AssessmentResponse(**updated.payload_json)
 
 
 @router.post("/assess/{assessment_id}/uncertainty", response_model=AssessmentResponse, tags=["research-scenarios"])
 async def run_assessment_uncertainty(
     assessment_id: str,
+    expected_version: Optional[int] = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Re-run with pedigree screening Monte Carlo and persist uncertainty percentiles."""
+    """Re-run with pedigree screening Monte Carlo and persist uncertainty percentiles.
+    Pass ``expected_version`` for optimistic locking (409 on a stale write)."""
     existing = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
     if existing is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
@@ -420,10 +447,17 @@ async def run_assessment_uncertainty(
         result["method_variants"] = prior["method_variants"]
     if prior.get("baseline_assessment_id"):
         result["baseline_assessment_id"] = prior["baseline_assessment_id"]
-    updated = replace_assessment(
-        db, existing, payload=result, title=existing.title,
-        request_payload=_request_archive(req),
-    )
+    try:
+        updated = replace_assessment(
+            db, existing, payload=result, title=existing.title,
+            request_payload=_request_archive(req), reason="uncertainty",
+            expected_version=expected_version,
+        )
+    except ConcurrencyError as e:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Assessment changed (version {e.actual}); re-fetch and retry.",
+        ) from e
     return AssessmentResponse(**updated.payload_json)
 
 
@@ -506,7 +540,8 @@ async def set_assessment_review_status(
 
     payload = apply_review_status(existing.payload_json or {}, body.review_status)
     updated = replace_assessment(
-        db, existing, payload=payload, title=existing.title, request_payload=existing.request_json,
+        db, existing, payload=payload, title=existing.title,
+        request_payload=existing.request_json, reason="review",
     )
     return AssessmentResponse(**updated.payload_json)
 

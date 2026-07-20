@@ -165,6 +165,7 @@ async def rerun_processing_assessment(
             db, existing, payload=result,
             facility_id=facility_id, title=request.title,
             request_payload=_request_archive(request),
+            reason="rerun",
         )
         # Persist keeps the existing row id; return that payload so the client
         # does not navigate to the engine's freshly minted uuid (404).

@@ -37,6 +37,15 @@ SOURCES = ["ecoinvent 3.11 (supply chain)", "IPCC 2019 AFOLU (field emissions)",
            "ReCiPe 2016 / EF 3.1 (characterization)"]
 
 
+def _provenance(engine, method: str) -> dict:
+    """Reproducibility stamp (engine build, dataset editions, method, field model)."""
+    try:
+        from .provenance import build_provenance
+    except ImportError:
+        from provenance import build_provenance
+    return build_provenance(engine, method)
+
+
 def _norm_unit(unit) -> str:
     """Lightly tidy a store unit for display (keep it authoritative — it must match the
     number). e.g. 'kg CO2-Eq' -> 'kg CO2-eq', 'm2*a crop-Eq' -> 'm2a crop-eq'."""
@@ -270,16 +279,19 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
             seed=uncertainty_seed if uncertainty_seed is not None else 42,
         )
         apply_mc_to_midpoints(midpoints, uncertainty_block)
-        # Map GWP relative p5/p95 onto the single score (bands stay on the point estimate).
-        gwp = (uncertainty_block.get("percentiles") or {}).get("Global warming") or {}
-        base = gwp.get("base") or 0.0
-        if base and gwp.get("p5") is not None and gwp.get("p95") is not None:
-            single_uncertainty = [single * (gwp["p5"] / base), single * (gwp["p95"] / base)]
-            uncertainty_block["single_score"] = {
-                "p5": single_uncertainty[0],
-                "p50": single,
-                "p95": single_uncertainty[1],
-            }
+        # Prefer the MC's directly-sampled single-score distribution (single_score is
+        # recomputed on every sampled midpoint set, which captures cross-category
+        # correlation) over a crude GWP-ratio mapping. Bands stay on the point estimate.
+        ss_mc = uncertainty_block.get("single_score") or {}
+        if ss_mc.get("p5") is not None and ss_mc.get("p95") is not None:
+            single_uncertainty = [ss_mc["p5"], ss_mc["p95"]]
+        else:
+            gwp = (uncertainty_block.get("percentiles") or {}).get("Global warming") or {}
+            base = gwp.get("base") or 0.0
+            if base and gwp.get("p5") is not None and gwp.get("p95") is not None:
+                single_uncertainty = [single * (gwp["p5"] / base), single * (gwp["p95"] / base)]
+                uncertainty_block["single_score"] = {
+                    "p5": single_uncertainty[0], "p50": single, "p95": single_uncertainty[1]}
 
     # Dual functional units: per kg (default scores) and per ha of cropped area.
     # per_ha = per_kg × (kg / ha). Single-score bands stay per-kg only.
@@ -363,6 +375,7 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
             "unit": single_meta["unit"],
             "band": single_meta["band"],
             "band_basis": single_meta["band_basis"],
+            "band_cutoffs": single_meta.get("band_cutoffs"),
             "uncertainty_range": single_uncertainty,
             "weighting_factors": single_meta["weighting_factors"],
             "contributions": single_meta["contributions"],
@@ -392,7 +405,15 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
             uid: {"name": r.get("name"), "unit": r.get("unit"), "amount": r.get("amount")}
             for uid, r in (getattr(result, "inventory", None) or {}).items()
         },
+        # Per-source raw flows (method-independent), so a later method switch can
+        # re-characterize each contribution source instead of zeroing the MC / Top sources.
+        "engine_inventory_by_source": {
+            src: {uid: {"name": r.get("name"), "unit": r.get("unit"), "amount": r.get("amount")}
+                  for uid, r in (flows or {}).items()}
+            for src, flows in (getattr(result, "contribution_flows_by_source", None) or {}).items()
+        },
         "lcia_method": engine.method,
+        "provenance": _provenance(engine, engine.method),
         "contribution_by_source": contribution_by_source,
         "contribution_sankey": contribution_sankey,
         "functional_units": functional_units,

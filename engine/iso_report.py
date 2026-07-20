@@ -34,6 +34,14 @@ def _pct(part, whole):
     return (100.0 * part / whole) if whole else None
 
 
+def _fmt_gsd(gsd) -> str:
+    """Format a study-aggregate geometric SD for prose, tolerating a missing value."""
+    try:
+        return f"{float(gsd):.2f}"
+    except (TypeError, ValueError):
+        return "n/a"
+
+
 def _data_quality_scorecard(matches: list, unlinked_notes: list, region_name: str) -> tuple[str, list]:
     """Derive a pedigree-style data-quality assessment (Weidema indicators) from the ACTUAL
     matches and coverage, instead of asserting a rating. Returns (overall, indicators)."""
@@ -490,18 +498,19 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "inventory_results": inventory_results,
         "inputs_matched": f"{len(matched)} of {len(matches)} bought-in inputs were matched to a background dataset.",
         "pedigree_uncertainty": (
-            (f"A pedigree screening Monte Carlo was run with N={uncertainty['n']} draws, "
-             f"scaling category totals by data class (measured match GSD "
-             f"{uncertainty.get('gsd_by_class', {}).get('measured_match', '?')}, "
-             f"estimated activity GSD "
-             f"{uncertainty.get('gsd_by_class', {}).get('estimated_activity', '?')}, "
-             f"field EF GSD {uncertainty.get('gsd_by_class', {}).get('field_ef', '?')}). "
-             f"The p5–p95 ranges on each figure come from that simulation.")
+            (f"A pedigree screening Monte Carlo was run with N={uncertainty['n']} draws. Each "
+             f"contribution source was scored on the ecoinvent 2013 pedigree matrix (the same "
+             f"five indicators as the data-quality scorecard above) to give a per-source "
+             f"geometric standard deviation (study aggregate GSD "
+             f"{_fmt_gsd(uncertainty.get('gsd'))}); sources were then sampled independently and "
+             f"the category totals re-summed. The p5-p95 ranges on each figure come from that "
+             f"simulation. Screening scope: characterization-factor uncertainty is not "
+             f"propagated, so the ranges reflect inventory magnitude only.")
             if uncertainty
             else (
-                "New assessments run a pedigree screening Monte Carlo by default (typically N=1000) and "
-                "report p5–p95 ranges by data class. This saved draft has no Monte Carlo block attached — "
-                "re-run the assessment to refresh the uncertainty ranges.")),
+                "New assessments run a per-source pedigree-matrix screening Monte Carlo by default "
+                "(typically N=1000) and report p5-p95 ranges. This saved draft has no Monte Carlo "
+                "block attached; re-run the assessment to refresh the uncertainty ranges.")),
         "data_validation": (
             "This refers to the calculation engine, not to a separate check of this farm's numbers. The "
             "engine's method has been benchmarked once against established tools: ecoinvent products match "
@@ -552,12 +561,13 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     _src = (contribution_analysis or {}).get("by_source") or []
     _mc_n = (uncertainty or {}).get("n")
     _mc_basis = (
-        f" A pedigree screening Monte Carlo with N={_mc_n} was also run; category ranges "
-        f"reflect p5–p95 percentiles from lognormal scaling by data class (measured match, "
-        f"estimated activity defaults, field emission factors)."
+        f" A pedigree screening Monte Carlo with N={_mc_n} was also run; each source's "
+        f"geometric SD comes from its ecoinvent pedigree-matrix score and sources are sampled "
+        f"independently, with category p5-p95 percentiles reported. Characterization-factor "
+        f"uncertainty is not included at this screening level."
         if uncertainty else
-        " New assessments attach pedigree screening Monte Carlo p5–p95 ranges by default; "
-        "this draft has no Monte Carlo block — re-run to refresh the ranges.")
+        " New assessments attach a per-source pedigree-matrix Monte Carlo by default; "
+        "this draft has no Monte Carlo block, so re-run to refresh the ranges.")
     if _src:
         sensitivity = (
             "Because the calculation is linear in the amounts used, each source's share of a result is "
@@ -568,11 +578,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             + _mc_basis)
     else:
         sensitivity = (
-            (f"Each category result carries p5–p95 ranges from a pedigree screening Monte Carlo "
-             f"(N={_mc_n}) based on data-class GSDs."
+            (f"Each category result carries p5-p95 ranges from a per-source pedigree-matrix "
+             f"screening Monte Carlo (N={_mc_n})."
              if uncertainty else
-             "New assessments run pedigree screening Monte Carlo by default and report p5–p95 ranges; "
-             "this draft has no Monte Carlo block — re-run the assessment to refresh uncertainty."))
+             "New assessments run a per-source pedigree-matrix Monte Carlo by default and report "
+             "p5-p95 ranges; this draft has no Monte Carlo block, so re-run to refresh uncertainty."))
 
     # Recommendations driven by the actual hotspots (the top climate contributors), not a
     # fixed list, so the advice points at what is really moving this farm's result.
@@ -677,13 +687,14 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "recommendations": _recs,
         "limitations": [
             "This is a screening study, so it uses standard emission factors and average background data rather than measurements from this farm.",
-            ("Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
-             f"A pedigree screening Monte Carlo (N={_mc_n}) propagated lognormal uncertainty by data class "
-             "to the category ranges shown."
+            ("Data quality is assessed with the five-indicator pedigree scorecard above, and the same "
+             f"pedigree scoring drives the screening Monte Carlo (N={_mc_n}): a per-source geometric SD, "
+             "sampled independently, propagated to the category ranges shown. Characterization-factor "
+             "uncertainty is not propagated at this screening level."
              if uncertainty else
              "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
-             "Pedigree screening Monte Carlo is the default for new assessments; this draft has no "
-             "Monte Carlo block — re-run to attach p5–p95 ranges."),
+             "A per-source pedigree-matrix Monte Carlo is the default for new assessments; this draft has "
+             "no Monte Carlo block, so re-run to attach p5-p95 ranges."),
             "The single score uses equal weighting, which is a judgement call, and it works best for comparing scenarios of the same crop rather than as an absolute verdict.",
         ],
         "public_disclosure": (

@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """
-uncertainty.py — pedigree screening Monte Carlo for farm assessments.
+uncertainty.py: pedigree screening Monte Carlo for farm and facility assessments.
 
-Assigns a geometric standard deviation (GSD) by data class, then samples lognormal
-multipliers at category level (one draw scales all contributions in a pedigree class)
-so the LCI is not re-solved each iteration.
+Each contribution source (a matched purchased input, or the IPCC-modelled on-farm field
+emissions) is scored on the Weidema/ecoinvent pedigree matrix and gets its OWN geometric
+standard deviation (see pedigree.py). Every source is then sampled INDEPENDENTLY with a
+lognormal multiplier (median 1), and a source's draw scales its contribution across every
+impact category at once (an input's activity-amount uncertainty is shared across the
+categories it drives, but is independent of other inputs). Category totals are re-summed
+from the sampled sources, so intra-class correlation is no longer forced to 1 the way a
+single per-class multiplier did.
+
+Screening scope: this samples inventory (activity + emission-factor) magnitude only.
+Characterization-factor uncertainty is NOT propagated (disclosed in the basis string and
+the ISO limitations). The LCI is not re-solved per iteration.
 """
 from __future__ import annotations
 
@@ -15,16 +24,19 @@ import numpy as np
 
 try:
     from .adapter import MIDPOINT_MAP, single_score
+    from .pedigree import BASIC_UNCERTAINTY, field_scores, gsd_from_pedigree, match_scores
 except ImportError:
     from adapter import MIDPOINT_MAP, single_score
+    from pedigree import BASIC_UNCERTAINTY, field_scores, gsd_from_pedigree, match_scores
 
 DEFAULT_N = 1000  # screening MC default: stabilises the p5/p95 tail percentiles
 
-# Screening GSD by pedigree data class (median multiplier = 1).
+# Retained for backward compatibility / coarse study-level summaries. The live sampler no
+# longer uses these; per-source GSDs come from the pedigree matrix (see pedigree.py).
 GSD_BY_CLASS = {
-    "measured_match": 1.05,       # matched background dataset, operator-supplied amount
-    "estimated_activity": 2.0,    # activity defaults (see ghana_farm_activity_defaults.json)
-    "field_ef": 1.5,              # IPCC Tier 1 field emission factors
+    "measured_match": 1.10,
+    "estimated_activity": 1.30,
+    "field_ef": 1.80,
 }
 
 FIELD_SOURCE_LABEL = "Field emissions (on-farm)"
@@ -32,8 +44,13 @@ FIELD_SOURCE_LABEL = "Field emissions (on-farm)"
 _ENGINE_TO_FRONT = {eng: front for eng, (front, _unit) in MIDPOINT_MAP.items()}
 
 
+def _is_field_source(src: str) -> bool:
+    low = (src or "").lower()
+    return src == FIELD_SOURCE_LABEL or "field emission" in low
+
+
 def classify_match(match: dict) -> str:
-    """Classify one input_matches row (used by tests and study-level helpers)."""
+    """Classify one input_matches row into a coarse data class (kept for callers/tests)."""
     if match.get("estimated") is True:
         return "estimated_activity"
     kind = (match.get("kind") or "").lower()
@@ -45,53 +62,57 @@ def classify_match(match: dict) -> str:
     return "estimated_activity"
 
 
-def study_gsd(input_matches: list | None) -> float:
-    """Aggregate study GSD as geometric mean of per-input class GSDs."""
+def _match_gsd(match: dict, region_name: str) -> float:
+    """Per-source GSD from the pedigree matrix for a matched purchased input."""
+    basic = BASIC_UNCERTAINTY["estimated"] if match.get("estimated") else BASIC_UNCERTAINTY["background"]
+    return gsd_from_pedigree(match_scores(match, region_name), basic)
+
+
+def study_gsd(input_matches: list | None, region_name: str = "") -> float:
+    """Aggregate study GSD: geometric mean of per-input pedigree GSDs. Higher when inputs
+    are estimated / poorly matched, so estimated studies read as more uncertain."""
     matches = list(input_matches or [])
     if not matches:
-        return GSD_BY_CLASS["estimated_activity"]
-    logs = [math.log(GSD_BY_CLASS[classify_match(m)]) for m in matches]
+        return _match_gsd({}, region_name)
+    logs = [math.log(_match_gsd(m, region_name)) for m in matches]
     return math.exp(sum(logs) / len(logs))
 
 
-def _classify_sources(result) -> dict[str, str]:
-    """Map each contribution source label to a pedigree data class."""
-    estimated = {
-        m.get("input")
-        for m in (getattr(result, "input_matches", None) or [])
-        if m.get("estimated")
+def _region_name(result, engine) -> str:
+    region = getattr(engine, "region", None)
+    return (getattr(region, "name", None) or getattr(result, "region", None) or "") or ""
+
+
+def _source_gsds(result, region_name: str) -> dict[str, float]:
+    """GSD per contribution source, from the pedigree matrix."""
+    matches_by_input = {
+        m.get("input"): m for m in (getattr(result, "input_matches", None) or []) if isinstance(m, dict)
     }
-    out: dict[str, str] = {}
+    out: dict[str, float] = {}
     for src in (getattr(result, "contribution_by_source", None) or {}):
-        low = (src or "").lower()
-        if src == FIELD_SOURCE_LABEL or "field emission" in low:
-            out[src] = "field_ef"
-        elif src in estimated:
-            out[src] = "estimated_activity"
+        if _is_field_source(src):
+            out[src] = gsd_from_pedigree(field_scores(), BASIC_UNCERTAINTY["field_ef"])
         else:
-            out[src] = "measured_match"
+            out[src] = _match_gsd(matches_by_input.get(src) or {}, region_name)
     return out
 
 
-def _category_decomposition(result, total_kg: float, frontend_categories: list[str]) -> dict[str, dict[str, float]]:
-    """Per frontend category, split the per-kg total into pedigree-class parts."""
+def _source_contributions(result, total_kg: float, categories: list[str]) -> dict[str, dict[str, float]]:
+    """Per source, its per-kg contribution to each (frontend-named) category."""
     per_kg = total_kg or 1.0
-    classes = _classify_sources(result)
-    decomp = {cat: {k: 0.0 for k in GSD_BY_CLASS} for cat in frontend_categories}
+    out: dict[str, dict[str, float]] = {}
     for src, impacts in (getattr(result, "contribution_by_source", None) or {}).items():
-        cls = classes.get(src, "measured_match")
-        for eng_cat, v in impacts.items():
-            front = _ENGINE_TO_FRONT.get(eng_cat)
-            if not front or front not in decomp:
-                continue
-            decomp[front][cls] += (v.get("value") or 0.0) / per_kg
-    return decomp
+        d: dict[str, float] = {}
+        for eng_cat, v in (impacts or {}).items():
+            front = _ENGINE_TO_FRONT.get(eng_cat, eng_cat)
+            if front in categories:
+                d[front] = d.get(front, 0.0) + (v.get("value") or 0.0) / per_kg
+        out[src] = d
+    return out
 
 
-def _lognormal_multipliers(rng: np.random.Generator, gsd: float, n: int) -> np.ndarray:
-    """Sample n multipliers with median 1 and the given GSD."""
-    sigma = math.log(gsd)
-    return rng.lognormal(mean=0.0, sigma=sigma, size=n)
+def _lognormal(rng: np.random.Generator, gsd: float, n: int) -> np.ndarray:
+    return rng.lognormal(mean=0.0, sigma=math.log(gsd) if gsd > 1 else 0.0, size=n)
 
 
 def run_pedigree_mc(
@@ -103,7 +124,7 @@ def run_pedigree_mc(
     n: int = DEFAULT_N,
     seed: int = 42,
 ) -> dict[str, Any]:
-    """Run category-level pedigree screening Monte Carlo; return percentile summary."""
+    """Run per-source pedigree screening Monte Carlo; return a percentile summary."""
     categories = [
         c for c in midpoints
         if c != "Biodiversity loss" and (midpoints[c].get("value") or 0.0) != 0.0
@@ -111,28 +132,41 @@ def run_pedigree_mc(
     if not categories:
         categories = [c for c in midpoints if c != "Biodiversity loss"]
 
-    decomp = _category_decomposition(result, total_kg, categories)
-    rng = np.random.default_rng(seed)
+    region_name = _region_name(result, engine)
+    contribs = _source_contributions(result, total_kg, categories)
+    gsds = _source_gsds(result, region_name)
+    # Stable source order so sampling is deterministic regardless of dict ordering.
+    sources = sorted(contribs)
 
-    class_mult = {
-        cls: _lognormal_multipliers(rng, gsd, n)
-        for cls, gsd in GSD_BY_CLASS.items()
-    }
+    rng = np.random.default_rng(seed)
+    src_mult = {src: _lognormal(rng, gsds.get(src, GSD_BY_CLASS["measured_match"]), n) for src in sources}
+    # Fallback multiplier for a category with no attributed sources (e.g. only in midpoints).
+    study_g = study_gsd(getattr(result, "input_matches", None), region_name)
+    fallback_mult = _lognormal(rng, study_g, n)
 
     samples: dict[str, np.ndarray] = {}
     for cat in categories:
-        parts = decomp.get(cat) or {}
-        total = (
-            parts.get("field_ef", 0.0) * class_mult["field_ef"]
-            + parts.get("estimated_activity", 0.0) * class_mult["estimated_activity"]
-            + parts.get("measured_match", 0.0) * class_mult["measured_match"]
-        )
-        samples[cat] = total
+        base = float(midpoints[cat].get("value") or 0.0)
+        contribution_sum = sum(contribs[src].get(cat, 0.0) for src in sources)
+        if contribution_sum > 0:
+            arr = np.zeros(n, dtype=float)
+            for src in sources:
+                c = contribs[src].get(cat, 0.0)
+                if c:
+                    arr = arr + c * src_mult[src]
+            # Anchor to the reported midpoint: the per-source contributions may not sum
+            # exactly to it (grid calibration, cut-off flows), so scale the whole sample.
+            if base:
+                arr = arr * (base / contribution_sum)
+        elif base:
+            arr = base * fallback_mult
+        else:
+            arr = np.zeros(n, dtype=float)
+        samples[cat] = arr
 
     percentiles: dict[str, dict[str, float]] = {}
     for cat in categories:
-        arr = samples[cat]
-        p5, p50, p95 = np.percentile(arr, [5, 50, 95])
+        p5, p50, p95 = np.percentile(samples[cat], [5, 50, 95])
         percentiles[cat] = {
             "p5": float(p5),
             "p50": float(p50),
@@ -141,7 +175,7 @@ def run_pedigree_mc(
         }
 
     method = getattr(engine, "method", None) or ""
-    single_draws: list[float] = []
+    single_draws = []
     for i in range(n):
         trial = {
             cat: {"value": float(samples[cat][i]), "unit": (midpoints[cat].get("unit") or "")}
@@ -155,21 +189,25 @@ def run_pedigree_mc(
     return {
         "n": n,
         "seed": seed,
-        "method": "pedigree screening Monte Carlo (category-level scaling)",
-        "gsd": study_gsd(getattr(result, "input_matches", None)),
+        "method": "pedigree screening Monte Carlo (per-source, Weidema/ecoinvent matrix)",
+        "gsd": study_g,
+        "gsd_by_source": {src: round(g, 3) for src, g in sorted(gsds.items())},
         "gsd_by_class": dict(GSD_BY_CLASS),
         "percentiles": percentiles,
         "single_score": {"p5": float(sp5), "p50": float(sp50), "p95": float(sp95)},
         "basis": (
-            "Category totals scaled lognormally by pedigree data class "
-            "(measured match / estimated activity / field EF) without re-solving the LCI."
+            "Each source scored on the ecoinvent 2013 pedigree matrix (reliability, "
+            "completeness, temporal / geographical / technological correlation) plus a "
+            "basic-uncertainty term, giving a per-source lognormal GSD; sources sampled "
+            "independently and category totals re-summed, without re-solving the LCI. "
+            "Screening scope: characterization-factor uncertainty is not propagated, so "
+            "p5-p95 reflects inventory (activity and emission-factor) magnitude only."
         ),
-        "decomposition": decomp,
     }
 
 
 def apply_mc_to_midpoints(midpoints: dict, mc: dict) -> None:
-    """Replace flat uncertainty_range on midpoints with MC p5–p95 (in place)."""
+    """Replace flat uncertainty_range on midpoints with MC p5-p95 (in place)."""
     for cat, pct in (mc.get("percentiles") or {}).items():
         slot = midpoints.get(cat)
         if not slot:

@@ -123,6 +123,15 @@ class CanonicalQuery:
         return [dict(r) for r in self.conn.execute(
             "SELECT uid, name FROM impact_methods ORDER BY name").fetchall()]
 
+    def sources(self) -> list[dict]:
+        """Database editions actually loaded in this store (name, version, license), for
+        reproducibility provenance. Empty list if the schema predates the sources table."""
+        try:
+            return [dict(r) for r in self.conn.execute(
+                "SELECT name, version, license FROM sources ORDER BY name").fetchall()]
+        except sqlite3.OperationalError:
+            return []
+
     def find_method(self, name_substr: str) -> Optional[dict]:
         # Exact match wins. Otherwise prefer the SHORTEST name containing the query:
         # method names nest ("ReCiPe 2016 v1.03, midpoint (H)" is a substring of

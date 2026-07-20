@@ -63,6 +63,10 @@ class AssessmentResult:
     impacts: dict = field(default_factory=dict)            # total midpoints
     contribution: dict = field(default_factory=dict)       # {"on_farm":{}, "supply_chain":{}}
     contribution_by_source: dict = field(default_factory=dict)  # {source label: {category: {value,unit}}}
+    # Raw elementary flows per source (method-independent), so a later method switch can
+    # re-characterize the per-source contribution instead of losing it. Same shape as
+    # `inventory`: {source label: {flow_uid: {name,unit,amount}}}.
+    contribution_flows_by_source: dict = field(default_factory=dict)
     input_matches: list = field(default_factory=list)
     notes: list = field(default_factory=list)
     inventory: dict = field(default_factory=dict)          # merged {flow_uid: {name,unit,amount}}
@@ -203,6 +207,11 @@ class FarmLCA:
                 # the report can attribute each impact category to the input that drove it.
                 res.contribution_by_source[inp["name"]] = self.q.characterize_flows(
                     sc.elementary_flows, self.method)
+                # keep the raw (method-independent) flows so a method switch can
+                # re-characterize this source rather than losing its contribution.
+                src_flows = res.contribution_flows_by_source.setdefault(inp["name"], {})
+                for uid, ef in sc.elementary_flows.items():
+                    _add(src_flows, uid, ef["amount"], ef.get("name"), ef.get("unit"))
             except Exception as e:
                 res.notes.append(f"solve failed for '{inp['name']}' -> {m['name']}: {e}")
             # The amount MUST be in the matched process's reference unit. Surface it so a
@@ -229,6 +238,10 @@ class FarmLCA:
         res.contribution["supply_chain"] = self.q.characterize_flows(supply, self.method)
         # field emissions as a named contribution source alongside the purchased inputs
         res.contribution_by_source["Field emissions (on-farm)"] = res.contribution["on_farm"]
+        # raw on-farm flows too, so a method switch re-characterizes them (see above).
+        res.contribution_flows_by_source["Field emissions (on-farm)"] = {
+            uid: dict(r) for uid, r in onfarm.items()
+        }
         merged = {uid: dict(r) for uid, r in onfarm.items()}
         for uid, r in supply.items():
             _add(merged, uid, r["amount"], r["name"], r["unit"])

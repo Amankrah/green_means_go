@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.utils import generate_unique_id as _default_unique_id
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -35,14 +36,28 @@ from db import init_db
 # Environment detection
 IS_PRODUCTION = os.getenv("ENVIRONMENT", "development") == "production"
 
-# Disable docs in production for security
+# The API is mounted twice: at the root (legacy surface the web app uses) and under /v1
+# (the canonical, versioned surface for researcher scripts / generated clients). Give the
+# two mounts distinct operationIds so OpenAPI client codegen (openapi-python-client, R
+# httr2) does not choke on duplicates.
+def _unique_operation_id(route) -> str:
+    base = _default_unique_id(route)
+    return f"v1_{base}" if route.path.startswith("/v1/") else base
+
+
+# Serve the OpenAPI schema and docs, including in production: this is a free/non-commercial
+# research tool, the schema exposes only the API shape (no secrets), and a served schema is
+# what makes the API usable from Jupyter/R via generated clients. Set GMG_DISABLE_DOCS=1 to
+# turn the interactive docs off while keeping the machine-readable schema at /openapi.json.
+_DISABLE_DOCS = os.getenv("GMG_DISABLE_DOCS") == "1"
 app = FastAPI(
     title="Green Means Go Sustainability Assessment API",
-    description="Life cycle assessment API for farmers, agricultural extension officers, and food processors worldwide - supports farm and processing assessments with AI plain-language guides",
+    description="Life cycle assessment API for farmers, agricultural extension officers, and food processors worldwide - supports farm and processing assessments with AI plain-language guides. The versioned /v1 surface is the stable contract for research scripts and generated clients.",
     version="2.1.0",
-    docs_url=None if IS_PRODUCTION else "/docs",
-    redoc_url=None if IS_PRODUCTION else "/redoc",
-    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+    docs_url=None if _DISABLE_DOCS else "/docs",
+    redoc_url=None if _DISABLE_DOCS else "/redoc",
+    openapi_url="/openapi.json",
+    generate_unique_id_function=_unique_operation_id,
 )
 
 class CatchUnhandledErrorsMiddleware(BaseHTTPMiddleware):
@@ -92,16 +107,16 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-# Include auth, workspace, processing, production, chat, and other routes
-app.include_router(auth_router)
-app.include_router(workspace_router)
-app.include_router(share_router)
-app.include_router(studies_router)
-app.include_router(processing_router)
-app.include_router(production_router)
-app.include_router(chat_router)
-app.include_router(inventory_router)
-app.include_router(farm_router)
+# Include auth, workspace, processing, production, chat, and other routes. Each router is
+# mounted twice: at the root (legacy, what the web app calls today) and under /v1 (the
+# canonical versioned surface). Existing clients keep working; researchers pin to /v1.
+_API_ROUTERS = [
+    auth_router, workspace_router, share_router, studies_router,
+    processing_router, production_router, chat_router, inventory_router, farm_router,
+]
+for _r in _API_ROUTERS:
+    app.include_router(_r)               # legacy root surface
+    app.include_router(_r, prefix="/v1")  # canonical versioned surface
 
 
 @app.on_event("startup")
@@ -144,15 +159,20 @@ async def root():
             "Management Recommendations",
             "Processing Efficiency Analysis"
         ],
+        "api_versions": {
+            "v1": "/v1 (canonical, versioned surface for research scripts and generated clients)",
+            "root": "/ (legacy alias; same endpoints without the /v1 prefix)",
+        },
         "endpoints": {
-            "auth": "/auth/signup, /auth/login, /auth/refresh, /auth/me",
-            "farm_assessments": "/assess, /assess/comprehensive",
-            "processing_assessments": "/processing/assess",
-            "workspace": "/farms, /facilities, /me/assessments",
+            "auth": "/v1/auth/signup, /v1/auth/login, /v1/auth/refresh, /v1/auth/me",
+            "farm_assessments": "/v1/assess, /v1/assess/comprehensive",
+            "processing_assessments": "/v1/processing/assess",
+            "workspace": "/v1/farms, /v1/facilities, /v1/me/assessments",
+            "research_export": "/v1/me/assessments/{id}/export.json, /v1/me/assessments/{id}/export.csv",
+            "openapi_schema": "/openapi.json",
         },
     }
-    # Only show docs endpoint in development
-    if not IS_PRODUCTION:
+    if not _DISABLE_DOCS:
         response["endpoints"]["documentation"] = "/docs"
         response["docs"] = "/docs"
     return response

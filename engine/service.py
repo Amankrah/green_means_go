@@ -102,6 +102,11 @@ def _sum_results(per_crop: dict):
             for cat, v in imp.items():
                 s = dst.setdefault(cat, {"value": 0.0, "unit": v.get("unit")})
                 s["value"] += v["value"]
+        for src, flows in res.contribution_flows_by_source.items():
+            dst = farm.contribution_flows_by_source.setdefault(src, {})
+            for uid, r in flows.items():
+                s = dst.setdefault(uid, {"name": r.get("name"), "unit": r.get("unit"), "amount": 0.0})
+                s["amount"] += r.get("amount") or 0.0
         for uid, r in res.inventory.items():
             slot = farm.inventory.setdefault(uid, {"name": r["name"], "unit": r["unit"], "amount": 0.0})
             slot["amount"] += r["amount"]
@@ -126,12 +131,20 @@ def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
 
 def recharacterize_from_payload(payload: dict, assessment: dict, method: str,
                                 region: str | None = None) -> dict | None:
-    """Re-characterize a saved assessment using stored ``engine_inventory`` when present.
+    """Re-characterize a saved assessment using the stored method-independent inventory.
 
-    Skips the LCI/solve path and only runs characterization with ``method``. Returns a
-    full AssessmentResponse-shaped dict, or None when no stored inventory exists."""
+    Skips the LCI/solve path and only runs characterization with ``method``. Requires the
+    per-source flows (``engine_inventory_by_source``) so the contribution split, Top
+    sources, and pedigree MC are rebuilt *for the new method* rather than carried over
+    stale or zeroed. Returns a full AssessmentResponse-shaped dict, or None when the stored
+    inventory is missing/pre-dates per-source persistence (caller then does a full re-solve)."""
     inv = payload.get("engine_inventory")
+    flows_by_source = payload.get("engine_inventory_by_source")
     if not inv or not isinstance(inv, dict):
+        return None
+    # Without per-source flows we cannot honestly rebuild contribution/MC under the new
+    # method; fall back to a full re-solve rather than emit stale or zeroed numbers.
+    if not flows_by_source or not isinstance(flows_by_source, dict):
         return None
     try:
         from .orchestrator import AssessmentResult
@@ -143,15 +156,33 @@ def recharacterize_from_payload(payload: dict, assessment: dict, method: str,
     total = total_production_kg(assessment)
     assessment_id = payload.get("id") or str(uuid.uuid4())
 
+    field_label = "Field emissions (on-farm)"
     with lock:
         impacts = eng.q.characterize_flows(inv, method)
+        # Re-characterize each source's raw flows with the NEW method.
+        contribution_by_source = {
+            src: eng.q.characterize_flows(flows, method)
+            for src, flows in flows_by_source.items()
+        }
+        # Rebuild the on-farm / supply-chain split from the same raw flows.
+        on_farm = eng.q.characterize_flows(flows_by_source.get(field_label) or {}, method)
+        supply_flows: dict = {}
+        for src, flows in flows_by_source.items():
+            if src == field_label:
+                continue
+            for uid, r in (flows or {}).items():
+                slot = supply_flows.setdefault(
+                    uid, {"name": r.get("name"), "unit": r.get("unit"), "amount": 0.0})
+                slot["amount"] += r.get("amount") or 0.0
+        supply_chain = eng.q.characterize_flows(supply_flows, method)
 
     res = AssessmentResult(region=eng.region.name, method=method)
     res.impacts = impacts
     res.inventory = inv
-    contrib = (payload.get("sensitivity_analysis") or {}).get("contribution")
-    if isinstance(contrib, dict):
-        res.contribution = contrib
+    res.contribution_by_source = contribution_by_source
+    res.contribution_flows_by_source = flows_by_source
+    res.contribution = {"on_farm": on_farm, "supply_chain": supply_chain}
+    res.input_matches = payload.get("input_matches") or []
 
     out = to_assessment_response(res, assessment, eng, total, assessment_id)
     out["id"] = assessment_id

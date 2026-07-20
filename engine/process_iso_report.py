@@ -131,11 +131,13 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
     # ---- sensitivity + recommendations (data-driven from the top climate sources) ----
     _mc_n = (uncertainty or {}).get("n")
     _mc_tail = (
-        f" A pedigree screening Monte Carlo with N={_mc_n} was also run; category ranges "
-        f"reflect p5–p95 percentiles from lognormal scaling by data class."
+        f" A pedigree screening Monte Carlo with N={_mc_n} was also run; each source's geometric SD "
+        f"comes from its ecoinvent pedigree-matrix score and sources are sampled independently, with "
+        f"category p5-p95 percentiles reported. Characterization-factor uncertainty is not included "
+        f"at this screening level."
         if uncertainty else
-        " New assessments attach pedigree screening Monte Carlo p5–p95 ranges by default; "
-        "this draft has no Monte Carlo block — re-run to refresh the ranges."
+        " New assessments attach a per-source pedigree-matrix Monte Carlo by default; "
+        "this draft has no Monte Carlo block, so re-run to refresh the ranges."
     )
     if _src:
         drivers = ", ".join(f"{s['source']} ({s['share']*100:.0f}%)" for s in _src[:3])
@@ -147,11 +149,11 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
             + _mc_tail)
     else:
         sensitivity = (
-            (f"Each category result carries p5–p95 ranges from a pedigree screening Monte Carlo "
-             f"(N={_mc_n}) based on data-class GSDs.")
+            (f"Each category result carries p5-p95 ranges from a per-source pedigree-matrix "
+             f"screening Monte Carlo (N={_mc_n}).")
             if uncertainty else
-            "New assessments run pedigree screening Monte Carlo by default and report p5–p95 ranges; "
-            "this draft has no Monte Carlo block — re-run the assessment to refresh uncertainty."
+            "New assessments run a per-source pedigree-matrix Monte Carlo by default and report "
+            "p5-p95 ranges; this draft has no Monte Carlo block, so re-run to refresh uncertainty."
         )
 
     def _rec_for(src: str) -> str:
@@ -313,11 +315,14 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
         "reference_flows": reference_flows,
         "inputs_matched": f"{len(matched)} of {len(matches)} purchased inputs were matched to a background dataset.",
         "pedigree_uncertainty": (
-            (f"A pedigree screening Monte Carlo was run with N={uncertainty['n']} draws, "
-             f"scaling category totals by data class. The p5–p95 ranges on each figure come from that simulation.")
+            (f"A pedigree screening Monte Carlo was run with N={uncertainty['n']} draws: each source "
+             f"was scored on the ecoinvent 2013 pedigree matrix for a per-source geometric SD, sources "
+             f"were sampled independently, and category totals re-summed. The p5-p95 ranges on each "
+             f"figure come from that simulation. Characterization-factor uncertainty is not propagated "
+             f"at this screening level.")
             if uncertainty else
-            ("New assessments run a pedigree screening Monte Carlo by default (typically N=1000) and "
-             "report p5–p95 ranges by data class. This saved draft has no Monte Carlo block attached — "
+            ("New assessments run a per-source pedigree-matrix screening Monte Carlo by default (typically "
+             "N=1000) and report p5-p95 ranges. This saved draft has no Monte Carlo block attached; "
              "re-run the assessment to refresh the uncertainty ranges.")
         ),
         "data_validation": ("This refers to the calculation engine, not to a separate check of this facility's numbers. "

@@ -129,14 +129,55 @@ def test_export_json_owner_ok_intruder_404(client):
     assert body["request_meta"]["has_api"] is True
 
 
-def test_export_csv_has_sections_and_estimated(client):
+def test_export_csv_impacts_is_tidy(client):
+    """Default section is a single rectangular table: section,category,metric,value,unit."""
+    import csv
+    import io
+
     token, aid = _seed("csv@example.com", client)
     resp = client.get(f"/me/assessments/{aid}/export.csv", headers=_auth(token))
     assert resp.status_code == 200
-    text = resp.text
-    assert "# midpoints" in text
-    assert "Global warming" in text
-    assert "# input_matches" in text
-    assert "True" in text or "true" in text.lower()
-    assert "# contribution_by_source" in text
-    assert "Urea" in text
+    rows = list(csv.reader(io.StringIO(resp.text)))
+    assert rows[0] == ["section", "category", "metric", "value", "unit"]
+    # Every data row is rectangular (no stacked "#" section markers, no blank separators).
+    assert all(len(r) == 5 for r in rows), rows
+    assert not any(r[0].startswith("#") for r in rows)
+    body = resp.text
+    assert "midpoint,Global warming,value,1.2" in body
+    assert "endpoint,Human Health" in body
+    assert "single_score,single_score,value,1000.0" in body
+    # unit column is populated from the stored value, not defaulted per category.
+    assert "kg CO2-eq per kg" in body
+
+
+def test_export_csv_sections(client):
+    token, aid = _seed("csv2@example.com", client)
+    matches = client.get(
+        f"/me/assessments/{aid}/export.csv?section=matches", headers=_auth(token)
+    )
+    assert matches.status_code == 200
+    assert matches.text.splitlines()[0].startswith("input,amount,amount_unit")
+    assert "Urea" in matches.text
+    assert "True" in matches.text or "true" in matches.text.lower()
+
+    contrib = client.get(
+        f"/me/assessments/{aid}/export.csv?section=contributions", headers=_auth(token)
+    )
+    assert contrib.status_code == 200
+    assert contrib.text.splitlines()[0] == "source,category,value,unit"
+    assert "Urea" in contrib.text
+
+    bad = client.get(
+        f"/me/assessments/{aid}/export.csv?section=nope", headers=_auth(token)
+    )
+    assert bad.status_code == 422
+
+
+def test_export_json_has_provenance_and_method(client):
+    token, aid = _seed("prov@example.com", client)
+    resp = client.get(f"/me/assessments/{aid}/export.json", headers=_auth(token))
+    assert resp.status_code == 200
+    body = resp.json()
+    # keys are always present (may be null for older payloads) so scripts can rely on them.
+    assert "provenance" in body
+    assert "lcia_method" in body

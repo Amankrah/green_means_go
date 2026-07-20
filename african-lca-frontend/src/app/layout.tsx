@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Inter, Space_Mono } from "next/font/google";
+import { Fraunces, Inter, Space_Mono, Geist } from "next/font/google";
 import "./globals.css";
 import seoConfig from "@/config/seo.config";
 import StructuredData from "@/components/StructuredData";
 import Analytics from "@/components/Analytics";
 import Providers from "./providers";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
 
 // "Field Instrument" type system: an optical serif for display, a neutral body, and a
 // monospace for data / instrument-readout labels.
@@ -112,7 +116,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang={seoConfig.locale}>
+    <html lang={seoConfig.locale} className={cn("font-sans", geist.variable)}>
       <head>
         <StructuredData />
         <link rel="canonical" href={seoConfig.siteUrl} />

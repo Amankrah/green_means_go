@@ -284,20 +284,31 @@ class AssessmentAPI {
     return this.fetchAPI(`/assess/${id}/uncertainty`, { method: 'POST' });
   }
 
-  /** Download SI-ready research export (JSON or CSV). Triggers a browser file save. */
-  async downloadAssessmentExport(id: string, format: 'json' | 'csv' = 'json'): Promise<void> {
+  /** Download SI-ready research export (JSON, or a tidy CSV section). Triggers a file save.
+   * CSV `section` selects the rectangular table: 'impacts' (default), 'matches', or
+   * 'contributions'. Honors the server's Content-Disposition filename when present. */
+  async downloadAssessmentExport(
+    id: string,
+    format: 'json' | 'csv' = 'json',
+    section?: 'impacts' | 'matches' | 'contributions'
+  ): Promise<void> {
     const token = getAccessToken();
-    const res = await fetch(`${API_BASE_URL}/me/assessments/${id}/export.${format}`, {
+    const query = format === 'csv' && section ? `?section=${section}` : '';
+    const res = await fetch(`${API_BASE_URL}/me/assessments/${id}/export.${format}${query}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
       throw new ApiError(`Export failed: ${res.status}`, res.status);
     }
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const suffix = format === 'csv' && section ? `_${section}` : '';
+    const filename = match?.[1] || `assessment_${id}${suffix}.${format}`;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `assessment_${id}.${format}`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }

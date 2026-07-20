@@ -112,6 +112,16 @@ export interface AssessmentResult {
   };
   baseline_assessment_id?: string;
   lcia_method?: string;
+  provenance?: {
+    engine?: string;
+    engine_version?: string;
+    schema_version?: string;
+    lcia_method?: string;
+    field_emission_model?: string;
+    background_databases?: Array<{ name?: string; version?: string; license?: string }>;
+    region?: string;
+    generated_at?: string;
+  };
   method_variants?: Record<
     string,
     {
@@ -123,7 +133,11 @@ export interface AssessmentResult {
   uncertainty?: {
     n?: number;
     method?: string;
-    percentiles?: Record<string, { p5: number; p50: number; p95: number }>;
+    gsd?: number;
+    gsd_by_source?: Record<string, number>;
+    basis?: string;
+    percentiles?: Record<string, { p5: number; p50: number; p95: number; base?: number }>;
+    single_score?: { p5: number; p50: number; p95: number };
   };
   study_meta?: {
     crop_year?: number;
@@ -175,8 +189,18 @@ export interface EndpointResult {
 export interface SingleScoreResult {
   value: number;
   unit: string;
+  band?: string;
+  band_basis?: string;
+  band_cutoffs?: {
+    low: number;
+    high: number;
+    calibrated?: boolean;
+    benchmark_min?: number | null;
+    benchmark_max?: number | null;
+  };
   uncertainty_range: [number, number];
   weighting_factors: Record<string, number>;
+  contributions?: Record<string, number>;
   methodology: string;
 }
 

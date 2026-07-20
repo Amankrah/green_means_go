@@ -20,6 +20,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Integer,
     String,
     Text,
     func,
@@ -140,6 +141,12 @@ class Assessment(Base):
     # Original submit payload so the owner can edit inputs and re-run in place.
     # Shape: {"api": <AssessmentRequest dump>, "form": <optional client form snapshot>}.
     request_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Optimistic-lock counter: bumped on every write. A concurrent recharacterize +
+    # uncertainty that both read the same version can be detected and rejected (409).
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    # Points at the current AssessmentRevision (immutable history). Kept as a plain string
+    # (not a FK) to avoid a circular assessments <-> assessment_revisions constraint.
+    current_revision_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now, server_default=func.now()
@@ -148,6 +155,31 @@ class Assessment(Base):
     owner: Mapped["User"] = relationship(back_populates="assessments")
     farm: Mapped["Farm | None"] = relationship(back_populates="assessments")
     facility: Mapped["Facility | None"] = relationship(back_populates="assessments")
+    revisions: Mapped[list["AssessmentRevision"]] = relationship(
+        back_populates="assessment", cascade="all, delete-orphan"
+    )
+
+
+class AssessmentRevision(Base):
+    """An immutable snapshot of an assessment's full result payload. A new revision is
+    written on every re-solve (recharacterize / uncertainty / rerun / review) instead of
+    overwriting, so the result history is auditable and reproducible."""
+
+    __tablename__ = "assessment_revisions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    assessment_id: Mapped[str] = mapped_column(
+        ForeignKey("assessments.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    revision_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    # What produced this revision: initial | recharacterize | uncertainty | rerun | review | edit.
+    reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    lcia_method: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    single_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    payload_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())
+
+    assessment: Mapped["Assessment"] = relationship(back_populates="revisions")
 
 
 class Study(Base):
@@ -162,6 +194,32 @@ class Study(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())
 
     owner: Mapped["User"] = relationship(back_populates="studies")
+
+
+class BatchJob(Base):
+    """An async, DB-tracked batch operation over a study (e.g. re-solving every member
+    assessment). The client submits it, gets a job id back immediately, and polls status
+    instead of holding a request open for minutes of CPU-bound work."""
+
+    __tablename__ = "batch_jobs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+    study_id: Mapped[str | None] = mapped_column(ForeignKey("studies.id"), index=True, nullable=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)  # e.g. "study_rerun"
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="pending", server_default="pending"
+    )  # pending | running | completed | failed
+    total: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    succeeded: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    results_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now, server_default=func.now()
+    )
 
 
 class ShareLink(Base):

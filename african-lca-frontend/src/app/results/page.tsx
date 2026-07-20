@@ -33,7 +33,7 @@ import ResultsChat from '@/components/ResultsChat';
 import ISOReport from '@/components/ISOReport';
 import RecommendationsPanel from '@/components/RecommendationsPanel';
 import { assessmentAPI, getScoreInterpretation, ApiError } from '@/lib/api';
-import { AssessmentResult } from '@/types/assessment';
+import { AssessmentResult, SingleScoreResult } from '@/types/assessment';
 
 // Color schemes for charts
 // const IMPACT_COLORS = [
@@ -48,6 +48,81 @@ const SCORE_COLORS = {
   'above-average': '#F97316',
   'high-impact': '#EF4444',
 };
+
+type ScenarioDeltaEntry = {
+  title: string;
+  scenario_id: string;
+  delta_midpoints: Record<string, { value: number; baseline?: number; scenario?: number }>;
+  delta_single_score: number | null;
+};
+
+/** Tornado view of one scenario: per-category % change vs baseline as diverging bars,
+ * plus a signed/colored single-score badge. Green = lower impact, red = higher. */
+function ScenarioTornado({
+  delta,
+  baselineSingleScore,
+}: {
+  delta: ScenarioDeltaEntry;
+  baselineSingleScore?: number;
+}) {
+  const rows = Object.entries(delta.delta_midpoints)
+    .map(([cat, d]) => ({
+      cat,
+      pct: d.baseline ? (d.value / d.baseline) * 100 : null,
+    }))
+    .filter((r): r is { cat: string; pct: number } => r.pct !== null && Number.isFinite(r.pct))
+    .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.pct)));
+  const ss = delta.delta_single_score;
+  const ssPct = ss != null && baselineSingleScore ? (ss / baselineSingleScore) * 100 : null;
+
+  return (
+    <div className="rounded-lg border border-gray-200 p-4">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <p className="font-semibold text-gray-900 text-sm">{delta.title}</p>
+        {ss != null && (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+              ss < 0 ? 'bg-green-50 text-green-700' : ss > 0 ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'
+            }`}
+            title="Change in normalized single score vs baseline"
+          >
+            single score {ss < 0 ? '▼' : ss > 0 ? '▲' : ''}
+            {ssPct != null ? ` ${ssPct > 0 ? '+' : ''}${ssPct.toFixed(1)}%` : ` ${ss.toPrecision(3)}`}
+          </span>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        {rows.map((r) => {
+          const half = (Math.abs(r.pct) / maxAbs) * 50; // percent of row width per side
+          const positive = r.pct > 0;
+          return (
+            <div key={r.cat} className="flex items-center gap-2 text-xs">
+              <span className="w-40 shrink-0 truncate text-gray-700" title={r.cat}>
+                {r.cat}
+              </span>
+              <div className="relative flex-1 h-4 rounded bg-gray-50">
+                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300" />
+                <div
+                  className={`absolute top-0 bottom-0 rounded-sm ${positive ? 'bg-red-400' : 'bg-green-500'}`}
+                  style={positive ? { left: '50%', width: `${half}%` } : { right: '50%', width: `${half}%` }}
+                />
+              </div>
+              <span className={`w-14 shrink-0 text-right font-mono ${positive ? 'text-red-600' : 'text-green-700'}`}>
+                {r.pct > 0 ? '+' : ''}
+                {r.pct.toFixed(0)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-[11px] text-gray-400">
+        Green = lower impact than baseline, red = higher; bars scaled to the largest change. Saved as{' '}
+        {delta.scenario_id.slice(0, 8)}…
+      </p>
+    </div>
+  );
+}
 
 interface ResultsContentProps {
   assessmentId: string | null;
@@ -69,13 +144,17 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
   /** Dual FU: engine always stores per-kg midpoints; per-ha comes from functional_units. */
   const [fuMode, setFuMode] = useState<'per_kg' | 'per_ha'>('per_kg');
   const [scenarioBusy, setScenarioBusy] = useState(false);
-  const [scenarioDelta, setScenarioDelta] = useState<{
+  const [scenarioDeltas, setScenarioDeltas] = useState<Array<{
     title: string;
     scenario_id: string;
     delta_midpoints: Record<string, { value: number; baseline?: number; scenario?: number }>;
     delta_single_score: number | null;
-  } | null>(null);
+  }>>([]);
   const [methodBusy, setMethodBusy] = useState(false);
+  const [mcBusy, setMcBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState<string | null>(null);
+  /** Inline, screen-reader-friendly status for the researcher panel (replaces alert()). */
+  const [panelError, setPanelError] = useState<string | null>(null);
 
   const handleDownload = () => window.print();
 
@@ -87,38 +166,88 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
   }) => {
     if (!assessmentId) return;
     setScenarioBusy(true);
+    setPanelError(null);
     try {
       const res = await assessmentAPI.createScenario(assessmentId, patch);
-      setScenarioDelta({
+      const entry = {
         title: res.title,
         scenario_id: res.scenario_id,
         delta_midpoints: res.delta_midpoints,
         delta_single_score: res.delta_single_score,
+      };
+      // Accumulate scenarios (replace one with the same title, else append) so a researcher
+      // can compare several counterfactuals side by side rather than overwriting.
+      setScenarioDeltas((prev) => {
+        const rest = prev.filter((s) => s.title !== entry.title);
+        return [...rest, entry];
       });
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : 'Scenario compare failed');
+      setPanelError(e instanceof Error ? e.message : 'Scenario compare failed');
     } finally {
       setScenarioBusy(false);
     }
   };
 
-  const runRecharacterize = async (method: string) => {
+  const persistResults = (res: AssessmentResult) => {
+    setResults(res);
+    try {
+      localStorage.setItem(`assessment_${assessmentId}`, JSON.stringify(res));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Non-destructive by default: recharacterizing populates method_variants for the
+  // side-by-side table WITHOUT overwriting the primary result. Promoting a variant to
+  // primary is an explicit, separate action (applyAsPrimary = true).
+  const runRecharacterize = async (method: string, applyAsPrimary = false) => {
     if (!assessmentId) return;
     setMethodBusy(true);
+    setPanelError(null);
     try {
-      const res = await assessmentAPI.recharacterizeAssessment(assessmentId, method, true);
-      setResults(res);
-      try {
-        localStorage.setItem(`assessment_${assessmentId}`, JSON.stringify(res));
-      } catch {
-        /* ignore */
-      }
+      const res = await assessmentAPI.recharacterizeAssessment(assessmentId, method, applyAsPrimary);
+      persistResults(res);
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : 'Recharacterize failed');
+      setPanelError(e instanceof Error ? e.message : 'Recharacterize failed');
     } finally {
       setMethodBusy(false);
+    }
+  };
+
+  // Wire the previously-orphaned uncertainty endpoint: re-solve with pedigree MC and
+  // refresh the ranges in place, so a saved result without an MC block can gain one.
+  const runUncertainty = async () => {
+    if (!assessmentId) return;
+    setMcBusy(true);
+    setPanelError(null);
+    try {
+      const res = await assessmentAPI.runAssessmentUncertainty(assessmentId);
+      persistResults(res);
+    } catch (e) {
+      console.error(e);
+      setPanelError(e instanceof Error ? e.message : 'Monte Carlo run failed');
+    } finally {
+      setMcBusy(false);
+    }
+  };
+
+  const runExport = async (
+    format: 'json' | 'csv',
+    section?: 'impacts' | 'matches' | 'contributions'
+  ) => {
+    if (!assessmentId) return;
+    const key = format === 'csv' && section ? `csv:${section}` : format;
+    setExportBusy(key);
+    setPanelError(null);
+    try {
+      await assessmentAPI.downloadAssessmentExport(assessmentId, format, section);
+    } catch (e) {
+      console.error(e);
+      setPanelError(e instanceof Error ? e.message : `Export (${format.toUpperCase()}) failed`);
+    } finally {
+      setExportBusy(null);
     }
   };
 
@@ -520,7 +649,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
     Moderate: { category: 'typical', title: 'Moderate Impact', color: 'text-yellow-700 bg-yellow-50 border-yellow-200',
                 description: 'Typical normalized environmental footprint per kg for agri-food.',
                 recommendations: ['Optimize fertiliser rates to cut field N2O', 'Improve fuel/energy efficiency', 'Target the largest-contributing category below'] },
-    High: { category: 'below-average', title: 'Higher Impact', color: 'text-red-700 bg-red-50 border-red-200',
+    High: { category: 'high-impact', title: 'Higher Impact', color: 'text-red-700 bg-red-50 border-red-200',
             description: 'Higher normalized footprint per kg — see the recommendations to reduce it.',
             recommendations: ['Reduce synthetic N inputs / split applications', 'Switch to lower-carbon energy sources', 'Review the dominant impact category below'] },
   };
@@ -528,9 +657,20 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
   const scoreUnit = (results.single_score as { unit?: string })?.unit || '';
   const isMicroPoints = scoreUnit.includes('µPt') || scoreUnit.includes('Pt');
 
+  // Drive the gauge off the SAME calibrated band cutoffs the ISO BandStrip uses, so the
+  // headline gauge and the report agree on where "High" begins. The High cutoff is the
+  // benchmark's ~67th percentile, so we place it at ~67% of the arc (fullScale = high/0.67).
+  // Fall back to the legacy 2000 µPt full-scale only when cutoffs are unavailable.
+  const bandCutoffs = (results.single_score as SingleScoreResult)?.band_cutoffs;
+  const gaugeFullScale =
+    isMicroPoints && bandCutoffs?.high && bandCutoffs.high > 0
+      ? bandCutoffs.high / 0.67
+      : 2000;
   const scoreData = [{
     name: 'Your Score',
-    score: isMicroPoints ? Math.min((singleScoreValue / 2000) * 100, 100) : singleScoreValue * 100,
+    score: isMicroPoints
+      ? Math.min((singleScoreValue / gaugeFullScale) * 100, 100)
+      : singleScoreValue * 100,
     fill: SCORE_COLORS[scoreInterpretation.category as keyof typeof SCORE_COLORS]
   }];
 
@@ -783,7 +923,8 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                 </div>
                 {fuMode === 'per_ha' && (
                   <span className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
-                    Single-score bands stay per kg — do not compare per-ha totals to Low/Moderate/High.
+                    Per-ha applies to the impact categories below. The single score, contribution
+                    shares, and crop breakdown stay per kg (bands are calibrated per kg only).
                   </span>
                 )}
               </div>
@@ -1259,12 +1400,21 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
               className="mb-12"
             >
               <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-6">
+                {panelError && (
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+                  >
+                    {panelError}
+                  </div>
+                )}
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-1">Compare scenario</h3>
                   <p className="text-sm text-gray-600 mb-3">
                     Re-solve from the archived request with a named patch (not a static tip card).
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       disabled={scenarioBusy}
@@ -1289,43 +1439,30 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                     >
                       Fuel −30%
                     </button>
+                    {scenarioBusy && <span className="text-xs text-gray-500">Re-solving…</span>}
+                    {scenarioDeltas.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setScenarioDeltas([])}
+                        className="ml-auto text-xs font-semibold text-gray-500 hover:text-gray-800 hover:underline"
+                      >
+                        Clear ({scenarioDeltas.length})
+                      </button>
+                    )}
                   </div>
-                  {scenarioDelta && (
-                    <div className="mt-4 text-sm overflow-x-auto">
-                      <p className="font-semibold text-gray-900 mb-2">
-                        {scenarioDelta.title}{' '}
-                        <span className="font-normal text-gray-500">
-                          (saved as {scenarioDelta.scenario_id.slice(0, 8)}…)
-                        </span>
+                  {scenarioDeltas.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <p className="text-xs text-gray-500">
+                        Each bar is a category&apos;s % change vs baseline (a tornado of
+                        sensitivities). Run several scenarios to compare them.
                       </p>
-                      <table className="min-w-full text-left">
-                        <thead className="text-gray-500 border-b">
-                          <tr>
-                            <th className="py-1 pr-3">Category</th>
-                            <th className="py-1 pr-3">Δ</th>
-                            <th className="py-1">Baseline → scenario</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(scenarioDelta.delta_midpoints).map(([k, d]) => (
-                            <tr key={k} className="border-b border-gray-100">
-                              <td className="py-1 pr-3">{k}</td>
-                              <td className="py-1 pr-3 font-mono">{d.value.toPrecision(3)}</td>
-                              <td className="py-1 font-mono text-gray-600">
-                                {d.baseline?.toPrecision(3)} → {d.scenario?.toPrecision(3)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {scenarioDelta.delta_single_score != null && (
-                        <p className="mt-2 text-gray-700">
-                          Δ single score:{' '}
-                          <span className="font-semibold">
-                            {scenarioDelta.delta_single_score.toPrecision(3)}
-                          </span>
-                        </p>
-                      )}
+                      {scenarioDeltas.map((s) => (
+                        <ScenarioTornado
+                          key={s.scenario_id}
+                          delta={s}
+                          baselineSingleScore={singleScoreValue}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1342,6 +1479,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                   </p>
                   <div className="flex flex-wrap gap-2 items-center">
                     <select
+                      aria-label="Switch LCIA characterization method"
                       className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
                       disabled={methodBusy}
                       defaultValue=""
@@ -1404,8 +1542,18 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                             <tr>
                               <th className="py-1 pr-3">Category</th>
                               {columns.map((c) => (
-                                <th key={c.key} className="py-1 pr-3 max-w-[12rem] truncate" title={c.label}>
-                                  {c.label}
+                                <th key={c.key} className="py-1 pr-3 max-w-[12rem] align-bottom" title={c.label}>
+                                  <span className="block truncate">{c.label}</span>
+                                  {c.key !== 'primary' && (
+                                    <button
+                                      type="button"
+                                      disabled={methodBusy}
+                                      onClick={() => runRecharacterize(c.key, true)}
+                                      className="mt-1 text-xs font-normal text-green-700 hover:text-green-900 hover:underline disabled:opacity-50"
+                                    >
+                                      Set as primary
+                                    </button>
+                                  )}
                                 </th>
                               ))}
                             </tr>
@@ -1435,19 +1583,106 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                 </div>
 
                 <div className="border-t border-gray-100 pt-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">Uncertainty (pedigree MC)</h3>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <h3 className="text-lg font-bold text-gray-900">Uncertainty (pedigree MC)</h3>
+                    <button
+                      type="button"
+                      onClick={runUncertainty}
+                      disabled={mcBusy}
+                      aria-busy={mcBusy}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {mcBusy ? 'Running Monte Carlo…' : results.uncertainty?.n ? 'Refresh MC' : 'Run MC'}
+                    </button>
+                  </div>
                   <p className="text-sm text-gray-600">
                     {results.uncertainty?.n
-                      ? `Pedigree screening Monte Carlo ran with this assessment (N=${results.uncertainty.n}). Category and single-score ranges are p5–p95 from lognormal scaling by data class (measured match, estimated activity, field EF).`
-                      : 'New assessments run pedigree screening Monte Carlo by default. This saved result has no MC block — re-run the assessment to refresh ranges.'}
+                      ? `Per-source pedigree-matrix Monte Carlo ran with this assessment (N=${results.uncertainty.n}${results.uncertainty.gsd ? `, study GSD ${results.uncertainty.gsd.toFixed(2)}` : ''}). Each source is scored on the ecoinvent pedigree matrix for its own geometric SD, sampled independently. Characterization-factor uncertainty is not propagated at this screening level.`
+                      : 'This saved result has no Monte Carlo block yet. Run MC to attach p5–p95 confidence intervals to every impact category and the single score.'}
                   </p>
+
+                  {results.uncertainty?.gsd_by_source &&
+                    Object.keys(results.uncertainty.gsd_by_source).length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {Object.entries(results.uncertainty.gsd_by_source)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([src, g]) => (
+                            <span
+                              key={src}
+                              className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-600"
+                              title={`Geometric standard deviation for ${src}`}
+                            >
+                              <span className="truncate max-w-[14rem]">{src}</span>
+                              <span className="font-mono text-gray-500">GSD {g.toFixed(2)}</span>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+
+                  {results.uncertainty?.single_score && (
+                    <p className="mt-2 text-sm text-gray-700">
+                      <span className="font-semibold">Single score p5–p95:</span>{' '}
+                      <span className="font-mono">
+                        {results.uncertainty.single_score.p5.toFixed(1)} –{' '}
+                        {results.uncertainty.single_score.p95.toFixed(1)}
+                      </span>{' '}
+                      <span className="text-gray-500">
+                        (median {results.uncertainty.single_score.p50.toFixed(1)}{' '}
+                        {(results.single_score as SingleScoreResult)?.unit || 'µPt per kg'})
+                      </span>
+                    </p>
+                  )}
+
+                  {results.uncertainty?.percentiles &&
+                    Object.keys(results.uncertainty.percentiles).length > 0 && (
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="min-w-full text-sm text-left">
+                          <caption className="sr-only">
+                            Monte Carlo p5, base, and p95 per impact category
+                          </caption>
+                          <thead className="text-gray-500 border-b">
+                            <tr>
+                              <th scope="col" className="py-1 pr-3">Category</th>
+                              <th scope="col" className="py-1 pr-3 text-right">p5</th>
+                              <th scope="col" className="py-1 pr-3 text-right">Base</th>
+                              <th scope="col" className="py-1 pr-3 text-right">p95</th>
+                              <th scope="col" className="py-1 pr-3 text-right">± range</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(results.uncertainty.percentiles).map(([cat, p]) => {
+                              const base = p.base ?? p.p50;
+                              const spread = base ? ((p.p95 - p.p5) / (2 * base)) * 100 : null;
+                              return (
+                                <tr key={cat} className="border-b border-gray-100">
+                                  <td className="py-1 pr-3 font-medium text-gray-900">{cat}</td>
+                                  <td className="py-1 pr-3 text-right font-mono text-gray-700">
+                                    {formatDisplayValue(p.p5, 2, cat)}
+                                  </td>
+                                  <td className="py-1 pr-3 text-right font-mono text-gray-900">
+                                    {formatDisplayValue(base, 2, cat)}
+                                  </td>
+                                  <td className="py-1 pr-3 text-right font-mono text-gray-700">
+                                    {formatDisplayValue(p.p95, 2, cat)}
+                                  </td>
+                                  <td className="py-1 pr-3 text-right font-mono text-gray-500">
+                                    {spread != null ? `±${spread.toFixed(0)}%` : 'n/a'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                 </div>
 
                 {results.contribution_sankey?.categories && (
                   <div className="border-t border-gray-100 pt-4">
                     <h3 className="text-lg font-bold text-gray-900 mb-1">Top sources (GWP & land)</h3>
                     <p className="text-sm text-gray-600 mb-3">
-                      Ranked from contribution_by_source — per kg functional unit.
+                      Ranked from contribution_by_source. Shares are ratios, so they are the
+                      same per kg and per hectare (the functional-unit toggle does not change them).
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2">
                       {Object.entries(results.contribution_sankey.categories).map(([cat, block]) => (
@@ -1490,24 +1725,58 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                 <div className="px-6 pb-6 border-t border-gray-100 space-y-4">
                   <p className="text-sm text-gray-600 pt-4">
                     Background processes matched for this study, with amounts and whether the
-                    input was estimated. Download SI-ready JSON or CSV for analysis.
+                    input was estimated. Download the full study JSON, or a tidy per-table CSV
+                    (one rectangular table, loadable in a single pandas/R read_csv).
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
-                      className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-                      onClick={() => assessmentAPI.downloadAssessmentExport(assessmentId, 'json')}
+                      disabled={exportBusy !== null}
+                      aria-busy={exportBusy === 'json'}
+                      className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                      onClick={() => runExport('json')}
                     >
-                      Download JSON
+                      {exportBusy === 'json' ? 'Preparing JSON…' : 'Download JSON'}
                     </button>
-                    <button
-                      type="button"
-                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                      onClick={() => assessmentAPI.downloadAssessmentExport(assessmentId, 'csv')}
-                    >
-                      Download CSV
-                    </button>
+                    {(['impacts', 'matches', 'contributions'] as const).map((sec) => (
+                      <button
+                        key={sec}
+                        type="button"
+                        disabled={exportBusy !== null}
+                        aria-busy={exportBusy === `csv:${sec}`}
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                        onClick={() => runExport('csv', sec)}
+                      >
+                        {exportBusy === `csv:${sec}`
+                          ? 'Preparing…'
+                          : `CSV: ${sec}`}
+                      </button>
+                    ))}
                   </div>
+                  {results.provenance && (
+                    <p className="text-xs text-gray-500">
+                      <span className="font-semibold text-gray-600">Provenance:</span>{' '}
+                      {results.provenance.engine}
+                      {results.provenance.engine_version ? ` v${results.provenance.engine_version}` : ''}
+                      {results.provenance.lcia_method ? ` · ${results.provenance.lcia_method}` : ''}
+                      {results.provenance.field_emission_model ? ` · ${results.provenance.field_emission_model}` : ''}
+                      {results.provenance.background_databases?.length
+                        ? ` · ${results.provenance.background_databases
+                            .map((d) => `${d.name ?? ''} ${d.version ?? ''}`.trim())
+                            .filter(Boolean)
+                            .join(', ')}`
+                        : ''}
+                    </p>
+                  )}
+                  {panelError && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+                    >
+                      {panelError}
+                    </div>
+                  )}
                   {Array.isArray((results as { input_matches?: unknown[] }).input_matches) &&
                   ((results as { input_matches: unknown[] }).input_matches?.length ?? 0) > 0 ? (
                     <div className="overflow-x-auto">

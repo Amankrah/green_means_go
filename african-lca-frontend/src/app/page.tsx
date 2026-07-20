@@ -71,10 +71,10 @@ export default function HomePage() {
                 assessment. It is grounded in ISO 14040/14044 principles and built for action.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <Link href="/signup" className="button-primary">
+                <Link href="/signup" className="button-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80">
                   Start an assessment <ArrowRight className="h-4 w-4" />
                 </Link>
-                <a href="#how" className="button-secondary">See the method</a>
+                <a href="#how" className="button-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80">See the method</a>
               </div>
               <div className="mt-10 flex items-center gap-3 border-t border-line pt-4 font-mono text-[0.66rem] uppercase tracking-[0.13em] text-muted">
                 <span className="h-2 w-2 rounded-full bg-moss shadow-[0_0_0_4px_rgba(47,107,73,0.12)]" />
@@ -238,7 +238,7 @@ export default function HomePage() {
           <p className="mx-auto mt-6 max-w-xl text-lg text-paper/70">
             Create an account and run your first assessment in minutes.
           </p>
-          <Link href="/signup" className="mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-paper px-8 py-4 font-medium text-ink transition-colors hover:bg-white">
+          <Link href="/signup" className="mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-paper px-8 py-4 font-medium text-ink transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80">
             Create your account <ArrowRight className="h-4 w-4" />
           </Link>
         </div>

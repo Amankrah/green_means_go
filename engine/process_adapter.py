@@ -16,12 +16,12 @@ import os
 from datetime import datetime, timezone
 
 try:
-    from .adapter import MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands
+    from .adapter import MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands, _provenance
     from .iso_report import _data_quality_scorecard
     from .refrigerants import refrigerant_co2e
     from .process_iso_report import build_process_iso_report
 except ImportError:
-    from adapter import MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands
+    from adapter import MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands, _provenance
     from iso_report import _data_quality_scorecard
     from refrigerants import refrigerant_co2e
     from process_iso_report import build_process_iso_report
@@ -156,13 +156,18 @@ def to_process_response(result, request: dict, engine, total_kg: float,
             seed=uncertainty_seed if uncertainty_seed is not None else 42,
         )
         apply_mc_to_midpoints(midpoints, uncertainty_block)
-        # Map GW relative p5/p95 onto the single score (bands stay on the point estimate).
-        gwp = (uncertainty_block.get("percentiles") or {}).get("Global warming") or {}
-        base = gwp.get("base") or 0.0
-        if base and gwp.get("p5") is not None and gwp.get("p95") is not None:
-            single_uncertainty = [single * (gwp["p5"] / base), single * (gwp["p95"] / base)]
-            uncertainty_block["single_score"] = {
-                "p5": single_uncertainty[0], "p50": single, "p95": single_uncertainty[1]}
+        # Prefer the MC's directly-sampled single-score distribution over a GWP-ratio map
+        # (bands stay on the point estimate). single_score's µPt value is band-independent.
+        ss_mc = uncertainty_block.get("single_score") or {}
+        if ss_mc.get("p5") is not None and ss_mc.get("p95") is not None:
+            single_uncertainty = [ss_mc["p5"], ss_mc["p95"]]
+        else:
+            gwp = (uncertainty_block.get("percentiles") or {}).get("Global warming") or {}
+            base = gwp.get("base") or 0.0
+            if base and gwp.get("p5") is not None and gwp.get("p95") is not None:
+                single_uncertainty = [single * (gwp["p5"] / base), single * (gwp["p95"] / base)]
+                uncertainty_block["single_score"] = {
+                    "p5": single_uncertainty[0], "p50": single, "p95": single_uncertainty[1]}
 
     # Co-product allocation: split the facility total across products. `intensity` scales the
     # facility per-kg result to each product's own per-kg result (see _allocation). The facility
@@ -227,6 +232,7 @@ def to_process_response(result, request: dict, engine, total_kg: float,
             "unit": single_meta["unit"],
             "band": single_meta["band"],
             "band_basis": single_meta["band_basis"],
+            "band_cutoffs": single_meta.get("band_cutoffs"),
             "uncertainty_range": single_uncertainty,
             "weighting_factors": single_meta["weighting_factors"],
             "contributions": single_meta["contributions"],
@@ -247,6 +253,8 @@ def to_process_response(result, request: dict, engine, total_kg: float,
         "input_matches": result.input_matches,
         "inventory": iso["inventory_analysis"]["inventory_results"],
         "contribution_by_source": contribution_by_source,
+        "lcia_method": engine.method,
+        "provenance": _provenance(engine, engine.method),
         "iso_report": iso,
     }
     if uncertainty_block is not None:

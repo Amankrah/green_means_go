@@ -10,6 +10,8 @@ import Link from 'next/link';
 import { Loader2, Lightbulb, ArrowRight } from 'lucide-react';
 import { assessmentAPI, AssessmentSummary } from '@/lib/api';
 import { RecommendationsResponse, RecommendationMeasure } from '@/types/recommendations';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface Props {
   /** The user's most recent assessment; the card is for its results. */
@@ -23,12 +25,12 @@ function ghs(n: number | null | undefined): string {
   return `GH₵${Math.round(n).toLocaleString()}`;
 }
 
-function savingPill(m: RecommendationMeasure): { text: string; cls: string } | null {
+function savingPill(m: RecommendationMeasure): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } | null {
   const s = m.economics.annual_saving_ghs;
   if (s === null) return null;
-  if (s > 0) return { text: `Saves ~${ghs(s)}/yr`, cls: 'bg-emerald-50 text-emerald-700' };
-  if (s < 0) return { text: `Costs ~${ghs(-s)}/yr`, cls: 'bg-orange-50 text-orange-700' };
-  return { text: 'Cost-neutral', cls: 'bg-gray-100 text-gray-600' };
+  if (s > 0) return { text: `Saves ~${ghs(s)}/yr`, variant: 'default' }; // green
+  if (s < 0) return { text: `Costs ~${ghs(-s)}/yr`, variant: 'destructive' }; // orange/red
+  return { text: 'Cost-neutral', variant: 'secondary' }; // gray
 }
 
 export default function DashboardRecommendations({ assessment, limit = 3 }: Props) {
@@ -71,56 +73,62 @@ export default function DashboardRecommendations({ assessment, limit = 3 }: Prop
   const top = data?.measures.slice(0, limit) ?? [];
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5">
-      <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-          <Lightbulb className="h-5 w-5 text-moss" />
-          Recommended next steps
-        </h3>
-        <Link href={resultsHref} className="text-sm font-medium text-moss hover:text-spruce">
-          View plan
-        </Link>
-      </div>
-      <p className="mt-1 text-sm text-gray-500">
-        For {assessment?.title || assessment?.company_name || 'your latest assessment'}
-        {data?.pending_review && ' · draft guidance'}
-      </p>
-
-      {loading ? (
-        <div className="mt-4 flex items-center gap-2 text-gray-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Finding steps…
+    <Card className="rounded-2xl border-gray-200 overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <Lightbulb className="h-5 w-5 text-moss" />
+            Recommended next steps
+          </CardTitle>
+          <Link href={resultsHref} className="text-sm font-medium text-moss hover:text-spruce focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 rounded-sm">
+            View plan
+          </Link>
         </div>
-      ) : (
-        <ul className="mt-4 space-y-2">
-          {top.map((m) => {
-            const pill = savingPill(m);
-            return (
-              <li key={m.id} className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900">{m.title}</p>
-                  <p className="truncate text-xs text-gray-500">
-                    {m.targets_source} · {Math.round(m.targets_share * 100)}% of impact
-                  </p>
-                </div>
-                {pill && (
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${pill.cls}`}>
-                    {pill.text}
-                  </span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+        <CardDescription className="text-sm">
+          For {assessment?.title || assessment?.company_name || 'your latest assessment'}
+          {data?.pending_review && ' · draft guidance'}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="pb-4">
+        {loading ? (
+          <div className="flex items-center gap-2 text-gray-500 py-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Finding steps…
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {top.map((m) => {
+              const pill = savingPill(m);
+              return (
+                <li key={m.id} className="flex items-start justify-between gap-3 rounded-lg bg-gray-50/80 hover:bg-gray-50 transition-colors border border-gray-100 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-900">{m.title}</p>
+                    <p className="truncate text-xs text-gray-500 mt-0.5">
+                      {m.targets_source} · {Math.round(m.targets_share * 100)}% of impact
+                    </p>
+                  </div>
+                  {pill && (
+                    <Badge variant={pill.variant} className="shrink-0 font-medium">
+                      {pill.text}
+                    </Badge>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
 
       {!loading && data && data.measures.length > top.length && (
-        <Link
-          href={resultsHref}
-          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-moss hover:text-spruce"
-        >
-          See all {data.measures.length} steps <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <CardFooter className="pt-0">
+          <Link
+            href={resultsHref}
+            className="inline-flex items-center gap-1 text-sm font-medium text-moss hover:text-spruce focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 rounded-sm"
+          >
+            See all {data.measures.length} steps <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </CardFooter>
       )}
-    </section>
+    </Card>
   );
 }

@@ -73,6 +73,18 @@ pub struct EmissionFactorsDatabase {
     /// CH4 emissions from rice paddies (kg CH4 per ha per season)
     /// Source: IPCC 2019, Chapter 5
     pub ch4_from_rice_paddies: EmissionFactor,
+
+    /// Indirect N2O parameters for synthetic fertiliser N (IPCC 2019 Refinement, Vol 4,
+    /// Ch 11, Table 11.3). Volatilisation and leaching are SEPARATE pathways, each with its
+    /// own loss fraction and emission factor; they must not be conflated.
+    /// FracGASF: fraction of applied synthetic N volatilised as NH3 and NOx.
+    pub frac_gasf: f64,
+    /// FracLEACH-(H): fraction of applied N lost to leaching/runoff in wet climates.
+    pub frac_leach: f64,
+    /// EF4: kg N2O-N per kg N volatilised (then redeposited).
+    pub ef4_volatilisation: f64,
+    /// EF5: kg N2O-N per kg N lost to leaching/runoff.
+    pub ef5_leaching: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -188,6 +200,12 @@ impl Default for EmissionFactorsDatabase {
                 uncertainty: 50.0, // High variation based on water regime
                 geographical_validity: "Tropical continuously flooded rice".to_string(),
             },
+
+            // IPCC 2019 Refinement, Vol 4, Ch 11, Table 11.3 (synthetic fertiliser N).
+            frac_gasf: 0.11,          // fraction of applied synthetic N volatilised
+            frac_leach: 0.24,         // fraction of applied N leached/run off (wet climate)
+            ef4_volatilisation: 0.010, // kg N2O-N per kg N volatilised
+            ef5_leaching: 0.011,      // kg N2O-N per kg N leached
         }
     }
 }
@@ -387,11 +405,19 @@ impl LCICalculator {
                 }
             }
 
-            // Indirect N2O emissions from volatilization and leaching (IPCC 2019)
-            // Simplified: 0.01 kg N2O-N per kg N volatilized/leached
-            // Assume 20% of applied N is lost via volatilization + leaching
-            let n_volatilized_leached = total_n_applied * 0.20;
-            let n2o_n_indirect = n_volatilized_leached * 0.01;
+            // Indirect N2O emissions (IPCC 2019 Eq 11.9 & 11.10). Volatilisation and
+            // leaching are SEPARATE pathways: N volatilised as NH3/NOx (FracGASF) and N lost
+            // to leaching/runoff (FracLEACH) each have their own N2O emission factor (EF4,
+            // EF5). Copy the parameters out first (f64 is Copy) so we don't hold a borrow of
+            // self across add_inventory_item.
+            let frac_gasf = self.emission_factors.frac_gasf;
+            let frac_leach = self.emission_factors.frac_leach;
+            let ef4 = self.emission_factors.ef4_volatilisation;
+            let ef5 = self.emission_factors.ef5_leaching;
+
+            let n_volatilised = total_n_applied * frac_gasf;
+            let n_leached = total_n_applied * frac_leach;
+            let n2o_n_indirect = n_volatilised * ef4 + n_leached * ef5;
             let n2o_indirect = n2o_n_indirect * (44.0 / 28.0);
 
             self.add_inventory_item(InventoryItem {
@@ -399,11 +425,13 @@ impl LCICalculator {
                 quantity: n2o_indirect,
                 unit: "kg".to_string(),
                 compartment: EnvironmentalCompartment::Air,
-                source: format!("Indirect N2O emissions from {} (volatilization/leaching)", app.fertilizer_type),
+                source: format!("Indirect N2O emissions from {} (volatilisation + leaching)", app.fertilizer_type),
             });
 
-            // Nitrate leaching to water
-            let no3_leached = n_volatilized_leached * (62.0 / 14.0); // Convert N to NO3
+            // Nitrate leaching to water: ONLY the leached fraction becomes nitrate. The
+            // volatilised N leaves to air as NH3/NOx and must not also be counted as nitrate
+            // (the old code reused a single 20% loss for both, breaking the N mass balance).
+            let no3_leached = n_leached * (62.0 / 14.0); // leached N -> NO3
             self.add_inventory_item(InventoryItem {
                 substance: "Nitrate (NO3-)".to_string(),
                 quantity: no3_leached,
@@ -646,6 +674,86 @@ impl LCICalculator {
     /// Get the complete inventory
     pub fn get_inventory(&self) -> &HashMap<String, InventoryItem> {
         &self.inventory
+    }
+}
+
+#[cfg(test)]
+mod n_balance_tests {
+    use super::*;
+
+    fn maize(area_ha: f64) -> FoodItem {
+        FoodItem {
+            id: "1".to_string(),
+            name: "Maize".to_string(),
+            quantity_kg: 1000.0,
+            category: FoodCategory::Cereals,
+            crop_type: None,
+            origin_country: None,
+            production_system: None,
+            seasonal_factor: None,
+            variety: None,
+            area_allocated: Some(area_ha),
+            cropping_pattern: None,
+            intercropping_partners: None,
+            post_harvest_losses: None,
+        }
+    }
+
+    fn urea_100kg() -> FertilizationPractices {
+        FertilizationPractices {
+            uses_fertilizers: true,
+            fertilizer_applications: vec![FertilizerApplication {
+                fertilizer_type: "Urea".to_string(), // 46% N
+                npk_ratio: None,
+                application_rate: 100.0, // kg/ha/season
+                applications_per_season: 1,
+                cost: None,
+                currency: None,
+            }],
+            soil_test_based: false,
+            follows_nutrient_plan: false,
+        }
+    }
+
+    fn flow_by_source<'a>(calc: &'a LCICalculator, needle: &str) -> f64 {
+        calc.get_inventory()
+            .values()
+            .find(|i| i.source.contains(needle))
+            .unwrap_or_else(|| panic!("no inventory flow with source containing '{needle}'"))
+            .quantity
+    }
+
+    // The mass-balance fix: indirect N2O and nitrate must be derived from the SEPARATE IPCC
+    // volatilisation (FracGASF/EF4) and leaching (FracLEACH/EF5) pathways, and the volatilised
+    // N must not also be counted as leached nitrate.
+    #[test]
+    fn indirect_n2o_and_nitrate_use_separate_ipcc_pathways() {
+        let mut calc = LCICalculator::new();
+        calc.calculate_fertilizer_emissions(&urea_100kg(), &vec![maize(1.0)])
+            .expect("fertiliser emissions");
+
+        let n_applied = 100.0 * 0.46; // 46 kg N
+        let (frac_gasf, frac_leach, ef4, ef5) = (0.11, 0.24, 0.010, 0.011);
+        let n2o_ratio = 44.0 / 28.0;
+
+        let direct = flow_by_source(&calc, "Direct N2O");
+        let indirect = flow_by_source(&calc, "Indirect N2O");
+        let nitrate = flow_by_source(&calc, "Nitrate leaching");
+
+        assert!((direct - n_applied * 0.01 * n2o_ratio).abs() < 1e-9);
+
+        let expect_indirect =
+            (n_applied * frac_gasf * ef4 + n_applied * frac_leach * ef5) * n2o_ratio;
+        assert!((indirect - expect_indirect).abs() < 1e-9, "indirect {indirect} != {expect_indirect}");
+
+        // Nitrate reflects the leached fraction ONLY (FracLEACH), not the volatilised N.
+        let expect_nitrate = n_applied * frac_leach * (62.0 / 14.0);
+        assert!((nitrate - expect_nitrate).abs() < 1e-9, "nitrate {nitrate} != {expect_nitrate}");
+
+        // Regression guard against the old bug (single 20% loss reused for both pathways):
+        // nitrate must equal the leaching-only value, not the lumped-loss value.
+        let old_lumped = n_applied * 0.20 * (62.0 / 14.0);
+        assert!((nitrate - old_lumped).abs() > 1e-9, "nitrate still uses the lumped 20% loss");
     }
 }
 

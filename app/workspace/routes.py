@@ -20,8 +20,14 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models import Facility, Farm, User, UserRole
 from auth.deps import get_current_user, require_role
-from research_export import build_export_csv, build_export_json
-from store import delete_owned_assessment, get_owned_assessment, list_owned_assessments
+from research_export import CSV_SECTIONS, build_export_csv, build_export_json
+from store import (
+    delete_owned_assessment,
+    get_owned_assessment,
+    get_revision,
+    list_owned_assessments,
+    list_revisions,
+)
 
 router = APIRouter(tags=["workspace"])
 
@@ -279,10 +285,19 @@ def export_assessment_json(
 @router.get("/me/assessments/{assessment_id}/export.csv", tags=["research-export"])
 def export_assessment_csv(
     assessment_id: str,
+    section: str = "impacts",
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Flat CSV tables: midpoints, input_matches, contribution_by_source."""
+    """Tidy, rectangular CSV for one section (pandas/R read_csv in a single call):
+    `section=impacts` (default) long-format midpoints/endpoints/single score/MC,
+    `section=matches` the matched-process table, `section=contributions` the
+    contribution-by-source long table."""
+    if section not in CSV_SECTIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown section '{section}'. Use one of: {', '.join(CSV_SECTIONS)}",
+        )
     row = get_owned_assessment(db, user, assessment_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
@@ -294,12 +309,14 @@ def export_assessment_csv(
         payload=row.payload_json or {},
         request_json=row.request_json,
     )
-    csv_text = build_export_csv(export)
+    csv_text = build_export_csv(export, section=section)
     return Response(
         content=csv_text,
         media_type="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="assessment_{assessment_id}.csv"'
+            "Content-Disposition": (
+                f'attachment; filename="assessment_{assessment_id}_{section}.csv"'
+            )
         },
     )
 
@@ -313,3 +330,59 @@ def delete_assessment(
     """Permanently delete one of the current user's assessments. Not owned → 404."""
     if not delete_owned_assessment(db, user, assessment_id):
         raise HTTPException(status_code=404, detail="Assessment not found")
+
+
+class RevisionSummary(BaseModel):
+    revision_no: int
+    reason: Optional[str] = None
+    lcia_method: Optional[str] = None
+    single_score: Optional[float] = None
+    created_at: Optional[datetime] = None
+
+
+@router.get("/me/assessments/{assessment_id}/revisions", tags=["research-history"])
+def list_assessment_revisions(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[RevisionSummary]:
+    """Immutable result history for an assessment, newest first. Each re-solve
+    (recharacterize / uncertainty / rerun / review) appends a revision instead of
+    overwriting, so a researcher can audit and reproduce any prior state."""
+    row = get_owned_assessment(db, user, assessment_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    return [
+        RevisionSummary(
+            revision_no=r.revision_no,
+            reason=r.reason,
+            lcia_method=r.lcia_method,
+            single_score=r.single_score,
+            created_at=r.created_at,
+        )
+        for r in list_revisions(db, row)
+    ]
+
+
+@router.get("/me/assessments/{assessment_id}/revisions/{revision_no}", tags=["research-history"])
+def get_assessment_revision(
+    assessment_id: str,
+    revision_no: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The full result payload of one historical revision (ownership-scoped)."""
+    row = get_owned_assessment(db, user, assessment_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    rev = get_revision(db, row, revision_no)
+    if rev is None:
+        raise HTTPException(status_code=404, detail="Revision not found")
+    return {
+        "assessment_id": assessment_id,
+        "revision_no": rev.revision_no,
+        "reason": rev.reason,
+        "lcia_method": rev.lcia_method,
+        "created_at": rev.created_at.isoformat() if rev.created_at else None,
+        "payload": rev.payload_json,
+    }

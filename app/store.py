@@ -15,7 +15,16 @@ from typing import Any, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models import Assessment, AssessmentType, User
+from models import Assessment, AssessmentRevision, AssessmentType, User
+
+
+class ConcurrencyError(Exception):
+    """Raised when an optimistic-locked write is attempted against a stale version."""
+
+    def __init__(self, expected: int, actual: int):
+        self.expected = expected
+        self.actual = actual
+        super().__init__(f"stale write: expected version {expected}, current is {actual}")
 
 
 def extract_single_score(payload: dict[str, Any]) -> Optional[float]:
@@ -62,11 +71,33 @@ def save_assessment(
         single_score=extract_single_score(payload),
         payload_json=payload,
         request_json=request_payload,
+        version=1,
     )
     db.add(assessment)
+    db.flush()  # assign the row before writing its first revision
+    _write_revision(db, assessment, payload, reason="initial")
     db.commit()
     db.refresh(assessment)
     return assessment
+
+
+def _write_revision(
+    db: Session, assessment: Assessment, payload: dict[str, Any], *, reason: str
+) -> AssessmentRevision:
+    """Append an immutable revision snapshot and point the assessment at it. Uses the
+    assessment's current ``version`` as the revision number so the two stay aligned."""
+    rev = AssessmentRevision(
+        assessment_id=assessment.id,
+        revision_no=assessment.version,
+        reason=reason,
+        lcia_method=payload.get("lcia_method"),
+        single_score=extract_single_score(payload),
+        payload_json=dict(payload),
+    )
+    db.add(rev)
+    db.flush()
+    assessment.current_revision_id = rev.id
+    return rev
 
 
 def replace_assessment(
@@ -78,13 +109,23 @@ def replace_assessment(
     farm_id: Optional[str] = None,
     facility_id: Optional[str] = None,
     request_payload: Optional[dict[str, Any]] = None,
+    reason: str = "edit",
+    expected_version: Optional[int] = None,
 ) -> Assessment:
-    """Overwrite an existing assessment in place (same id) after a re-run."""
+    """Update the current result and append an immutable revision (history is preserved,
+    not overwritten). ``expected_version`` opts into optimistic locking: if it does not
+    match the row's current version, a ConcurrencyError is raised so a stale concurrent
+    write (e.g. recharacterize + uncertainty racing) is rejected rather than silently
+    clobbering the other."""
+    if expected_version is not None and assessment.version != expected_version:
+        raise ConcurrencyError(expected_version, assessment.version)
+
     # Keep the existing row id. Mutate the caller's dict too so API responses that
     # return the engine result dict do not expose a freshly minted uuid (404 on GET).
     payload["id"] = assessment.id
     stored = dict(payload)
 
+    assessment.version = (assessment.version or 1) + 1
     assessment.payload_json = stored
     assessment.company_name = stored.get("company_name") or (
         (stored.get("facility_profile") or {}).get("company_name")
@@ -103,9 +144,53 @@ def replace_assessment(
         assessment.request_json = request_payload
 
     db.add(assessment)
+    db.flush()
+    _write_revision(db, assessment, stored, reason=reason)
     db.commit()
     db.refresh(assessment)
     return assessment
+
+
+def list_revisions(db: Session, assessment: Assessment) -> list[AssessmentRevision]:
+    """Immutable revisions for an assessment, newest first. Synthesizes a single 'current'
+    entry for rows created before revision history existed (no stored revisions)."""
+    stmt = (
+        select(AssessmentRevision)
+        .where(AssessmentRevision.assessment_id == assessment.id)
+        .order_by(AssessmentRevision.revision_no.desc())
+    )
+    rows = list(db.scalars(stmt))
+    if rows:
+        return rows
+    # Legacy row (pre-history): present its current payload as revision 1.
+    return [
+        AssessmentRevision(
+            id=assessment.current_revision_id or assessment.id,
+            assessment_id=assessment.id,
+            revision_no=assessment.version or 1,
+            reason="current",
+            lcia_method=(assessment.payload_json or {}).get("lcia_method"),
+            single_score=assessment.single_score,
+            payload_json=assessment.payload_json or {},
+            created_at=assessment.updated_at,
+        )
+    ]
+
+
+def get_revision(
+    db: Session, assessment: Assessment, revision_no: int
+) -> Optional[AssessmentRevision]:
+    """One revision by number (ownership already enforced by the caller's assessment)."""
+    stmt = select(AssessmentRevision).where(
+        AssessmentRevision.assessment_id == assessment.id,
+        AssessmentRevision.revision_no == revision_no,
+    )
+    row = db.scalar(stmt)
+    if row is not None:
+        return row
+    # Legacy fallback: the synthesized current revision.
+    revs = list_revisions(db, assessment)
+    return next((r for r in revs if r.revision_no == revision_no), None)
 
 
 def delete_owned_assessment(
