@@ -124,14 +124,51 @@ def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
         pass
 
 
+def recharacterize_from_payload(payload: dict, assessment: dict, method: str,
+                                region: str | None = None) -> dict | None:
+    """Re-characterize a saved assessment using stored ``engine_inventory`` when present.
+
+    Skips the LCI/solve path and only runs characterization with ``method``. Returns a
+    full AssessmentResponse-shaped dict, or None when no stored inventory exists."""
+    inv = payload.get("engine_inventory")
+    if not inv or not isinstance(inv, dict):
+        return None
+    try:
+        from .orchestrator import AssessmentResult
+    except ImportError:
+        from orchestrator import AssessmentResult
+
+    region_code = _region_of(assessment, region)
+    eng, lock = _engine(region_code, method)
+    total = total_production_kg(assessment)
+    assessment_id = payload.get("id") or str(uuid.uuid4())
+
+    with lock:
+        impacts = eng.q.characterize_flows(inv, method)
+
+    res = AssessmentResult(region=eng.region.name, method=method)
+    res.impacts = impacts
+    res.inventory = inv
+    contrib = (payload.get("sensitivity_analysis") or {}).get("contribution")
+    if isinstance(contrib, dict):
+        res.contribution = contrib
+
+    out = to_assessment_response(res, assessment, eng, total, assessment_id)
+    out["id"] = assessment_id
+    return out
+
+
 def run_farm_assessment(assessment: dict, region: str | None = None,
                         method: str | None = None, assessment_id: str | None = None,
-                        on_progress=None) -> dict:
+                        on_progress=None, run_uncertainty: bool = False,
+                        uncertainty_n: int | None = None,
+                        uncertainty_seed: int | None = None) -> dict:
     """Full path: auto-extract inputs -> Rust field LCI + supply-chain solve ->
     validated characterization -> AssessmentResponse dict. With multiple crops, each is
     run as its OWN product system (true per-crop) and summed for the farm total.
 
-    on_progress(stage, detail, index, total): optional callback for live progress."""
+    on_progress(stage, detail, index, total): optional callback for live progress.
+    run_uncertainty: when True, attach pedigree screening Monte Carlo percentiles."""
     _emit(on_progress, "prepare", "Reading your farm data")
     region_code = _region_of(assessment, region)
     eng, lock = _engine(region_code, method)
@@ -156,14 +193,28 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
                 per_crop[_crop_label(food)] = eng.assess_farm(sub, inputs)
         _emit(on_progress, "characterize", "Characterizing impacts")
         farm = _sum_results(per_crop)
+        if run_uncertainty:
+            _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
         _emit(on_progress, "report", "Compiling your report")
-        return to_assessment_response(farm, assessment, eng, total,
-                                      assessment_id or str(uuid.uuid4()), per_crop=per_crop)
+        return to_assessment_response(
+            farm, assessment, eng, total,
+            assessment_id or str(uuid.uuid4()), per_crop=per_crop,
+            run_uncertainty=run_uncertainty,
+            uncertainty_n=uncertainty_n,
+            uncertainty_seed=uncertainty_seed,
+        )
 
     # single crop / no area -> one whole-farm system (fine-grained per-input progress)
     inputs, in_notes = extract_purchased_inputs(assessment)
     with lock:
         res = eng.assess_farm(assessment, inputs, on_progress=on_progress)
+    if run_uncertainty:
+        _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
     _emit(on_progress, "report", "Compiling your report")
-    return to_assessment_response(res, assessment, eng, total,
-                                  assessment_id or str(uuid.uuid4()), in_notes)
+    return to_assessment_response(
+        res, assessment, eng, total,
+        assessment_id or str(uuid.uuid4()), in_notes,
+        run_uncertainty=run_uncertainty,
+        uncertainty_n=uncertainty_n,
+        uncertainty_seed=uncertainty_seed,
+    )

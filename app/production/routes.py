@@ -39,6 +39,9 @@ from .models import (
     SoilType,
     CroppingPattern,
     SeasonalFactor,
+    ScenarioPatchBody,
+    RecharacterizeBody,
+    ReviewStatusBody,
     VALID_COUNTRIES,
     VALID_FOOD_CATEGORIES
 )
@@ -87,11 +90,21 @@ def _build_farm_rust_input(request: AssessmentRequest) -> dict:
 
 async def _run_farm_engine(request: AssessmentRequest) -> dict:
     rust_input = _build_farm_rust_input(request)
+    if request.study_meta:
+        rust_input["study_meta"] = request.study_meta.model_dump(exclude_none=True)
+    if request.ipcc_ef1_scale is not None:
+        rust_input["ipcc_ef1_scale"] = request.ipcc_ef1_scale
     if USE_VALIDATED_ENGINE:
         # CPU-bound; run in a worker thread so uvicorn's event loop stays responsive.
         from starlette.concurrency import run_in_threadpool
         from engine.service import run_farm_assessment
-        return await run_in_threadpool(run_farm_assessment, rust_input, region=request.region)
+        return await run_in_threadpool(
+            run_farm_assessment,
+            rust_input,
+            region=request.region,
+            method=request.lcia_method,
+            run_uncertainty=bool(request.run_uncertainty),
+        )
     return await call_rust_backend(rust_input)
 
 
@@ -133,14 +146,26 @@ async def create_assessment_stream(
     # Capture plain values now: the worker thread / SSE generator must not touch the
     # request-scoped ORM session or lazy attributes.
     rust_input = _build_farm_rust_input(request)
+    if request.study_meta:
+        rust_input["study_meta"] = request.study_meta.model_dump(exclude_none=True)
+    if request.ipcc_ef1_scale is not None:
+        rust_input["ipcc_ef1_scale"] = request.ipcc_ef1_scale
     region = request.region
+    method = request.lcia_method
+    run_uncertainty = bool(request.run_uncertainty)
     user_id = user.id
     title = request.title
     archive = _request_archive(request)
 
     def run_fn(on_progress):
         from engine.service import run_farm_assessment
-        return run_farm_assessment(rust_input, region=region, on_progress=on_progress)
+        return run_farm_assessment(
+            rust_input,
+            region=region,
+            method=method,
+            run_uncertainty=run_uncertainty,
+            on_progress=on_progress,
+        )
 
     def save_fn(result):
         from db import SessionLocal
@@ -216,6 +241,192 @@ async def rerun_assessment(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Assessment re-run failed: {str(e)}")
 
+@router.post("/assess/{assessment_id}/scenarios", tags=["research-scenarios"])
+async def create_scenario(
+    assessment_id: str,
+    patch: ScenarioPatchBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Clone archived request, apply yield/N/diesel scales, re-solve, return deltas."""
+    from scenarios import (
+        ScenarioPatch,
+        apply_scenario_patch,
+        compute_scenario_deltas,
+        default_scenario_title,
+    )
+
+    baseline = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if baseline is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    archive = baseline.request_json or {}
+    api = archive.get("api")
+    if not api:
+        raise HTTPException(
+            status_code=422,
+            detail="Baseline has no archived request_json.api; cannot build a scenario",
+        )
+
+    try:
+        sp = ScenarioPatch(**patch.model_dump())
+        patched_api = apply_scenario_patch(api, sp)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    try:
+        req = AssessmentRequest(**{k: v for k, v in patched_api.items() if k != "form_snapshot"})
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid patched request: {e}") from e
+
+    title = default_scenario_title(sp)
+    result = await _run_farm_engine(req)
+    result["baseline_assessment_id"] = baseline.id
+    result["scenario_patch"] = sp.active_scales()
+    if req.study_meta:
+        result["study_meta"] = req.study_meta.model_dump(exclude_none=True)
+
+    saved = save_assessment(
+        db,
+        user_id=user.id,
+        a_type=AssessmentType.farm,
+        payload=result,
+        farm_id=baseline.farm_id,
+        title=title,
+        request_payload={"api": req.model_dump(mode="json", exclude={"form_snapshot"}), "form": archive.get("form")},
+    )
+    deltas = compute_scenario_deltas(baseline.payload_json or {}, saved.payload_json or {})
+    return {
+        "baseline_id": baseline.id,
+        "scenario_id": saved.id,
+        "title": title,
+        "patch": sp.active_scales(),
+        "delta_midpoints": deltas["delta_midpoints"],
+        "delta_single_score": deltas["delta_single_score"],
+        "scenario": saved.payload_json,
+    }
+
+
+@router.post("/assess/{assessment_id}/recharacterize", response_model=AssessmentResponse, tags=["research-scenarios"])
+async def recharacterize_assessment(
+    assessment_id: str,
+    body: RecharacterizeBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Re-run characterization with an alternate LCIA method; cache on method_variants."""
+    from .models import SUPPORTED_LCIA_METHODS
+
+    existing = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    method = body.lcia_method
+    if method not in SUPPORTED_LCIA_METHODS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported lcia_method: {method}. Must be one of {list(SUPPORTED_LCIA_METHODS)}",
+        )
+
+    archive = existing.request_json or {}
+    api = archive.get("api")
+    if not api:
+        raise HTTPException(status_code=422, detail="No archived request to recharacterize")
+
+    try:
+        req = AssessmentRequest(**{**api, "lcia_method": method, "form_snapshot": None})
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid archived request: {e}") from e
+
+    from starlette.concurrency import run_in_threadpool
+    from engine.service import recharacterize_from_payload, run_farm_assessment
+
+    rust_input = _build_farm_rust_input(req)
+    prior_payload = dict(existing.payload_json or {})
+    variant = await run_in_threadpool(
+        recharacterize_from_payload, prior_payload, rust_input, method, req.region,
+    )
+    if variant is None:
+        variant = await run_in_threadpool(
+            run_farm_assessment,
+            rust_input,
+            region=req.region,
+            method=method,
+            assessment_id=existing.id,
+        )
+    else:
+        variant["id"] = existing.id
+
+    payload = dict(prior_payload)
+    variants = dict(payload.get("method_variants") or {})
+    old_method = payload.get("lcia_method") or (archive.get("api") or {}).get("lcia_method")
+    if body.apply_as_primary and old_method and old_method != method:
+        ss = payload.get("single_score")
+        variants[old_method] = {
+            "midpoint_impacts": payload.get("midpoint_impacts"),
+            "single_score": ss,
+            "methodology": ss.get("methodology") if isinstance(ss, dict) else None,
+        }
+    variants[method] = {
+        "midpoint_impacts": variant.get("midpoint_impacts"),
+        "single_score": variant.get("single_score"),
+        "methodology": (
+            (variant.get("single_score") or {}).get("methodology")
+            if isinstance(variant.get("single_score"), dict)
+            else None
+        ),
+    }
+    payload["method_variants"] = variants
+    if variant.get("engine_inventory") and not payload.get("engine_inventory"):
+        payload["engine_inventory"] = variant["engine_inventory"]
+    # If requested as active method, also replace primary midpoints.
+    if body.apply_as_primary:
+        payload["midpoint_impacts"] = variant.get("midpoint_impacts")
+        payload["endpoint_impacts"] = variant.get("endpoint_impacts")
+        payload["single_score"] = variant.get("single_score")
+        payload["functional_units"] = variant.get("functional_units")
+        payload["lcia_method"] = method
+        if variant.get("iso_report"):
+            payload["iso_report"] = variant["iso_report"]
+
+    updated = replace_assessment(
+        db, existing, payload=payload, title=existing.title, request_payload=existing.request_json,
+    )
+    return AssessmentResponse(**updated.payload_json)
+
+
+@router.post("/assess/{assessment_id}/uncertainty", response_model=AssessmentResponse, tags=["research-scenarios"])
+async def run_assessment_uncertainty(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Re-run with pedigree screening Monte Carlo and persist uncertainty percentiles."""
+    existing = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    archive = existing.request_json or {}
+    api = archive.get("api")
+    if not api:
+        raise HTTPException(status_code=422, detail="No archived request for uncertainty run")
+
+    try:
+        req = AssessmentRequest(**{**api, "run_uncertainty": True, "form_snapshot": None})
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid archived request: {e}") from e
+
+    result = await _run_farm_engine(req)
+    # Keep baseline link / variants from prior payload when present.
+    prior = existing.payload_json or {}
+    if prior.get("method_variants"):
+        result["method_variants"] = prior["method_variants"]
+    if prior.get("baseline_assessment_id"):
+        result["baseline_assessment_id"] = prior["baseline_assessment_id"]
+    updated = replace_assessment(
+        db, existing, payload=result, title=existing.title,
+        request_payload=_request_archive(req),
+    )
+    return AssessmentResponse(**updated.payload_json)
+
+
 @router.get("/assess/{assessment_id}", response_model=AssessmentResponse)
 async def get_assessment(
     assessment_id: str,
@@ -228,7 +439,76 @@ async def get_assessment(
     assessment = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
     if assessment is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
-    return AssessmentResponse(**assessment.payload_json)
+    payload = dict(assessment.payload_json or {})
+    _attach_regional_benchmark(payload, assessment.request_json)
+    return AssessmentResponse(**payload)
+
+
+def _attach_regional_benchmark(payload: dict, request_json: dict | None) -> None:
+    """Overlay regional_benchmark on GH farm payloads when not already stored."""
+    if payload.get("regional_benchmark"):
+        return
+    api = (request_json or {}).get("api") or {}
+    region = (api.get("region") or payload.get("region") or "").upper()
+    country = (api.get("country") or payload.get("country") or "").lower()
+    if region != "GH" and country not in ("ghana", "gh"):
+        return
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from engine.regional_benchmark import compute_regional_benchmark
+    bench = compute_regional_benchmark(api, payload.get("midpoint_impacts"))
+    if bench is not None:
+        payload["regional_benchmark"] = bench
+
+
+@router.get("/assess/{assessment_id}/benchmark")
+async def get_assessment_benchmark(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Regional MoFA/yield guide overlay for a saved GH farm assessment."""
+    assessment = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    api = (assessment.request_json or {}).get("api") or {}
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from engine.regional_benchmark import compute_regional_benchmark
+    bench = compute_regional_benchmark(api, (assessment.payload_json or {}).get("midpoint_impacts"))
+    if bench is None:
+        raise HTTPException(status_code=404, detail="Regional benchmark available for Ghana (GH) only")
+    return bench
+
+
+@router.post("/assess/{assessment_id}/review", response_model=AssessmentResponse)
+async def set_assessment_review_status(
+    assessment_id: str,
+    body: ReviewStatusBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Set critical-review checklist status and sync ISO document_control fields."""
+    from review import VALID_REVIEW_STATUSES, apply_review_status
+
+    if body.review_status not in VALID_REVIEW_STATUSES:
+        raise HTTPException(status_code=422, detail=f"Invalid review_status: {body.review_status}")
+
+    existing = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    payload = apply_review_status(existing.payload_json or {}, body.review_status)
+    updated = replace_assessment(
+        db, existing, payload=payload, title=existing.title, request_payload=existing.request_json,
+    )
+    return AssessmentResponse(**updated.payload_json)
 
 
 @router.get("/assess/{assessment_id}/recommendations")

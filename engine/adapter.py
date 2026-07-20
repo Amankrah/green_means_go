@@ -45,11 +45,13 @@ def _norm_unit(unit) -> str:
     return str(unit).replace("-Eq", "-eq").replace("*a", "a").replace("m2*", "m2")
 
 
-def _midpoint(value_per_kg: float, unit: str) -> dict:
+def _midpoint(value_per_kg: float, unit: str, uncertainty_range=None) -> dict:
+    if uncertainty_range is None:
+        uncertainty_range = [value_per_kg * 0.7, value_per_kg * 1.4]  # pedigree ~±30/40%
     return {
         "value": value_per_kg,
         "unit": unit,
-        "uncertainty_range": [value_per_kg * 0.7, value_per_kg * 1.4],  # pedigree ~±30/40%
+        "uncertainty_range": uncertainty_range,
         "data_quality_score": 0.8,
         "contributing_sources": SOURCES,
     }
@@ -199,7 +201,10 @@ def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, mi
 
 
 def to_assessment_response(result, assessment: dict, engine, total_kg: float,
-                           assessment_id: str, extra_notes=None, per_crop=None) -> dict:
+                           assessment_id: str, extra_notes=None, per_crop=None,
+                           run_uncertainty: bool = False,
+                           uncertainty_n: int | None = None,
+                           uncertainty_seed: int | None = None) -> dict:
     """`result` = whole-farm AssessmentResult (summed impacts + merged inventory).
     `per_crop` (optional) maps crop label -> that crop's OWN AssessmentResult (true
     per-crop product systems); if absent, the breakdown falls back to area allocation."""
@@ -252,12 +257,72 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
 
     single, single_meta = single_score(midpoints, ep, engine.method)
 
+    uncertainty_block = None
+    single_uncertainty = [single * 0.7, single * 1.4]
+    if run_uncertainty:
+        try:
+            from .uncertainty import run_pedigree_mc, apply_mc_to_midpoints
+        except ImportError:
+            from uncertainty import run_pedigree_mc, apply_mc_to_midpoints
+        uncertainty_block = run_pedigree_mc(
+            result, midpoints, engine, total_kg,
+            n=uncertainty_n or 500,
+            seed=uncertainty_seed if uncertainty_seed is not None else 42,
+        )
+        apply_mc_to_midpoints(midpoints, uncertainty_block)
+        # Map GWP relative p5/p95 onto the single score (bands stay on the point estimate).
+        gwp = (uncertainty_block.get("percentiles") or {}).get("Global warming") or {}
+        base = gwp.get("base") or 0.0
+        if base and gwp.get("p5") is not None and gwp.get("p95") is not None:
+            single_uncertainty = [single * (gwp["p5"] / base), single * (gwp["p95"] / base)]
+            uncertainty_block["single_score"] = {
+                "p5": single_uncertainty[0],
+                "p50": single,
+                "p95": single_uncertainty[1],
+            }
+
+    # Dual functional units: per kg (default scores) and per ha of cropped area.
+    # per_ha = per_kg × (kg / ha). Single-score bands stay per-kg only.
+    kg_per_ha = (total_kg / total_area) if total_area and total_area > 0 else None
+    midpoints_per_ha: dict = {}
+    if kg_per_ha:
+        for cat, m in midpoints.items():
+            u = (m.get("unit") or "").replace(" per kg", " per ha")
+            val_ha = (m.get("value") or 0.0) * kg_per_ha
+            ur = m.get("uncertainty_range")
+            ur_ha = [ur[0] * kg_per_ha, ur[1] * kg_per_ha] if ur and len(ur) == 2 else None
+            midpoints_per_ha[cat] = _midpoint(val_ha, u, uncertainty_range=ur_ha)
+    functional_units = {
+        "per_kg": {
+            "total_kg": total_kg,
+            "midpoint_impacts": midpoints,
+            "note": "Default functional unit for the single score and band.",
+        },
+        "per_ha": {
+            "total_ha": total_area,
+            "kg_per_ha": kg_per_ha,
+            "midpoint_impacts": midpoints_per_ha or None,
+            "note": (
+                "Land and other impacts expressed per hectare of cropped area. "
+                "The single-score band is calibrated per kg only — do not compare "
+                "per-ha totals to Low/Moderate/High bands."
+                if kg_per_ha
+                else "Cropped area was not provided; per-ha totals are unavailable."
+            ),
+        },
+        "land_intensity_note": (
+            "Land use (m² per kg) is land intensity — how much land is occupied to "
+            "produce one kilogram of crop — not a judgment that using farmland is wrong. "
+            "Higher yield (more kg per hectare) lowers land use per kg."
+        ),
+    }
+
     try:
         from .iso_report import build_iso_report
     except ImportError:
         from iso_report import build_iso_report
     iso = build_iso_report(assessment, result, engine, midpoints, single_meta, total_kg,
-                           per_crop, assessment_id=assessment_id)
+                           per_crop, assessment_id=assessment_id, uncertainty=uncertainty_block)
 
     # Raw LCI + per-source contribution, per functional unit, for programmatic auditing
     # (the ISO report embeds display-ready summaries of the same data).
@@ -267,12 +332,24 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
               for cat, v in imp.items()}
         for src, imp in cbs.items()}
 
+    try:
+        from .contribution_sankey import build_contribution_sankey
+    except ImportError:
+        from contribution_sankey import build_contribution_sankey
+    contribution_sankey = build_contribution_sankey(contribution_by_source)
+
     country_raw = assessment.get("country", "") or ""
     country_display = (
         "Canada" if str(country_raw).strip().lower() == "global" else country_raw
     )
 
-    return {
+    try:
+        from .regional_benchmark import compute_regional_benchmark
+    except ImportError:
+        from regional_benchmark import compute_regional_benchmark
+    regional_benchmark = compute_regional_benchmark(assessment, midpoints)
+
+    out = {
         "id": assessment_id,
         "company_name": assessment.get("company_name", ""),
         "country": country_display,
@@ -286,7 +363,7 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
             "unit": single_meta["unit"],
             "band": single_meta["band"],
             "band_basis": single_meta["band_basis"],
-            "uncertainty_range": [single * 0.7, single * 1.4],
+            "uncertainty_range": single_uncertainty,
             "weighting_factors": single_meta["weighting_factors"],
             "contributions": single_meta["contributions"],
             "methodology": single_meta["methodology"],
@@ -309,6 +386,23 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
         "sensitivity_analysis": {"contribution": result.contribution},
         "input_matches": result.input_matches,
         "inventory": iso["inventory_analysis"]["inventory_results"],
+        # Merged elementary-flow inventory (store UIDs) for fast method recharacterization.
+        # Always a dict (may be empty) so callers can rely on the key being present.
+        "engine_inventory": {
+            uid: {"name": r.get("name"), "unit": r.get("unit"), "amount": r.get("amount")}
+            for uid, r in (getattr(result, "inventory", None) or {}).items()
+        },
+        "lcia_method": engine.method,
         "contribution_by_source": contribution_by_source,
+        "contribution_sankey": contribution_sankey,
+        "functional_units": functional_units,
         "iso_report": iso,
+        "review_status": "draft",
     }
+    if regional_benchmark is not None:
+        out["regional_benchmark"] = regional_benchmark
+    if uncertainty_block is not None:
+        out["uncertainty"] = uncertainty_block
+    if assessment.get("study_meta"):
+        out["study_meta"] = assessment["study_meta"]
+    return out

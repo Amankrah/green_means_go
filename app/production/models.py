@@ -177,6 +177,21 @@ class FoodItem(BaseModel):
             raise ValueError("Quantity must be positive")
         return v
 
+# LCIA methods exposed for researcher method toggle (must exist in the CF store).
+SUPPORTED_LCIA_METHODS = (
+    "ReCiPe 2016 v1.03, midpoint (H)",
+    "EF v3.1",
+)
+
+
+class StudyMeta(BaseModel):
+    """Temporal and spatial metadata for research export and cohort analysis."""
+
+    crop_year: Optional[int] = None
+    season: Optional[str] = None
+    admin_region: Optional[str] = None
+
+
 class AssessmentRequest(BaseModel):
     company_name: str
     country: str  # one of VALID_COUNTRIES
@@ -194,6 +209,18 @@ class AssessmentRequest(BaseModel):
 
     # Opaque client wizard snapshot for edit/re-run UX (not used by the engine).
     form_snapshot: Optional[Dict[str, Any]] = None
+
+    # Optional LCIA method override (region default used when omitted).
+    lcia_method: Optional[str] = None
+
+    # When true, run pedigree screening Monte Carlo and attach percentiles.
+    run_uncertainty: bool = False
+
+    # Optional study metadata (crop year / season / admin region) for research export.
+    study_meta: Optional[StudyMeta] = None
+
+    # Optional IPCC EF1 scale for N2O (literature-linked toggle; 1.0 = region default).
+    ipcc_ef1_scale: Optional[float] = None
     
     @field_validator('country')
     @classmethod
@@ -202,18 +229,48 @@ class AssessmentRequest(BaseModel):
             raise ValueError(f"Invalid country: {v}. Must be one of {VALID_COUNTRIES}")
         return v
 
+    @field_validator('lcia_method')
+    @classmethod
+    def validate_lcia_method(cls, v):
+        if v is None:
+            return v
+        if v not in SUPPORTED_LCIA_METHODS:
+            raise ValueError(
+                f"Unsupported lcia_method: {v}. Must be one of {list(SUPPORTED_LCIA_METHODS)}"
+            )
+        return v
+
+class ScenarioPatchBody(BaseModel):
+    """Body for POST /assess/{id}/scenarios."""
+    name: Optional[str] = None
+    yield_scale: Optional[float] = None
+    n_rate_scale: Optional[float] = None
+    diesel_scale: Optional[float] = None
+
+
+class RecharacterizeBody(BaseModel):
+    """Body for POST /assess/{id}/recharacterize."""
+    lcia_method: str
+    apply_as_primary: bool = False
+
+
+class ReviewStatusBody(BaseModel):
+    """Body for POST /assess/{id}/review."""
+    review_status: str
+
+
 # Enhanced result models to match Rust backend output
 class MidpointResult(BaseModel):
     value: float
     unit: str
-    uncertainty_range: List[float]  # [min, max]
-    data_quality_score: float
-    contributing_sources: List[str]
+    uncertainty_range: Optional[List[float]] = None  # [min, max]
+    data_quality_score: Optional[float] = None
+    contributing_sources: Optional[List[str]] = None
 
 class EndpointResult(BaseModel):
     value: float
     unit: str
-    uncertainty_range: List[float]  # [min, max]
+    uncertainty_range: Optional[List[float]] = None  # [min, max]
     normalization_factor: Optional[float] = None
     regional_adaptation_factor: Optional[float] = None
 
@@ -222,10 +279,10 @@ class SingleScoreResult(BaseModel):
     unit: str
     band: Optional[str] = None  # qualitative band: Low | Moderate | High
     band_basis: Optional[str] = None  # what the band is relative to (benchmark basket)
-    uncertainty_range: List[float]  # [min, max]
-    weighting_factors: Dict[str, float]
+    uncertainty_range: Optional[List[float]] = None  # [min, max]
+    weighting_factors: Optional[Dict[str, float]] = None
     contributions: Optional[Dict[str, float]] = None  # each category's share of the single score
-    methodology: str
+    methodology: Optional[str] = None
 
 class DataQuality(BaseModel):
     overall_confidence: str
@@ -292,3 +349,15 @@ class AssessmentResponse(BaseModel):
 
     # Deterministic, data-backed ISO 14040/14044 report structure (four phases + review)
     iso_report: Optional[Dict[str, Any]] = None
+
+    # Researcher dual FU / method / uncertainty / scenario metadata (engine-optional).
+    functional_units: Optional[Dict[str, Any]] = None
+    lcia_method: Optional[str] = None
+    engine_inventory: Optional[Dict[str, Any]] = None
+    method_variants: Optional[Dict[str, Any]] = None
+    uncertainty: Optional[Dict[str, Any]] = None
+    baseline_assessment_id: Optional[str] = None
+    study_meta: Optional[StudyMeta] = None
+    review_status: Optional[str] = None
+    regional_benchmark: Optional[Dict[str, Any]] = None
+    contribution_sankey: Optional[Dict[str, Any]] = None

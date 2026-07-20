@@ -243,6 +243,70 @@ class AssessmentAPI {
     await this.fetchAPI(`/me/assessments/${id}`, { method: 'DELETE' });
   }
 
+  /** Scenario compare: patch archived request, re-solve, return deltas. */
+  async createScenario(
+    id: string,
+    patch: {
+      name?: string;
+      yield_scale?: number;
+      n_rate_scale?: number;
+      diesel_scale?: number;
+    }
+  ): Promise<{
+    baseline_id: string;
+    scenario_id: string;
+    title: string;
+    patch: Record<string, number>;
+    delta_midpoints: Record<string, { value: number; unit?: string; baseline?: number; scenario?: number }>;
+    delta_single_score: number | null;
+    scenario: AssessmentResult;
+  }> {
+    return this.fetchAPI(`/assess/${id}/scenarios`, {
+      method: 'POST',
+      body: JSON.stringify(patch),
+    });
+  }
+
+  /** Recharacterize with an alternate LCIA method; caches method_variants. */
+  async recharacterizeAssessment(
+    id: string,
+    lcia_method: string,
+    apply_as_primary = false
+  ): Promise<AssessmentResult> {
+    return this.fetchAPI(`/assess/${id}/recharacterize`, {
+      method: 'POST',
+      body: JSON.stringify({ lcia_method, apply_as_primary }),
+    });
+  }
+
+  /** Run pedigree screening Monte Carlo on a saved assessment. */
+  async runAssessmentUncertainty(id: string): Promise<AssessmentResult> {
+    return this.fetchAPI(`/assess/${id}/uncertainty`, { method: 'POST' });
+  }
+
+  /** Download SI-ready research export (JSON or CSV). Triggers a browser file save. */
+  async downloadAssessmentExport(id: string, format: 'json' | 'csv' = 'json'): Promise<void> {
+    const token = getAccessToken();
+    const res = await fetch(`${API_BASE_URL}/me/assessments/${id}/export.${format}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      throw new ApiError(`Export failed: ${res.status}`, res.status);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `assessment_${id}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /** Create a read-only share token for assessment results. */
+  async createShareLink(id: string): Promise<{ token: string; share_path: string }> {
+    return this.fetchAPI(`/me/assessments/${id}/share`, { method: 'POST' });
+  }
+
   async rerunFarmAssessment(
     id: string,
     data: EnhancedAssessmentRequest,

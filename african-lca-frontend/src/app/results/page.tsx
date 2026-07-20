@@ -66,8 +66,86 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
   const [pendingRerun, setPendingRerun] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [canRerun, setCanRerun] = useState(false);
+  /** Dual FU: engine always stores per-kg midpoints; per-ha comes from functional_units. */
+  const [fuMode, setFuMode] = useState<'per_kg' | 'per_ha'>('per_kg');
+  const [scenarioBusy, setScenarioBusy] = useState(false);
+  const [scenarioDelta, setScenarioDelta] = useState<{
+    title: string;
+    scenario_id: string;
+    delta_midpoints: Record<string, { value: number; baseline?: number; scenario?: number }>;
+    delta_single_score: number | null;
+  } | null>(null);
+  const [methodBusy, setMethodBusy] = useState(false);
+  const [uncBusy, setUncBusy] = useState(false);
 
   const handleDownload = () => window.print();
+
+  const runScenario = async (patch: {
+    name: string;
+    yield_scale?: number;
+    n_rate_scale?: number;
+    diesel_scale?: number;
+  }) => {
+    if (!assessmentId) return;
+    setScenarioBusy(true);
+    try {
+      const res = await assessmentAPI.createScenario(assessmentId, patch);
+      setScenarioDelta({
+        title: res.title,
+        scenario_id: res.scenario_id,
+        delta_midpoints: res.delta_midpoints,
+        delta_single_score: res.delta_single_score,
+      });
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : 'Scenario compare failed');
+    } finally {
+      setScenarioBusy(false);
+    }
+  };
+
+  const runRecharacterize = async (method: string) => {
+    if (!assessmentId) return;
+    setMethodBusy(true);
+    try {
+      const res = await assessmentAPI.recharacterizeAssessment(assessmentId, method, true);
+      setResults(res);
+      try {
+        localStorage.setItem(`assessment_${assessmentId}`, JSON.stringify(res));
+      } catch {
+        /* ignore */
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : 'Recharacterize failed');
+    } finally {
+      setMethodBusy(false);
+    }
+  };
+
+  const runUncertainty = async () => {
+    if (!assessmentId) return;
+    setUncBusy(true);
+    try {
+      const res = await assessmentAPI.runAssessmentUncertainty(assessmentId);
+      setResults(res);
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : 'Uncertainty run failed');
+    } finally {
+      setUncBusy(false);
+    }
+  };
+
+  const activeMidpoints = (() => {
+    if (!results) return {} as AssessmentResult['midpoint_impacts'];
+    if (fuMode === 'per_ha') {
+      const ha = results.functional_units?.per_ha?.midpoint_impacts;
+      if (ha && Object.keys(ha).length) return ha as AssessmentResult['midpoint_impacts'];
+    }
+    return results.midpoint_impacts;
+  })();
+  const fuUnitLabel = fuMode === 'per_ha' ? 'per ha' : 'per kg';
 
   const displayName =
     results?.farm_profile?.farm_name
@@ -76,11 +154,19 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
     || 'this assessment';
 
   const handleShare = async () => {
+    if (!assessmentId) return;
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      setShareLabel('Link copied');
+      const { share_path } = await assessmentAPI.createShareLink(assessmentId);
+      const url = `${window.location.origin}${share_path}`;
+      await navigator.clipboard.writeText(url);
+      setShareLabel('Share link copied');
     } catch {
-      setShareLabel('Copy failed');
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        setShareLabel('Link copied');
+      } catch {
+        setShareLabel('Copy failed');
+      }
     }
     setTimeout(() => setShareLabel('Share Results'), 2000);
   };
@@ -691,6 +777,37 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                 Environmental Impact Categories
               </h3>
 
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <span className="text-sm text-gray-600">Functional unit:</span>
+                <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                  <button
+                    type="button"
+                    onClick={() => setFuMode('per_kg')}
+                    className={`px-3 py-1.5 text-sm font-semibold rounded-md ${fuMode === 'per_kg' ? 'bg-white shadow text-gray-900' : 'text-gray-600'}`}
+                  >
+                    Per kg
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFuMode('per_ha')}
+                    disabled={!results.functional_units?.per_ha?.midpoint_impacts}
+                    className={`px-3 py-1.5 text-sm font-semibold rounded-md disabled:opacity-40 ${fuMode === 'per_ha' ? 'bg-white shadow text-gray-900' : 'text-gray-600'}`}
+                  >
+                    Per ha
+                  </button>
+                </div>
+                {fuMode === 'per_ha' && (
+                  <span className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
+                    Single-score bands stay per kg — do not compare per-ha totals to Low/Moderate/High.
+                  </span>
+                )}
+              </div>
+              {results.functional_units?.land_intensity_note && (
+                <p className="text-sm text-gray-600 mb-4 max-w-3xl">
+                  {results.functional_units.land_intensity_note}
+                </p>
+              )}
+
               {/* Whole-farm totals: per-kg figures don't change with farm size, so show the
                   total footprint too, which does scale with the farm. */}
               {(() => {
@@ -705,7 +822,13 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                 return (
                   <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
                     <div className="text-sm text-gray-600">
-                      Figures below are <span className="font-semibold text-gray-800">per kilogram of crop</span>, so they stay the same whether the farm is large or small.
+                      Figures below are{' '}
+                      <span className="font-semibold text-gray-800">
+                        {fuMode === 'per_ha' ? 'per hectare of cropped area' : 'per kilogram of crop'}
+                      </span>
+                      {fuMode === 'per_kg'
+                        ? ', so they stay the same whether the farm is large or small.'
+                        : '. Land intensity (m² per kg) is separate from per-ha totals.'}
                     </div>
                     <div className="sm:ml-auto flex gap-6 text-sm">
                       <div><span className="text-gray-500">Total production: </span><span className="font-bold text-gray-900">{totalProductionKg.toLocaleString()} kg</span></div>
@@ -723,12 +846,12 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                   { icon: Sun, label: 'Land Impact', key: 'Land use', unit: 'm²-years', color: 'bg-yellow-50 border-yellow-200 text-yellow-700' },
                   { icon: TreePine, label: 'Biodiversity', key: 'Biodiversity loss', unit: 'impact units', color: 'bg-green-50 border-green-200 text-green-700' },
                 ].map((item, index) => {
-                  const rawValue = results.midpoint_impacts[item.key];
+                  const rawValue = activeMidpoints[item.key];
                   const totalValue = extractValue(rawValue);
-                  // Check if value is already per-kg from backend
-                  const perUnitValue = isAlreadyPerKg(rawValue)
-                    ? totalValue
-                    : calculatePerUnitImpact(totalValue, totalProductionKg);
+                  const perUnitValue =
+                    fuMode === 'per_ha' || isAlreadyPerKg(rawValue)
+                      ? totalValue
+                      : calculatePerUnitImpact(totalValue, totalProductionKg);
                   const displayValue = formatDisplayValue(perUnitValue, 1, item.key);
                   
                   return (
@@ -737,7 +860,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                       <div className="text-2xl font-bold mb-1">
                         {displayValue}
                       </div>
-                      <div className="text-sm font-medium opacity-75 mb-1">{item.unit} per kg</div>
+                      <div className="text-sm font-medium opacity-75 mb-1">{item.unit} {fuUnitLabel}</div>
                       <div className="text-sm font-semibold">
                         {item.label}
                       </div>
@@ -748,14 +871,14 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
 
               {/* Additional Impact Categories */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                {Object.entries(results.midpoint_impacts)
+                {Object.entries(activeMidpoints)
                   .filter(([key]) => !['Global warming', 'Water consumption', 'Land use', 'Biodiversity loss'].includes(key))
                   .map(([category, rawValue], index) => {
                     const totalValue = extractValue(rawValue);
-                    // Check if value is already per-kg from backend
-                    const perUnitValue = isAlreadyPerKg(rawValue)
-                      ? totalValue
-                      : calculatePerUnitImpact(totalValue, totalProductionKg);
+                    const perUnitValue =
+                      fuMode === 'per_ha' || isAlreadyPerKg(rawValue)
+                        ? totalValue
+                        : calculatePerUnitImpact(totalValue, totalProductionKg);
                     const displayValue = formatDisplayValue(perUnitValue, 1, category);
 
                     return (
@@ -764,7 +887,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                           {displayValue}
                         </div>
                         <div className="text-xs text-gray-900 leading-tight">
-                          {category.replace(/([A-Z])/g, ' $1').trim()} (per kg)
+                          {category.replace(/([A-Z])/g, ' $1').trim()} ({fuUnitLabel})
                         </div>
                       </div>
                     );
@@ -1139,6 +1262,335 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
               className="mb-12"
             >
               <RecommendationsPanel assessmentId={assessmentId} isProcessing={isProcessing} />
+            </motion.div>
+          )}
+
+          {/* Researcher: scenarios, method, uncertainty */}
+          {assessmentId && !isProcessing && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.06 }}
+              className="mb-12"
+            >
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">Compare scenario</h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Re-solve from the archived request with a named patch (not a static tip card).
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={scenarioBusy}
+                      className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                      onClick={() => runScenario({ name: 'Yield +20%', yield_scale: 1.2 })}
+                    >
+                      Yield +20%
+                    </button>
+                    <button
+                      type="button"
+                      disabled={scenarioBusy}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50"
+                      onClick={() => runScenario({ name: 'N −20%', n_rate_scale: 0.8 })}
+                    >
+                      N −20%
+                    </button>
+                    <button
+                      type="button"
+                      disabled={scenarioBusy}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50"
+                      onClick={() => runScenario({ name: 'Fuel −30%', diesel_scale: 0.7 })}
+                    >
+                      Fuel −30%
+                    </button>
+                  </div>
+                  {scenarioDelta && (
+                    <div className="mt-4 text-sm overflow-x-auto">
+                      <p className="font-semibold text-gray-900 mb-2">
+                        {scenarioDelta.title}{' '}
+                        <span className="font-normal text-gray-500">
+                          (saved as {scenarioDelta.scenario_id.slice(0, 8)}…)
+                        </span>
+                      </p>
+                      <table className="min-w-full text-left">
+                        <thead className="text-gray-500 border-b">
+                          <tr>
+                            <th className="py-1 pr-3">Category</th>
+                            <th className="py-1 pr-3">Δ</th>
+                            <th className="py-1">Baseline → scenario</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(scenarioDelta.delta_midpoints).map(([k, d]) => (
+                            <tr key={k} className="border-b border-gray-100">
+                              <td className="py-1 pr-3">{k}</td>
+                              <td className="py-1 pr-3 font-mono">{d.value.toPrecision(3)}</td>
+                              <td className="py-1 font-mono text-gray-600">
+                                {d.baseline?.toPrecision(3)} → {d.scenario?.toPrecision(3)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {scenarioDelta.delta_single_score != null && (
+                        <p className="mt-2 text-gray-700">
+                          Δ single score:{' '}
+                          <span className="font-semibold">
+                            {scenarioDelta.delta_single_score.toPrecision(3)}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-100 pt-4">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">LCIA method</h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Active:{' '}
+                    <span className="font-semibold text-gray-800">
+                      {results.lcia_method ||
+                        (typeof results.single_score === 'object' && results.single_score?.methodology) ||
+                        'Region default'}
+                    </span>
+                  </p>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <select
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      disabled={methodBusy}
+                      defaultValue=""
+                      onChange={(e) => {
+                        if (e.target.value) runRecharacterize(e.target.value);
+                      }}
+                    >
+                      <option value="" disabled>
+                        Switch method…
+                      </option>
+                      <option value="ReCiPe 2016 v1.03, midpoint (H)">
+                        ReCiPe 2016 v1.03, midpoint (H)
+                      </option>
+                      <option value="EF v3.1">EF v3.1</option>
+                    </select>
+                    {methodBusy && (
+                      <span className="text-xs text-gray-500">Recharacterizing…</span>
+                    )}
+                    {results.method_variants && Object.keys(results.method_variants).length > 0 && (
+                      <span className="text-xs text-gray-500">
+                        Cached variants: {Object.keys(results.method_variants).join(', ')}
+                      </span>
+                    )}
+                  </div>
+
+                  {(() => {
+                    const primaryMethod =
+                      results.lcia_method ||
+                      (typeof results.single_score === 'object' && results.single_score?.methodology) ||
+                      'Primary';
+                    const columns: { key: string; label: string; midpoints: AssessmentResult['midpoint_impacts'] }[] = [
+                      { key: 'primary', label: String(primaryMethod), midpoints: results.midpoint_impacts },
+                    ];
+                    if (results.method_variants) {
+                      for (const [methodName, block] of Object.entries(results.method_variants)) {
+                        if (block?.midpoint_impacts && methodName !== results.lcia_method) {
+                          columns.push({
+                            key: methodName,
+                            label: methodName,
+                            midpoints: block.midpoint_impacts as AssessmentResult['midpoint_impacts'],
+                          });
+                        }
+                      }
+                    }
+                    if (columns.length < 2) return null;
+                    const categories = Array.from(
+                      new Set(columns.flatMap((c) => Object.keys(c.midpoints || {})))
+                    ).sort();
+                    const readVal = (raw: unknown) =>
+                      typeof raw === 'object' && raw !== null && 'value' in raw
+                        ? (raw as { value: number; unit?: string })
+                        : { value: typeof raw === 'number' ? raw : 0, unit: '' };
+                    return (
+                      <div className="mt-4 overflow-x-auto">
+                        <p className="text-sm font-semibold text-gray-900 mb-2">
+                          Side-by-side midpoints (per kg)
+                        </p>
+                        <table className="min-w-full text-sm text-left">
+                          <thead className="text-gray-500 border-b">
+                            <tr>
+                              <th className="py-1 pr-3">Category</th>
+                              {columns.map((c) => (
+                                <th key={c.key} className="py-1 pr-3 max-w-[12rem] truncate" title={c.label}>
+                                  {c.label}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {categories.map((cat) => (
+                              <tr key={cat} className="border-b border-gray-100">
+                                <td className="py-1 pr-3 font-medium text-gray-900">{cat}</td>
+                                {columns.map((c) => {
+                                  const cell = readVal(c.midpoints?.[cat]);
+                                  return (
+                                    <td key={c.key} className="py-1 pr-3 font-mono text-gray-700">
+                                      {formatDisplayValue(cell.value, 2, cat)}
+                                      {cell.unit ? (
+                                        <span className="text-xs text-gray-500 ml-1">{cell.unit}</span>
+                                      ) : null}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="border-t border-gray-100 pt-4">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">Uncertainty (pedigree MC)</h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {results.uncertainty?.n
+                      ? `Monte Carlo N=${results.uncertainty.n}; ranges use p5–p95.`
+                      : 'Screening ranges are flat ±30–40% until you run MC.'}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={uncBusy}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50"
+                    onClick={runUncertainty}
+                  >
+                    {uncBusy ? 'Running…' : 'Run screening Monte Carlo'}
+                  </button>
+                </div>
+
+                {results.contribution_sankey?.categories && (
+                  <div className="border-t border-gray-100 pt-4">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Top sources (GWP & land)</h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Ranked from contribution_by_source — per kg functional unit.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {Object.entries(results.contribution_sankey.categories).map(([cat, block]) => (
+                        <div key={cat} className="rounded-lg border border-gray-200 p-3">
+                          <p className="font-semibold text-gray-900 mb-2">{cat}</p>
+                          <ul className="space-y-1 text-sm">
+                            {(block.sources ?? []).map((row) => (
+                              <li key={row.source} className="flex justify-between gap-2">
+                                <span className="text-gray-700 truncate" title={row.source}>
+                                  {row.rank}. {row.source}
+                                </span>
+                                <span className="font-mono text-gray-600 shrink-0">
+                                  {(row.share * 100).toFixed(0)}%
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* LCI / match transparency + research export */}
+          {assessmentId && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.08 }}
+              className="mb-12"
+            >
+              <details className="bg-white rounded-2xl shadow-lg border border-gray-200">
+                <summary className="cursor-pointer p-6 text-xl font-bold text-gray-900 list-none flex items-center justify-between">
+                  <span>LCI matches &amp; research export</span>
+                  <span className="text-sm font-normal text-gray-500">Click to expand</span>
+                </summary>
+                <div className="px-6 pb-6 border-t border-gray-100 space-y-4">
+                  <p className="text-sm text-gray-600 pt-4">
+                    Background processes matched for this study, with amounts and whether the
+                    input was estimated. Download SI-ready JSON or CSV for analysis.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+                      onClick={() => assessmentAPI.downloadAssessmentExport(assessmentId, 'json')}
+                    >
+                      Download JSON
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                      onClick={() => assessmentAPI.downloadAssessmentExport(assessmentId, 'csv')}
+                    >
+                      Download CSV
+                    </button>
+                  </div>
+                  {Array.isArray((results as { input_matches?: unknown[] }).input_matches) &&
+                  ((results as { input_matches: unknown[] }).input_matches?.length ?? 0) > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm text-left">
+                        <thead className="text-gray-500 border-b">
+                          <tr>
+                            <th className="py-2 pr-3">Input</th>
+                            <th className="py-2 pr-3">Amount</th>
+                            <th className="py-2 pr-3">Matched process</th>
+                            <th className="py-2 pr-3">Score</th>
+                            <th className="py-2">Estimated</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {((results as {
+                            input_matches: Array<{
+                              input?: string;
+                              name?: string;
+                              amount?: number;
+                              amount_unit?: string;
+                              unit?: string;
+                              matched?: string | { name?: string };
+                              score?: number;
+                              estimated?: boolean;
+                            }>;
+                          }).input_matches).map((m, i) => {
+                            const matched =
+                              typeof m.matched === 'object' && m.matched
+                                ? m.matched.name
+                                : m.matched;
+                            return (
+                              <tr key={i} className="border-b border-gray-100">
+                                <td className="py-2 pr-3 font-medium text-gray-900">
+                                  {m.input || m.name || '—'}
+                                </td>
+                                <td className="py-2 pr-3 text-gray-700">
+                                  {m.amount != null
+                                    ? `${m.amount} ${m.amount_unit || m.unit || ''}`.trim()
+                                    : '—'}
+                                </td>
+                                <td className="py-2 pr-3 text-gray-700 max-w-md truncate" title={matched || ''}>
+                                  {matched || '—'}
+                                </td>
+                                <td className="py-2 pr-3 text-gray-700">
+                                  {m.score != null ? m.score.toFixed(3) : '—'}
+                                </td>
+                                <td className="py-2 text-gray-700">{m.estimated ? 'Yes' : 'No'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No input-match rows on this saved result (older assessments may omit them).
+                    </p>
+                  )}
+                </div>
+              </details>
             </motion.div>
           )}
 

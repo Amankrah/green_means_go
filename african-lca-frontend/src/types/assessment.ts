@@ -48,6 +48,8 @@ export interface AssessmentRequest {
   title?: string;   // human label for the saved assessment
   /** Opaque wizard snapshot so edit/re-run can restore the form exactly. */
   form_snapshot?: unknown;
+  /** Optional LCIA method override (region default when omitted). */
+  lcia_method?: string;
   farm_profile?: Record<string, unknown>; // Enhanced farm profile data
   management_practices?: Record<string, unknown>; // Enhanced management practices data
   equipment_energy?: {
@@ -99,6 +101,59 @@ export interface AssessmentResult {
   management_analysis?: ManagementAnalysis;
   benchmarking?: BenchmarkingResults;
   recommendations?: Recommendation[];
+  /** Matched background processes (research / LCI transparency). */
+  input_matches?: InputMatchRow[];
+  contribution_by_source?: Record<string, Record<string, { value: number; unit?: string }>>;
+  /** Dual FU block from the engine (per kg + per ha). */
+  functional_units?: {
+    per_kg?: { midpoint_impacts?: Record<string, MidpointResult>; total_kg?: number; note?: string };
+    per_ha?: { midpoint_impacts?: Record<string, MidpointResult>; total_ha?: number; note?: string };
+    land_intensity_note?: string;
+  };
+  baseline_assessment_id?: string;
+  lcia_method?: string;
+  method_variants?: Record<
+    string,
+    {
+      midpoint_impacts?: Record<string, MidpointResult>;
+      single_score?: SingleScoreResult;
+      methodology?: string;
+    }
+  >;
+  uncertainty?: {
+    n?: number;
+    method?: string;
+    percentiles?: Record<string, { p5: number; p50: number; p95: number }>;
+  };
+  study_meta?: {
+    crop_year?: number;
+    season?: string;
+    admin_region?: string;
+  };
+  contribution_sankey?: {
+    top_n?: number;
+    categories?: Record<
+      string,
+      {
+        unit?: string;
+        sources?: Array<{ rank: number; source: string; value: number; share: number }>;
+      }
+    >;
+  };
+  review_status?: string;
+}
+
+export interface InputMatchRow {
+  input?: string;
+  name?: string;
+  amount?: number;
+  amount_unit?: string;
+  unit?: string;
+  matched?: string | { name?: string };
+  ref_unit?: string;
+  score?: number;
+  estimated?: boolean;
+  kind?: string;
 }
 
 export interface MidpointResult {

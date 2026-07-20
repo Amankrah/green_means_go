@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models import Facility, Farm, User, UserRole
 from auth.deps import get_current_user, require_role
+from research_export import build_export_csv, build_export_json
 from store import delete_owned_assessment, get_owned_assessment, list_owned_assessments
 
 router = APIRouter(tags=["workspace"])
@@ -251,6 +253,55 @@ def get_assessment_request(
         "api": row.request_json.get("api"),
         "form": row.request_json.get("form"),
     }
+
+
+@router.get("/me/assessments/{assessment_id}/export.json", tags=["research-export"])
+def export_assessment_json(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """SI-ready JSON slice of a saved assessment (ownership-scoped)."""
+    row = get_owned_assessment(db, user, assessment_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    a_type = row.type.value if hasattr(row.type, "value") else str(row.type)
+    body = build_export_json(
+        assessment_id=row.id,
+        a_type=a_type,
+        title=row.title,
+        payload=row.payload_json or {},
+        request_json=row.request_json,
+    )
+    return body
+
+
+@router.get("/me/assessments/{assessment_id}/export.csv", tags=["research-export"])
+def export_assessment_csv(
+    assessment_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Flat CSV tables: midpoints, input_matches, contribution_by_source."""
+    row = get_owned_assessment(db, user, assessment_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    a_type = row.type.value if hasattr(row.type, "value") else str(row.type)
+    export = build_export_json(
+        assessment_id=row.id,
+        a_type=a_type,
+        title=row.title,
+        payload=row.payload_json or {},
+        request_json=row.request_json,
+    )
+    csv_text = build_export_csv(export)
+    return Response(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="assessment_{assessment_id}.csv"'
+        },
+    )
 
 
 @router.delete("/me/assessments/{assessment_id}", status_code=status.HTTP_204_NO_CONTENT)

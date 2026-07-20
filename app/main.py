@@ -28,6 +28,8 @@ from inventory.routes import router as inventory_router
 from farm.routes import router as farm_router
 from auth.routes import router as auth_router
 from workspace.routes import router as workspace_router
+from share.routes import router as share_router
+from studies.routes import router as studies_router
 from db import init_db
 
 # Environment detection
@@ -93,6 +95,8 @@ app.add_middleware(
 # Include auth, workspace, processing, production, chat, and other routes
 app.include_router(auth_router)
 app.include_router(workspace_router)
+app.include_router(share_router)
+app.include_router(studies_router)
 app.include_router(processing_router)
 app.include_router(production_router)
 app.include_router(chat_router)

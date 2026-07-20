@@ -51,6 +51,17 @@ EF5 = 0.011          # N2O from leaching/runoff
 N2O_N_TO_N2O = 44.0 / 28.0
 
 
+def _effective_ef1(assessment: dict, region) -> float:
+    base = getattr(region, "ipcc_n2o_ef1", RUST_EF1) or RUST_EF1
+    scale = assessment.get("ipcc_ef1_scale")
+    if scale is None:
+        return base
+    try:
+        return base * float(scale)
+    except (TypeError, ValueError):
+        return base
+
+
 def _compost_n2o(assessment: dict, region) -> tuple[float, str | None]:
     """Direct + indirect field N2O (kg) from applied compost/manure organic N, per IPCC
     2019 Tier 1. Returns (n2o_kg, note). Zero if no rate is given."""
@@ -63,7 +74,7 @@ def _compost_n2o(assessment: dict, region) -> tuple[float, str | None]:
         return 0.0, None
     source = sm.get("compost_source") or ""
     n_frac = COMPOST_N_FRACTION.get(source, DEFAULT_COMPOST_N)
-    ef1 = getattr(region, "ipcc_n2o_ef1", RUST_EF1) or RUST_EF1
+    ef1 = _effective_ef1(assessment, region)
     # organic N applied (kg) = rate(t/ha) × 1000 × area(ha) × N-fraction
     f_on = rate_t_ha * 1000.0 * total_area * n_frac
     n2o = f_on * (ef1 + FRAC_GASM * EF4 + FRAC_LEACH * EF5) * N2O_N_TO_N2O
@@ -99,14 +110,27 @@ def adjust_field_emissions(on_farm_lci: list[dict], assessment: dict, region) ->
     """Return (adjusted_flows, notes). Scales the N2O flow for regional climate and for a
     legume intercrop credit. Non-N2O flows pass through untouched."""
     notes: list[str] = []
-    ef1 = getattr(region, "ipcc_n2o_ef1", None)
+    base_ef1 = getattr(region, "ipcc_n2o_ef1", None) or RUST_EF1
+    scale = assessment.get("ipcc_ef1_scale")
+    if scale is not None:
+        try:
+            scale = float(scale)
+        except (TypeError, ValueError):
+            scale = None
+    ef1 = _effective_ef1(assessment, region)
     factor = 1.0
 
     if ef1 and ef1 != RUST_EF1:
         factor *= ef1 / RUST_EF1
-        notes.append(
-            f"field N2O scaled to the region's IPCC EF1 ({ef1} kg N2O-N/kg N, "
-            f"{getattr(region, 'climate_zone', 'regional')} climate) from the kernel default {RUST_EF1}")
+        if scale is not None and scale != 1.0:
+            notes.append(
+                f"literature-linked EF1 scale {scale:g}× applied on region IPCC EF1 "
+                f"({base_ef1} -> {ef1:g} kg N2O-N/kg N)"
+            )
+        else:
+            notes.append(
+                f"field N2O scaled to the region's IPCC EF1 ({ef1} kg N2O-N/kg N, "
+                f"{getattr(region, 'climate_zone', 'regional')} climate) from the kernel default {RUST_EF1}")
 
     if _has_legume_partner(assessment):
         factor *= (1.0 - LEGUME_N2O_CREDIT)

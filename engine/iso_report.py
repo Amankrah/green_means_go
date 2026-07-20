@@ -96,7 +96,8 @@ def _data_quality_scorecard(matches: list, unlinked_notes: list, region_name: st
 
 def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                      single_meta: dict, total_kg: float, per_crop=None,
-                     assessment_id: str | None = None, intended_for_public: bool = True) -> dict:
+                     assessment_id: str | None = None, intended_for_public: bool = True,
+                     uncertainty: dict | None = None) -> dict:
     """Assemble an ISO-conformant, review-ready report from the validated assessment.
 
     intended_for_public=True (default): the report is written for external or public use,
@@ -105,6 +106,12 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     region = getattr(engine, "region", None)
     region_name = getattr(region, "name", result.region or "the region")
     ef1 = getattr(region, "ipcc_n2o_ef1", None)
+    ef1_scale = assessment.get("ipcc_ef1_scale")
+    try:
+        ef1_scale_f = float(ef1_scale) if ef1_scale is not None else None
+    except (TypeError, ValueError):
+        ef1_scale_f = None
+    effective_ef1 = (ef1 * ef1_scale_f) if (ef1 and ef1_scale_f is not None) else ef1
     method = engine.method
     is_hierarchist = "(H)" in method
     foods = assessment.get("foods") or []
@@ -235,7 +242,12 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "process": f"Field emissions ({field_emissions_text})",
         "amount": "per kilogram of crop",
         "source": "IPCC 2019, Volume 4 (Agriculture and Land Use)",
-        "adaptation": f"{region_name}" + (f", nitrous-oxide factor {ef1} kg N2O-N per kg N" if ef1 else ""),
+        "adaptation": f"{region_name}" + (
+            f", nitrous-oxide factor {effective_ef1:g} kg N2O-N per kg N"
+            + (f" (literature-linked scale {ef1_scale_f:g}× on regional EF1 {ef1:g})"
+               if ef1_scale_f is not None and ef1_scale_f != 1.0 and ef1 else "")
+            if effective_ef1 else ""
+        ),
     })
 
     # ---- document control ----
@@ -415,8 +427,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     on_farm_flows = [
         ("Nitrous oxide given off directly from all the nitrogen applied (synthetic fertiliser"
          + (", plus any compost or manure)" if compost_n_modelled else ")")
-         + (f", worked out with the region's IPCC factor of {ef1} kg N2O-N per kg of nitrogen "
-            f"for a {climate_zone} climate." if ef1 else ".")),
+         + (f", worked out with the region's IPCC factor of {effective_ef1:g} kg N2O-N per kg of nitrogen "
+            f"for a {climate_zone} climate."
+            + (f" (literature-linked scale {ef1_scale_f:g}× applied to regional EF1 {ef1:g})"
+               if ef1_scale_f is not None and ef1_scale_f != 1.0 and ef1 else "")
+            if effective_ef1 else ".")),
         "A further, indirect share of nitrous oxide from the nitrogen that escapes as gas and later "
         "settles back onto the land, and from the nitrogen washed out by leaching and run-off "
         "(using the IPCC 2019 fractions with the EF4 and EF5 factors).",
@@ -427,7 +442,12 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     on_farm_flows.append("The land the crop occupies while it grows.")
 
     on_farm_adjustments = []
-    if ef1 and ef1 != 0.01:
+    if ef1_scale_f is not None and ef1_scale_f != 1.0:
+        on_farm_adjustments.append(
+            f"A literature-linked EF1 scale of {ef1_scale_f:g}× was applied to the regional "
+            f"IPCC direct N2O factor ({ef1:g} -> {effective_ef1:g} kg N2O-N per kg N)."
+        )
+    elif ef1 and ef1 != 0.01:
         on_farm_adjustments.append(
             f"We use the nitrous-oxide factor for the local climate ({ef1}) rather than the global default of 0.01.")
     if has_legume:
@@ -470,10 +490,19 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "inventory_results": inventory_results,
         "inputs_matched": f"{len(matched)} of {len(matches)} bought-in inputs were matched to a background dataset.",
         "pedigree_uncertainty": (
-            "The plus or minus 30 to 40 percent range shown on each category is an indicative screening "
-            "figure applied across the board, not a value calculated for this particular farm. A proper, "
-            "dataset-by-dataset uncertainty (pedigree or Monte-Carlo) has not been run and would be the "
-            "next step for a fuller study."),
+            (f"A pedigree screening Monte Carlo was run with N={uncertainty['n']} draws, "
+             f"scaling category totals by data class (measured match GSD "
+             f"{uncertainty.get('gsd_by_class', {}).get('measured_match', '?')}, "
+             f"estimated activity GSD "
+             f"{uncertainty.get('gsd_by_class', {}).get('estimated_activity', '?')}, "
+             f"field EF GSD {uncertainty.get('gsd_by_class', {}).get('field_ef', '?')}). "
+             f"The p5–p95 ranges on each figure come from that simulation.")
+            if uncertainty
+            else (
+                "The plus or minus 30 to 40 percent range shown on each category is an indicative screening "
+                "figure applied across the board, not a value calculated for this particular farm. A proper, "
+                "dataset-by-dataset uncertainty (pedigree or Monte-Carlo) has not been run and would be the "
+                "next step for a fuller study.")),
         "data_validation": (
             "This refers to the calculation engine, not to a separate check of this farm's numbers. The "
             "engine's method has been benchmarked once against established tools: ecoinvent products match "
@@ -522,19 +551,30 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     # is also its elasticity: change that source by 1% and the total moves by about its share.
     # The largest contributors are therefore the most sensitive parameters.
     _src = (contribution_analysis or {}).get("by_source") or []
+    _mc_n = (uncertainty or {}).get("n")
+    _mc_basis = (
+        f" A pedigree screening Monte Carlo with N={_mc_n} was also run; category ranges "
+        f"reflect p5–p95 percentiles from lognormal scaling by data class (measured match, "
+        f"estimated activity defaults, field emission factors)."
+        if uncertainty else
+        " Separately, each category result carries an indicative pedigree uncertainty of roughly "
+        "30 to 40 percent (shown as the range on each figure), which is a screening estimate "
+        "rather than a full Monte-Carlo propagation.")
     if _src:
         sensitivity = (
             "Because the calculation is linear in the amounts used, each source's share of a result is "
             "also how sensitive the result is to it: change a source by one percent and the total moves "
             "by about its share. On that basis the climate result is driven mainly by "
             + ", ".join(f"{s['source']} ({s['share']*100:.0f}%)" for s in _src[:3])
-            + ", so those are the figures worth getting right first. Separately, each category result "
-            "carries an indicative pedigree uncertainty of roughly 30 to 40 percent (shown as the range "
-            "on each figure), which is a screening estimate rather than a full Monte-Carlo propagation.")
+            + ", so those are the figures worth getting right first."
+            + _mc_basis)
     else:
         sensitivity = (
-            "Each category result carries an indicative pedigree uncertainty of roughly 30 to 40 percent "
-            "(shown as the range on each figure), a screening estimate rather than a full uncertainty propagation.")
+            (f"Each category result carries p5–p95 ranges from a pedigree screening Monte Carlo "
+             f"(N={_mc_n}) based on data-class GSDs."
+             if uncertainty else
+             "Each category result carries an indicative pedigree uncertainty of roughly 30 to 40 percent "
+             "(shown as the range on each figure), a screening estimate rather than a full uncertainty propagation."))
 
     # Recommendations driven by the actual hotspots (the top climate contributors), not a
     # fixed list, so the advice points at what is really moving this farm's result.
@@ -625,6 +665,12 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "sensitivity_and_uncertainty": sensitivity,
         "conclusions": [
             (f"Measured per kilogram of crop, the biggest single contributor is {top_cats[0][0]}."
+             + (
+                 " Land use here means land intensity (square metres occupied per kilogram of "
+                 "product), not that using farmland is wrong — higher yield lowers land use per kg."
+                 if top_cats and "land" in str(top_cats[0][0]).lower()
+                 else ""
+             )
              if top_cats else "The impacts are spread fairly evenly across the categories."),
             (f"On the climate side, {_src[0]['source']} is the main driver at about {_src[0]['share']*100:.0f}%, "
              "so that is where the clearest improvement lies."
@@ -633,7 +679,13 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "recommendations": _recs,
         "limitations": [
             "This is a screening study, so it uses standard emission factors and average background data rather than measurements from this farm.",
-            "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. A finer, dataset-by-dataset pedigree score with propagated uncertainty (rather than the indicative range shown) has not been carried out.",
+            ("Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
+             f"A pedigree screening Monte Carlo (N={_mc_n}) propagated lognormal uncertainty by data class "
+             "to the category ranges shown."
+             if uncertainty else
+             "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
+             "A finer, dataset-by-dataset pedigree score with propagated uncertainty (rather than the "
+             "indicative range shown) has not been carried out."),
             "The single score uses equal weighting, which is a judgement call, and it works best for comparing scenarios of the same crop rather than as an absolute verdict.",
         ],
         "public_disclosure": (

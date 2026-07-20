@@ -72,6 +72,7 @@ class User(Base):
     farms: Mapped[list["Farm"]] = relationship(back_populates="creator", cascade="all, delete-orphan")
     facilities: Mapped[list["Facility"]] = relationship(back_populates="creator", cascade="all, delete-orphan")
     assessments: Mapped[list["Assessment"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    studies: Mapped[list["Study"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
 
 
 class Farm(Base):
@@ -147,3 +148,28 @@ class Assessment(Base):
     owner: Mapped["User"] = relationship(back_populates="assessments")
     farm: Mapped["Farm | None"] = relationship(back_populates="assessments")
     facility: Mapped["Facility | None"] = relationship(back_populates="assessments")
+
+
+class Study(Base):
+    """A researcher-owned cohort grouping saved assessments for batch analysis and re-run."""
+
+    __tablename__ = "studies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+    assessment_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())
+
+    owner: Mapped["User"] = relationship(back_populates="studies")
+
+
+class ShareLink(Base):
+    """Read-only token granting public GET access to one assessment's results."""
+
+    __tablename__ = "share_links"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    assessment_id: Mapped[str] = mapped_column(ForeignKey("assessments.id"), index=True, nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, server_default=func.now())

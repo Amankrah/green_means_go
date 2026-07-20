@@ -102,6 +102,13 @@ def build_grounding_payload(assessment_data: dict) -> dict:
         clim_entries.sort(key=lambda x: abs(x.get("climate_change") or 0), reverse=True)
         by_source = clim_entries[:8]
 
+    fu = assessment_data.get("functional_units") or {}
+    land_note = fu.get("land_intensity_note") or (
+        "Land use (m² per kg) is land intensity — area occupied per kilogram of crop — "
+        "not a judgment that using farmland is environmentally wrong. "
+        "Higher yield lowers land intensity per kg."
+    )
+
     return {
         "grounding_rules": GROUNDING_RULES,
         "title": doc.get("title"),
@@ -110,6 +117,11 @@ def build_grounding_payload(assessment_data: dict) -> dict:
         "country": assessment_data.get("country"),
         "region": scope.get("product_system"),
         "functional_unit": scope.get("functional_unit"),
+        "functional_units_available": {
+            "per_kg": bool((fu.get("per_kg") or {}).get("midpoint_impacts")),
+            "per_ha": bool((fu.get("per_ha") or {}).get("midpoint_impacts")),
+        },
+        "land_intensity_note": land_note,
         "boundary_included": scope.get("boundary_included"),
         "boundary_excluded": scope.get("boundary_excluded"),
         "lcia_method": scope.get("lcia_method"),
