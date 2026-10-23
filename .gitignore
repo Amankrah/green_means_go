@@ -245,6 +245,9 @@ coverage/
 # Local LCA reference datasets (large; fetch via ingestion/)
 data/
 
+# Client audit work (confidential)
+audits/
+
 # Deployment scripts with sensitive info
 DEPLOYMENT.md
 

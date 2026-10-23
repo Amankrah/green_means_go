@@ -43,6 +43,10 @@ cd ../app
 source venv/bin/activate
 pip install -r ../requirements.txt
 
+# Apply pending DB migrations (SQLite/Postgres). create_all never ALTERs existing tables.
+echo "Running Alembic migrations..."
+alembic upgrade head
+
 # Rebuild frontend
 echo "Rebuilding frontend..."
 cd ../african-lca-frontend

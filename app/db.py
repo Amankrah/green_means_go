@@ -76,3 +76,12 @@ def _ensure_sqlite_columns() -> None:
     with engine.begin() as conn:
         if "request_json" not in existing:
             conn.execute(text("ALTER TABLE assessments ADD COLUMN request_json JSON"))
+        # Revision history columns (see alembic d4e5f6a7b8c9). create_all never ALTERs.
+        if "version" not in existing:
+            conn.execute(
+                text("ALTER TABLE assessments ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
+            )
+        if "current_revision_id" not in existing:
+            conn.execute(
+                text("ALTER TABLE assessments ADD COLUMN current_revision_id VARCHAR(36)")
+            )
