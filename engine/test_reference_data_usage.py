@@ -74,7 +74,7 @@ def test_unused_entries_have_a_reason(entry):
 
 
 def test_no_em_dash_in_registry():
-    assert "—" not in (ROOT / "lcia_reference" / "data_usage.json").read_text(encoding="utf-8")
+    assert "\u2014" not in (ROOT / "lcia_reference" / "data_usage.json").read_text(encoding="utf-8")
 
 
 def test_tier1_price_feed_loads():

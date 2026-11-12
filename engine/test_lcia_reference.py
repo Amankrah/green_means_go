@@ -77,7 +77,7 @@ def test_gwp_statement_reads_store(method, n2o, ch4, word):
     st = gwp_basis.statement(SimpleNamespace(q=_q()), method)
     assert st["n2o"] == n2o and st["ch4_non_fossil"] == ch4
     assert word in st["basis"] and f"N2O {n2o:g}" in st["text"]
-    assert "—" not in st["text"]
+    assert "\u2014" not in st["text"]
 
 
 def test_cf_reconciliation_recorded_and_explained():

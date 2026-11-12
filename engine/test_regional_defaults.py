@@ -36,7 +36,7 @@ def test_nigeria_table_mirrors_ghana_structure_with_sources():
         assert "inherited_from_ghana" in p
         assert r["yield_guides_kg_per_ha"]["maize"] == 1939      # FAOSTAT 2023 Nigeria
     text = (REF / "nigeria_farm_activity_defaults.json").read_text(encoding="utf-8")
-    assert "—" not in text
+    assert "\u2014" not in text
 
 
 def test_nigeria_resolves_to_nigeria_table():
