@@ -211,27 +211,111 @@ class ProcessMatcher:
                  meta=np.array(self.meta, dtype=object), matrix=self.matrix)
         return len(self.uids)
 
+    # ---- query embedding cache -------------------------------------------------------
+    # Dense embedding APIs jitter in the 4th decimal between calls, which can flip a
+    # near-tie between two candidates. Caching each query vector makes repeated matches of
+    # the same text inside one process identical (and cheaper). load/save_query_cache let a
+    # test pin the vectors on disk so a golden comparison is reproducible without the API.
+    def _query_vec(self, text: str) -> np.ndarray:
+        cache = self.__dict__.setdefault("_qcache", {})
+        key = (self.embedder.name, text)
+        v = cache.get(key)
+        if v is None:
+            v = self.embedder.embed([text])[0]
+            cache[key] = v
+            self.__dict__.setdefault("_qcache_new", set()).add(key)
+        return v
+
+    def load_query_cache(self, path) -> int:
+        """Load pinned query vectors for this embedder. Returns how many were loaded."""
+        p = Path(path)
+        if not p.exists():
+            return 0
+        data = np.load(p, allow_pickle=False)
+        if str(data["embedder"]) != self.embedder.name:
+            return 0
+        cache = self.__dict__.setdefault("_qcache", {})
+        vecs = data["vectors"].astype(np.float32)
+        for t, v in zip(data["texts"], vecs):
+            cache[(self.embedder.name, str(t))] = v
+        return len(vecs)
+
+    def save_query_cache(self, path) -> int:
+        """Persist every cached query vector for this embedder (float16, compressed)."""
+        cache = self.__dict__.get("_qcache", {})
+        items = sorted((t, v) for (e, t), v in cache.items() if e == self.embedder.name)
+        if not items:
+            return 0
+        np.savez_compressed(Path(path), embedder=np.array(self.embedder.name),
+                            texts=np.array([t for t, _ in items]),
+                            vectors=np.stack([v for _, v in items]).astype(np.float16))
+        return len(items)
+
+    def new_query_count(self) -> int:
+        """How many query vectors were embedded live (not served from the cache)."""
+        return len(self.__dict__.get("_qcache_new", ()))
+
+    # ---- reference products -----------------------------------------------------------
+    def reference_product(self, uid: str) -> Optional[str]:
+        """Name of the process's reference product flow (ecoinvent: the product after the
+        '|' in the activity name; Agribalyse: usually the process name itself)."""
+        refs = self.__dict__.get("_refprod")
+        if refs is None:
+            refs = {}
+            try:
+                for r in self.q.conn.execute(
+                        "SELECT p.uid, f.name FROM processes p "
+                        "LEFT JOIN flows f ON f.uid = p.ref_flow"):
+                    refs[r[0]] = r[1]
+            except Exception:
+                refs = {}
+            self._refprod = refs
+        return refs.get(uid)
+
+    def _row_of(self, uid: str) -> Optional[int]:
+        rows = self.__dict__.get("_rows")
+        if rows is None or len(rows) != len(self.uids):
+            rows = {u: i for i, u in enumerate(self.uids)}
+            self._rows = rows
+        return rows.get(uid)
+
+    def _cand(self, i: int, score: float) -> dict:
+        return {
+            "uid": self.uids[i],
+            "name": self.meta[i].get("name"),
+            "location": self.meta[i].get("location"),
+            "category": self.meta[i].get("category"),
+            "reference_product": self.reference_product(self.uids[i]),
+            "score": round(float(score), 4),
+        }
+
     def match(self, text: str, top_k: int = 5, expand: bool = False) -> list[dict]:
         if self.matrix is None:
             self.build_index()
         if self.matrix is None or self.matrix.shape[0] == 0:
             return []
         query_text = llm_expand(text) if expand else text
-        qv = self.embedder.embed([query_text])[0]
+        qv = self._query_vec(query_text)
         sims = self.matrix @ qv
         k = min(top_k, len(self.uids))
         top = np.argpartition(-sims, k - 1)[:k]
-        top = top[np.argsort(-sims[top])]
-        return [
-            {
-                "uid": self.uids[i],
-                "name": self.meta[i].get("name"),
-                "location": self.meta[i].get("location"),
-                "category": self.meta[i].get("category"),
-                "score": round(float(sims[i]), 4),
-            }
-            for i in top
-        ]
+        # stable order: score desc, then uid, so equal scores never reorder between runs
+        top = sorted(top, key=lambda i: (-float(sims[i]), self.uids[i]))
+        return [self._cand(i, sims[i]) for i in top]
+
+    def score_uids(self, text: str, uids, top_k: int = 25) -> list[dict]:
+        """Score an explicit subset of processes against `text`. Recall path for the
+        product-identity gate: datasets of the right product whose embedding fell outside
+        the global top-k."""
+        if self.matrix is None:
+            self.build_index()
+        rows = [r for r in (self._row_of(u) for u in uids) if r is not None]
+        if not rows:
+            return []
+        qv = self._query_vec(text)
+        sims = self.matrix[rows] @ qv
+        order = sorted(range(len(rows)), key=lambda j: (-float(sims[j]), self.uids[rows[j]]))
+        return [self._cand(rows[j], sims[j]) for j in order[:top_k]]
 
 
 # ------------------------------- CLI ---------------------------------------
