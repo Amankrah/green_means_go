@@ -30,13 +30,14 @@ from ingestion.matching import ProcessMatcher             # noqa: E402
 try:
     from .regions import get_region, location_rank
     from .flowmap import OnFarmFlowMap
-    from . import grid_calibration
+    from . import grid_calibration, regional_lcia
     from . import units
 except ImportError:
     from regions import get_region, location_rank
     from flowmap import OnFarmFlowMap
     import grid_calibration
     import units
+    import regional_lcia
 
 
 def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
@@ -242,6 +243,8 @@ class FarmLCA:
                     match_row["estimate_meta"] = inp["estimate_meta"]
             res.input_matches.append(match_row)
 
+        # regionalise foreground water (AWARE) and land (EF SQI) before characterising
+        regional_lcia.apply(self.q, self.region, on_farm_lci, purchased_inputs, onfarm, supply, res, self.method)
         # 3) characterize: parts (for the split) + merged total, all via the validated path
         _emit(on_progress, "characterize", "Characterizing impacts")
         res.contribution["on_farm"] = self.q.characterize_flows(onfarm, self.method)

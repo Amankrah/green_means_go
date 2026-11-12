@@ -1,0 +1,1165 @@
+{
+ "id": "aware.country.annual",
+ "title": "AWARE water scarcity characterisation factors, country annual aggregates",
+ "unit": "m3 world-eq deprived per m3 consumed",
+ "source": "Boulay A-M et al. (2018) The WULCA consensus characterization model for water scarcity footprints (AWARE). Int J LCA 23:368-378. Country aggregation file AWARE_country_regions_Corrected_online_20230113, sheet AWARE-annual (agri = Agg_CF_irri, non_agri = Agg_CF_non_irri).",
+ "file": "data/AWARE2.0/AWARE_country_regions_Corrected_online_20230113-1.xlsx",
+ "sha256": "5ed027b7a4607d223e8f8fd55c6e8e61cd9577daccf43eaaf9eacd4b9c9f3842",
+ "version_note": "The folder is named AWARE2.0 but the country file is the WULCA corrected release of 2023-01-13 (AWARE 1.2c aggregation); the watershed file is AWARE_watersheds_v12_20240531. 'World, UNKNOWN' (42.95) equals the EF 3.1 'Water use' CF shipped in the ecoinvent 3.11 method pack.",
+ "licence": "WULCA, free for use with citation",
+ "world": {
+  "agri": 45.73687803074513,
+  "non_agri": 20.30408632096678,
+  "unspecified": 42.953530866940355
+ },
+ "countries": {
+  "Ghana": {
+   "agri": 16.83742584592751,
+   "non_agri": 16.073986112615167,
+   "unspecified": 16.43845623587336
+  },
+  "Nigeria": {
+   "agri": 7.99840719893199,
+   "non_agri": 9.818772477549338,
+   "unspecified": 8.923473503509143
+  },
+  "Senegal": {
+   "agri": 80.81773485657436,
+   "non_agri": 52.79134188232478,
+   "unspecified": 78.37955382951877
+  },
+  "Burkina Faso": {
+   "agri": 16.841960283118038,
+   "non_agri": 19.563929583590326,
+   "unspecified": 18.20079075155446
+  },
+  "South Africa": {
+   "agri": 40.75993923399581,
+   "non_agri": 21.134348729850736,
+   "unspecified": 38.35347124026599
+  },
+  "Canada": {
+   "agri": 8.376902523465452,
+   "non_agri": 2.6855742526188093,
+   "unspecified": 6.577624816701168
+  }
+ },
+ "all_countries": {
+  "Afghanistan": {
+   "agri": 58.639098360089044,
+   "non_agri": 31.63591903507405,
+   "unspecified": 57.935456987292476
+  },
+  "Albania": {
+   "agri": 36.57493232731354,
+   "non_agri": 9.070250717799372,
+   "unspecified": 34.1634942960456
+  },
+  "Algeria": {
+   "agri": 66.2089164989113,
+   "non_agri": 37.03002811723648,
+   "unspecified": 64.17180130077834
+  },
+  "American Samoa": {
+   "agri": 0.0,
+   "non_agri": 4.417532544,
+   "unspecified": 4.417532544
+  },
+  "Andorra": {
+   "agri": 64.95191477406048,
+   "non_agri": 13.272233194328336,
+   "unspecified": 56.3308179373251
+  },
+  "Angola": {
+   "agri": 4.579280496415789,
+   "non_agri": 9.912449816069078,
+   "unspecified": 5.788541614191322
+  },
+  "Anguilla": {
+   "agri": 0.0,
+   "non_agri": 22.37208753,
+   "unspecified": 22.37208753
+  },
+  "Antigua and Barbuda": {
+   "agri": 10.347553273595228,
+   "non_agri": 4.883459208750397,
+   "unspecified": 5.759905111728797
+  },
+  "Argentina": {
+   "agri": 37.596603738521736,
+   "non_agri": 4.192924708011247,
+   "unspecified": 30.14148180514807
+  },
+  "Armenia": {
+   "agri": 87.54854424472211,
+   "non_agri": 43.724455669098916,
+   "unspecified": 85.75290069851204
+  },
+  "Aruba": {
+   "agri": 0.0,
+   "non_agri": 0.0,
+   "unspecified": 0.0
+  },
+  "Australia": {
+   "agri": 72.79001338025758,
+   "non_agri": 25.406232462946438,
+   "unspecified": 71.08118653712059
+  },
+  "Austria": {
+   "agri": 1.27877553707204,
+   "non_agri": 1.1428277757555647,
+   "unspecified": 1.2459292893288103
+  },
+  "Azerbaijan": {
+   "agri": 86.82314737797756,
+   "non_agri": 44.40994216820609,
+   "unspecified": 84.6293212973196
+  },
+  "Bahrain": {
+   "agri": 8.16267750817235,
+   "non_agri": 9.039942666458273,
+   "unspecified": 8.72716077896561
+  },
+  "Bangladesh": {
+   "agri": 3.0098973740139,
+   "non_agri": 2.3433382193036323,
+   "unspecified": 2.9863210944027583
+  },
+  "Barbados": {
+   "agri": 17.511023203779086,
+   "non_agri": 7.600422936271781,
+   "unspecified": 9.70662042091232
+  },
+  "Belarus": {
+   "agri": 3.760535113195919,
+   "non_agri": 2.988721965814759,
+   "unspecified": 3.364175972996923
+  },
+  "Belgium": {
+   "agri": 2.2083444675531503,
+   "non_agri": 1.2043175045547272,
+   "unspecified": 1.3736930005596066
+  },
+  "Belize": {
+   "agri": 1.2577994580650245,
+   "non_agri": 1.048442936666375,
+   "unspecified": 1.0883962832274388
+  },
+  "Benin": {
+   "agri": 5.495187125781071,
+   "non_agri": 7.20022747339131,
+   "unspecified": 6.323668271898761
+  },
+  "Bhutan": {
+   "agri": 1.0641911448235828,
+   "non_agri": 0.7646002044029668,
+   "unspecified": 1.0214274439494864
+  },
+  "Bolivia": {
+   "agri": 3.466269154261261,
+   "non_agri": 1.6847703661262203,
+   "unspecified": 2.891210759394875
+  },
+  "Bosnia and Herzegovina": {
+   "agri": 1.335772551584449,
+   "non_agri": 1.0159558807257247,
+   "unspecified": 1.1746002891612453
+  },
+  "Botswana": {
+   "agri": 13.036064469878731,
+   "non_agri": 33.043540384676554,
+   "unspecified": 21.712667514866858
+  },
+  "Brazil": {
+   "agri": 2.652893060671342,
+   "non_agri": 1.8989932826631863,
+   "unspecified": 2.2752038902763507
+  },
+  "British Virgin Islands": {
+   "agri": 23.41098448,
+   "non_agri": 13.24066099,
+   "unspecified": 14.6191233
+  },
+  "Brunei": {
+   "agri": 0.2049824882749789,
+   "non_agri": 0.179054933005011,
+   "unspecified": 0.18278962258374884
+  },
+  "Bulgaria": {
+   "agri": 27.992197686372826,
+   "non_agri": 9.46870432241139,
+   "unspecified": 26.6952216599752
+  },
+  "Burkina Faso": {
+   "agri": 16.841960283118038,
+   "non_agri": 19.563929583590326,
+   "unspecified": 18.20079075155446
+  },
+  "Burundi": {
+   "agri": 10.681816428326687,
+   "non_agri": 65.1932232126045,
+   "unspecified": 29.111873606634934
+  },
+  "Cambodia": {
+   "agri": 9.433757716458599,
+   "non_agri": 3.346641001432287,
+   "unspecified": 8.564984330130088
+  },
+  "Cameroon": {
+   "agri": 11.14672305692593,
+   "non_agri": 3.9564158055739513,
+   "unspecified": 7.14011138484715
+  },
+  "Canada": {
+   "agri": 8.376902523465452,
+   "non_agri": 2.6855742526188093,
+   "unspecified": 6.577624816701168
+  },
+  "Cape Verde": {
+   "agri": 26.09498916,
+   "non_agri": 8.333333333,
+   "unspecified": 24.81282098
+  },
+  "Central African Republic": {
+   "agri": 14.748426121847228,
+   "non_agri": 9.697818613656683,
+   "unspecified": 8.88104290530532
+  },
+  "Chad": {
+   "agri": 12.316548464934858,
+   "non_agri": 35.81221696478642,
+   "unspecified": 21.602798326139393
+  },
+  "Chile": {
+   "agri": 83.20225548019475,
+   "non_agri": 35.141603959983314,
+   "unspecified": 81.37974926668001
+  },
+  "China": {
+   "agri": 45.84727840268823,
+   "non_agri": 27.080652570717337,
+   "unspecified": 42.47130357170714
+  },
+  "Colombia": {
+   "agri": 2.2472275379525786,
+   "non_agri": 0.7799854895953194,
+   "unspecified": 1.4211688663547368
+  },
+  "Comoros": {
+   "agri": 5.432335254860832,
+   "non_agri": 9.801121882566173,
+   "unspecified": 9.678611459789712
+  },
+  "Congo": {
+   "agri": 0.7147520236320078,
+   "non_agri": 0.5631856173739518,
+   "unspecified": 0.5686078891285439
+  },
+  "Congo, Democratic Republic of the": {
+   "agri": 1.8744665258864392,
+   "non_agri": 9.382071336014338,
+   "unspecified": 7.709208228664474
+  },
+  "Costa Rica": {
+   "agri": 2.0541833368976854,
+   "non_agri": 0.6515817944917681,
+   "unspecified": 1.083363375510291
+  },
+  "Ivory Coast": {
+   "agri": 6.371340865134937,
+   "non_agri": 5.865906125798616,
+   "unspecified": 6.017534440799839
+  },
+  "Croatia": {
+   "agri": 1.9170425501940505,
+   "non_agri": 1.3537920458282302,
+   "unspecified": 1.5859634618153011
+  },
+  "Cuba": {
+   "agri": 3.8570834400720946,
+   "non_agri": 2.991052812002136,
+   "unspecified": 3.6570075696193154
+  },
+  "Cyprus": {
+   "agri": 76.64316305170694,
+   "non_agri": 48.66421805510681,
+   "unspecified": 75.67978076465347
+  },
+  "Czech Republic": {
+   "agri": 1.8979158896809452,
+   "non_agri": 1.6925481676564431,
+   "unspecified": 1.827334000202975
+  },
+  "Denmark": {
+   "agri": 2.037254815985191,
+   "non_agri": 1.9885506406302287,
+   "unspecified": 2.034372271328134
+  },
+  "Djibouti": {
+   "agri": 13.145196890801383,
+   "non_agri": 34.404383264687716,
+   "unspecified": 20.924589532401097
+  },
+  "Dominica": {
+   "agri": 12.59639579,
+   "non_agri": 5.81812126881142,
+   "unspecified": 6.8808723631871604
+  },
+  "Dominican Republic": {
+   "agri": 12.067685646257145,
+   "non_agri": 4.027195634265523,
+   "unspecified": 10.185232984464601
+  },
+  "East Timor": {
+   "agri": 11.263350569809466,
+   "non_agri": 3.327651115816896,
+   "unspecified": 9.603630847441483
+  },
+  "Ecuador": {
+   "agri": 7.9875843359264485,
+   "non_agri": 2.1615744988731205,
+   "unspecified": 6.726708773143528
+  },
+  "Egypt": {
+   "agri": 95.67386144758288,
+   "non_agri": 98.40056827835187,
+   "unspecified": 95.9648821177559
+  },
+  "El Salvador": {
+   "agri": 1.5868201489537723,
+   "non_agri": 1.7100943661856582,
+   "unspecified": 1.6640941210718314
+  },
+  "Equatorial Guinea": {
+   "agri": 0.0,
+   "non_agri": 0.2886514839842832,
+   "unspecified": 0.2892203989118381
+  },
+  "Eritrea": {
+   "agri": 44.68135371074887,
+   "non_agri": 36.04107426079488,
+   "unspecified": 44.06515833697833
+  },
+  "Estonia": {
+   "agri": 1.327984315692485,
+   "non_agri": 1.0712660268372438,
+   "unspecified": 1.092361549241158
+  },
+  "Ethiopia": {
+   "agri": 27.396842968691978,
+   "non_agri": 28.53393387611008,
+   "unspecified": 28.985178513440506
+  },
+  "Falkland Islands": {
+   "agri": 0.0,
+   "non_agri": 5.38829823708395,
+   "unspecified": 5.38829823708395
+  },
+  "Faroe Islands": {
+   "agri": 0.0,
+   "non_agri": 1.4392618900696958,
+   "unspecified": 1.4392618900696958
+  },
+  "Fiji": {
+   "agri": 3.006654551960659,
+   "non_agri": 1.0730075924077576,
+   "unspecified": 2.0929793986468685
+  },
+  "Finland": {
+   "agri": 1.5186746371221507,
+   "non_agri": 1.7317565632792566,
+   "unspecified": 1.6723354337812035
+  },
+  "France": {
+   "agri": 9.48681257428949,
+   "non_agri": 3.0510791476734163,
+   "unspecified": 8.150621234141653
+  },
+  "French Guiana": {
+   "agri": 0.46546100359025533,
+   "non_agri": 0.4936181143651566,
+   "unspecified": 0.47708962377029185
+  },
+  "Gabon": {
+   "agri": 0.9428257371021803,
+   "non_agri": 0.41077499860541183,
+   "unspecified": 0.4430631327832625
+  },
+  "Georgia": {
+   "agri": 83.10410531228962,
+   "non_agri": 24.50739577631532,
+   "unspecified": 75.9483117081722
+  },
+  "Germany": {
+   "agri": 1.7784352021845882,
+   "non_agri": 1.116620647960218,
+   "unspecified": 1.312326145829117
+  },
+  "Ghana": {
+   "agri": 16.83742584592751,
+   "non_agri": 16.073986112615167,
+   "unspecified": 16.43845623587336
+  },
+  "Gibraltar": {
+   "agri": 48.06596418,
+   "non_agri": 30.98467086,
+   "unspecified": 46.16274165
+  },
+  "Greece": {
+   "agri": 69.36030767321641,
+   "non_agri": 28.347883678331165,
+   "unspecified": 68.03632881973094
+  },
+  "Greenland": {
+   "agri": 0.0,
+   "non_agri": 0.0,
+   "unspecified": 0.0
+  },
+  "Grenada": {
+   "agri": 8.333150095,
+   "non_agri": 13.47446911,
+   "unspecified": 11.82217293
+  },
+  "Guadeloupe": {
+   "agri": 9.946563897763513,
+   "non_agri": 6.950523039765068,
+   "unspecified": 9.523865416596072
+  },
+  "Guatemala": {
+   "agri": 1.1556306365292406,
+   "non_agri": 1.0992443102596112,
+   "unspecified": 1.1172605438493581
+  },
+  "Guinea": {
+   "agri": 10.085854869240976,
+   "non_agri": 20.965110747974634,
+   "unspecified": 15.386723209854896
+  },
+  "Guinea Bissau": {
+   "agri": 2.70529346586536,
+   "non_agri": 2.6472414753997153,
+   "unspecified": 2.6985831947717793
+  },
+  "Guyana": {
+   "agri": 0.9572870793587879,
+   "non_agri": 0.45488453241733817,
+   "unspecified": 0.934698642571197
+  },
+  "Haiti": {
+   "agri": 6.184378487222888,
+   "non_agri": 4.467154391621586,
+   "unspecified": 5.9617055477650105
+  },
+  "Honduras": {
+   "agri": 0.9175939112655984,
+   "non_agri": 1.080032291327795,
+   "unspecified": 0.9806276189767968
+  },
+  "Hungary": {
+   "agri": 1.2876310319999995,
+   "non_agri": 1.1641231639999998,
+   "unspecified": 1.2638431819999996
+  },
+  "Iceland": {
+   "agri": 0.0,
+   "non_agri": 1.08280436804684,
+   "unspecified": 1.08280436804684
+  },
+  "India": {
+   "agri": 30.494259695378645,
+   "non_agri": 21.306085240363043,
+   "unspecified": 29.835985412704375
+  },
+  "Indonesia": {
+   "agri": 23.935170095642196,
+   "non_agri": 8.925760608911421,
+   "unspecified": 21.81359914900988
+  },
+  "Iran": {
+   "agri": 66.85104643831349,
+   "non_agri": 40.14382572122499,
+   "unspecified": 66.28166263891961
+  },
+  "Iraq": {
+   "agri": 58.97458393860096,
+   "non_agri": 36.6643587231758,
+   "unspecified": 58.66426033155479
+  },
+  "Ireland": {
+   "agri": 1.6357644652808478,
+   "non_agri": 0.7919114575996408,
+   "unspecified": 0.7965654499483344
+  },
+  "Isle of Man": {
+   "agri": 0.0,
+   "non_agri": 4.976552229400558,
+   "unspecified": 4.976552229400558
+  },
+  "Israel": {
+   "agri": 87.03051743412004,
+   "non_agri": 54.97082753228222,
+   "unspecified": 84.87228471909822
+  },
+  "Italy": {
+   "agri": 46.40125685755297,
+   "non_agri": 16.678335147979798,
+   "unspecified": 43.214023490982164
+  },
+  "Jamaica": {
+   "agri": 11.657895882124933,
+   "non_agri": 6.302038777086393,
+   "unspecified": 8.685348817899964
+  },
+  "Japan": {
+   "agri": 0.5973677231893315,
+   "non_agri": 0.5731914180077096,
+   "unspecified": 0.5889385615388466
+  },
+  "Jersey": {
+   "agri": 0.0,
+   "non_agri": 13.54248473,
+   "unspecified": 13.54248473
+  },
+  "Jordan": {
+   "agri": 79.02769796185584,
+   "non_agri": 49.902279793769594,
+   "unspecified": 77.68153877382986
+  },
+  "Kazakhstan": {
+   "agri": 52.80102890322576,
+   "non_agri": 27.580198392108116,
+   "unspecified": 50.599335986124935
+  },
+  "Kenya": {
+   "agri": 11.28570922851004,
+   "non_agri": 28.988906573549226,
+   "unspecified": 21.267563585088336
+  },
+  "Kuwait": {
+   "agri": 47.08285370491335,
+   "non_agri": 71.02419318617373,
+   "unspecified": 58.94111340860293
+  },
+  "Kyrgyzstan": {
+   "agri": 63.43358182022134,
+   "non_agri": 55.8585909318977,
+   "unspecified": 62.958996288490496
+  },
+  "Laos": {
+   "agri": 5.959214597913618,
+   "non_agri": 3.797144990060619,
+   "unspecified": 5.75160077815627
+  },
+  "Latvia": {
+   "agri": 1.45796692641997,
+   "non_agri": 1.2445604887596575,
+   "unspecified": 1.258120207270554
+  },
+  "Lebanon": {
+   "agri": 86.89903037373585,
+   "non_agri": 50.71153474941782,
+   "unspecified": 83.41792198542393
+  },
+  "Lesotho": {
+   "agri": 15.416046445805216,
+   "non_agri": 25.310617727607838,
+   "unspecified": 18.609237651691114
+  },
+  "Liberia": {
+   "agri": 1.272059961400551,
+   "non_agri": 0.6463033056346933,
+   "unspecified": 0.6809118965022888
+  },
+  "Libya": {
+   "agri": 46.464381264856414,
+   "non_agri": 27.97231865626918,
+   "unspecified": 46.11558945868434
+  },
+  "Liechtenstein": {
+   "agri": 0.9295746070000002,
+   "non_agri": 0.713791809,
+   "unspecified": 0.761009827
+  },
+  "Lithuania": {
+   "agri": 1.697441194566911,
+   "non_agri": 1.2692018682271307,
+   "unspecified": 1.312842781488865
+  },
+  "Luxembourg": {
+   "agri": 0.9902696166739142,
+   "non_agri": 0.7223808390135431,
+   "unspecified": 0.7741985418146776
+  },
+  "Macedonia": {
+   "agri": 53.717560353983195,
+   "non_agri": 18.202791556208137,
+   "unspecified": 48.894392851197125
+  },
+  "Madagascar": {
+   "agri": 7.726911727493542,
+   "non_agri": 2.308126378420462,
+   "unspecified": 7.381302466362454
+  },
+  "Malawi": {
+   "agri": 5.224874862892512,
+   "non_agri": 6.617770250529746,
+   "unspecified": 5.483267661742227
+  },
+  "Malaysia": {
+   "agri": 0.5877025939370213,
+   "non_agri": 0.5168381825155852,
+   "unspecified": 0.5573927404203949
+  },
+  "Mali": {
+   "agri": 16.450179853942416,
+   "non_agri": 28.002412630652277,
+   "unspecified": 17.97116633936847
+  },
+  "Malta": {
+   "agri": 68.77998297793687,
+   "non_agri": 46.19024385516968,
+   "unspecified": 65.1026238860145
+  },
+  "Martinique": {
+   "agri": 17.08769814473779,
+   "non_agri": 2.539660864130443,
+   "unspecified": 14.724954619463576
+  },
+  "Mauritania": {
+   "agri": 96.76592990734447,
+   "non_agri": 52.6140773442854,
+   "unspecified": 90.4399250141566
+  },
+  "Mauritius": {
+   "agri": 0.776887483,
+   "non_agri": 3.446001766,
+   "unspecified": 3.337113643
+  },
+  "Mayotte": {
+   "agri": 0.0,
+   "non_agri": 0.0,
+   "unspecified": 0.0
+  },
+  "Mexico": {
+   "agri": 36.29135081409499,
+   "non_agri": 14.450455358702722,
+   "unspecified": 33.57793114310919
+  },
+  "Moldova": {
+   "agri": 2.2344484577988197,
+   "non_agri": 2.007300744062257,
+   "unspecified": 2.1762822204839907
+  },
+  "Monaco": {
+   "agri": 5.051459826,
+   "non_agri": 1.726984902,
+   "unspecified": 3.041993431
+  },
+  "Mongolia": {
+   "agri": 18.960004132883917,
+   "non_agri": 30.623609527138562,
+   "unspecified": 21.853972240933107
+  },
+  "Montenegro": {
+   "agri": 1.235131172565929,
+   "non_agri": 0.8479050341340363,
+   "unspecified": 1.1683761128406958
+  },
+  "Montserrat": {
+   "agri": 0.0,
+   "non_agri": 10.45098999,
+   "unspecified": 10.45098999
+  },
+  "Morocco": {
+   "agri": 88.05693243854921,
+   "non_agri": 54.03104543007801,
+   "unspecified": 87.35252045847695
+  },
+  "Mozambique": {
+   "agri": 7.075969067314552,
+   "non_agri": 5.470450578791455,
+   "unspecified": 6.987530206273024
+  },
+  "Myanmar": {
+   "agri": 5.691517471059186,
+   "non_agri": 1.7773303885263787,
+   "unspecified": 5.463924365640522
+  },
+  "Namibia": {
+   "agri": 10.79122846848773,
+   "non_agri": 34.68848598201495,
+   "unspecified": 22.043385274439363
+  },
+  "Nepal": {
+   "agri": 13.821071526342507,
+   "non_agri": 17.88958645470868,
+   "unspecified": 14.185384858172197
+  },
+  "Netherlands": {
+   "agri": 1.5893991641557768,
+   "non_agri": 0.957189826022884,
+   "unspecified": 1.2021270393448966
+  },
+  "New Caledonia": {
+   "agri": 0.0,
+   "non_agri": 3.459762381994274,
+   "unspecified": 3.459762381994274
+  },
+  "New Zealand": {
+   "agri": 8.280793402233316,
+   "non_agri": 1.6889892223673353,
+   "unspecified": 6.612839381474864
+  },
+  "Nicaragua": {
+   "agri": 1.6358097128640685,
+   "non_agri": 0.8753065228514788,
+   "unspecified": 1.345460360501996
+  },
+  "Niger": {
+   "agri": 7.06846782769502,
+   "non_agri": 18.566028022703847,
+   "unspecified": 8.66185440156322
+  },
+  "Nigeria": {
+   "agri": 7.99840719893199,
+   "non_agri": 9.818772477549338,
+   "unspecified": 8.923473503509143
+  },
+  "North Korea": {
+   "agri": 2.782832866892398,
+   "non_agri": 2.1952734553230298,
+   "unspecified": 2.7161357448341494
+  },
+  "Norway": {
+   "agri": 0.6906920646858725,
+   "non_agri": 0.7799497403912504,
+   "unspecified": 0.7572540703136722
+  },
+  "Oman": {
+   "agri": 12.2982657634071,
+   "non_agri": 31.824832185506086,
+   "unspecified": 14.38848180410625
+  },
+  "Pakistan": {
+   "agri": 59.303815534139275,
+   "non_agri": 40.81157452532948,
+   "unspecified": 58.44766681900599
+  },
+  "Panama": {
+   "agri": 0.9380346181644794,
+   "non_agri": 0.6339345282704804,
+   "unspecified": 0.6604112890570929
+  },
+  "Papua New Guinea": {
+   "agri": 1.0425896750055421,
+   "non_agri": 0.45363479923415934,
+   "unspecified": 0.47596340061506925
+  },
+  "Paraguay": {
+   "agri": 1.1237127846314345,
+   "non_agri": 1.5865879311716946,
+   "unspecified": 1.3757958710166995
+  },
+  "Peru": {
+   "agri": 29.279956056949477,
+   "non_agri": 13.242471707981219,
+   "unspecified": 27.786641503516694
+  },
+  "Philippines": {
+   "agri": 7.914907597239066,
+   "non_agri": 2.213227109366795,
+   "unspecified": 6.981908381895548
+  },
+  "Poland": {
+   "agri": 2.1000074092367216,
+   "non_agri": 1.9979534024623682,
+   "unspecified": 2.0160652030385107
+  },
+  "Portugal": {
+   "agri": 52.26872590479195,
+   "non_agri": 17.081914693051125,
+   "unspecified": 50.884223130811925
+  },
+  "Puerto Rico": {
+   "agri": 21.654581792106406,
+   "non_agri": 2.0775622966738885,
+   "unspecified": 9.385421907818303
+  },
+  "Qatar": {
+   "agri": 43.144985041974984,
+   "non_agri": 60.070667406179815,
+   "unspecified": 49.51193068796642
+  },
+  "Raunion": {
+   "agri": 2.323915763883036,
+   "non_agri": 12.013842581311835,
+   "unspecified": 7.392684862410681
+  },
+  "Romania": {
+   "agri": 4.193375016743305,
+   "non_agri": 1.7369068048211753,
+   "unspecified": 3.98374096209284
+  },
+  "Russia": {
+   "agri": 20.768578681827417,
+   "non_agri": 3.6628078627846574,
+   "unspecified": 12.517204967549324
+  },
+  "Rwanda": {
+   "agri": 68.89117872983053,
+   "non_agri": 75.29387102617709,
+   "unspecified": 74.85884452719728
+  },
+  "Samoa": {
+   "agri": 0.0,
+   "non_agri": 0.9100331987223297,
+   "unspecified": 0.9100331987223297
+  },
+  "San Marino": {
+   "agri": 17.74792915,
+   "non_agri": 6.090027278,
+   "unspecified": 15.65697383
+  },
+  "Sao Tome and Principe": {
+   "agri": 30.11612956,
+   "non_agri": 25.577183159251586,
+   "unspecified": 30.07901418402109
+  },
+  "Saudi Arabia": {
+   "agri": 18.298273735352385,
+   "non_agri": 28.365195144424636,
+   "unspecified": 18.561459066825222
+  },
+  "Senegal": {
+   "agri": 80.81773485657436,
+   "non_agri": 52.79134188232478,
+   "unspecified": 78.37955382951877
+  },
+  "Serbia": {
+   "agri": 3.5970282666495734,
+   "non_agri": 2.3042735459466095,
+   "unspecified": 3.7616828578003543
+  },
+  "Sierra Leone": {
+   "agri": 1.3364055263651402,
+   "non_agri": 0.8093878956891136,
+   "unspecified": 1.1330029586922774
+  },
+  "Singapore": {
+   "agri": 0.0,
+   "non_agri": 0.9263012554489423,
+   "unspecified": 0.9263012563975874
+  },
+  "Slovakia": {
+   "agri": 1.288100538143574,
+   "non_agri": 1.192123549642281,
+   "unspecified": 1.274217457657727
+  },
+  "Slovenia": {
+   "agri": 1.180189447734468,
+   "non_agri": 1.0872005742566588,
+   "unspecified": 1.173683733285171
+  },
+  "Solomon Islands": {
+   "agri": 0.0,
+   "non_agri": 0.8599889526089556,
+   "unspecified": 0.8599889526089556
+  },
+  "Somalia": {
+   "agri": 70.98942379243411,
+   "non_agri": 47.006269094033314,
+   "unspecified": 66.4556138255428
+  },
+  "South Africa": {
+   "agri": 40.75993923399581,
+   "non_agri": 21.134348729850736,
+   "unspecified": 38.35347124026599
+  },
+  "South Korea": {
+   "agri": 0.7469580057608087,
+   "non_agri": 1.0661120342058328,
+   "unspecified": 0.8939803047196755
+  },
+  "Spain": {
+   "agri": 80.7602232971165,
+   "non_agri": 31.410730987968826,
+   "unspecified": 79.33437358182134
+  },
+  "Sri Lanka": {
+   "agri": 23.197940696270592,
+   "non_agri": 5.036244421160465,
+   "unspecified": 22.169594725925567
+  },
+  "Saint Kitts and Nevis": {
+   "agri": 6.384795676,
+   "non_agri": 4.319000506,
+   "unspecified": 4.585908102
+  },
+  "Saint Lucia": {
+   "agri": 43.42594979,
+   "non_agri": 14.14448058,
+   "unspecified": 41.54708127
+  },
+  "Saint Pierre and Miquelon": {
+   "agri": 0.0,
+   "non_agri": 16.066780527137983,
+   "unspecified": 16.066780527137983
+  },
+  "Saint Vincent and the Grenadines": {
+   "agri": 0.0,
+   "non_agri": 9.232881605,
+   "unspecified": 9.232881605
+  },
+  "Sudan": {
+   "agri": 53.29290224865695,
+   "non_agri": 49.45259210247219,
+   "unspecified": 52.93602157148623
+  },
+  "Suriname": {
+   "agri": 0.6649869970280264,
+   "non_agri": 0.5843451184906617,
+   "unspecified": 0.6551111303721703
+  },
+  "Svalbard and Jan Mayen": {
+   "agri": 0.0,
+   "non_agri": 45.42733786,
+   "unspecified": 45.42733786
+  },
+  "Swaziland": {
+   "agri": 1.546443438050121,
+   "non_agri": 2.8160162102471267,
+   "unspecified": 1.8253130513308697
+  },
+  "Sweden": {
+   "agri": 2.775544648700808,
+   "non_agri": 1.6935111265970495,
+   "unspecified": 2.1165682768206553
+  },
+  "Switzerland": {
+   "agri": 1.320122725443835,
+   "non_agri": 0.7373232333017213,
+   "unspecified": 0.9654023640101609
+  },
+  "Syria": {
+   "agri": 79.16866366014544,
+   "non_agri": 48.4733248385318,
+   "unspecified": 78.58676474200307
+  },
+  "Taiwan": {
+   "agri": 2.0467907660204303,
+   "non_agri": 2.6137449999666096,
+   "unspecified": 2.2258052399166144
+  },
+  "Tajikistan": {
+   "agri": 72.46959253095152,
+   "non_agri": 49.12953702832727,
+   "unspecified": 71.580781543099
+  },
+  "Tanzania": {
+   "agri": 6.719206674554433,
+   "non_agri": 29.056314859667413,
+   "unspecified": 13.706350636934776
+  },
+  "Thailand": {
+   "agri": 7.3014539409490835,
+   "non_agri": 3.9455157758335284,
+   "unspecified": 6.981634567110632
+  },
+  "The Bahamas": {
+   "agri": 0.0,
+   "non_agri": 27.35628595871462,
+   "unspecified": 27.35628595871462
+  },
+  "Gambia": {
+   "agri": 6.451935421999999,
+   "non_agri": 13.642473011059343,
+   "unspecified": 10.965959321090885
+  },
+  "Togo": {
+   "agri": 9.165842153552733,
+   "non_agri": 10.943808264555683,
+   "unspecified": 10.352282263427748
+  },
+  "Tonga": {
+   "agri": 0.0,
+   "non_agri": 12.675336914389902,
+   "unspecified": 12.675336914389902
+  },
+  "Trinidad and Tobago": {
+   "agri": 57.217037678980624,
+   "non_agri": 22.719175931852796,
+   "unspecified": 25.68477661387648
+  },
+  "Tunisia": {
+   "agri": 69.81068133826376,
+   "non_agri": 40.11433340690441,
+   "unspecified": 68.91146065662537
+  },
+  "Turkey": {
+   "agri": 58.04273371771184,
+   "non_agri": 22.240873456833558,
+   "unspecified": 56.46029314767752
+  },
+  "Turkmenistan": {
+   "agri": 67.64100616484147,
+   "non_agri": 44.23466923488805,
+   "unspecified": 66.81676221137803
+  },
+  "Turks and Caicos Islands": {
+   "agri": 0.0,
+   "non_agri": 12.66219083,
+   "unspecified": 12.66219083
+  },
+  "Uganda": {
+   "agri": 78.96933644868233,
+   "non_agri": 87.90221767322929,
+   "unspecified": 86.91517025369376
+  },
+  "Ukraine": {
+   "agri": 37.651388633004494,
+   "non_agri": 6.238188651162133,
+   "unspecified": 32.48622207233222
+  },
+  "United Arab Emirates": {
+   "agri": 11.547725263588427,
+   "non_agri": 47.27150875150081,
+   "unspecified": 15.200247342633217
+  },
+  "United Kingdom": {
+   "agri": 3.341076447586785,
+   "non_agri": 1.2483443521326871,
+   "unspecified": 1.6121654673313333
+  },
+  "United States of America": {
+   "agri": 35.71546543194728,
+   "non_agri": 9.087076286808589,
+   "unspecified": 33.12697202548858
+  },
+  "Uruguay": {
+   "agri": 0.5819043301460927,
+   "non_agri": 0.46909457782631686,
+   "unspecified": 0.5421017305750162
+  },
+  "Uzbekistan": {
+   "agri": 73.09337788569918,
+   "non_agri": 50.213831539563934,
+   "unspecified": 72.11340698310264
+  },
+  "Vanuatu": {
+   "agri": 0.0,
+   "non_agri": 2.0534842504803934,
+   "unspecified": 2.0534842504803934
+  },
+  "Venezuela": {
+   "agri": 6.928517779599376,
+   "non_agri": 4.584609544689821,
+   "unspecified": 5.954343548095184
+  },
+  "Vietnam": {
+   "agri": 17.74965479768291,
+   "non_agri": 4.724603474187964,
+   "unspecified": 12.098095914568045
+  },
+  "Western Sahara": {
+   "agri": 0.0,
+   "non_agri": 56.095185405249104,
+   "unspecified": 56.33408095492583
+  },
+  "Yemen": {
+   "agri": 46.98188703138519,
+   "non_agri": 48.63270303588697,
+   "unspecified": 47.01708842231054
+  },
+  "Zambia": {
+   "agri": 5.323963646757916,
+   "non_agri": 6.714269033831594,
+   "unspecified": 5.6251672922035905
+  },
+  "Zimbabwe": {
+   "agri": 4.026919902588986,
+   "non_agri": 10.122500740913457,
+   "unspecified": 4.683723042670664
+  },
+  "RER": {
+   "agri": 48.95045,
+   "non_agri": 5.91858,
+   "unspecified": 40.9641
+  },
+  "Europe-CH": {
+   "agri": 48.96212,
+   "non_agri": 5.95132,
+   "unspecified": 41.01873
+  },
+  "RAF": {
+   "agri": 73.08386,
+   "non_agri": 59.28154,
+   "unspecified": 71.60061
+  },
+  "RAS": {
+   "agri": 44.43643,
+   "non_agri": 22.84553,
+   "unspecified": 42.21324
+  },
+  "RLA": {
+   "agri": 37.84554,
+   "non_agri": 6.34764,
+   "unspecified": 31.09006
+  },
+  "RNA": {
+   "agri": 35.50311,
+   "non_agri": 8.80785,
+   "unspecified": 32.72436
+  },
+  "RME": {
+   "agri": 60.2636,
+   "non_agri": 40.97087,
+   "unspecified": 59.81223
+  },
+  "ENTSOE": {
+   "agri": 49.97379,
+   "non_agri": 5.68798,
+   "unspecified": 42.52015
+  },
+  "BRIC": {
+   "agri": 36.90386,
+   "non_agri": 21.70243,
+   "unspecified": 34.76863
+  },
+  "BRICS": {
+   "agri": 36.97025,
+   "non_agri": 21.70108,
+   "unspecified": 34.82843
+  },
+  "OECD": {
+   "agri": 47.30533,
+   "non_agri": 8.74404,
+   "unspecified": 42.83158
+  },
+  "OECD+BRIC": {
+   "agri": 40.83283,
+   "non_agri": 17.45632,
+   "unspecified": 37.76399
+  },
+  "OECD+BRICS": {
+   "agri": 40.82811,
+   "non_agri": 17.48948,
+   "unspecified": 37.76483
+  },
+  "CS": {
+   "agri": 5.34259,
+   "non_agri": 3.29108,
+   "unspecified": 5.61269
+  },
+  "PS": {
+   "agri": 85.69279,
+   "non_agri": 54.0157,
+   "unspecified": 83.75014
+  },
+  "OCEANIA": {
+   "agri": 70.64868,
+   "non_agri": 19.47827,
+   "unspecified": 68.29584
+  }
+ },
+ "built": "2026-11-12"
+}

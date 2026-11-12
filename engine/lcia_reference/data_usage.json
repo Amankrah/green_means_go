@@ -1,0 +1,334 @@
+{
+ "id": "data.usage.registry",
+ "description": "Every dataset under data/ and every reference JSON: ingested and used (with the code path that reads it) or documented as intentionally unused (reason). Enforced by engine/test_reference_data_usage.py.",
+ "entries": [
+  {
+   "path": "data/canonical/lca_engineer.sqlite",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/canonical_store.py",
+   "evidence": "lca_engineer.sqlite",
+   "reason": "canonical store: every characterisation and solve"
+  },
+  {
+   "path": "data/canonical/lca_engineer.sqlite.gz",
+   "status": "documented_unused",
+   "reason": "compressed transport copy of the store; identical content, never read"
+  },
+  {
+   "path": "data/canonical/proc_emb_lexical_2048.npz",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/matching.py",
+   "evidence": "proc_emb_",
+   "reason": "matcher embedding cache (lexical)"
+  },
+  {
+   "path": "data/canonical/proc_emb_openai_text_embedding_3_small.npz",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/matching.py",
+   "evidence": "proc_emb_",
+   "reason": "matcher embedding cache (OpenAI)"
+  },
+  {
+   "path": "data/app/greenmeansgo.sqlite",
+   "status": "ingested_and_used",
+   "code_path": "app/db.py",
+   "evidence": "greenmeansgo.sqlite",
+   "reason": "application database (users, assessments), not LCA data"
+  },
+  {
+   "path": "data/AGRIBALYSE3.2",
+   "status": "documented_unused",
+   "reason": "AGRIBALYSE 3.2 is ingested into the store from the openLCA .zolca (sources row 'agribalyse 3.2'); these spreadsheets and PDFs are the ADEME publication used as the external validation reference in ingestion/RUNBOOK.md (EF 3.1 gate, 11 of 12 categories within 5%), not read by code"
+  },
+  {
+   "path": "data/AWARE2.0/AWARE_country_regions_Corrected_online_20230113-1.xlsx",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/gmg_reference.py",
+   "evidence": "AWARE_country_regions_Corrected_online_20230113-1.xlsx",
+   "reason": "country AWARE CFs -> gmg_aware_country_cfs, regionalised water flows, engine/lcia_reference/aware_country_cfs.json -> engine/water_scarcity.py"
+  },
+  {
+   "path": "data/AWARE2.0/AWARE_other_indicators_country_regions-world_20230113-1.xlsx",
+   "status": "documented_unused",
+   "reason": "AWARE100 variants for sensitivity (EWR+50%) and alternative aggregations; the recommended country annual CFs come from the country file"
+  },
+  {
+   "path": "data/AWARE2.0/AWARE_watersheds_v12_20240531.xlsx",
+   "status": "documented_unused",
+   "reason": "watershed-level CFs need a geolocated field (basin id); the wizard collects country only, so the country aggregate is the finest defensible resolution"
+  },
+  {
+   "path": "data/EVvinronmental_Footprint_EF3.1/EF-LCIAMethod_CF(EF-v3.1).xlsx",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/reconcile_lcia.py",
+   "evidence": "EF_FILE",
+   "reason": "EF 3.1 CFs reconciled against the ecoinvent pack (cf_reconciliation.json); ILCD/EF reference flow list for engine/test_flowmap_qa.py. Holds no normalisation factors (EF NF cited from JRC 2024)"
+  },
+  {
+   "path": "data/IPCC GWP/Global-Warming-Potential-Values (August 2024).pdf",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/gmg_reference.py",
+   "evidence": "GWP_PDF",
+   "reason": "AR4/AR5/AR6 GWP100 table -> gmg_gwp_values, gwp_basis.json; basis stated in both ISO reports via engine/gwp_basis.py"
+  },
+  {
+   "path": "data/LANCA/1-s2.0-S095965261833960X-mmc2.xlsx",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/gmg_reference.py",
+   "evidence": "1-s2.0-S095965261833960X-mmc2.xlsx",
+   "reason": "EF soil quality index occupation CFs by country -> gmg_lanca_sqi_occupation, regionalised land flows -> engine/land_use_regional.py"
+  },
+  {
+   "path": "data/LANCA/1-s2.0-S095965261833960X-mmc3.xlsx",
+   "status": "documented_unused",
+   "reason": "raw and re-scaled LANCA 2.5 indicator values (five separate indicators) behind the SQI; EF 3.1 uses the aggregated SQI in mmc2"
+  },
+  {
+   "path": "data/LANCA/001.pdf",
+   "status": "documented_unused",
+   "reason": "LANCA documentation (method report), not data"
+  },
+  {
+   "path": "data/LANCA/N-379310.pdf",
+   "status": "documented_unused",
+   "reason": "LANCA v2.5 characterisation factor report (Bos et al. 2016), documentation"
+  },
+  {
+   "path": "data/ReCipe2016/Normalization scores ReCiPe2016v1.1_20190514.xlsx",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/gmg_reference.py",
+   "evidence": "RECIPE_NF_FILE",
+   "reason": "ReCiPe midpoint NF -> engine/lcia_reference/normalisation_factors.json -> engine/adapter.py single score"
+  },
+  {
+   "path": "data/ReCipe2016/ReCiPe2016_CFs_v1.1_20180117.xlsx",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/reconcile_lcia.py",
+   "evidence": "RECIPE_CF_FILE",
+   "reason": "53 CFs reconciled against the ecoinvent pack (0 above 1%); GWP100 H values for gwp_basis.json"
+  },
+  {
+   "path": "data/ReCipe2016/ReCiPe2016_country factors_v1.1_20171221.xlsx",
+   "status": "documented_unused",
+   "reason": "country-specific ReCiPe factors apply at ENDPOINT for water/land/acidification; the served ReCiPe midpoint method and the ecoinvent endpoint pack are global, and mixing would make background and foreground inconsistent"
+  },
+  {
+   "path": "data/References_C/Federal_LCA_Commons-elementary_flow_list",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/glad_load.py",
+   "evidence": "fed_id",
+   "reason": "folder is an empty skeleton on disk; FEDEFL identities live in the store flows.fed_id column (glad_load.py) and are QA-checked by engine/test_flowmap_qa.py"
+  },
+  {
+   "path": "data/References_C/GLAD-ElementaryFlowResources-master",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/glad_fetch.py",
+   "evidence": "GLAD-ElementaryFlowResources-master",
+   "reason": "GLAD mapped files are fetched over Git LFS at load time; the folder on disk holds only empty directories"
+  },
+  {
+   "path": "data/References_C/GLAD_Mapper",
+   "status": "documented_unused",
+   "reason": "GLAD mapping GUI library; the mapping is done headless by ingestion/glad_load.py"
+  },
+  {
+   "path": "data/References_C/ILCD Format 1.1 Documentation - Process data set.pdf",
+   "status": "documented_unused",
+   "reason": "ILCD format specification (documentation)"
+  },
+  {
+   "path": "data/References_C/ISO-TS-14048-2002.pdf",
+   "status": "documented_unused",
+   "reason": "ISO/TS 14048 data documentation format standard (documentation)"
+  },
+  {
+   "path": "data/References_C/the-international-reference-life-cycle-data-system-ilcd-203gg3guqx.pdf",
+   "status": "documented_unused",
+   "reason": "ILCD handbook (documentation)"
+  },
+  {
+   "path": "data/USEtox_2.14/Results",
+   "status": "ingested_and_used",
+   "code_path": "ingestion/gmg_reference.py",
+   "evidence": "USEtox_results_",
+   "reason": "USEtox 2.14 midpoint CFs (3104 substances x 8 compartments) -> gmg_usetox_cfs; pesticide lookup usetox_pesticide_cfs.json (reference; toxicity characterised with the method pack)"
+  },
+  {
+   "path": "data/USEtox_2.14/USEtox2.14.xlsm",
+   "status": "documented_unused",
+   "reason": "the USEtox model workbook; only needed to compute CFs for new substances, the pre-calculated Results are used"
+  },
+  {
+   "path": "data/USEtox_2.14/InputData",
+   "status": "documented_unused",
+   "reason": "substance input data for the model workbook"
+  },
+  {
+   "path": "data/USEtox_2.14/Templates",
+   "status": "documented_unused",
+   "reason": "USEtox model templates, only used by the model workbook"
+  },
+  {
+   "path": "data/USEtox_2.14/Documentation",
+   "status": "documented_unused",
+   "reason": "USEtox manuals and documentation (not data)"
+  },
+  {
+   "path": "data/USEtox_2.14/USEtox-PAFm3d-to-PDFyr.xlsx",
+   "status": "documented_unused",
+   "reason": "midpoint-to-endpoint conversion for ecotox; endpoints come from the ReCiPe pack"
+  },
+  {
+   "path": "data/USEtox_2.14/Readme.txt",
+   "status": "documented_unused",
+   "reason": "USEtox folder readme (not data)"
+  },
+  {
+   "path": "data/USEtox_2.14/USEtox2.14_ChangeLog.txt",
+   "status": "documented_unused",
+   "reason": "USEtox 2.0 to 2.14 change log (not data)"
+  },
+  {
+   "path": "data/recommendations/Tier1/Commodity prices _04.11.25.csv",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/prices.py",
+   "evidence": "Commodity prices _04.11.25.csv",
+   "reason": "SRID price feed for the economics screen"
+  },
+  {
+   "path": "data/recommendations/Tier1/Climate-Smart-Agriculture-Investment-Plan-for-Ghana.txt",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/measures.jsonl",
+   "evidence": "Ghana-CSAIP",
+   "reason": "hand-extracted into measures (source Ghana-CSAIP), loaded by engine/recommend/schema.py load_measures"
+  },
+  {
+   "path": "data/recommendations/Tier1/EX-ACT_V9.4.2.xlsb",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/reference/ipcc_stock_change_factors_gh.json",
+   "evidence": "EX-ACT",
+   "reason": "extracted into ipcc_stock_change_factors_gh.json (land-use-change carbon, to be consumed by the foreground workstream)"
+  },
+  {
+   "path": "data/recommendations/Tier1/B-INTACT_v.1.9.xlsx",
+   "status": "documented_unused",
+   "reason": "FAO biodiversity screening tool; no biodiversity indicator beyond ReCiPe endpoint Ecosystem Quality is served (docs/lca_engineer/DATA_EXTRACTION_PLAN.md)"
+  },
+  {
+   "path": "data/recommendations/Tier1/EX-ACT VC_v3.5.xlsx",
+   "status": "documented_unused",
+   "reason": "EX-ACT value-chain variant; the AFOLU coefficients needed are taken from EX-ACT V9.4.2"
+  },
+  {
+   "path": "data/recommendations/Tier2/2025 Energy Statistics.pdf",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/reference/ghana_grid_ef.json",
+   "evidence": "2025 Energy Statistics",
+   "reason": "Ghana grid EF 0.35 (Table 6.3), read by engine/grid_calibration.py"
+  },
+  {
+   "path": "data/recommendations/Tier2/6-CS-Cocoa-COCOBOD.pdf",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/measures.jsonl",
+   "evidence": "COCOBOD-CSCocoa",
+   "reason": "cocoa measures"
+  },
+  {
+   "path": "data/recommendations/Tier2/6-CS-Cocoa-COCOBOD_ocr.pdf",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/measures.jsonl",
+   "evidence": "COCOBOD-CSCocoa",
+   "reason": "OCR copy of the same source"
+  },
+  {
+   "path": "data/recommendations/Tier2/6-CS-Cocoa-COCOBOD_ocr.txt",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/measures.jsonl",
+   "evidence": "COCOBOD-CSCocoa",
+   "reason": "OCR text of the same source"
+  },
+  {
+   "path": "data/recommendations/Tier2/COCOA-SECTOR-CLIMATE-SMART-AWARENESS-AND-DECISION-MAKING-1.pdf",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/measures.jsonl",
+   "evidence": "Cocoa-CSA-DecisionMaking",
+   "reason": "cocoa measure source"
+  },
+  {
+   "path": "data/recommendations/Tier2/Climate-smart cocoa in forest landscapes Lessons from institutional.pdf",
+   "status": "ingested_and_used",
+   "code_path": "engine/recommend/measures.jsonl",
+   "evidence": "CS-Cocoa-ForestLandscapes",
+   "reason": "cocoa measure source"
+  },
+  {
+   "path": "data/recommendations/Tier2/ECG Tarrifs proposal.pdf",
+   "status": "documented_unused",
+   "reason": "extracted into engine/recommend/reference/ghana_electricity_tariff.json, which no code path reads yet (economics uses the SRID price CSV)"
+  },
+  {
+   "path": "data/recommendations/Tier2/Ghana Country Action Plan.pdf",
+   "status": "documented_unused",
+   "reason": "context document listed in DATA_EXTRACTION_PLAN.md; no measure extracted from it"
+  },
+  {
+   "path": "engine/case_studies/ghana_maize_cowpea_intercrop.json",
+   "status": "ingested_and_used",
+   "code_path": "scripts/run_case_studies.py",
+   "evidence": "case_studies",
+   "reason": "end-to-end case runner; also app/test_scenarios.py and engine/test_reference_data_usage.py"
+  },
+  {
+   "path": "engine/case_studies/nigeria_irrigated_rice.json",
+   "status": "ingested_and_used",
+   "code_path": "scripts/run_case_studies.py",
+   "evidence": "case_studies",
+   "reason": "end-to-end case runner; engine/test_reference_data_usage.py"
+  },
+  {
+   "path": "engine/case_studies/canada_wheat_conventional.json",
+   "status": "ingested_and_used",
+   "code_path": "scripts/run_case_studies.py",
+   "evidence": "case_studies",
+   "reason": "end-to-end case runner; engine/test_reference_data_usage.py"
+  },
+  {
+   "path": "engine/recommend/reference/ghana_farm_activity_defaults.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/activity_defaults.py",
+   "evidence": "ghana_farm_activity_defaults.json",
+   "reason": "GH activity defaults and regional benchmark yield guides"
+  },
+  {
+   "path": "engine/recommend/reference/nigeria_farm_activity_defaults.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/activity_defaults.py",
+   "evidence": "nigeria_farm_activity_defaults.json",
+   "reason": "NG activity defaults"
+  },
+  {
+   "path": "engine/recommend/reference/ghana_grid_ef.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/grid_calibration.py",
+   "evidence": "ghana_grid_ef.json",
+   "reason": "GH grid calibration source"
+  },
+  {
+   "path": "engine/recommend/reference/nigeria_grid_ef.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/grid_calibration.py",
+   "evidence": "nigeria_grid_ef.json",
+   "reason": "NG grid calibration (Ember 2024 lifecycle 0.496)"
+  },
+  {
+   "path": "engine/recommend/reference/ipcc_stock_change_factors_gh.json",
+   "status": "documented_unused",
+   "reason": "land-use-change stock factors; wiring belongs to the foreground workstream (perennials / LUC), not read at this commit"
+  },
+  {
+   "path": "engine/recommend/reference/ghana_electricity_tariff.json",
+   "status": "documented_unused",
+   "reason": "ECG tariff extract; not read by the economics screen yet"
+  }
+ ]
+}

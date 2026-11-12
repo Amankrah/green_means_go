@@ -11,6 +11,11 @@ crop, or field vocabulary; no em-dashes.
 """
 from __future__ import annotations
 
+try:  # GWP basis statement (one basis per method, values read from the store)
+    from .gwp_basis import statement as _gwp_statement
+except ImportError:
+    from gwp_basis import statement as _gwp_statement
+
 try:
     from .iso_report import STANDARD, _pct, _data_quality_scorecard
 except ImportError:
@@ -266,6 +271,7 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
             if multi_product else
             "There is a single product, so no split between co-products is needed. Any co-products further up the "
             "supply chain are handled the way the background database (ecoinvent) handles them."),
+        "gwp_basis": _gwp_statement(engine, method),
         "impact_categories": categories,
         "impact_categories_basis": (f"All {len(categories)} midpoint categories that could be characterised for this "
                                     "study are reported. The ones that matter most for food processing, such as climate "

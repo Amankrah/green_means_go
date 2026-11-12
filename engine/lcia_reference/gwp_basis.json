@@ -1,0 +1,52 @@
+{
+ "source_pdf": "data/IPCC GWP/Global-Warming-Potential-Values (August 2024).pdf",
+ "source_pdf_title": "GHG Protocol, IPCC Global Warming Potential Values, v2.0 (7 Aug 2024)",
+ "table": {
+  "AR4": {
+   "CH4_non_fossil": 25,
+   "CH4_fossil": null,
+   "N2O": 298
+  },
+  "AR5": {
+   "CH4_non_fossil": 28,
+   "CH4_fossil": 30,
+   "N2O": 265
+  },
+  "AR6": {
+   "CH4_non_fossil": 27.0,
+   "CH4_fossil": 29.8,
+   "N2O": 273
+  },
+  "AR5_ccfb": {
+   "CH4_non_fossil": 34,
+   "CH4_fossil": 36,
+   "N2O": 298
+  }
+ },
+ "recipe_spreadsheet_gwp100_h": {
+  "Carbon dioxide": 1.0,
+  "Methane": 34.0,
+  "Fossil methane": 36.0,
+  "Nitrous oxide": 298.0
+ },
+ "decision": "Each LCIA method keeps its NATIVE GWP basis, as published and as shipped in the ecoinvent 3.11 method pack, so that background and foreground are characterised consistently within a method. ReCiPe 2016 v1.03 midpoint (H): IPCC AR5 GWP100 including climate-carbon feedbacks (CH4 non-fossil 34, CH4 fossil 36, N2O 298; Myhre et al. 2013, AR5 WG1 Table 8.7). EF 3.1: IPCC AR6 GWP100 (CH4 non-fossil 27.0, CH4 fossil 29.8, N2O 273; Forster et al. 2021, AR6 WG1 Table 7.15). Results under the two methods are therefore not directly comparable for N2O- and CH4-dominated systems; the report states which basis was used.",
+ "methods": {
+  "ReCiPe 2016 v1.03, midpoint (H)": {
+   "basis": "IPCC AR5 GWP100 incl. climate-carbon feedbacks",
+   "expected": {
+    "CH4_non_fossil": 34,
+    "CH4_fossil": 36,
+    "N2O": 298
+   }
+  },
+  "EF v3.1": {
+   "basis": "IPCC AR6 GWP100",
+   "expected": {
+    "CH4_non_fossil": 27.0,
+    "CH4_fossil": 29.8,
+    "N2O": 273
+   }
+  }
+ },
+ "built": "2026-11-12"
+}

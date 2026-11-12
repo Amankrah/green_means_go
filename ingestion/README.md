@@ -93,3 +93,21 @@ under McGill **research** use — do not redistribute raw datasets or expose the
 through a public API. Aggregated impact results are fine. Before any commercial
 use, obtain a proper ecoinvent license (free LMIC academic license via a
 Ghana/Nigeria partner, or a commercial seat). See `DATABASE_PLAN.md §5`.
+
+## Reference LCIA data (AWARE, EF soil quality, USEtox, normalisation, GWP)
+`gmg_reference.py` reads the reference datasets under `data/` that the background
+databases do not carry and writes them twice: small derived lookups committed under
+`engine/lcia_reference/` (reproducible from git) and additive tables in the store
+(`gmg_reference_sources` provenance, `gmg_aware_country_cfs`, `gmg_lanca_sqi_occupation`,
+`gmg_usetox_cfs`, `gmg_normalisation_factors`, `gmg_gwp_values`, `gmg_regionalised_flows`).
+It also adds regionalised on-farm water (AWARE country CF) and land occupation (EF soil
+quality index country CF) elementary flows, under a new `sources` row
+`gmg_regionalised_lcia`, whose CFs copy the ecoinvent base flow in every method except
+EF v3.x Water use / Land use. Nothing existing is altered.
+```bash
+python -m ingestion.gmg_reference build    # spreadsheets -> engine/lcia_reference/*.json
+python -m ingestion.gmg_reference ingest   # JSON + spreadsheets -> store (idempotent)
+python -m ingestion.reconcile_lcia         # spreadsheet CFs vs method pack -> cf_reconciliation.json
+```
+Every dataset under `data/` is listed in `engine/lcia_reference/data_usage.json` as used
+(with the code path) or intentionally unused (with the reason); a test enforces it.

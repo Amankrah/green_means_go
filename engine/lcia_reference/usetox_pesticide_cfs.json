@@ -1,0 +1,300 @@
+{
+ "id": "usetox214.pesticides",
+ "title": "USEtox 2.14 midpoint CFs for common West African pesticide active ingredients",
+ "units": {
+  "ecotox": "CTUe per kg emitted (PAF.m3.day/kg)",
+  "human": "CTUh per kg emitted (cases/kg)"
+ },
+ "source": "USEtox 2.14 pre-calculated results (built 20-Aug-2024), organics database 2.01 / inorganics; data/USEtox_2.14/Results/USEtox_results_{organics,inorganics}.xlsx, sheets 'Ecotox CF' (midpoint, freshwater) and 'Human tox CF' (midpoint).",
+ "files": [
+  "data/USEtox_2.14/Results/USEtox_results_organics.xlsx",
+  "data/USEtox_2.14/Results/USEtox_results_inorganics.xlsx"
+ ],
+ "licence": "USEtox, free for non-commercial and commercial use with citation (usetox.org)",
+ "note": "Reference lookup only. Toxicity is CHARACTERISED with the method pack as shipped (ReCiPe 2016 1,4-DCB-eq or EF 3.1 CTUe/CTUh, the latter USEtox 2.1-based with EF adaptations), so background and foreground use the same toxicity model. This table lets a reviewer compare against USEtox 2.14 and documents gaps.",
+ "active_ingredients": {
+  "glyphosate": {
+   "found": true,
+   "cas": "1071-83-6",
+   "usetox_name": "Glyphosate",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 71.83348290260527,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 1.1593218990323215e-07
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 320.7852096505918,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 1.602774781433705e-07
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 61.662198254474944,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 6.582479426146426e-08
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  },
+  "paraquat": {
+   "found": true,
+   "cas": "4685-14-7",
+   "usetox_name": "PARAQUAT",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 5329.020516833053,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 5.201023983569949e-07
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 118530.68293868001,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 5.086917746257846e-06
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 7527.601396769049,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 7.479223335999397e-07
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  },
+  "atrazine": {
+   "found": true,
+   "cas": "1912-24-9",
+   "usetox_name": "atrazine",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 3426.709295129301,
+    "human_cancer_ctuh_per_kg": 8.060365437559586e-07,
+    "human_noncancer_ctuh_per_kg": 9.34395879968722e-07
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 87360.96298781286,
+    "human_cancer_ctuh_per_kg": 3.6924777464943858e-06,
+    "human_noncancer_ctuh_per_kg": 4.280495741698237e-06
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 4855.231247129706,
+    "human_cancer_ctuh_per_kg": 6.99819016281059e-07,
+    "human_noncancer_ctuh_per_kg": 8.11263472608467e-07
+   },
+   "flags": {
+    "ecotox": null,
+    "human": null
+   }
+  },
+  "2,4-D": {
+   "found": true,
+   "cas": "94-75-7",
+   "usetox_name": "2-(2,4-dichlorophenoxy)acetic acid",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 27.391759967938988,
+    "human_cancer_ctuh_per_kg": 0.0,
+    "human_noncancer_ctuh_per_kg": 1.0258920623216508e-06
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 860.877200971221,
+    "human_cancer_ctuh_per_kg": 0.0,
+    "human_noncancer_ctuh_per_kg": 5.750548418389395e-06
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 46.537695623845295,
+    "human_cancer_ctuh_per_kg": 0.0,
+    "human_noncancer_ctuh_per_kg": 7.285665382091693e-07
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "F"
+   }
+  },
+  "lambda-cyhalothrin": {
+   "found": true,
+   "cas": "91465-08-6",
+   "usetox_name": "LAMBDA-CYHALOTHRIN",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 9289.523534537422,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": null
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 138627256.99299863,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": null
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 555638.1465947385,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": null
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  },
+  "cypermethrin": {
+   "found": true,
+   "cas": "52315-07-8",
+   "usetox_name": "CYPERMETHRIN",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 13442.71516486495,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 1.2357934779178415e-07
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 50264426.18726327,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 4.108377361143263e-06
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 379469.36881164944,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 9.446927021932234e-07
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  },
+  "chlorpyrifos": {
+   "found": true,
+   "cas": "2921-88-2",
+   "usetox_name": "Chloropyrifos",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 7088.054958889591,
+    "human_cancer_ctuh_per_kg": 0.0,
+    "human_noncancer_ctuh_per_kg": 7.80918953647493e-06
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 6230276.072944215,
+    "human_cancer_ctuh_per_kg": 0.0,
+    "human_noncancer_ctuh_per_kg": 0.0004578099018117259
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 8391.415119306324,
+    "human_cancer_ctuh_per_kg": 0.0,
+    "human_noncancer_ctuh_per_kg": 3.0318958276879897e-06
+   },
+   "flags": {
+    "ecotox": null,
+    "human": null
+   }
+  },
+  "mancozeb": {
+   "found": true,
+   "cas": "8018-01-7",
+   "usetox_name": "MANCOZEB",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 4128.638998145914,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 4.370362370077563e-07
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 52647.35857982986,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 2.159776856300916e-06
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 2592.3080927043784,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 2.1844084418254167e-07
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  },
+  "imidacloprid": {
+   "found": true,
+   "cas": "138261-41-3",
+   "usetox_name": "IMIDACLOPRID",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 1223.161487648929,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 1.991558145456114e-06
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 3196.828241178104,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 2.5039347266885677e-06
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 879.552211463699,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 1.3426813799778034e-06
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  },
+  "emamectin benzoate": {
+   "cas_searched": [
+    "155569-91-8",
+    "137512-74-4"
+   ],
+   "found": false
+  },
+  "metalaxyl": {
+   "found": true,
+   "cas": "57837-19-1",
+   "usetox_name": "METALAXYL",
+   "kind": "organics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 168.75372759590473,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 3.7770115838819575e-07
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 955.8209987359417,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 6.015058574036478e-07
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 154.99874894241964,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 2.2745910569101626e-07
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  },
+  "copper": {
+   "found": true,
+   "cas": "15158-11-9",
+   "usetox_name": "Cu(II)",
+   "kind": "inorganics",
+   "emission_to_agricultural_soil": {
+    "ecotox_freshwater_ctue_per_kg": 29726.194002227647,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 0.00011402930083092201
+   },
+   "emission_to_freshwater": {
+    "ecotox_freshwater_ctue_per_kg": 56311.86085814497,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 1.3666712390286744e-07
+   },
+   "emission_to_rural_air": {
+    "ecotox_freshwater_ctue_per_kg": 21132.952466019262,
+    "human_cancer_ctuh_per_kg": null,
+    "human_noncancer_ctuh_per_kg": 3.509538815796818e-05
+   },
+   "flags": {
+    "ecotox": null,
+    "human": "n/a"
+   }
+  }
+ },
+ "built": "2026-11-12"
+}
