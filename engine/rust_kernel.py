@@ -100,7 +100,7 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
             notes.append(f"unmapped Rust flow '{sub}' (source: {item.get('source')})")
             continue
         onfarm.append({"substance": key, "quantity": item.get("quantity", 0.0),
-                       "unit": item.get("unit")})
+                       "unit": item.get("unit"), "source": item.get("source")})
     if dropped:
         notes.append(f"dropped {dropped} upstream-production flow(s) (covered by supply-chain solver)")
     if dropped_energy:

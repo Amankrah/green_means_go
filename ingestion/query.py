@@ -490,11 +490,18 @@ class CanonicalQuery:
             for uid, ef in elementary.items():
                 fac = by_uid.get(uid)
                 fdf = inv_fed.get(uid)
+                bio = _biogenic_kind(inv_key.get(uid)) if is_climate else None
+                if fac is None and bio == "co2" and uid not in known_uids:
+                    # Biogenic CO2 = 0 (IPCC / PEF carbon-neutrality convention; dLUC CO2 is
+                    # booked as fossil-equivalent CO2 separately). FEDEFL has one flowable
+                    # 'carbon dioxide' for fossil and biogenic, so the bridge below would
+                    # otherwise give it the fossil CF 1.0.
+                    continue
                 if fac is None and fdf != "__NOMAP__" and uid not in known_uids:
                     # Tier 1 — authoritative FEDEFL id (GLAD/FEDEFL canonical flowable+
                     # compartment). Handles cross-naming the heuristic can't; NO_FLOW_MATCH
                     # (e.g. biogenic CO2) is blocked above via the __NOMAP__ sentinel.
-                    if bridge_name and fdf:      # bridge_name==not-water; keep water out
+                    if bridge_name and fdf and not bio:   # not water; biogenic flows bridge by name only
                         fac = by_fed_fine.get(fdf)
                         if fac is None:
                             fac = by_fed_med.get(medium_of(fdf))
@@ -505,7 +512,7 @@ class CanonicalQuery:
                             fac = by_key_fine.get(nf)
                         if fac is None and bridge_cas:
                             fac = by_cas_fine.get(cf_)
-                        if fac is None and bridge_name:
+                        if fac is None and bridge_name:   # name-specific, safe for biogenic
                             fac = by_key_med.get(medium_of(nf))
                     if fac is not None:
                         bridged += 1
@@ -517,6 +524,24 @@ class CanonicalQuery:
         if bridged_total:
             result.notes.append(f"{bridged_total} flow→CF match(es) resolved via canonical "
                                  "flow key (nomenclature bridge).")
+
+
+def _biogenic_kind(flow_key: Optional[str]) -> Optional[str]:
+    """'co2' / 'ch4' when the inventory flow is BIOGENIC carbon (name carries non-fossil /
+    biogenic), else None. Used only in climate categories: biogenic CO2 is never bridged
+    (CF 0) and non-fossil methane bridges by exact name key only, so it takes the method's
+    own biogenic CH4 factor (ReCiPe 2016 H 34, EF 3.1 27.0 under 'Climate change: biogenic')
+    and never the fossil or LULUC sub-category factor."""
+    if not flow_key:
+        return None
+    name = flow_key.split("|", 1)[0]
+    if "non-fossil" not in name and "biogenic" not in name:
+        return None
+    if name.startswith("carbon dioxide"):
+        return "co2"
+    if name.startswith("methane"):
+        return "ch4"
+    return None
 
 
 # ------------------------------- CLI ---------------------------------------

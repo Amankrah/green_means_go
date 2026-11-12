@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-test_flowmap_qa.py: elementary-flow mapping QA for engine/flowmap.py (read-only; flowmap
-is owned by the foreground workstream).
+test_flowmap_qa.py: elementary-flow mapping QA for engine/flowmap.py.
 
 Every on-farm flow the kernel emits (flowmap.ONFARM_FLOWS) must resolve to a store flow
 that is a valid reference elementary flow with matching CAS and compartment:
@@ -15,9 +14,10 @@ that is a valid reference elementary flow with matching CAS and compartment:
   * Field emissions must go to a ground-level compartment (not stratosphere, not long-term)
     and must keep the fossil / biogenic distinction.
 
-The hard checks must pass. The compartment / biogenic checks document known mismatches
-(xfail, non-strict) so the foreground workstream can fix flowmap.py; they are listed in
-the WS3 handoff.
+All checks must pass. flowmap._resolve ranks same-name candidates so field emissions land
+on the ordinary ecoinvent ground-level flows (air: low population density; water: surface
+water), which the served method packs characterise by exact UID. The resolved flows'
+characterisation factors are checked against the published values below.
 """
 from __future__ import annotations
 
@@ -93,21 +93,33 @@ def test_onfarm_flow_resolves_with_matching_cas_and_medium(key):
         assert name in names, f"{key}: no CAS on '{name}' and name not in {names}"
 
 
-# Known FEDEFL findings in the store's fed_id column (reported, not fixed here).
-KNOWN_FEDEFL_ISSUES = {
-    "P": "store fed_id of the resolved 'Phosphorus' (water) flow is 'orthophosphate|...', the same "
-         "flowable as Phosphate, so the FEDEFL bridge tier cannot distinguish P (CF 1.0) from PO4 (0.33)",
-    "PM25": "resolved 'Particulate Matter, < 2.5 um' (ecoinvent) has no fed_id; characterised by UID only",
+# Known FEDEFL findings in the store's fed_id column. They no longer matter for the on-farm
+# path because the resolved flows are characterised by exact UID (no bridge), which the
+# test checks instead; the fed_id defect still affects Agribalyse-nomenclature flows.
+FEDEFL_STORE_DEFECTS = {
+    "P": "store fed_id of ecoinvent 'Phosphorus' (water) is 'orthophosphate|...', the same flowable as Phosphate",
+    "PM25": "ecoinvent 'Particulate Matter, < 2.5 um' carries no fed_id",
 }
+
+
+def _uid_known(uid: str) -> bool:
+    """True if both served methods characterise this exact flow UID in some category, so
+    query._characterize never consults the FEDEFL bridge for it."""
+    c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    n = c.execute("SELECT COUNT(DISTINCT m.name) FROM characterization_factors cf JOIN impact_categories ic "
+                  "ON ic.uid=cf.category_uid JOIN impact_methods m ON m.uid=ic.method_uid WHERE cf.flow_uid=? "
+                  "AND m.name IN ('ReCiPe 2016 v1.03, midpoint (H)', 'EF v3.1')", (uid,)).fetchone()[0]
+    return n == 2
 
 
 @pytest.mark.parametrize("key", [k for k, v in FEDEFL_FLOWABLE.items() if v])
 def test_onfarm_flow_has_fedefl_identity(key):
     _skip_no_store()
-    if key in KNOWN_FEDEFL_ISSUES:
-        pytest.xfail(KNOWN_FEDEFL_ISSUES[key])
     uid, row = _resolved()[key]
     fed = row[3] if row else None
+    if key in FEDEFL_STORE_DEFECTS:
+        assert _uid_known(uid), f"{key}: {FEDEFL_STORE_DEFECTS[key]} and the flow is not UID-characterised"
+        return
     assert fed and fed != "__NOMAP__", f"{key}: no FEDEFL id"
     assert fed.split("|")[0] == FEDEFL_FLOWABLE[key], f"{key}: FEDEFL flowable {fed!r}"
     assert fed.split("|")[1].startswith(norm_compartment(row[1]).split("/")[0]), f"{key}: {fed} vs {row[1]}"
@@ -131,19 +143,38 @@ def _compartment_findings() -> list[str]:
                        "e.g. 'Emission to air/low population density' or 'unspecified')")
         if k.endswith("_bio") and ("non-fossil" not in (row[0] or "").lower()):
             bad.append(f"{k} -> '{row[0]}' loses the biogenic qualifier")
-        if k == "CO2_bio" and row[3] and "biogenic" not in row[3]:
-            bad.append(f"{k} -> FEDEFL id '{row[3]}' merges biogenic with fossil CO2 "
-                       "(nomenclature bridge then gives CF 1.0)")
+        # (FEDEFL merges biogenic and fossil CO2 into one flowable; query._characterize
+        # never bridges biogenic CO2, see ingestion/test_biogenic_bridge.py.)
         if k == "CH4" and (row[0] or "") == "Methane":
             bad.append(f"{k} -> bare 'Methane' (no fossil/non-fossil qualifier): 0 under ReCiPe climate")
     return bad
 
 
-@pytest.mark.xfail(strict=False, reason="known flowmap.py compartment/biogenic mismatches, see WS3 handoff")
 def test_field_emissions_ground_level_and_biogenic_preserved():
     _skip_no_store()
     bad = _compartment_findings()
     assert not bad, "\n".join(bad)
+
+
+# Published CFs the resolved on-farm flows must carry, by exact UID: ReCiPe 2016 H (AR5 incl.
+# climate-carbon feedbacks) and EF 3.1 (AR6). Biogenic CO2 = 0 under both.
+EXPECTED_CLIMATE = {
+    "N2O": (298.0, 273.0), "CH4": (36.0, 29.8), "CH4_bio": (34.0, 27.0),
+    "CO2": (1.0, 1.0), "CO2_bio": (0.0, 0.0),
+}
+
+
+@pytest.mark.parametrize("key", list(EXPECTED_CLIMATE))
+def test_onfarm_climate_cfs_by_uid(key):
+    _skip_no_store()
+    uid, _ = _resolved()[key]
+    c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    for method, want in zip(("ReCiPe 2016 v1.03, midpoint (H)", "EF v3.1"), EXPECTED_CLIMATE[key]):
+        r = c.execute("SELECT cf.factor FROM characterization_factors cf JOIN impact_categories ic ON ic.uid=cf.category_uid "
+                      "JOIN impact_methods m ON m.uid=ic.method_uid WHERE cf.flow_uid=? AND m.name=? AND ic.name='Climate change'",
+                      (uid, method)).fetchone()
+        got = r[0] if r else 0.0
+        assert abs(got - want) < 1e-9, f"{key} under {method}: {got} != {want}"
 
 
 if __name__ == "__main__":

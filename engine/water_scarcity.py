@@ -37,9 +37,15 @@ Design (one validated path, no double counting)
        (evaporation) flows are removed from the supply chain, because the foreground already
        books that same water as consumed on the farm.
 * Consumptive fraction: ISO 14046:2014, 3.2.1 defines consumption as water removed from
-  the drainage basin (evaporation, incorporation, transfer). Return flows are not measured
-  in the wizard, so all applied irrigation water is treated as consumed (conservative upper
-  bound) unless the input carries `consumptive_fraction`.
+  the drainage basin (evaporation, incorporation, transfer). The part of applied
+  irrigation water that is not taken up by crop evapotranspiration returns to the same
+  basin as runoff or deep percolation and is not deprivation. The consumed share of the
+  WITHDRAWAL is therefore taken as the field application efficiency of the irrigation
+  method (FAO: Brouwer C, Prins K, Heibloem M (1989) Irrigation Water Management:
+  Irrigation Scheduling, Training Manual No. 4, Annex I, "Field application efficiency":
+  surface irrigation (border, furrow, basin) 60%, sprinkler 75%, drip 90%). Flooded rice
+  and unknown / manual systems take the surface value. An input's own
+  `consumptive_fraction` overrides the default.
 
 Also exposes aware_indicator(), the separate "Water scarcity (AWARE)" midpoint the adapter
 reports for every method (EF 3.1 "Water use" characterisation of the merged inventory).
@@ -54,7 +60,20 @@ _REF = Path(__file__).resolve().parent / "lcia_reference" / "aware_country_cfs.j
 
 AWARE_METHOD = "EF v3.1"          # the served method whose "Water use" is AWARE-based
 WORLD = "World"
-DEFAULT_CONSUMPTIVE_FRACTION = 1.0  # ISO 14046 3.2.1, no measured return flow (see module doc)
+# Consumed share of irrigation WITHDRAWAL = field application efficiency, FAO Training
+# Manual No. 4 (Brouwer et al. 1989), Annex I: surface 0.60, sprinkler 0.75, drip 0.90.
+APPLICATION_EFFICIENCY = {"drip": 0.90, "sprinkler": 0.75, "surface": 0.60}
+_SOURCE_FAO = "FAO Irrigation Water Management Training Manual No. 4 (Brouwer et al. 1989), Annex I"
+
+
+def consumptive_fraction(system: str | None) -> tuple[float, str]:
+    """(fraction of withdrawal consumed, system class) for an irrigation-system text."""
+    t = (system or "").lower()
+    if "drip" in t or "micro" in t or "trickle" in t:
+        return APPLICATION_EFFICIENCY["drip"], "drip"
+    if "sprinkler" in t or "pivot" in t:
+        return APPLICATION_EFFICIENCY["sprinkler"], "sprinkler"
+    return APPLICATION_EFFICIENCY["surface"], "surface"   # flood, furrow, basin, bucket, unknown
 
 
 @lru_cache(maxsize=1)
@@ -100,21 +119,40 @@ def _is_purchased_water(inp: dict) -> bool:
 
 
 def foreground_consumption(on_farm_lci: list[dict], purchased_inputs: list[dict]) -> tuple[float, list[str]]:
-    """Consumptive foreground water (m3) and human-readable basis notes."""
+    """Consumptive foreground water (m3) and human-readable basis notes. Withdrawal x
+    consumed share (application efficiency by system, or the input's consumptive_fraction)."""
     notes: list[str] = []
     measured = [i for i in purchased_inputs if _is_purchased_water(i)]
     if measured:
         total = 0.0
         for i in measured:
-            frac = float(i.get("consumptive_fraction") or DEFAULT_CONSUMPTIVE_FRACTION)
+            if i.get("consumptive_fraction") is not None:
+                frac, basis = float(i["consumptive_fraction"]), "user-supplied"
+            else:
+                frac, cls = consumptive_fraction(i.get("irrigation_system") or i.get("water_source"))
+                basis = f"{cls} application efficiency, {_SOURCE_FAO}"
             total += float(i.get("amount") or 0.0) * frac
+            notes.append(f"irrigation water '{i.get('name')}': {float(i.get('amount') or 0):.0f} m3 withdrawn x "
+                         f"{frac:.2f} consumed ({basis})")
         est = sum(float(f.get("quantity") or 0.0) for f in on_farm_lci if f.get("substance") == "water")
         if est:
-            notes.append(f"irrigation water: measured purchased water ({total:.0f} m3) supersedes the "
-                         f"kernel estimate ({est:.0f} m3); estimate not counted (no double counting)")
+            notes.append(f"irrigation water: measured purchased water supersedes the kernel estimate "
+                         f"({est:.0f} m3 withdrawn); estimate not counted (no double counting)")
         return total, notes
-    total = sum(float(f.get("quantity") or 0.0) for f in on_farm_lci if f.get("substance") == "water")
-    total *= DEFAULT_CONSUMPTIVE_FRACTION
+    total = 0.0
+    for f in on_farm_lci:
+        if f.get("substance") != "water":
+            continue
+        q = float(f.get("quantity") or 0.0)
+        if f.get("consumptive_fraction") is not None:
+            frac, basis = float(f["consumptive_fraction"]), "user-supplied"
+        else:
+            frac, cls = consumptive_fraction(f.get("source"))
+            basis = f"{cls} application efficiency, {_SOURCE_FAO}"
+        total += q * frac
+        if q:
+            notes.append(f"irrigation water: {q:.0f} m3 withdrawn x {frac:.2f} consumed ({basis}); "
+                         "the non-consumed share returns to the basin and is not deprivation")
     return total, notes
 
 
