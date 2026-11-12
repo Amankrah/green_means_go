@@ -24,6 +24,28 @@ pub struct FoodItem {
     pub cropping_pattern: Option<CroppingPattern>,
     pub intercropping_partners: Option<Vec<String>>,
     pub post_harvest_losses: Option<f64>, // percentage
+
+    // Crop-residue management for IPCC 2019 Eq 11.6 (F_CR). None = IPCC Tier 1 defaults
+    // (no removal, no burning, annual renewal).
+    #[serde(default)]
+    pub residue_management: Option<ResidueManagement>,
+}
+
+/// Per-crop residue management (IPCC 2019 Vol 4 Ch 11 Eq 11.6). All fractions 0..1.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ResidueManagement {
+    /// Frac_Remove: fraction of above-ground residues removed (feed, bedding, fuel).
+    /// IPCC 2019 Eq 11.6 note: "If data for FracRemove are not available, assume no removal".
+    #[serde(default)]
+    pub fraction_removed: Option<f64>,
+    /// Frac_Burnt: fraction of the harvested area whose residues are burnt in the field.
+    #[serde(default)]
+    pub fraction_burnt: Option<f64>,
+    /// Frac_Renew: fraction of the below-ground biomass renewed per year. 1 for annual
+    /// crops (IPCC 2019 Eq 11.6); 1/lifetime for perennial stands (set by the Python
+    /// engine from engine/perennials.py so the lifetime has a single source).
+    #[serde(default)]
+    pub frac_renew: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +113,47 @@ pub struct Assessment {
     pub farm_profile: Option<FarmProfile>,
     pub management_practices: Option<ManagementPractices>,
     pub equipment_energy: Option<EquipmentEnergy>, // NEW: Equipment and energy data
+
+    // Region/climate IPCC 2019 soil-N parameters, injected by the Python engine from the
+    // region registry (engine/field_params.py). None = IPCC 2019 aggregated defaults.
+    #[serde(default)]
+    pub field_parameters: Option<FieldParameters>,
+}
+
+/// IPCC 2019 Refinement Vol 4 Ch 11 soil-N2O parameters used by the LCI kernel.
+/// Defaults are the AGGREGATED Tier 1 values (Table 11.1 and Table 11.3, 2019 Refinement);
+/// the Python engine overrides them with the region's disaggregated (wet/dry) values.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FieldParameters {
+    /// EF1 for synthetic fertiliser N (Table 11.1: aggregated 0.010, wet 0.016, dry 0.005).
+    pub ef1_synthetic: f64,
+    /// EF1 for other N inputs: organic N, crop residues, F_SOM (Table 11.1: aggregated 0.010,
+    /// wet 0.006, dry 0.005).
+    pub ef1_other: f64,
+    /// FracGASF (Table 11.3 aggregated 0.11).
+    pub frac_gasf: f64,
+    /// FracGASM for organic N (Table 11.3: 0.21).
+    pub frac_gasm: f64,
+    /// FracLEACH-(H) (Table 11.3: 0.24 wet / irrigated; 0 in dry climates).
+    pub frac_leach: f64,
+    /// EF4 (Table 11.3: aggregated 0.010, wet 0.014, dry 0.005).
+    pub ef4: f64,
+    /// EF5 (Table 11.3: 0.011).
+    pub ef5: f64,
+}
+
+impl Default for FieldParameters {
+    fn default() -> Self {
+        Self {
+            ef1_synthetic: 0.010,
+            ef1_other: 0.010,
+            frac_gasf: 0.11,
+            frac_gasm: 0.21,
+            frac_leach: 0.24,
+            ef4: 0.010,
+            ef5: 0.011,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -398,6 +461,11 @@ pub struct LCAResults {
     // On-farm LCI (elementary flows) for the Python characterization path.
     #[serde(default)]
     pub lci_inventory: Option<Vec<LciFlow>>,
+
+    // Validation warnings raised while building the LCI (e.g. an unrecognised fertiliser
+    // type that was given zero N). Surfaced by the Python engine in the assessment output.
+    #[serde(default)]
+    pub lci_warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

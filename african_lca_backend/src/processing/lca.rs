@@ -156,6 +156,7 @@ impl ProcessingLCAEngine {
                 priority: Priority::Medium,
             }).collect()),
             lci_inventory: None,
+            lci_warnings: Vec::new(),
         });
 
         info!("Processing assessment completed for {}", assessment.facility_profile.company_name);

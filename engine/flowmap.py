@@ -40,6 +40,10 @@ ONFARM_FLOWS = {
     "PM25":       (("Particulates, < 2.5 um", "Particulate Matter, < 2.5 um"), None,    "emission/air"),
     "water":      (("Water",),                                           None,          "resource/inwater"),
     "land_occ":   (("Occupation, annual crop", "Occupation, annual crop, non-irrigated"), None, "resource/land"),
+    # permanent crop (cocoa, oil palm), engine/perennials.py
+    "land_occ_perm": (("Occupation, permanent crop", "Occupation, permanent crop, irrigated"), None, "resource/land"),
+    # direct land-use change CO2 (biomass and soil carbon stock loss), engine/land_use_change.py
+    "CO2_luc":    (("Carbon dioxide, from soil or biomass stock",),       "124-38-9",   "emission/air"),
 }
 
 

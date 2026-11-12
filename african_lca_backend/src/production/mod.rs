@@ -3,6 +3,7 @@ pub mod lca;
 pub mod data;
 pub mod lci;
 pub mod lci_extended;
+pub mod field;
 
 pub use models::*;
 pub use lca::*;

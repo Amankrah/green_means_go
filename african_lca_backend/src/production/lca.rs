@@ -151,6 +151,7 @@ impl AfricanLCAEngine {
             benchmarking: None, // TODO: Implement benchmarking
             recommendations: None, // TODO: Implement recommendations
             lci_inventory: Some(inventory_to_flows(&inventory)),
+            lci_warnings: self.lci_calculator.warnings().to_vec(),
         });
 
         info!("Comprehensive assessment completed for {}", assessment.company_name);
@@ -227,6 +228,7 @@ impl AfricanLCAEngine {
             benchmarking: None, // TODO: Implement benchmarking
             recommendations: None, // TODO: Implement recommendations
             lci_inventory: Some(inventory_to_flows(&inventory)),
+            lci_warnings: self.lci_calculator.warnings().to_vec(),
         });
 
         info!("Enhanced assessment completed for {}", assessment.company_name);
