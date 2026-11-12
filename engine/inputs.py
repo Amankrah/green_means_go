@@ -106,6 +106,39 @@ def _fuel_word(ft: str) -> tuple[str, float]:
     return key, FUEL_MJ_PER_L[key]
 
 
+def _classify(kind: str, text: str) -> dict | None:
+    """engine.llm.classify (deterministic synonyms, committed cache, then the model unless
+    GMG_LLM=0). Returns None on any failure: classification only ever renames an input,
+    it never supplies a number, and it must not break an assessment."""
+    try:
+        try:
+            from .llm import classify
+        except ImportError:
+            from llm import classify  # type: ignore
+        return classify(kind, text or "")
+    except Exception:
+        return None
+
+
+def carrier_or_classify(text: str | None, notes: list) -> str | None:
+    """Fuel carrier for free text: keyword table first, then the controlled-vocabulary
+    classifier (trade names such as AGO / PMS / DPK, French terms). A classified label that
+    needs confirmation is used but reported so the user can correct it."""
+    c = ec.carrier_of(text)
+    if c or not text:
+        return c
+    r = _classify("fuel", text)
+    label = (r or {}).get("label")
+    c = ec.carrier_of(label) if label else None
+    if c:
+        msg = (f"fuel type '{text}' read as {label} ({r.get('source')}, confidence "
+               f"{float(r.get('confidence') or 0):.2f})")
+        if r.get("needs_confirmation"):
+            msg += "; please confirm"
+        notes.append(msg)
+    return c
+
+
 def _total_area(assessment: dict) -> float:
     return sum((f.get("area_allocated") or 0) for f in (assessment.get("foods") or []))
 
@@ -227,7 +260,7 @@ def _energy_inputs(assessment, inputs, notes):
         monthly = fu.get("monthly_consumption") or 0
         if monthly <= 0:
             continue
-        carrier = ec.carrier_of(fu.get("fuel_type"))
+        carrier = carrier_or_classify(fu.get("fuel_type"), notes)
         if not carrier:
             notes.append(f"fuel type '{fu.get('fuel_type')}' not recognised; modelled as diesel")
             carrier = "diesel"

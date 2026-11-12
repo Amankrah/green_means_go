@@ -194,7 +194,29 @@ def _raw_material_match(name: str) -> tuple[str, bool]:
             return REFINED_MATERIAL_HINTS[key], True
     if raw_key:
         return RAW_MATERIAL_HINTS[raw_key], False
+    # No hint key: let the controlled-vocabulary classifier map local or trade names
+    # ("garden egg", "arachide") onto a hint key. Only a confident label is used; anything
+    # else falls through to the raw name, and the matcher's identity gate flags it.
+    label = _classify_raw_material(name)
+    if label and label.lower() != low:
+        hint, refined = _raw_material_match(label)
+        if hint != f"{label} production":      # the label hit a real hint key
+            return hint, refined
     return f"{name} production", False
+
+
+def _classify_raw_material(name: str) -> str | None:
+    try:
+        try:
+            from .llm import classify
+        except ImportError:
+            from llm import classify  # type: ignore
+        r = classify("raw_material", name or "")
+    except Exception:
+        return None
+    if r and r.get("label") and not r.get("needs_confirmation"):
+        return r["label"]
+    return None
 
 
 # Transport mode -> representative freight dataset (ref unit tonne.km).
