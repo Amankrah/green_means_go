@@ -294,14 +294,15 @@ function ComprehensiveAssessmentPage({
             fuelEfficiency: 3.2
           }
         ],
-        energySources: [
+        fuelConsumption: [
           {
-            energyType: EnergyType.DIESEL_GENERATOR,
+            fuelType: FuelType.DIESEL,
             monthlyConsumption: 145,
             primaryUse: 'Tractor operations (plowing, planting, transport)',
-            cost: 320,
-            currency: Currency.GHS
-          },
+            cost: 320
+          }
+        ],
+        energySources: [
           {
             energyType: EnergyType.GRID_ELECTRICITY,
             monthlyConsumption: 85,
@@ -580,6 +581,7 @@ function ComprehensiveAssessmentPage({
         rotationDuration: crop.rotationDuration,
         averageYieldPerHectare: crop.averageYieldPerHectare,
         postHarvestLosses: crop.postHarvestLosses,
+        seedRateKgPerHa: crop.seedRateKgPerHa,
         qualityGrades: [] // Default to empty array, can be enhanced later
       })),
       managementPractices: {
@@ -650,40 +652,12 @@ function ComprehensiveAssessmentPage({
           ...energy,
           cost: energy.cost || 0 // Provide default cost
         })) || [],
-        // Extract fuel consumption from energy sources
-        // Convert energy sources like "Diesel Generator" to fuel consumption entries
-        fuelConsumption: data.equipmentEnergy.energySources
-          ?.filter(energy => {
-            const energyTypeStr = typeof energy.energyType === 'string'
-              ? energy.energyType
-              : String(energy.energyType);
-
-            return energyTypeStr.includes('Diesel') ||
-                   energyTypeStr.includes('diesel') ||
-                   energyTypeStr.includes('Petrol') ||
-                   energyTypeStr.includes('Gasoline') ||
-                   energyTypeStr.includes('gasoline');
-          })
-          .map(energy => {
-            const energyTypeStr = typeof energy.energyType === 'string'
-              ? energy.energyType
-              : String(energy.energyType);
-
-            // Determine fuel type based on energy type
-            let fuelType = FuelType.DIESEL;
-            if (energyTypeStr.includes('Diesel') || energyTypeStr.includes('diesel')) {
-              fuelType = FuelType.DIESEL;
-            } else if (energyTypeStr.includes('Petrol') || energyTypeStr.includes('Gasoline')) {
-              fuelType = FuelType.PETROL;
-            }
-
-            return {
-              fuelType,
-              monthlyConsumption: energy.monthlyConsumption || 0,
-              primaryUse: energy.primaryUse || 'Farm operations',
-              cost: energy.cost || 0
-            };
-          }) || [],
+        // Engine fuels come from their own list. They used to be DERIVED from the diesel
+        // energy sources, which sent every diesel generator twice.
+        fuelConsumption: data.equipmentEnergy.fuelConsumption?.map(fc => ({
+          ...fc,
+          cost: fc.cost || 0
+        })) || [],
         infrastructure: {
           ...data.equipmentEnergy.infrastructure,
           processingFacilities: [], // Add missing required field

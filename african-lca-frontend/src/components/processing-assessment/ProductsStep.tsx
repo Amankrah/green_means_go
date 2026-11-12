@@ -62,7 +62,7 @@ export default function ProductsStep() {
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Main raw material (the crop or ingredient)">
+              <Field label="Main raw material (the crop or ingredient)" hint="Leave both blank to use a cited default conversion ratio for this product type (e.g. palm oil from fresh fruit bunches)">
                 <input {...register(`products.${i}.rawMaterial`)} className={inputClass} placeholder="e.g. maize grain, wheat grain" />
               </Field>
               <Field label="Raw material per tonne of product (kg)" error={pe?.rawKgPerTonne?.message}>

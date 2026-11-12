@@ -504,6 +504,20 @@ export default function CropDetailsStep() {
 
                 <div>
                   <label className="block text-sm font-medium text-ink mb-2">
+                    Seed sown (kg per hectare, optional)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    {...register(`cropProductions.${index}.seedRateKgPerHa`)}
+                    placeholder="blank = typical rate for this crop (FAO)"
+                    className="gmg-input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-2">
                     Annual Production (kg) *
                   </label>
                   <input

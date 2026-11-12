@@ -48,6 +48,8 @@ interface IsoReport {
     impact_categories_basis?: string;
     normalization_reference: string; data_requirements: { foreground: string; background: string };
     assumptions_and_limitations: string[]; value_choices: string[];
+    // Wizard fields kept for context only (engine/inputs.py and process_inputs.py report_only_metadata).
+    reported_metadata?: Record<string, unknown>;
   };
   inventory_analysis: {
     data_sources: string[]; foreground_data: string; background_data: string; on_farm_lci: string;
@@ -420,6 +422,20 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
             </div>
             <Bullets items={scope.value_choices} />
           </div>
+          {scope.reported_metadata && (
+            <Field label="Reported for context (does not change the numbers)">
+              <ul className="text-sm text-gray-700 space-y-0.5">
+                {Object.entries(scope.reported_metadata)
+                  .filter(([k, v]) => k !== 'note' && v !== null && v !== undefined)
+                  .map(([k, v]) => (
+                    <li key={k}>
+                      <span className="font-medium">{k.replace(/_/g, ' ')}:</span>{' '}
+                      {typeof v === 'string' ? v : JSON.stringify(v)}
+                    </li>
+                  ))}
+              </ul>
+            </Field>
+          )}
         </Phase>
 
         {/* 3. Inventory */}

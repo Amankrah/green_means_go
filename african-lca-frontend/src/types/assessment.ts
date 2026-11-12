@@ -35,8 +35,7 @@ export interface FoodItem {
   cropping_pattern?: string;
   intercropping_partners?: string[];
   post_harvest_losses?: number;
-  farm_profile?: Record<string, unknown>;
-  management_practices?: Record<string, unknown>;
+  seed_rate_kg_per_ha?: number;
 }
 
 export interface AssessmentRequest {
@@ -70,9 +69,17 @@ export interface AssessmentRequest {
     fuel_consumption: Array<{
       fuel_type: string;
       monthly_consumption: number;
+      unit?: string;
       primary_use: string;
       cost: number;
     }>;
+  };
+  logistics?: {
+    packaging_material?: string;
+    packaging_kg_per_tonne?: number;
+    distance_to_market_km?: number;
+    market_transport_mode?: string;
+    input_transport_km?: number;
   };
 }
 

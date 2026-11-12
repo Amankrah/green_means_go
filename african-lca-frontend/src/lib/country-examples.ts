@@ -11,7 +11,7 @@ import {
   FarmType, FarmingSystem, CompostSource, ProductionSystem, CroppingPattern, SeasonType,
   SoilType, TestingFrequency, SoilConservationPractice, FertilizerType, WaterSource,
   IrrigationSystem, PestManagementApproach, PesticideType, IPMPractice, MonitoringFrequency,
-  EquipmentType, PowerSource, EnergyType, StorageFacilityType, RoadAccessType, TransportMode,
+  EquipmentType, PowerSource, EnergyType, FuelType, StorageFacilityType, RoadAccessType, TransportMode,
   Currency, ApplicationMethod, TimingStrategy, FunctionalUnit, SystemBoundary,
 } from '@/types/enhanced-assessment';
 
@@ -84,8 +84,9 @@ export const GHANA_EXAMPLE = {
       { equipmentType: EquipmentType.ANIMAL_TRACTION, powerSource: PowerSource.MANUAL, age: 5, hoursPerYear: 200, fuelEfficiency: 0 },
       { equipmentType: EquipmentType.SPRAYER, powerSource: PowerSource.MANUAL, age: 2, hoursPerYear: 40, fuelEfficiency: 0 },
     ],
-    energySources: [
-      { energyType: EnergyType.DIESEL_GENERATOR, monthlyConsumption: 45, primaryUse: 'Water pumping and threshing', cost: 120, currency: Currency.GHS },
+    energySources: [] as Array<{ energyType: EnergyType; monthlyConsumption: number; primaryUse: string; cost: number; currency: Currency }>,
+    fuelConsumption: [
+      { fuelType: FuelType.DIESEL, monthlyConsumption: 45, primaryUse: 'Water pumping and threshing', cost: 120 },
     ],
     infrastructure: {
       storageCapacity: 5000, storageFacilities: [StorageFacilityType.TRADITIONAL_GRANARY],
@@ -129,8 +130,9 @@ NIGERIA_EXAMPLE.equipmentEnergy.equipment = [
   { equipmentType: EquipmentType.LARGE_TRACTOR, powerSource: PowerSource.DIESEL, age: 6, hoursPerYear: 600, fuelEfficiency: 18 },
   { equipmentType: EquipmentType.SPRAYER, powerSource: PowerSource.PETROL, age: 3, hoursPerYear: 120, fuelEfficiency: 2.5 },
 ];
-NIGERIA_EXAMPLE.equipmentEnergy.energySources = [
-  { energyType: EnergyType.DIESEL_GENERATOR, monthlyConsumption: 220, primaryUse: 'Irrigation pumping and tractor', cost: 300000, currency: Currency.NGN },
+NIGERIA_EXAMPLE.equipmentEnergy.energySources = [];
+NIGERIA_EXAMPLE.equipmentEnergy.fuelConsumption = [
+  { fuelType: FuelType.DIESEL, monthlyConsumption: 220, primaryUse: 'Irrigation pumping and tractor', cost: 300000 },
 ];
 NIGERIA_EXAMPLE.equipmentEnergy.infrastructure = {
   storageCapacity: 40000, storageFacilities: [StorageFacilityType.HERMETIC_STORAGE],
@@ -177,8 +179,10 @@ CANADA_EXAMPLE.equipmentEnergy.equipment = [
   { equipmentType: EquipmentType.LARGE_TRACTOR, powerSource: PowerSource.DIESEL, age: 5, hoursPerYear: 900, fuelEfficiency: 28 },
   { equipmentType: EquipmentType.COMBINE_HARVESTER, powerSource: PowerSource.DIESEL, age: 7, hoursPerYear: 400, fuelEfficiency: 45 },
 ];
+CANADA_EXAMPLE.equipmentEnergy.fuelConsumption = [
+  { fuelType: FuelType.DIESEL, monthlyConsumption: 2200, primaryUse: 'Tractor and combine operations', cost: 3200 },
+];
 CANADA_EXAMPLE.equipmentEnergy.energySources = [
-  { energyType: EnergyType.DIESEL_GENERATOR, monthlyConsumption: 2200, primaryUse: 'Tractor and combine operations', cost: 3200, currency: Currency.USD },
   { energyType: EnergyType.GRID_ELECTRICITY, monthlyConsumption: 1200, primaryUse: 'Grain drying and storage', cost: 480, currency: Currency.USD },
 ];
 CANADA_EXAMPLE.equipmentEnergy.infrastructure = {

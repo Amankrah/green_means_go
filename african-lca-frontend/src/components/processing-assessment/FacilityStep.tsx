@@ -22,12 +22,12 @@ export default function FacilityStep() {
       <Field label="Company name" hint="Defaults to the facility name if left blank">
         <input {...register('facility.companyName')} className={inputClass} />
       </Field>
-      <Field label="Facility type">
+      <Field label="Facility type" hint="Selects the default raw material and conversion ratio when a product's raw material is left blank">
         <select {...register('facility.facilityType')} className={inputClass}>
           {FACILITY_TYPES.map((t) => <option key={t}>{t}</option>)}
         </select>
       </Field>
-      <Field label="Location type">
+      <Field label="Location type" hint="For the report: does not change the numbers">
         <select {...register('facility.locationType')} className={inputClass}>
           {LOCATION_TYPES.map((t) => <option key={t}>{t}</option>)}
         </select>
@@ -43,14 +43,14 @@ export default function FacilityStep() {
       >
         <input {...register('facility.region')} className={inputClass} placeholder="e.g. Ontario" />
       </Field>
-      <Field label="Processing capacity (tonnes/day)" required error={e?.capacity?.message}>
+      <Field label="Processing capacity (tonnes/day)" required error={e?.capacity?.message} hint="For the report: does not change the numbers (used for a capacity check)">
         <input type="number" min="0" step="any" {...register('facility.capacity')} className={inputClass} />
       </Field>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Hours / day" required error={e?.hoursPerDay?.message}>
+        <Field label="Hours / day" required error={e?.hoursPerDay?.message} hint="For the report: does not change the numbers">
           <input type="number" min="0" step="any" {...register('facility.hoursPerDay')} className={inputClass} />
         </Field>
-        <Field label="Days / year" required error={e?.daysPerYear?.message}>
+        <Field label="Days / year" required error={e?.daysPerYear?.message} hint="Scales daily solid waste to a year">
           <input type="number" min="0" step="1" {...register('facility.daysPerYear')} className={inputClass} />
         </Field>
       </div>

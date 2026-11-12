@@ -543,19 +543,23 @@ class AssessmentAPI {
         water_management: {
           water_source: data.managementPractices.waterManagement.waterSource,
           irrigation_system: data.managementPractices.waterManagement.irrigationSystem,
+          irrigation_water_m3: data.managementPractices.waterManagement.irrigationWaterM3 ?? undefined,
           water_conservation_practices: data.managementPractices.waterManagement.waterConservationPractices,
         },
+        // Key names must match app/production/models.py exactly: the API rejects unknown
+        // keys (it used to drop `pesticides_used` silently, losing every pesticide).
         pest_management: {
           management_approach: data.pestManagement.managementApproach,
           uses_ipm: data.pestManagement.usesIPM,
-          pesticides_used: data.pestManagement.pesticides.map((pest: PesticideApplication) => ({
+          pesticides: data.pestManagement.pesticides.map((pest: PesticideApplication) => ({
             pesticide_type: pest.pesticideType,
             active_ingredient: pest.activeIngredient,
             application_rate: pest.applicationRate,
             applications_per_season: pest.applicationsPerSeason,
+            active_ingredient_content: pest.activeIngredientContent ?? undefined,
             target_pests: pest.targetPests,
           })),
-          monitoring_frequency: data.pestManagement.pestMonitoringFrequency,
+          pest_monitoring_frequency: data.pestManagement.pestMonitoringFrequency,
         },
       },
       // Include equipment_energy if provided (convert to snake_case and strip infrastructure field)
@@ -574,12 +578,19 @@ class AssessmentAPI {
           cost: es.cost,
           currency: es.currency,
         })),
-        fuel_consumption: data.equipmentEnergy.fuelConsumption.map(fc => ({
+        fuel_consumption: (data.equipmentEnergy.fuelConsumption ?? []).map(fc => ({
           fuel_type: fc.fuelType,
           monthly_consumption: fc.monthlyConsumption,
           primary_use: fc.primaryUse,
           cost: fc.cost,
         })),
+      } : undefined,
+      logistics: data.equipmentEnergy ? {
+        packaging_material: data.equipmentEnergy.infrastructure?.packagingMaterial?.trim() || undefined,
+        packaging_kg_per_tonne: data.equipmentEnergy.infrastructure?.packagingKgPerTonne ?? undefined,
+        distance_to_market_km: data.equipmentEnergy.infrastructure?.transportAccess?.distanceToMarket ?? undefined,
+        market_transport_mode: pickMarketMode(data.equipmentEnergy.infrastructure?.transportAccess?.transportMode),
+        input_transport_km: data.equipmentEnergy.infrastructure?.inputTransportKm ?? undefined,
       } : undefined,
       foods: data.cropProductions.map((crop, index) => ({
         id: `crop_${index + 1}`,
@@ -595,22 +606,7 @@ class AssessmentAPI {
         cropping_pattern: crop.croppingPattern,
         intercropping_partners: crop.intercroppingPartners,
         post_harvest_losses: crop.postHarvestLosses,
-        farm_profile: {
-          farmer_name: data.farmProfile.farmerName,
-          farm_name: data.farmProfile.farmName,
-          total_farm_size: data.farmProfile.totalFarmSize,
-          farming_experience: data.farmProfile.farmingExperience,
-          farm_type: data.farmProfile.farmType,
-          primary_farming_system: data.farmProfile.primaryFarmingSystem,
-          certifications: data.farmProfile.certifications,
-          participates_in_programs: data.farmProfile.participatesInPrograms,
-        },
-        management_practices: {
-          soil_management: data.managementPractices.soilManagement,
-          fertilization: data.managementPractices.fertilization,
-          water_management: data.managementPractices.waterManagement,
-          pest_management: data.pestManagement,
-        },
+        seed_rate_kg_per_ha: crop.seedRateKgPerHa ?? undefined,
       })),
     };
 
@@ -728,6 +724,14 @@ class AssessmentAPI {
 }
 
 export const assessmentAPI = new AssessmentAPI();
+
+// The engine models ONE delivery leg to market: take the most motorised mode the farmer ticked
+// (foot / bicycle only -> no transport emissions).
+const MARKET_MODE_PRIORITY = ['Large truck', 'Pickup truck', 'Public transport', 'Motorcycle', 'Bicycle', 'On foot/Head carrying'];
+function pickMarketMode(modes?: string[]): string | undefined {
+  if (!modes || modes.length === 0) return undefined;
+  return MARKET_MODE_PRIORITY.find((m) => modes.includes(m)) ?? modes[0];
+}
 
 // Utility functions for the frontend
 export const formatScore = (score: number): string => {
