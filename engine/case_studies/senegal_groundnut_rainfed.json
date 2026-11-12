@@ -1,0 +1,85 @@
+{
+  "company_name": "Aminata Ndiaye - Kaolack Groundnut Farm",
+  "country": "Global",
+  "region": "SN",
+  "farm_profile": {
+    "farmer_name": "Aminata Ndiaye",
+    "farm_name": "Kaolack Groundnut Farm",
+    "total_farm_size": 3.0,
+    "farming_experience": 18,
+    "farm_type": "Smallholder",
+    "primary_farming_system": "SemiCommercial",
+    "certifications": [],
+    "participates_in_programs": [
+      "Climate Smart Agriculture"
+    ]
+  },
+  "management_practices": {
+    "soil_management": {
+      "soil_type": "Sandy",
+      "uses_compost": false,
+      "compost_source": null,
+      "conservation_practices": [
+        "Crop Rotation"
+      ],
+      "soil_testing_frequency": "Never"
+    },
+    "fertilization": {
+      "uses_fertilizers": true,
+      "fertilizer_applications": [
+        {
+          "fertilizer_type": "NPK Compound",
+          "npk_ratio": "6-20-10",
+          "application_rate": 150,
+          "applications_per_season": 1,
+          "cost": 30000
+        }
+      ],
+      "soil_test_based": false,
+      "follows_nutrient_plan": false
+    },
+    "water_management": {
+      "water_source": [
+        "Rainfall only"
+      ],
+      "irrigation_system": "None (Rainfed)",
+      "water_conservation_practices": []
+    },
+    "pest_management": {
+      "management_approach": "Integrated Pest Management (IPM)",
+      "uses_ipm": true,
+      "pesticides": [],
+      "pest_monitoring_frequency": "Weekly"
+    }
+  },
+  "equipment_energy": {
+    "equipment": [
+      {
+        "equipment_type": "Animal-drawn implements",
+        "power_source": "Animal power",
+        "age": 8,
+        "hours_per_year": 120,
+        "fuel_efficiency": null
+      }
+    ],
+    "energy_sources": [],
+    "fuel_consumption": []
+  },
+  "foods": [
+    {
+      "id": "crop_groundnut",
+      "name": "Groundnut",
+      "quantity_kg": 3900,
+      "category": "Legumes",
+      "crop_type": "Fleur 11",
+      "origin_country": "Senegal",
+      "production_system": "Rainfed",
+      "seasonal_factor": "WetSeason",
+      "variety": "Fleur 11",
+      "area_allocated": 3.0,
+      "cropping_pattern": "Monoculture",
+      "intercropping_partners": [],
+      "post_harvest_losses": 10
+    }
+  ]
+}
