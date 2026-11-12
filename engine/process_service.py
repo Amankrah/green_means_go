@@ -18,6 +18,7 @@ try:
     from .process_adapter import to_process_response
     from .farm_flows import RESOURCE_IN_WATER, EVAPORATED_WATER, merge_elementary, _flow_uid
     from .process_inputs import WASTEWATER_SHARE
+    from . import water_scarcity
 except ImportError:
     from service import _engine
     from regions import get_region
@@ -25,6 +26,7 @@ except ImportError:
     from process_adapter import to_process_response
     from farm_flows import RESOURCE_IN_WATER, EVAPORATED_WATER, merge_elementary, _flow_uid
     from process_inputs import WASTEWATER_SHARE
+    import water_scarcity
 
 
 def _resolve_region(request: dict, override: str | None) -> str:
@@ -95,11 +97,16 @@ def run_process_assessment(request: dict, region: str | None = None,
             uid = _flow_uid(eng.q.conn, name, RESOURCE_IN_WATER)
             if uid:
                 flows.append({"uid": uid, "name": name, "unit": "m3", "amount": m3})
-            # consumptive share (not returned as wastewater) for the water-use indicator,
-            # which in the store's method pack is characterised on evaporated water
-            evap = _flow_uid(eng.q.conn, *EVAPORATED_WATER)
+            # consumptive share (not returned as wastewater), booked on the regional AWARE
+            # non-agricultural flow (same CFs as evaporated water, country CF under EF 3.1
+            # Water use); evaporated water with the world CF only if the store lacks it.
+            cf, country = water_scarcity.aware_cf(eng.region, "non_agri")
+            evap = water_scarcity.regional_flow_uid(eng.q, country, "non_agri")
+            label = f"Water, consumptive use, non-agri, {country} (AWARE)"
+            if not evap:
+                evap, label = _flow_uid(eng.q.conn, *EVAPORATED_WATER), "Water (consumed on site)"
             if evap:
-                flows.append({"uid": evap, "name": "Water (consumed on site)", "unit": "m3",
+                flows.append({"uid": evap, "name": label, "unit": "m3",
                               "amount": m3 * (1.0 - WASTEWATER_SHARE)})
         if flows:
             merge_elementary(res, eng, WATER_LABEL, flows)

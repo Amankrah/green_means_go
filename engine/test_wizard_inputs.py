@@ -227,7 +227,8 @@ def test_irrigation_withdrawal_flows_by_source():
     assert replaces is True
     names = {f["name"]: f["amount"] for f in flows}
     assert names["Water, well, in ground"] == 400.0 and names["Water, river"] == 400.0
-    assert names["Water (evapotranspired irrigation)"] == pytest.approx(800.0 * 0.75)
+    # consumption is booked once, by water_scarcity on the regional AWARE flow, not here
+    assert not any(n.startswith("Water (evapotranspired") for n in names)
 
 
 def test_logistics_packaging_and_transport():
@@ -368,8 +369,7 @@ def test_farm_flows_apply_replaces_rust_water_and_recharacterises():
     assert "RUST_WATER" not in field and "RUST_WATER" not in res.inventory
     well = [r for r in field.values() if r["name"] == "Water, well, in ground"]
     assert well and well[0]["amount"] == pytest.approx(300.0)
-    evap = [r for r in field.values() if r["name"].startswith("Water (evapotranspired")]
-    assert evap and evap[0]["amount"] == pytest.approx(300.0 * 0.90)
+    assert not [r for r in field.values() if r["name"].startswith("Water (evapotranspired")]
     assert field["CH4_UID"]["amount"] == pytest.approx(2000.0 * 0.004)     # 1 t/ha x 2 ha
     assert field["N2O_UID"]["amount"] == pytest.approx(2000.0 * 0.0003)
     assert res.impacts["total"]["value"] == pytest.approx(sum(r["amount"] for r in res.inventory.values()))

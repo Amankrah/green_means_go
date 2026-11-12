@@ -99,17 +99,10 @@ def extra_flows(assessment: dict, conn, fmap=None) -> tuple[list[dict], list[str
             uid = _flow_uid(conn, name, RESOURCE_IN_WATER)
             if uid:
                 flows.append({"uid": uid, "name": name, "unit": "m3", "amount": share})
-        try:
-            from .crop_defaults import APPLICATION_EFFICIENCY, EFFICIENCY_SOURCE
-        except ImportError:
-            from crop_defaults import APPLICATION_EFFICIENCY, EFFICIENCY_SOURCE  # type: ignore
-        eff = APPLICATION_EFFICIENCY.get(w["system"], APPLICATION_EFFICIENCY["surface"])
-        uid = _flow_uid(conn, *EVAPORATED_WATER)
-        if uid:
-            flows.append({"uid": uid, "name": "Water (evapotranspired irrigation)", "unit": "m3",
-                          "amount": w["m3"] * eff})
-            notes.append(f"consumptive irrigation water {w['m3'] * eff:.0f} m3 = applied x {eff:g} "
-                         f"field application efficiency ({EFFICIENCY_SOURCE})")
+        # Consumption is NOT added here: the orchestrator passes this same volume to
+        # water_scarcity.apply, which books the consumed share (FAO application efficiency)
+        # once, on the regional AWARE flow. Adding evaporated "Water" here as well would
+        # double count it and characterise it with the world-average CF.
         notes.append(f"irrigation water: {w['m3']:.0f} m3 by source {srcs} "
                      f"({'estimated: ' + w['source'] if w['estimated'] else 'measured'})")
 

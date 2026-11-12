@@ -126,6 +126,45 @@ class AssessmentResult:
     inventory: dict = field(default_factory=dict)          # merged {flow_uid: {name,unit,amount}}
 
 
+def _irrigation_override(on_farm_lci: list[dict], assessment: dict) -> tuple[list[dict], list[str]]:
+    """Single source of truth for irrigation volume. engine/inputs.irrigation_water gives the
+    farmer's measured volume or the cited FAO crop-water-need estimate; it replaces the
+    kernel's generic m3/ha-by-system withdrawal so that water_scarcity.apply books the
+    consumed share once, on the regional AWARE flow (farm_flows only re-labels the
+    withdrawal by source, which is characterisation-neutral)."""
+    try:
+        from .inputs import irrigation_water
+    except ImportError:
+        from inputs import irrigation_water
+    w = irrigation_water(assessment)
+    if not w:
+        return on_farm_lci, []
+    kept = [f for f in on_farm_lci if f.get("substance") != "water"]
+    kernel_m3 = sum(float(f.get("quantity") or 0.0) for f in on_farm_lci if f.get("substance") == "water")
+    kept.append({"substance": "water", "quantity": w["m3"], "unit": "m3", "source": w["system"]})
+    basis = "measured by the farmer" if not w["estimated"] else f"estimated ({w['source']})"
+    return kept, [f"irrigation withdrawal {w['m3']:.0f} m3 ({w['system']}), {basis}; replaces the "
+                  f"kernel default of {kernel_m3:.0f} m3"]
+
+
+# Production-system qualifiers that ecoinvent writes as a separate comma-delimited
+# attribute of the reference product ("maize seed, organic, for sowing"). A dataset carrying
+# one the user did not ask for (or lacking one the user asked for) is a different
+# production system: ranked after datasets that fit. Matching whole attributes only, so "inorganic potassium fertiliser" and
+# "compost (for organic fertiliser)" are not affected.
+_SYSTEM_QUALIFIERS = ("organic", "swiss integrated production", "integrated production")
+
+
+def _system_mismatch(text: str, cand: dict) -> int:
+    import re as _re
+    q = (text or "").lower()
+    prod = (cand.get("reference_product") or cand.get("name") or "").lower().split("|")[0]
+    attrs = {a.strip() for a in prod.split(",")[1:]}
+    asked = {k for k in _SYSTEM_QUALIFIERS if _re.search(r"\b" + _re.escape(k) + r"\b", q)}
+    has = {k for k in _SYSTEM_QUALIFIERS if k in attrs}
+    return int(asked != has)
+
+
 class FarmLCA:
     def __init__(self, region_code: str, method: str = None, db=DEFAULT_DB, matcher=None):
         self.region = get_region(region_code)
@@ -182,11 +221,14 @@ class FarmLCA:
             uids = sorted(set.intersection(*sets)) if sets else []
         return self.matcher.score_uids(text, uids, top_k=40)
 
-    def _rank(self, pool: list[dict]) -> list[dict]:
-        """Region preference first, then similarity, then uid (fully deterministic)."""
+    def _rank(self, pool: list[dict], text: str = "") -> list[dict]:
+        """Production-system fit first (a conventional query must not land on an organic or
+        Swiss-IP variant of the same product), then region preference, then similarity,
+        then uid (fully deterministic)."""
         best = max(c["score"] for c in pool)
         kept = [c for c in pool if c["score"] >= max(0.35, 0.6 * best)] or list(pool)
-        kept.sort(key=lambda c: (location_rank(self.region, c.get("location")),
+        kept.sort(key=lambda c: (_system_mismatch(text, c),
+                                 location_rank(self.region, c.get("location")),
                                  -c["score"], c["uid"]))
         return kept
 
@@ -235,7 +277,7 @@ class FarmLCA:
                     passing.append(c)
                     have.add(c["uid"])
         if passing:
-            ranked = self._rank(passing)
+            ranked = self._rank(passing, text)
             needs_review = ident.needs_review
             reason = pid.review_reason(ident)
         else:
@@ -345,6 +387,8 @@ class FarmLCA:
         on_farm_lci, rust_notes = onfarm_lci_from_assessment(rust_assessment)
         # expert-level field-emission adjustments (regional climate N2O, legume intercrop credit)
         on_farm_lci, field_notes = adjust_field_emissions(on_farm_lci, rust_assessment, self.region)
+        on_farm_lci, water_notes = _irrigation_override(on_farm_lci, rust_assessment)
+        field_notes = field_notes + water_notes
         res = self.assess(on_farm_lci, purchased_inputs, expand_matching, on_progress=on_progress)
         res.notes = rust_notes + field_notes + res.notes
         return res

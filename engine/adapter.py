@@ -18,19 +18,32 @@ MIDPOINT_MAP = {
     "Water use":                                    ("Water consumption", "m3"),
     "Land use":                                     ("Land use", "m2a crop-eq"),
     "Terrestrial acidification":                    ("Terrestrial acidification", "kg SO2-eq"),
+    "Acidification: terrestrial":                   ("Terrestrial acidification", "kg SO2-eq"),   # ReCiPe 2016 name in the ecoinvent 3.11 pack
     "Acidification":                                ("Terrestrial acidification", "mol H+-eq"),
     "Eutrophication: freshwater":                   ("Freshwater eutrophication", "kg P-eq"),
     "Eutrophication, freshwater":                   ("Freshwater eutrophication", "kg P-eq"),
     "Eutrophication: marine":                       ("Marine eutrophication", "kg N-eq"),
     "Eutrophication, marine":                       ("Marine eutrophication", "kg N-eq"),
     "Fossil resource scarcity":                     ("Fossil depletion", "kg oil-eq"),
-    "Energy resources: non-renewable, fossil":      ("Fossil depletion", "MJ"),
+    "Energy resources: non-renewable, fossil":      ("Fossil depletion", "kg oil-eq"),   # ReCiPe 2016
+    "Energy resources: non-renewable":              ("Fossil depletion", "MJ"),          # EF 3.1
     "Mineral resource scarcity":                    ("Mineral depletion", "kg Cu-eq"),
     "Material resources: metals/minerals":          ("Mineral depletion", "kg Sb-eq"),
     "Particulate matter formation":                 ("Particulate matter formation", "kg PM2.5-eq"),
     "Particulate matter":                           ("Particulate matter formation", "disease inc."),
     "Photochemical oxidant formation: human health": ("Photochemical oxidation", "kg NOx-eq"),
     "Photochemical ozone formation: human health":  ("Photochemical oxidation", "kg NMVOC-eq"),
+    # Reported, NOT in the single score (no normalisation in the single-score set; adding
+    # them is a weighting choice left to the reviewer). Needed once pesticide active
+    # ingredients reach agricultural soil (engine/pesticides.py).
+    "Ecotoxicity: freshwater":                      ("Freshwater ecotoxicity", "kg 1,4-DCB-eq"),
+    "Ecotoxicity: terrestrial":                     ("Terrestrial ecotoxicity", "kg 1,4-DCB-eq"),
+    "Ecotoxicity: marine":                          ("Marine ecotoxicity", "kg 1,4-DCB-eq"),
+    "Human toxicity: carcinogenic":                 ("Human toxicity, cancer", "kg 1,4-DCB-eq"),
+    "Human toxicity: non-carcinogenic":             ("Human toxicity, non-cancer", "kg 1,4-DCB-eq"),
+    "Ozone depletion":                              ("Ozone depletion", "kg CFC-11-eq"),
+    "Ionising radiation":                           ("Ionising radiation", "kBq Co-60-eq"),
+    "Ionising radiation: human health":             ("Ionising radiation", "kBq U235-eq"),
 }
 
 # Separate AWARE water-scarcity midpoint reported for EVERY method (engine/water_scarcity.py).
