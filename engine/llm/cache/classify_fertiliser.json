@@ -1,0 +1,65 @@
+{
+  "ammonium sulfate nitrate": {
+    "text": "ammonium sulfate nitrate",
+    "kind": "fertiliser",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Ammonium sulphate nitrate is a distinct double-salt nitrogen fertiliser that falls between the Ammonium Sulphate and Ammonium Nitrate labels, so neither is a clean match and no single allowed label fits well.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "asaase wura": {
+    "text": "asaase wura",
+    "kind": "fertiliser",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "This is a Twi phrase roughly meaning 'owner of the land' and is likely a Ghanaian trade name, but I cannot reliably tie it to a specific fertiliser type in the list.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "chicken droppings": {
+    "text": "chicken droppings",
+    "kind": "fertiliser",
+    "label": "Organic Fertilizer",
+    "confidence": 0.9,
+    "reason": "Chicken droppings are poultry manure, which is an organic fertiliser.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "cocoa husk ash": {
+    "text": "cocoa husk ash",
+    "kind": "fertiliser",
+    "label": "Organic Fertilizer",
+    "confidence": 0.6,
+    "reason": "Cocoa husk ash is a potassium-rich ash made from crop residue and used as a soil amendment, so it fits best as an organic or natural fertiliser rather than any synthetic mineral product.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "liquid boost": {
+    "text": "liquid boost",
+    "kind": "fertiliser",
+    "label": "Foliar Fertilizer",
+    "confidence": 0.55,
+    "reason": "A liquid booster product is most commonly a foliar-applied fertiliser, though the vague name could also describe a liquid organic or bio-stimulant product.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "sulphan": {
+    "text": "sulphan",
+    "kind": "fertiliser",
+    "label": "Ammonium Nitrate",
+    "confidence": 0.4,
+    "reason": "Sulphan is a Zimbabwean trade name for an ammonium sulphate nitrate top-dressing that is mostly ammonium nitrate with added sulphur, so it partly overlaps the ammonium sulphate label too.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "yara mila actyva": {
+    "text": "yara mila actyva",
+    "kind": "fertiliser",
+    "label": "NPK Compound",
+    "confidence": 0.9,
+    "reason": "YaraMila Actyva is a Yara branded compound granular fertiliser supplying nitrogen, phosphorus and potassium with secondary nutrients, so it fits the NPK compound category.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  }
+}
