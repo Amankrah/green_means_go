@@ -25,6 +25,7 @@
  */
 
 use crate::models::*;
+use crate::production::field::{self, NForm};
 use std::collections::HashMap;
 use log::{info, warn};
 
@@ -217,6 +218,26 @@ impl Default for EmissionFactorsDatabase {
 pub struct LCICalculator {
     emission_factors: EmissionFactorsDatabase,
     inventory: HashMap<String, InventoryItem>,
+    /// IPCC 2019 soil-N parameters for this assessment (region/climate; defaults = IPCC
+    /// aggregated Tier 1 values).
+    params: FieldParameters,
+    /// Validation warnings raised while building the inventory.
+    warnings: Vec<String>,
+}
+
+/// IPCC 2019 Refinement Vol 4 Ch 11 Table 11.1 (updated): EF1FR for flooded rice fields,
+/// aggregated default 0.004 kg N2O-N/kg N (applies to all N inputs on flooded rice; "The EF1
+/// should be used for upland rice").
+pub const EF1_FLOODED_RICE: f64 = 0.004;
+
+const N2O_PER_N2O_N: f64 = 44.0 / 28.0;
+const NO3_PER_N: f64 = 62.0 / 14.0;
+
+/// Flooded (paddy) rice: rice that is not declared upland. Matches the kernel's rice CH4
+/// assumption (flooded paddy) so N2O and CH4 describe the same water regime.
+fn is_flooded_rice(food: &FoodItem) -> bool {
+    let n = food.name.to_lowercase();
+    n.contains("rice") && !n.contains("upland")
 }
 
 #[derive(Debug, Clone)]
@@ -241,6 +262,19 @@ impl LCICalculator {
         Self {
             emission_factors: EmissionFactorsDatabase::default(),
             inventory: HashMap::new(),
+            params: FieldParameters::default(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// Validation warnings from the last `calculate_inventory` call.
+    pub fn warnings(&self) -> &[String] {
+        &self.warnings
+    }
+
+    fn warn_once(&mut self, msg: String) {
+        if !self.warnings.contains(&msg) {
+            self.warnings.push(msg);
         }
     }
 
@@ -254,6 +288,8 @@ impl LCICalculator {
 
         // Clear previous inventory
         self.inventory.clear();
+        self.warnings.clear();
+        self.params = assessment.field_parameters.clone().unwrap_or_default();
 
         // 1. Calculate emissions from fertilizers (N2O, production CO2)
         if let Some(ref mgmt) = assessment.management_practices {
@@ -280,6 +316,10 @@ impl LCICalculator {
 
         // 6. Calculate land use
         self.calculate_land_use(&assessment.foods)?;
+
+        // 7. N2O from crop residues returned to soil (IPCC 2019 Eq 11.6, F_CR). Runs whether
+        //    or not fertiliser is used: residue N is an N input in its own right.
+        self.calculate_crop_residue_emissions(&assessment.foods)?;
 
         info!("LCI calculation completed. {} inventory items generated", self.inventory.len());
 
@@ -308,9 +348,18 @@ impl LCICalculator {
             return Ok(());
         }
 
+        // Flooded rice uses EF1FR for all N inputs (IPCC 2019 Table 11.1).
+        let all_flooded_rice = foods.iter().filter(|f| f.area_allocated.unwrap_or(0.0) > 0.0)
+            .all(is_flooded_rice);
+
         for app in &fertilization.fertilizer_applications {
-            // Calculate total N applied
-            let n_content = self.get_nitrogen_content(&app.fertilizer_type, &app.npk_ratio);
+            // Explicit N lookup (declared grade first). Unknown types get ZERO N and a
+            // validation warning instead of the former silent 10%.
+            let fert = field::fertiliser_n(&app.fertilizer_type, &app.npk_ratio);
+            if let Some(w) = fert.warning.clone() {
+                self.warn_once(w);
+            }
+            let n_content = fert.n_fraction;
 
             // Total N applied (kg N)
             // application_rate is in kg fertilizer/ha/season
@@ -319,13 +368,40 @@ impl LCICalculator {
             let applications_per_year = app.applications_per_season as f64;
             let total_n_applied = n_applied_per_ha * total_area_ha * applications_per_year;
 
-            info!("Fertilizer application: {} kg/ha/season × {} ha × {} times = {} kg N/year",
+            info!("Fertilizer application: {} kg/ha/season x {} ha x {} times = {} kg N/year",
                   n_applied_per_ha, total_area_ha, applications_per_year, total_n_applied);
 
+            if fert.form == NForm::Organic {
+                // F_ON: organic N uses EF1 for "other N inputs" and FracGASM (IPCC 2019
+                // Table 11.1 / 11.3), not the synthetic-fertiliser factors.
+                let ef1 = if all_flooded_rice { EF1_FLOODED_RICE } else { self.params.ef1_other };
+                let direct = total_n_applied * ef1;
+                let indirect = total_n_applied * self.params.frac_gasm * self.params.ef4
+                    + total_n_applied * self.params.frac_leach * self.params.ef5;
+                if total_n_applied > 0.0 {
+                    self.add_inventory_item(InventoryItem {
+                        substance: "Dinitrogen monoxide (N2O) - organic fertiliser".to_string(),
+                        quantity: (direct + indirect) * N2O_PER_N2O_N,
+                        unit: "kg".to_string(),
+                        compartment: EnvironmentalCompartment::Air,
+                        source: format!("Direct and indirect N2O from {} ({:.1} kg organic N; {})",
+                                        app.fertilizer_type, total_n_applied, fert.source),
+                    });
+                    self.add_inventory_item(InventoryItem {
+                        substance: "Nitrate (NO3-)".to_string(),
+                        quantity: total_n_applied * self.params.frac_leach * NO3_PER_N,
+                        unit: "kg".to_string(),
+                        compartment: EnvironmentalCompartment::Water,
+                        source: format!("Nitrate leaching from {} application", app.fertilizer_type),
+                    });
+                }
+                continue;
+            }
+
             // IPCC 2019 Equation 11.1: Direct N2O emissions
-            // N2O-N = N_applied × EF1
-            // where EF1 = 0.01 kg N2O-N per kg N applied
-            let n2o_n_direct = total_n_applied * self.emission_factors.n2o_from_n_fertilizer.value;
+            // N2O-N = N_applied x EF1 (region/climate-specific, see FieldParameters)
+            let ef1 = if all_flooded_rice { EF1_FLOODED_RICE } else { self.params.ef1_synthetic };
+            let n2o_n_direct = total_n_applied * ef1;
 
             // Convert N2O-N to N2O (molecular weight ratio: 44/28)
             let n2o_direct = n2o_n_direct * (44.0 / 28.0);
@@ -410,10 +486,10 @@ impl LCICalculator {
             // to leaching/runoff (FracLEACH) each have their own N2O emission factor (EF4,
             // EF5). Copy the parameters out first (f64 is Copy) so we don't hold a borrow of
             // self across add_inventory_item.
-            let frac_gasf = self.emission_factors.frac_gasf;
-            let frac_leach = self.emission_factors.frac_leach;
-            let ef4 = self.emission_factors.ef4_volatilisation;
-            let ef5 = self.emission_factors.ef5_leaching;
+            let frac_gasf = self.params.frac_gasf;
+            let frac_leach = self.params.frac_leach;
+            let ef4 = self.params.ef4;
+            let ef5 = self.params.ef5;
 
             let n_volatilised = total_n_applied * frac_gasf;
             let n_leached = total_n_applied * frac_leach;
@@ -442,28 +518,6 @@ impl LCICalculator {
         }
 
         Ok(())
-    }
-
-    /// Get nitrogen content of fertilizer
-    fn get_nitrogen_content(&self, fertilizer_type: &str, npk_ratio: &Option<String>) -> f64 {
-        match fertilizer_type {
-            "Urea" => 0.46, // 46% N
-            "Diammonium Phosphate (DAP)" | "DAP" => 0.18, // 18% N
-            "NPK Compound" | "NPK" => {
-                // Parse NPK ratio if provided (e.g., "15-15-15")
-                if let Some(ratio) = npk_ratio {
-                    if let Some(n_str) = ratio.split('-').next() {
-                        if let Ok(n_percent) = n_str.trim().parse::<f64>() {
-                            return n_percent / 100.0;
-                        }
-                    }
-                }
-                0.15 // Default 15% N for NPK
-            }
-            "Ammonium Sulfate" => 0.21, // 21% N
-            "Calcium Ammonium Nitrate" | "CAN" => 0.27, // 27% N
-            _ => 0.10, // Conservative default
-        }
     }
 
     /// Calculate CO2 emissions from energy use
@@ -658,6 +712,83 @@ impl LCICalculator {
         Ok(())
     }
 
+    /// N2O from crop residues returned to soil, IPCC 2019 Refinement Vol 4 Ch 11:
+    /// F_CR by Eq 11.6 (updated) with Table 11.1A parameters (field::residue_params), direct
+    /// N2O at EF1 for "other N inputs" (Table 11.1; EF1FR on flooded rice), indirect N2O from
+    /// leaching (Eq 11.10, F_CR x FracLEACH x EF5). Residue N is NOT in the volatilisation
+    /// term (Eq 11.9 covers F_SN and F_ON/F_PRP only). Field burning of residues (if
+    /// declared) adds CH4 and N2O by IPCC 2006 Vol 4 Eq 2.27 / Table 2.5.
+    /// Biological N fixation is not an N input (IPCC 2019 Ch 11 footnote 1: legume N2O is
+    /// estimated solely from their residue N), so legumes contribute only through F_CR.
+    fn calculate_crop_residue_emissions(
+        &mut self,
+        foods: &[FoodItem],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for food in foods {
+            let area = food.area_allocated.unwrap_or(0.0);
+            if area <= 0.0 || food.quantity_kg <= 0.0 {
+                continue;
+            }
+            let rm = food.residue_management.clone().unwrap_or_default();
+            let r = field::residue_n(
+                &food.name,
+                food.quantity_kg / area,
+                area,
+                rm.fraction_removed.unwrap_or(0.0),
+                rm.fraction_burnt.unwrap_or(0.0),
+                rm.frac_renew.unwrap_or(1.0),
+            );
+            if r.params.proxy && r.params.crop == "generic crop" {
+                self.warn_once(format!(
+                    "crop '{}' has no IPCC 2019 Table 11.1A residue row: the generic row was used",
+                    food.name));
+            }
+            let f_cr = r.f_cr();
+            if f_cr > 0.0 {
+                let ef1 = if is_flooded_rice(food) { EF1_FLOODED_RICE } else { self.params.ef1_other };
+                let n2o_n = f_cr * ef1 + f_cr * self.params.frac_leach * self.params.ef5;
+                self.add_inventory_item(InventoryItem {
+                    substance: "Dinitrogen monoxide (N2O) - crop residues".to_string(),
+                    quantity: n2o_n * N2O_PER_N2O_N,
+                    unit: "kg".to_string(),
+                    compartment: EnvironmentalCompartment::Air,
+                    source: format!(
+                        "Crop residue N2O for {}: F_CR {:.1} kg N ({:.1} above + {:.1} below ground; {})",
+                        food.name, f_cr, r.n_above, r.n_below, r.params.source),
+                });
+                let no3 = f_cr * self.params.frac_leach * NO3_PER_N;
+                if no3 > 0.0 {
+                    self.add_inventory_item(InventoryItem {
+                        substance: "Nitrate (NO3-)".to_string(),
+                        quantity: no3,
+                        unit: "kg".to_string(),
+                        compartment: EnvironmentalCompartment::Water,
+                        source: format!("Nitrate leaching from {} crop residues", food.name),
+                    });
+                }
+            }
+            if r.dm_burnt > 0.0 {
+                self.add_inventory_item(InventoryItem {
+                    substance: "Methane (CH4) - residue burning".to_string(),
+                    quantity: r.dm_burnt * field::BURN_CH4_G_PER_KG_DM / 1000.0,
+                    unit: "kg".to_string(),
+                    compartment: EnvironmentalCompartment::Air,
+                    source: format!("Field burning of {} residues ({:.0} kg d.m. burnt; IPCC 2006 Vol 4 Table 2.5)",
+                                    food.name, r.dm_burnt),
+                });
+                self.add_inventory_item(InventoryItem {
+                    substance: "Dinitrogen monoxide (N2O) - residue burning".to_string(),
+                    quantity: r.dm_burnt * field::BURN_N2O_G_PER_KG_DM / 1000.0,
+                    unit: "kg".to_string(),
+                    compartment: EnvironmentalCompartment::Air,
+                    source: format!("Field burning of {} residues ({:.0} kg d.m. burnt; IPCC 2006 Vol 4 Table 2.5)",
+                                    food.name, r.dm_burnt),
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// Add inventory item to the collection
     fn add_inventory_item(&mut self, item: InventoryItem) {
         let key = format!("{}_{:?}", item.substance, item.compartment);
@@ -696,6 +827,7 @@ mod n_balance_tests {
             cropping_pattern: None,
             intercropping_partners: None,
             post_harvest_losses: None,
+            residue_management: None,
         }
     }
 
@@ -754,6 +886,78 @@ mod n_balance_tests {
         // nitrate must equal the leaching-only value, not the lumped-loss value.
         let old_lumped = n_applied * 0.20 * (62.0 / 14.0);
         assert!((nitrate - old_lumped).abs() > 1e-9, "nitrate still uses the lumped 20% loss");
+    }
+
+    fn sum_substance(calc: &LCICalculator, substance: &str) -> f64 {
+        calc.get_inventory().values().filter(|i| i.substance == substance).map(|i| i.quantity).sum()
+    }
+
+    // Region parameters are honoured end to end: a dry climate (FracLEACH 0, EF1 0.005,
+    // EF4 0.005) produces no leaching N2O or nitrate and uses the dry EF1.
+    #[test]
+    fn dry_climate_parameters_remove_leaching() {
+        let mut calc = LCICalculator::new();
+        calc.params = FieldParameters { ef1_synthetic: 0.005, ef1_other: 0.005, frac_gasf: 0.11,
+            frac_gasm: 0.21, frac_leach: 0.0, ef4: 0.005, ef5: 0.011 };
+        calc.calculate_fertilizer_emissions(&urea_100kg(), &vec![maize(1.0)]).unwrap();
+        let n = 46.0;
+        let direct = flow_by_source(&calc, "Direct N2O");
+        assert!((direct - n * 0.005 * 44.0 / 28.0).abs() < 1e-9);
+        let indirect = flow_by_source(&calc, "Indirect N2O");
+        assert!((indirect - n * 0.11 * 0.005 * 44.0 / 28.0).abs() < 1e-9);
+        assert_eq!(sum_substance(&calc, "Nitrate (NO3-)"), 0.0);
+    }
+
+    // An unknown fertiliser gets zero N (no N2O) and a validation warning, never 10% N.
+    #[test]
+    fn unknown_fertiliser_is_zero_n_and_warns() {
+        let mut calc = LCICalculator::new();
+        let mut f = urea_100kg();
+        f.fertilizer_applications[0].fertilizer_type = "Foliar Fertilizer".to_string();
+        calc.calculate_fertilizer_emissions(&f, &vec![maize(1.0)]).unwrap();
+        assert_eq!(sum_substance(&calc, "Dinitrogen monoxide (N2O)"), 0.0);
+        assert!(calc.warnings().iter().any(|w| w.contains("not recognised")));
+    }
+
+    // Crop residues add N2O even without fertiliser, at EF1 for other N inputs plus leaching.
+    #[test]
+    fn residue_n2o_without_fertiliser() {
+        let mut calc = LCICalculator::new();
+        calc.params = FieldParameters { ef1_other: 0.006, ..FieldParameters::default() };
+        let mut food = maize(2.0);
+        food.quantity_kg = 6000.0; // 3 t/ha
+        calc.calculate_crop_residue_emissions(&vec![food]).unwrap();
+        let r = field::residue_n("Maize", 3000.0, 2.0, 0.0, 0.0, 1.0);
+        let expect = r.f_cr() * (0.006 + 0.24 * 0.011) * 44.0 / 28.0;
+        let got = sum_substance(&calc, "Dinitrogen monoxide (N2O) - crop residues");
+        assert!((got - expect).abs() < 1e-9, "{got} vs {expect}");
+        assert!(sum_substance(&calc, "Nitrate (NO3-)") > 0.0);
+    }
+
+    // Flooded rice uses EF1FR = 0.004 for fertiliser N (IPCC 2019 Table 11.1).
+    #[test]
+    fn flooded_rice_uses_ef1fr() {
+        let mut calc = LCICalculator::new();
+        calc.params = FieldParameters { ef1_synthetic: 0.016, ..FieldParameters::default() };
+        let mut rice = maize(1.0);
+        rice.name = "Rice".to_string();
+        calc.calculate_fertilizer_emissions(&urea_100kg(), &vec![rice]).unwrap();
+        let direct = flow_by_source(&calc, "Direct N2O");
+        assert!((direct - 46.0 * EF1_FLOODED_RICE * 44.0 / 28.0).abs() < 1e-9);
+    }
+
+    // Declared residue burning emits CH4 and N2O by IPCC 2006 Vol 4 Table 2.5.
+    #[test]
+    fn residue_burning_emits_ch4() {
+        let mut calc = LCICalculator::new();
+        let mut food = maize(1.0);
+        food.quantity_kg = 3000.0;
+        food.residue_management = Some(ResidueManagement { fraction_removed: None,
+            fraction_burnt: Some(0.5), frac_renew: None });
+        calc.calculate_crop_residue_emissions(&vec![food]).unwrap();
+        let dm = 3000.0 * 0.87 * 1.0 * 0.5 * 0.80;
+        let ch4 = sum_substance(&calc, "Methane (CH4) - residue burning");
+        assert!((ch4 - dm * 2.7 / 1000.0).abs() < 1e-9);
     }
 }
 

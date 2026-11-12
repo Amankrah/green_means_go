@@ -292,6 +292,7 @@ fn create_comprehensive_assessment(input: &serde_json::Value) -> Result<Assessme
         farm_profile,
         management_practices,
         equipment_energy,
+        field_parameters: parse_field_parameters(input),
     })
 }
 
@@ -355,6 +356,7 @@ fn create_simple_assessment(input: &serde_json::Value) -> Result<Assessment, Box
             cropping_pattern: None,
             intercropping_partners: None,
             post_harvest_losses: None,
+            residue_management: None,
         };
         foods.push(food);
     }
@@ -372,7 +374,16 @@ fn create_simple_assessment(input: &serde_json::Value) -> Result<Assessment, Box
         farm_profile: None,
         management_practices: None,
         equipment_energy: None,
+        field_parameters: parse_field_parameters(input),
     })
+}
+
+/// Optional region/climate IPCC 2019 soil-N parameters injected by the Python engine
+/// (engine/field_params.py). Missing or malformed -> None (kernel uses IPCC aggregated
+/// defaults, FieldParameters::default()).
+fn parse_field_parameters(input: &serde_json::Value) -> Option<FieldParameters> {
+    input.get("field_parameters")
+        .and_then(|v| serde_json::from_value::<FieldParameters>(v.clone()).ok())
 }
 
 // Helper parsing functions
@@ -463,6 +474,8 @@ fn parse_food_item(food_value: &serde_json::Value, country: &str) -> Result<Food
             .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect()),
         post_harvest_losses: food_value.get("post_harvest_losses")
             .and_then(|v| v.as_f64()),
+        residue_management: food_value.get("residue_management")
+            .and_then(|v| serde_json::from_value::<ResidueManagement>(v.clone()).ok()),
     })
 }
 
