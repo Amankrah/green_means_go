@@ -13,7 +13,8 @@ import {
   SystemBoundary,
   EquipmentType,
   PowerSource,
-  EnergyType
+  EnergyType,
+  FuelType
 } from '@/types/enhanced-assessment';
 
 export default function EquipmentEnergyStep() {
@@ -30,6 +31,11 @@ export default function EquipmentEnergyStep() {
   const { fields: energySourceFields, append: appendEnergySource, remove: removeEnergySource } = useFieldArray({
     control,
     name: 'equipmentEnergy.energySources'
+  });
+
+  const { fields: fuelFields, append: appendFuel, remove: removeFuel } = useFieldArray({
+    control,
+    name: 'equipmentEnergy.fuelConsumption'
   });
 
   // Set default values for required arrays
@@ -197,7 +203,7 @@ export default function EquipmentEnergyStep() {
 
                   <div>
                     <label className="block text-sm font-medium text-ink mb-2">
-                      Age (years) *
+                      Age (years) * <span className="ml-1 text-xs font-normal text-muted">(for the report, does not change the numbers)</span>
                     </label>
                     <input
                       type="number"
@@ -244,10 +250,13 @@ export default function EquipmentEnergyStep() {
                       step="0.1"
                       min="0"
                       {...register(`equipmentEnergy.equipment.${index}.fuelEfficiency`, { valueAsNumber: true })}
-                      placeholder="e.g., 3.5 (liters per hour or km)"
+                      placeholder="e.g., 3.5 (liters per hour)"
                       className="gmg-input"
                     />
-                    <p className="text-xs text-muted mt-1">For fuel-powered equipment only</p>
+                    <p className="text-xs text-muted mt-1">
+                      Litres per hour, for fuel-powered equipment. Used only for fuels you have not entered below.
+                      Blank for a tractor uses an ASABE estimate from its size; manual, animal and solar power use no fuel.
+                    </p>
                     {errors.equipmentEnergy?.equipment?.[index]?.fuelEfficiency && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
                         <AlertCircle className="w-4 h-4 mr-1" />
@@ -356,7 +365,8 @@ export default function EquipmentEnergyStep() {
                       className="gmg-input"
                     />
                     <p className="text-xs text-muted mt-1">
-                      Units: kWh for electricity, liters for diesel/petrol/biogas, kg for firewood/charcoal
+                      Units: kWh for grid or solar electricity, litres of diesel for a generator, m³ for biogas, kg for firewood/charcoal.
+                      Diesel for tractors and pumps goes under engine fuels below.
                     </p>
                     {errors.equipmentEnergy?.energySources?.[index]?.monthlyConsumption && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -408,6 +418,65 @@ export default function EquipmentEnergyStep() {
                   </div>
                 </div>
               </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Engine fuels: tractors, pumps, dryers */}
+        <div className="mt-6 flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-ink">Engine fuels (tractors, pumps, dryers)</h4>
+            <p className="text-xs text-muted">Litres per month (kg for LPG cylinders). Measured fuel replaces any equipment-hours estimate for that fuel.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => appendFuel({ fuelType: FuelType.DIESEL, monthlyConsumption: 0, primaryUse: '', cost: undefined })}
+            className="flex items-center space-x-2 px-4 py-2 bg-spruce text-white rounded-lg hover:bg-ink transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Fuel</span>
+          </button>
+        </div>
+        {fuelFields.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {fuelFields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_2fr_auto] gap-3 items-end bg-white border border-line rounded-lg p-3">
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">Fuel</label>
+                  <select {...register(`equipmentEnergy.fuelConsumption.${index}.fuelType`)} className="gmg-input">
+                    {Object.values(FuelType).map((ft) => (
+                      <option key={ft} value={ft}>{ft}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">Per month</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    {...register(`equipmentEnergy.fuelConsumption.${index}.monthlyConsumption`, { valueAsNumber: true })}
+                    className="gmg-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">Used for</label>
+                  <input
+                    type="text"
+                    {...register(`equipmentEnergy.fuelConsumption.${index}.primaryUse`)}
+                    placeholder="e.g., ploughing, irrigation pumping"
+                    className="gmg-input"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFuel(index)}
+                  className="text-red-600 hover:text-red-800 p-2"
+                  aria-label="Remove this fuel"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -537,6 +606,7 @@ export default function EquipmentEnergyStep() {
             <label className="block text-sm font-medium text-ink mb-2">
               Distance to Market (kilometers) *
             </label>
+            <p className="text-xs text-muted mb-1">Delivery of the harvest to market is counted (the boundary becomes the first point of sale).</p>
             <input
               type="number"
               step="0.1"
@@ -575,6 +645,46 @@ export default function EquipmentEnergyStep() {
                 <span className="text-sm text-ink">{mode}</span>
               </label>
             ))}
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Packaging of the harvest (optional)
+            </label>
+            <input
+              type="text"
+              {...register('equipmentEnergy.infrastructure.packagingMaterial')}
+              placeholder="e.g., polypropylene sacks, jute bags, crates"
+              className="gmg-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Packaging (kg per tonne of produce)
+            </label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              {...register('equipmentEnergy.infrastructure.packagingKgPerTonne')}
+              placeholder="blank = 2 kg/t (one 0.1 kg sack per 50 kg)"
+              className="gmg-input"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Distance inputs travel to your farm (km)
+            </label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              {...register('equipmentEnergy.infrastructure.inputTransportKm')}
+              placeholder="blank = 230 km default"
+              className="gmg-input"
+            />
           </div>
         </div>
 

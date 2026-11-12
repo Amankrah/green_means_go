@@ -24,7 +24,9 @@ def test_crop_still_maps_farm_gate():
     assert hint == "maize grain production"
 
 
-def test_fuel_fallback_chain_prefers_building_then_heat():
+def test_facility_fuel_is_deterministic_without_dead_fallbacks():
+    """The legacy single stream maps to building-machine combustion via match_as; the old
+    fallback chains were dead (the matcher always returns a candidate) and are gone."""
     req = {
         "facility_profile": {"operational_days_per_year": 250},
         "processing_operations": {
@@ -40,8 +42,8 @@ def test_fuel_fallback_chain_prefers_building_then_heat():
     inputs, notes, _ = extract_processing_inputs(req)
     fuel = next(i for i in inputs if i["kind"] == "fuel")
     assert fuel["match_as"] == "diesel, burned in building machine"
-    assert fuel["fallbacks"][0] == "heat production, natural gas"
-    assert fuel["fallbacks"][-1] == "diesel, burned in agricultural machinery"
+    assert fuel["unit"] == "MJ" and abs(fuel["amount"] - 100.0 * 12 * 38.7) < 1e-6
+    assert all("fallback" not in i and "fallbacks" not in i for i in inputs)
 
 
 def test_refined_raw_material_note():
@@ -65,6 +67,6 @@ def test_refined_raw_material_note():
 if __name__ == "__main__":
     test_refined_beats_crop_keyword()
     test_crop_still_maps_farm_gate()
-    test_fuel_fallback_chain_prefers_building_then_heat()
+    test_facility_fuel_is_deterministic_without_dead_fallbacks()
     test_refined_raw_material_note()
     print("ok")

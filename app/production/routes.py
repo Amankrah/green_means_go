@@ -131,6 +131,10 @@ async def create_assessment(
     except HTTPException:
         raise
     except Exception as e:
+        # WS1: unsupported commodity (honey/apiculture) is a client error, not a 500.
+        from engine.commodities import UnsupportedCommodityError
+        if isinstance(e, UnsupportedCommodityError):
+            raise HTTPException(status_code=422, detail=str(e))
         raise HTTPException(status_code=500, detail=f"Assessment failed: {str(e)}")
 
 

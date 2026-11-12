@@ -15,18 +15,24 @@ import { FoodCategory, Country } from './assessment';
 export enum Currency {
   GHS = "GHS", // Ghana Cedi
   NGN = "NGN", // Nigerian Naira
+  XOF = "XOF", // West African CFA franc (Senegal, Burkina Faso)
+  ZAR = "ZAR", // South African Rand
   USD = "USD"  // US Dollar
 }
 
 export const CurrencySymbols: Record<Currency, string> = {
   [Currency.GHS]: "GH₵",
   [Currency.NGN]: "₦",
+  [Currency.XOF]: "FCFA",
+  [Currency.ZAR]: "R",
   [Currency.USD]: "$"
 };
 
 export const CurrencyNames: Record<Currency, string> = {
   [Currency.GHS]: "Ghana Cedi",
   [Currency.NGN]: "Nigerian Naira",
+  [Currency.XOF]: "West African CFA franc",
+  [Currency.ZAR]: "South African Rand",
   [Currency.USD]: "US Dollar"
 };
 
@@ -39,6 +45,11 @@ export function getCurrencyForCountry(country: Country): Currency {
       return Currency.GHS;
     case "Nigeria":
       return Currency.NGN;
+    case "Senegal":
+    case "Burkina Faso":
+      return Currency.XOF;
+    case "South Africa":
+      return Currency.ZAR;
     default:
       return Currency.USD;
   }
@@ -136,6 +147,14 @@ export interface CropProduction {
   averageYieldPerHectare: number; // kg/ha
   qualityGrades: QualityGrade[];
   postHarvestLosses: number; // percentage lost after harvest
+
+  // Seed / planting material sown (kg/ha). Blank -> FAO default for the crop or category.
+  seedRateKgPerHa?: number;
+
+  // Advanced field-model inputs (optional).
+  landUseChange?: { previousLandUse?: 'forest' | 'grassland' | 'annual_cropland' | 'perennial_cropland' | ''; yearsSinceConversion?: number };
+  residueManagement?: { fractionRemoved?: number; fractionBurnt?: number };
+  establishment?: { immatureYears?: number; productiveYears?: number; inputShare?: number };
 }
 
 export enum ProductionSystem {
@@ -290,6 +309,8 @@ export enum FertilizerType {
   DAP = "Diammonium Phosphate (DAP)",
   SINGLE_SUPER_PHOSPHATE = "Single Super Phosphate",
   MURIATE_OF_POTASH = "Muriate of Potash",
+  AMMONIUM_SULFATE = "Ammonium Sulfate",
+  CAN = "Calcium Ammonium Nitrate (CAN)",
   ORGANIC_FERTILIZER = "Organic Fertilizer",
   BIO_FERTILIZER = "Bio-fertilizer",
   FOLIAR_FERTILIZER = "Foliar Fertilizer",
@@ -317,6 +338,7 @@ export enum TimingStrategy {
 export interface WaterManagement {
   waterSource: WaterSource[];
   irrigationSystem?: IrrigationSystem;
+  irrigationWaterM3?: number; // m3 per year for the farm; blank -> estimated from crop water need
   waterUseEfficiency: WaterEfficiencyPractice[];
   drainageSystem: boolean;
   waterConservationPractices: WaterConservationPractice[];
@@ -392,6 +414,7 @@ export enum PestManagementApproach {
 export interface PesticideApplication {
   pesticideType: PesticideType;
   activeIngredient: string;
+  activeIngredientContent?: number; // kg (or L) of active ingredient per kg (or L) of product, 0-1
   brandName: string;
   applicationRate: number; // liters or kg per hectare
   applicationsPerSeason: number;
@@ -516,7 +539,7 @@ export enum EnergyType {
 
 export interface FuelUsage {
   fuelType: FuelType;
-  monthlyConsumption: number; // liters
+  monthlyConsumption: number; // liters (kg for LPG cylinders)
   primaryUse: string;
   cost: number; // cost per liter
 }
@@ -529,6 +552,10 @@ export enum FuelType {
 }
 
 export interface FarmInfrastructure {
+  // Packaging of the harvest and transport of purchased inputs (engine/inputs.py).
+  packagingMaterial?: string;
+  packagingKgPerTonne?: number;
+  inputTransportKm?: number;
   storageCapacity: number; // cubic meters or tons
   storageFacilities: StorageFacilityType[];
   processingFacilities: ProcessingFacilityType[];

@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { NEW_REGIONS_BY_COUNTRY, NEW_COMMON_CROPS } from './regions';
 import {
   FarmType,
   FarmingSystem,
@@ -29,6 +30,7 @@ import {
   EquipmentType,
   PowerSource,
   EnergyType,
+  FuelType,
   StorageFacilityType,
   RoadAccessType,
   TransportMode,
@@ -102,7 +104,7 @@ export const farmProfileSchema = z.object({
     .min(2, "Farm name must be at least 2 characters")
     .max(100, "Farm name must be less than 100 characters"),
   
-  country: z.enum(['Ghana', 'Nigeria', 'Canada'], {
+  country: z.enum(['Ghana', 'Nigeria', 'Senegal', 'Burkina Faso', 'South Africa', 'Canada'], {
     message: "Please select your country"
   }),
   
@@ -201,7 +203,46 @@ export const cropProductionSchema = z.array(z.object({
     postHarvestLosses: z.number()
       .min(0, "Losses cannot be negative")
       .max(100, "Losses cannot exceed 100%")
-      .default(10)
+      .default(10),
+
+    // Seed sown (kg/ha); blank -> FAO default for the crop / category.
+    seedRateKgPerHa: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0, "Seed rate cannot be negative").max(500, "Please verify seed rate").optional()
+    ),
+
+    // Advanced (optional): land-use change, residue management, perennial establishment.
+    landUseChange: z.object({
+      previousLandUse: z.enum(['', 'forest', 'grassland', 'annual_cropland', 'perennial_cropland']).optional(),
+      yearsSinceConversion: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+    }).optional(),
+    residueManagement: z.object({
+      fractionRemoved: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).max(1).optional()
+    ),
+      fractionBurnt: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).max(1).optional()
+    ),
+    }).optional(),
+    establishment: z.object({
+      immatureYears: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+      productiveYears: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+      inputShare: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+    }).optional()
   }))
   .min(1, "Please add at least one crop")
   .max(10, "Maximum 10 crops can be assessed at once");
@@ -280,6 +321,10 @@ export const managementPracticesSchema = z.object({
     waterSource: z.array(z.nativeEnum(WaterSource))
       .min(1, "Please select at least one water source"),
     irrigationSystem: z.nativeEnum(IrrigationSystem).optional(),
+    irrigationWaterM3: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0, "Water volume cannot be negative").optional()
+    ),
     drainageSystem: z.boolean().default(false),
     waterConservationPractices: z.array(z.string()).default([])
   })
@@ -297,6 +342,10 @@ export const pestManagementSchema = z.object({
   pesticides: z.array(z.object({
     pesticideType: z.nativeEnum(PesticideType),
     activeIngredient: z.string().min(1, "Active ingredient is required"),
+    activeIngredientContent: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().gt(0, "Must be above 0").max(1, "Enter a fraction, e.g. 0.36 for 360 g/L").optional()
+    ),
     brandName: z.string().min(1, "Brand name is required"),
     applicationRate: z.number()
       .min(0, "Application rate cannot be negative")
@@ -335,6 +384,17 @@ export const equipmentEnergySchema = z.object({
     )
   })).default([]),
   
+  // Engine fuels (machinery, pumps, dryers), in litres per month (LPG may be in kg).
+  fuelConsumption: z.array(z.object({
+    fuelType: z.nativeEnum(FuelType),
+    monthlyConsumption: z.number().min(0, "Consumption cannot be negative"),
+    primaryUse: z.string().min(1, "Primary use is required"),
+    cost: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0, "Cost cannot be negative").optional()
+    )
+  })).optional(),
+
   energySources: z.array(z.object({
     energyType: z.nativeEnum(EnergyType),
     monthlyConsumption: z.number()
@@ -348,6 +408,15 @@ export const equipmentEnergySchema = z.object({
   })).default([]),
   
   infrastructure: z.object({
+    packagingMaterial: z.string().max(60).optional(),
+    packagingKgPerTonne: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0, "Packaging cannot be negative").optional()
+    ),
+    inputTransportKm: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0, "Distance cannot be negative").optional()
+    ),
     storageCapacity: z.number()
       .min(0, "Storage capacity cannot be negative")
       .max(50000, "Please verify storage capacity (max 50 tonnes)"),
@@ -431,7 +500,8 @@ export const REGIONS_BY_COUNTRY = {
     "Alberta", "British Columbia", "Manitoba", "New Brunswick",
     "Newfoundland and Labrador", "Nova Scotia", "Ontario",
     "Prince Edward Island", "Quebec", "Saskatchewan"
-  ]
+  ],
+  ...NEW_REGIONS_BY_COUNTRY,
 };
 
 export const COMMON_CROPS_BY_REGION = {
@@ -442,7 +512,8 @@ export const COMMON_CROPS_BY_REGION = {
   "Nigeria-Southern": ["Cassava", "Plantain", "Cocoyam", "Vegetables", "Oil Palm", "Cocoa"],
   "Canada-Prairies": ["Wheat", "Canola", "Barley", "Oats", "Lentils", "Field Peas", "Flax"],
   "Canada-Central": ["Corn", "Soybeans", "Wheat", "Barley", "Potatoes"],
-  "Canada": ["Wheat", "Canola", "Barley", "Corn", "Soybeans", "Oats", "Potatoes"]
+  "Canada": ["Wheat", "Canola", "Barley", "Corn", "Soybeans", "Oats", "Potatoes"],
+  ...NEW_COMMON_CROPS,
 };
 
 export const CROP_VARIETIES = {

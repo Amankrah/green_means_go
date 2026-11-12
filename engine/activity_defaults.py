@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """
-Ghana farm activity defaults — provenanced diesel/electricity (and yield guides)
+Farm activity defaults, per region: provenanced diesel/electricity (and yield guides)
 when the Equipment & Energy step has no measured fuel or grid use.
 
 The LLM never produces these numbers. Lookup is deterministic from wizard fields
 already collected (production_system, irrigation_system, mechanization, equipment).
+
+Which table applies is decided by the REGION, generically:
+  1. getattr(region, "activity_defaults_file", None) (Region field added by the regions
+     workstream; a file name under engine/recommend/reference/ or a repo-relative path);
+  2. else the built-in fallback map below (GH -> Ghana table, NG -> Nigeria table);
+  3. else engine/recommend/reference/<country>_farm_activity_defaults.json if present.
+A region with no table gets NO injected defaults (never Ghana's) and a flag note.
 """
 from __future__ import annotations
 
@@ -15,7 +22,15 @@ from typing import Any, Optional
 
 _DIESEL_MJ_PER_L = 38.7  # keep in sync with engine/inputs.FUEL_MJ_PER_L["diesel"]
 
-_REF = Path(__file__).resolve().parent / "recommend" / "reference" / "ghana_farm_activity_defaults.json"
+_REF_DIR = Path(__file__).resolve().parent / "recommend" / "reference"
+_REPO = Path(__file__).resolve().parent.parent
+_REF = _REF_DIR / "ghana_farm_activity_defaults.json"
+
+# Fallback until every Region carries activity_defaults_file.
+_FALLBACK_FILES = {
+    "GH": "ghana_farm_activity_defaults.json",
+    "NG": "nigeria_farm_activity_defaults.json",
+}
 
 _MECH_ALIASES = {
     "fully manual": "fully_manual",
@@ -34,16 +49,61 @@ _BUCKET_HINTS = ("bucket", "manual irrigation", "none (rainfed)", "none")
 _PUMP_HINTS = ("flood", "furrow", "sprinkler", "drip", "pump")
 
 
-@lru_cache(maxsize=1)
-def _table() -> dict[str, Any]:
-    with open(_REF, encoding="utf-8") as fh:
+@lru_cache(maxsize=16)
+def _load(path: str) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def _table() -> dict[str, Any]:
+    """The Ghana table (kept for regional_benchmark and backward compatibility)."""
+    return _load(str(_REF))
 
 
 def is_ghana(assessment: dict) -> bool:
     c = (assessment.get("country") or "").strip().lower()
     r = (assessment.get("region") or "").strip().upper()
     return c in ("ghana", "gh") or r == "GH"
+
+
+def region_of(assessment: dict):
+    """Resolve the assessment's Region from `region` (code) or `country`; None if unknown."""
+    try:
+        from .regions import get_region
+    except ImportError:
+        from regions import get_region  # type: ignore
+    for key in (assessment.get("region"), assessment.get("country")):
+        if key:
+            try:
+                return get_region(str(key))
+            except KeyError:
+                continue
+    return None
+
+
+def table_path_for(region) -> Optional[Path]:
+    """Path of the activity-defaults table for `region`, or None if it has none."""
+    if region is None:
+        return None
+    cands = []
+    f = getattr(region, "activity_defaults_file", None)
+    if f:
+        cands += [Path(f), _REPO / f, _REF_DIR / f]
+    fb = _FALLBACK_FILES.get(getattr(region, "code", ""))
+    if fb:
+        cands.append(_REF_DIR / fb)
+    name = (getattr(region, "name", "") or "").strip().lower().replace(" ", "_")
+    if name:
+        cands.append(_REF_DIR / f"{name}_farm_activity_defaults.json")
+    for c in cands:
+        if c.is_file():
+            return c
+    return None
+
+
+def table_for(region) -> Optional[dict[str, Any]]:
+    p = table_path_for(region)
+    return _load(str(p)) if p else None
 
 
 def _norm_mech(raw: Optional[str]) -> Optional[str]:
@@ -115,8 +175,9 @@ def _mechanization(assessment: dict) -> str:
     return "fully_manual"
 
 
-def _lookup_row(mechanization: str, irrigated: bool, irrigation_mode: str) -> dict[str, Any]:
-    rows = _table().get("rows") or []
+def _lookup_row(mechanization: str, irrigated: bool, irrigation_mode: str,
+                table: Optional[dict] = None) -> dict[str, Any]:
+    rows = (table if table is not None else _table()).get("rows") or []
     candidates = [
         r for r in rows
         if r.get("mechanization") == mechanization and bool(r.get("irrigated")) == irrigated
@@ -139,14 +200,22 @@ def _lookup_row(mechanization: str, irrigated: bool, irrigation_mode: str) -> di
 
 
 def resolve_energy_defaults(assessment: dict) -> Optional[dict[str, Any]]:
-    """Return a resolved defaults dict, or None if not applicable (non-Ghana)."""
-    if not is_ghana(assessment):
+    """Return a resolved defaults dict, or None if the assessment's region has no table."""
+    region = region_of(assessment)
+    path = table_path_for(region)
+    if path is None:
         return None
+    table = _load(str(path))
     mech = _mechanization(assessment)
     irrigated = _is_irrigated(assessment)
     mode = _irrigation_mode(assessment) if irrigated else "none"
-    row = _lookup_row(mech, irrigated, mode)
+    row = _lookup_row(mech, irrigated, mode, table)
+    prov = dict(row.get("provenance") or {})
     return {
+        "region": getattr(region, "code", None),
+        "table_id": table.get("id"),
+        "table_file": path.name,
+        "inherited_from_ghana": prov.get("inherited_from_ghana") or [],
         "row_id": row.get("id"),
         "mechanization": mech,
         "irrigated": irrigated,
@@ -154,7 +223,7 @@ def resolve_energy_defaults(assessment: dict) -> Optional[dict[str, Any]]:
         "diesel_l_per_ha": float(row.get("diesel_l_per_ha") or 0),
         "electricity_kwh_per_ha": float(row.get("electricity_kwh_per_ha") or 0),
         "yield_guides_kg_per_ha": row.get("yield_guides_kg_per_ha") or {},
-        "uncertainty_factor": float(_table().get("uncertainty_factor") or 2.0),
+        "uncertainty_factor": float(table.get("uncertainty_factor") or 2.0),
         "provenance": row.get("provenance") or {},
     }
 
@@ -193,6 +262,13 @@ def apply_activity_defaults(
     """Append estimated fuel/electricity purchased inputs when measured data is absent."""
     resolved = resolve_energy_defaults(assessment)
     if not resolved:
+        region = region_of(assessment)
+        if region is not None and (not has_measured_fuel(assessment, inputs)
+                                   or not has_measured_electricity(assessment, inputs)):
+            notes.append(
+                f"activity defaults unavailable for {region.name}: no regional activity-defaults "
+                "table, so no fuel/electricity estimates were injected for unmeasured energy "
+                "(Ghana values are never borrowed); energy may be understated (flag)")
         return inputs
 
     foods = assessment.get("foods") or []
@@ -273,10 +349,15 @@ def apply_activity_defaults(
     # fallback (both sides unmeasured) or injected a non-zero estimate.
     if injected_nonzero or (need_fuel and need_elec):
         notes.append(
-            f"used activity defaults ({resolved['row_id']}; "
+            f"used activity defaults ({resolved['table_id']}: {resolved['row_id']}; "
             f"{resolved['mechanization']}; "
             f"{'irrigated' if resolved['irrigated'] else 'rainfed'}; "
             f"uncertainty ×{uf:.0f})"
         )
+        if resolved.get("inherited_from_ghana") and resolved.get("region") != "GH":
+            notes.append(
+                f"activity default row {resolved['row_id']} for {resolved['region']} carries values "
+                f"inherited from the Ghana table ({', '.join(resolved['inherited_from_ghana'])}); "
+                "flagged for data-quality review")
 
     return inputs

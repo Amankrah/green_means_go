@@ -27,7 +27,7 @@ from ingestion.flowkey import norm_cas, norm_compartment  # noqa: E402
 ONFARM_FLOWS = {
     # substance (Rust)         canonical name(s)                          CAS          medium
     "N2O":        (("Dinitrogen monoxide", "Nitrous oxide"),              "10024-97-2", "emission/air"),
-    "CH4":        (("Methane", "Methane, fossil"),                        "74-82-8",    "emission/air"),
+    "CH4":        (("Methane, fossil",),                                  "74-82-8",    "emission/air"),
     "CH4_bio":    (("Methane, non-fossil", "Methane, biogenic"),          "74-82-8",    "emission/air"),
     "CO2":        (("Carbon dioxide, fossil", "Carbon dioxide"),          "124-38-9",   "emission/air"),
     "CO2_bio":    (("Carbon dioxide, non-fossil", "Carbon dioxide, in air"), "124-38-9", "emission/air"),
@@ -40,6 +40,10 @@ ONFARM_FLOWS = {
     "PM25":       (("Particulates, < 2.5 um", "Particulate Matter, < 2.5 um"), None,    "emission/air"),
     "water":      (("Water",),                                           None,          "resource/inwater"),
     "land_occ":   (("Occupation, annual crop", "Occupation, annual crop, non-irrigated"), None, "resource/land"),
+    # permanent crop (cocoa, oil palm), engine/perennials.py
+    "land_occ_perm": (("Occupation, permanent crop", "Occupation, permanent crop, irrigated"), None, "resource/land"),
+    # direct land-use change CO2 (biomass and soil carbon stock loss), engine/land_use_change.py
+    "CO2_luc":    (("Carbon dioxide, from soil or biomass stock",),       "124-38-9",   "emission/air"),
 }
 
 
@@ -54,26 +58,44 @@ class OnFarmFlowMap:
     def close(self):
         self.conn.close()
 
+    @staticmethod
+    def _rank(category: str | None, source_id) -> tuple:
+        """Lower is better. Field emissions happen at ground level now, so stratosphere,
+        long-term, indoor, ocean and fossil-well sub-compartments are last resorts; the
+        ordinary agricultural sub-compartments come first (air: low population density /
+        unspecified; water: surface / fresh / river / unspecified). Ecoinvent (source 2)
+        flows are preferred because the served method packs key their CFs to them by UID,
+        so no nomenclature bridge is involved."""
+        c = (category or "").lower()
+        bad = any(k in c for k in ("stratosphere", "long-term", "indoor", "ocean", "fossil well",
+                                   "sea water", "ground water"))
+        if any(k in c for k in ("low population density", "surface water", "agricultural", "/land")):
+            tier = 0
+        elif any(k in c for k in ("/unspecified", "fresh water", "/river")):
+            tier = 1
+        else:
+            tier = 2
+        return (bad, tier, source_id != 2)
+
     def _resolve(self, names, cas, medium) -> str | None:
-        # 1) exact name + compartment FIRST — the name carries the fossil/biogenic
-        #    qualifier ("Carbon dioxide, fossil" vs "…non-fossil") that CAS can't (both
+        # 1) exact name + compartment FIRST: the name carries the fossil/biogenic
+        #    qualifier ("Carbon dioxide, fossil" vs "...non-fossil") that CAS can't (both
         #    share 124-38-9), so name-first keeps biogenic and fossil flows distinct.
+        #    Among same-name flows, pick the ground-level sub-compartment (see _rank).
         for nm in names:
-            for r in self.conn.execute(
-                "SELECT uid, category FROM flows WHERE name=? AND flow_type='ELEMENTARY_FLOW'",
-                (nm,),
-            ):
-                if norm_compartment(r["category"]) == medium:
-                    return r["uid"]
+            cands = [r for r in self.conn.execute(
+                "SELECT uid, category, source_id FROM flows WHERE name=? AND flow_type='ELEMENTARY_FLOW'",
+                (nm,)) if norm_compartment(r["category"]) == medium]
+            if cands:
+                return min(cands, key=lambda r: (self._rank(r["category"], r["source_id"]), r["uid"]))["uid"]
         # 2) CAS + compartment fallback (for flows whose store name differs from ours)
         c = norm_cas(cas)
         if c:
-            for r in self.conn.execute(
-                "SELECT uid, category FROM flows WHERE cas=? OR cas=?",
-                (cas, c),
-            ):
-                if norm_compartment(r["category"]) == medium:
-                    return r["uid"]
+            cands = [r for r in self.conn.execute(
+                "SELECT uid, category, source_id FROM flows WHERE cas=? OR cas=?", (cas, c))
+                if norm_compartment(r["category"]) == medium]
+            if cands:
+                return min(cands, key=lambda r: (self._rank(r["category"], r["source_id"]), r["uid"]))["uid"]
         return None
 
     def resolve(self, substance: str) -> str | None:

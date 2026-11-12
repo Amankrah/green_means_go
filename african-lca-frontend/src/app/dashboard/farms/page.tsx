@@ -10,7 +10,7 @@ import { assessmentAPI, AssessmentSummary, Farm } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
-const COUNTRIES = ['Canada', 'Ghana', 'Nigeria'];
+const COUNTRIES = ['Canada', 'Ghana', 'Nigeria', 'Senegal', 'Burkina Faso', 'South Africa'];
 
 type FarmForm = {
   name: string;

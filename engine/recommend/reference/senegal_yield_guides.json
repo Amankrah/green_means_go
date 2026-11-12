@@ -1,0 +1,156 @@
+{
+  "id": "yield.guides.sn",
+  "type": "yield_guides",
+  "title": "Senegal national crop yield guides (FAOSTAT)",
+  "description": "National average yields for Senegal used as screening guides when a farmer gives area but no quantity. Never overwrites a reported quantity_kg. FAOSTAT flag A = official national figure (pedigree reliability 2), E = FAO estimate (reliability 4). National averages pool irrigated and rainfed systems and smallholder and commercial farms.",
+  "crops": {
+    "groundnut": {
+      "value": 1315,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Groundnuts, excluding shelled",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "millet": {
+      "value": 1153,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Millet",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "maize": {
+      "value": 2855,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Maize (corn)",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sorghum": {
+      "value": 1330,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Sorghum",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "cowpea": {
+      "value": 684,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Cow peas, dry",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "rice": {
+      "value": 3743,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Rice (paddy; national mix of irrigated Senegal River Valley and rainfed Casamance)",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sesame": {
+      "value": 921,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Sesame seed",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "cassava": {
+      "value": 13944,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Cassava, fresh",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "tomato": {
+      "value": 18384,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Tomatoes",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "onion": {
+      "value": 31290,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Onions and shallots, dry",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    }
+  },
+  "provenance": {
+    "source": "FAOSTAT-QCL",
+    "publication": "FAOSTAT (2025) Crops and livestock products (QCL), Yield (kg/ha), bulk Production_Crops_Livestock_E_Africa.csv dated 2025-12-23",
+    "licence": "FAO statistical databases: CC BY 4.0 (FAO Statistical Database Terms of Use) - cite",
+    "national_source_note": "FAOSTAT A-flag figures for Senegal are the DAPSA (Ministry of Agriculture) official series."
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}

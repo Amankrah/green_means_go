@@ -1,5 +1,5 @@
-from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict, Union, Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing import ClassVar, List, Literal, Optional, Dict, Union, Any
 from datetime import datetime
 from enum import Enum
 
@@ -13,6 +13,37 @@ VALID_FOOD_CATEGORIES = [
     "Cereals", "Legumes", "Vegetables", "Fruits", "Meat", "Poultry", 
     "Fish", "Dairy", "Eggs", "Oils", "Nuts", "Roots", "Other"
 ]
+
+
+class StrictModel(BaseModel):
+    """Request-model base: unknown keys are a 422, never silently dropped.
+
+    Silent dropping is how the wizard's `pesticides_used` key lost every pesticide burden
+    (the model expected `pesticides`). `_aliases` maps a legacy key to its current name;
+    `_legacy` lists keys that were deliberately removed from the contract (they carried no
+    inventory meaning) and are discarded so archived requests can still be re-run. Anything
+    else is rejected.
+    """
+    model_config = ConfigDict(extra="forbid")
+    _aliases: ClassVar[Dict[str, str]] = {}
+    _legacy: ClassVar[frozenset] = frozenset()
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_keys(cls, data):
+        if not isinstance(data, dict):
+            return data
+        if not cls._aliases and not cls._legacy:
+            return data
+        out = {}
+        for k, v in data.items():
+            if k in cls._legacy:
+                continue
+            nk = cls._aliases.get(k, k)
+            if nk in out and nk != k:
+                continue        # the current key wins over its legacy alias
+            out[nk] = v
+        return out
 
 # Enhanced enums to match Rust backend
 class ProductionSystem(str, Enum):
@@ -65,7 +96,7 @@ class SeasonalFactor(str, Enum):
     YEAR_ROUND = "YearRound"
 
 # Enhanced models for comprehensive assessments
-class FarmProfile(BaseModel):
+class FarmProfile(StrictModel):
     farmer_name: str
     farm_name: str
     total_farm_size: float  # hectares
@@ -75,7 +106,7 @@ class FarmProfile(BaseModel):
     certifications: List[str] = []
     participates_in_programs: List[str] = []
 
-class SoilManagement(BaseModel):
+class SoilManagement(StrictModel):
     soil_type: Optional[SoilType] = None
     uses_compost: bool = False
     compost_source: Optional[str] = None
@@ -83,70 +114,127 @@ class SoilManagement(BaseModel):
     conservation_practices: List[str] = []
     soil_testing_frequency: Optional[str] = None
 
-class FertilizerApplication(BaseModel):
+class FertilizerApplication(StrictModel):
     fertilizer_type: str
     npk_ratio: Optional[str] = None  # e.g., "15-15-15"
     application_rate: float  # kg/hectare/season
     applications_per_season: int
     cost: Optional[float] = None
 
-class FertilizationPractices(BaseModel):
+class FertilizationPractices(StrictModel):
     uses_fertilizers: bool = False
     fertilizer_applications: List[FertilizerApplication] = []
     soil_test_based: bool = False
     follows_nutrient_plan: bool = False
 
-class WaterManagement(BaseModel):
+class WaterManagement(StrictModel):
+    # water_source selects the withdrawal flow (groundwater vs surface vs municipal) for
+    # irrigation water, which is what AWARE / water-use CFs are keyed on.
     water_source: List[str] = []
     irrigation_system: Optional[str] = None
+    # Annual irrigation water applied to the whole farm (m3/yr). When blank and the farm is
+    # irrigated, engine/crop_defaults.py estimates it (FAO crop water need / application
+    # efficiency) and flags it as estimated.
+    irrigation_water_m3: Optional[float] = None
+    # Report-only metadata (echoed in the ISO report; does not change the numbers).
     water_conservation_practices: List[str] = []
 
-class PesticideApplication(BaseModel):
-    pesticide_type: str
-    active_ingredient: str
-    application_rate: float
+class PesticideApplication(StrictModel):
+    pesticide_type: str              # selects the production dataset class if the AI is unknown
+    active_ingredient: str           # selects AI production dataset + soil emission flow
+    application_rate: float          # kg or L of PRODUCT per ha per application
     applications_per_season: int
-    target_pests: List[str] = []
+    # kg active ingredient per kg (or L) of product. Blank -> typical formulation strength
+    # for the AI (engine/pesticides.py) or, if unknown, 1.0 (conservative upper bound).
+    active_ingredient_content: Optional[float] = None
+    target_pests: List[str] = []     # report-only metadata
 
-class PestManagement(BaseModel):
+class PestManagement(StrictModel):
+    # The wizard historically posted `pesticides_used` / `monitoring_frequency` (the Rust
+    # field names); pydantic dropped them and no pesticide was ever counted. Accept both.
+    _aliases: ClassVar[Dict[str, str]] = {
+        "pesticides_used": "pesticides",
+        "monitoring_frequency": "pest_monitoring_frequency",
+    }
+    # management_approach / uses_ipm / pest_monitoring_frequency: report-only metadata.
     management_approach: str = "IntegratedIPM"
     uses_ipm: bool = False
     pesticides: List[PesticideApplication] = []
     pest_monitoring_frequency: Optional[str] = None
 
-class ManagementPractices(BaseModel):
+class ManagementPractices(StrictModel):
     soil_management: SoilManagement
     fertilization: FertilizationPractices
     water_management: WaterManagement
     pest_management: PestManagement
 
 # Equipment and Energy models
-class FarmEquipment(BaseModel):
+class FarmEquipment(StrictModel):
+    # equipment_type + power_source + hours_per_year + fuel_efficiency estimate the fuel of
+    # any carrier not metered in fuel_consumption (engine/inputs.py). age is report-only.
     equipment_type: str
     power_source: str
-    age: int  # years
+    age: int  # years (report-only metadata)
     hours_per_year: float
-    fuel_efficiency: Optional[float] = None  # liters per hour
+    fuel_efficiency: Optional[float] = None  # litres per hour
 
-class EnergyUsage(BaseModel):
+class EnergyUsage(StrictModel):
+    # energy_type: Grid Electricity | Diesel Generator | Solar Panels | Biogas | Firewood |
+    # Charcoal. monthly_consumption is in `unit`; when unit is blank the engine uses the
+    # carrier's natural unit (kWh electricity/solar, L diesel, m3 biogas, kg wood/charcoal).
     energy_type: str
-    monthly_consumption: float  # kWh or equivalent
+    monthly_consumption: float
+    unit: Optional[str] = None
     primary_use: str
     cost: Optional[float] = None
     currency: Optional[str] = None
 
-class FuelUsage(BaseModel):
-    fuel_type: str
-    monthly_consumption: float  # liters
+class FuelUsage(StrictModel):
+    fuel_type: str                      # Diesel | Petrol | Kerosene | LPG | Biodiesel
+    monthly_consumption: float          # litres (or `unit`, e.g. kg for LPG cylinders)
+    unit: Optional[str] = None
     primary_use: str
     cost: Optional[float] = None
 
-class EquipmentEnergy(BaseModel):
+class EquipmentEnergy(StrictModel):
     equipment: List[FarmEquipment] = []
     energy_sources: List[EnergyUsage] = []
     fuel_consumption: List[FuelUsage] = []
 
-class FoodItem(BaseModel):
+
+class FarmLogistics(StrictModel):
+    """Packaging and transport around the farm gate (engine/inputs.py)."""
+    # Packaging of the harvested product (e.g. PP woven sacks, jute bags, crates).
+    packaging_material: Optional[str] = None
+    packaging_kg_per_tonne: Optional[float] = None     # blank -> default by material
+    # Delivery of the harvest to the first point of sale. Given -> included (boundary is
+    # then cradle-to-first-point-of-sale); blank -> outside the farm-gate boundary.
+    distance_to_market_km: Optional[float] = None
+    market_transport_mode: Optional[str] = None
+    # Transport of purchased inputs (fertiliser, pesticides, seed, compost) to the farm.
+    # Blank -> default distance (engine/inputs.py, cited).
+    input_transport_km: Optional[float] = None
+
+class LandUseChange(StrictModel):
+    """Read by WS1's field model: IPCC stock-change LUC carbon, 20-year amortisation."""
+    previous_land_use: Literal["forest", "grassland", "annual_cropland", "perennial_cropland"]
+    years_since_conversion: int = Field(ge=0)
+
+
+class ResidueManagement(StrictModel):
+    """Read by WS1's field model: crop-residue N2O and burning."""
+    fraction_removed: float = Field(default=0.0, ge=0.0, le=1.0)
+    fraction_burnt: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class Establishment(StrictModel):
+    """Perennials (cocoa, oil palm): establishment phase amortised over productive years."""
+    immature_years: Optional[float] = Field(default=None, ge=0)
+    productive_years: Optional[float] = Field(default=None, gt=0)
+    input_share: Optional[float] = Field(default=None, ge=0)
+
+
+class FoodItem(StrictModel):
     id: str
     name: str
     quantity_kg: float
@@ -162,7 +250,18 @@ class FoodItem(BaseModel):
     cropping_pattern: Optional[CroppingPattern] = None
     intercropping_partners: Optional[List[str]] = None
     post_harvest_losses: Optional[float] = None  # percentage
-    
+    # Seed / planting material sown (kg per ha per season). Blank -> crop default
+    # (engine/crop_defaults.py, FAO seed rates), chosen by crop name, else by category.
+    seed_rate_kg_per_ha: Optional[float] = None
+    # Advanced field-model inputs (engine field model, WS1).
+    land_use_change: Optional[LandUseChange] = None
+    residue_management: Optional[ResidueManagement] = None
+    establishment: Optional[Establishment] = None
+
+    # The wizard used to nest a copy of farm_profile / management_practices inside every
+    # food; they were never read. Discard them so cached clients keep working.
+    _legacy: ClassVar[frozenset] = frozenset({"farm_profile", "management_practices"})
+
     @field_validator('category')
     @classmethod
     def validate_category(cls, v):
@@ -184,7 +283,7 @@ SUPPORTED_LCIA_METHODS = (
 )
 
 
-class StudyMeta(BaseModel):
+class StudyMeta(StrictModel):
     """Temporal and spatial metadata for research export and cohort analysis."""
 
     crop_year: Optional[int] = None
@@ -192,7 +291,7 @@ class StudyMeta(BaseModel):
     admin_region: Optional[str] = None
 
 
-class AssessmentRequest(BaseModel):
+class AssessmentRequest(StrictModel):
     company_name: str
     country: str  # one of VALID_COUNTRIES
     foods: List[FoodItem]
@@ -206,6 +305,7 @@ class AssessmentRequest(BaseModel):
     farm_profile: Optional[FarmProfile] = None
     management_practices: Optional[ManagementPractices] = None
     equipment_energy: Optional[EquipmentEnergy] = None
+    logistics: Optional[FarmLogistics] = None
 
     # Opaque client wizard snapshot for edit/re-run UX (not used by the engine).
     form_snapshot: Optional[Dict[str, Any]] = None
@@ -243,7 +343,7 @@ class AssessmentRequest(BaseModel):
             )
         return v
 
-class ScenarioPatchBody(BaseModel):
+class ScenarioPatchBody(StrictModel):
     """Body for POST /assess/{id}/scenarios."""
     name: Optional[str] = None
     yield_scale: Optional[float] = None
@@ -251,13 +351,13 @@ class ScenarioPatchBody(BaseModel):
     diesel_scale: Optional[float] = None
 
 
-class RecharacterizeBody(BaseModel):
+class RecharacterizeBody(StrictModel):
     """Body for POST /assess/{id}/recharacterize."""
     lcia_method: str
     apply_as_primary: bool = False
 
 
-class ReviewStatusBody(BaseModel):
+class ReviewStatusBody(StrictModel):
     """Body for POST /assess/{id}/review."""
     review_status: str
 

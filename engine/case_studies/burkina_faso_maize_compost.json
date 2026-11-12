@@ -1,0 +1,106 @@
+{
+  "company_name": "Issouf Ouedraogo - Bobo-Dioulasso Maize Farm",
+  "country": "Global",
+  "region": "BF",
+  "farm_profile": {
+    "farmer_name": "Issouf Ouedraogo",
+    "farm_name": "Bobo-Dioulasso Maize Farm",
+    "total_farm_size": 2.0,
+    "farming_experience": 15,
+    "farm_type": "Smallholder",
+    "primary_farming_system": "SemiCommercial",
+    "certifications": [],
+    "participates_in_programs": [
+      "Climate Smart Agriculture"
+    ]
+  },
+  "management_practices": {
+    "soil_management": {
+      "soil_type": "SandyLoam",
+      "uses_compost": true,
+      "compost_source": "Farm-made compost (fosse fumiere)",
+      "compost_application_rate": 5,
+      "conservation_practices": [
+        "Stone Bunds",
+        "Crop Rotation"
+      ],
+      "soil_testing_frequency": "Never"
+    },
+    "fertilization": {
+      "uses_fertilizers": true,
+      "fertilizer_applications": [
+        {
+          "fertilizer_type": "NPK Compound",
+          "npk_ratio": "14-23-14",
+          "application_rate": 150,
+          "applications_per_season": 1,
+          "cost": 52500
+        },
+        {
+          "fertilizer_type": "Urea",
+          "npk_ratio": "46-0-0",
+          "application_rate": 75,
+          "applications_per_season": 1,
+          "cost": 26250
+        }
+      ],
+      "soil_test_based": false,
+      "follows_nutrient_plan": true
+    },
+    "water_management": {
+      "water_source": [
+        "Rainfall only"
+      ],
+      "irrigation_system": "None (Rainfed)",
+      "water_conservation_practices": [
+        "Zai pits"
+      ]
+    },
+    "pest_management": {
+      "management_approach": "Chemical pesticides only",
+      "uses_ipm": false,
+      "pesticides": [
+        {
+          "pesticide_type": "Herbicide",
+          "active_ingredient": "Glyphosate",
+          "application_rate": 1.5,
+          "applications_per_season": 1,
+          "target_pests": [
+            "Weeds"
+          ]
+        }
+      ],
+      "pest_monitoring_frequency": "Monthly"
+    }
+  },
+  "equipment_energy": {
+    "equipment": [
+      {
+        "equipment_type": "Animal-drawn implements",
+        "power_source": "Animal power",
+        "age": 10,
+        "hours_per_year": 100,
+        "fuel_efficiency": null
+      }
+    ],
+    "energy_sources": [],
+    "fuel_consumption": []
+  },
+  "foods": [
+    {
+      "id": "crop_maize",
+      "name": "Maize",
+      "quantity_kg": 3600,
+      "category": "Cereals",
+      "crop_type": "Espoir",
+      "origin_country": "Burkina Faso",
+      "production_system": "Rainfed",
+      "seasonal_factor": "WetSeason",
+      "variety": "Espoir",
+      "area_allocated": 2.0,
+      "cropping_pattern": "Monoculture",
+      "intercropping_partners": [],
+      "post_harvest_losses": 12
+    }
+  ]
+}

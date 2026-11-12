@@ -1,0 +1,44 @@
+{
+ "id": "normalisation.factors",
+ "title": "Midpoint normalisation factors (per person per year) for the single score",
+ "recipe_2016": {
+  "factors": {
+   "Global warming": 7990.407652952963,
+   "Land use": 6167.48227895003,
+   "Water consumption": 266.6392611088278,
+   "Terrestrial acidification": 40.98051474233814,
+   "Freshwater eutrophication": 0.6498883618957024,
+   "Marine eutrophication": 4.617785567879548,
+   "Fossil depletion": 983.2774254778473,
+   "Mineral depletion": 120051.20954550793,
+   "Particulate matter formation": 25.569594920658865,
+   "Photochemical oxidation": 20.567456694737732
+  },
+  "source": "ReCiPe 2016 v1.1 normalisation, World 2010, Hierarchist, midpoint; data/ReCipe2016/Normalization scores ReCiPe2016v1.1_20190514.xlsx, sheet 'Final normalization scores', column D (Hierarchist).",
+  "file": "data/ReCipe2016/Normalization scores ReCiPe2016v1.1_20190514.xlsx",
+  "sha256": "2c1cf542f987e55889a09b1236935901df92684282bf89b44a1f6c48c8d5bc71",
+  "fossil_components_kg_oil_eq": {
+   "Crude oil": 569.9047635107981,
+   "Natural gas": 0.4019786270870057,
+   "Hard coal": 381.5142606171218,
+   "Brown coal": 31.456422722840287
+  },
+  "caveat": "Fossil depletion = crude oil + natural gas + hard coal + brown coal rows of the spreadsheet. The natural gas row reads 0.40 kg oil-eq/person/yr in the published file, which looks like a unit slip (crude oil reads 570); it is carried as published and flagged for review."
+ },
+ "ef_3_1": {
+  "factors": {
+   "Global warming": 7550.0,
+   "Terrestrial acidification": 55.6,
+   "Freshwater eutrophication": 1.61,
+   "Marine eutrophication": 19.5,
+   "Land use": 819000.0,
+   "Mineral depletion": 0.0636,
+   "Particulate matter formation": 0.000595,
+   "Photochemical oxidation": 40.9,
+   "Water consumption": 11500.0,
+   "Fossil depletion": 65000.0
+  },
+  "source": "Andreasson J, Sala S et al. (2024) Updated characterisation and normalisation factors for the Environmental Footprint 3.1 method, JRC130796, EUR 31474 EN, Table 2 (global NF). Not present in data/EVvinronmental_Footprint_EF3.1, which holds characterisation factors only."
+ },
+ "built": "2026-11-12"
+}

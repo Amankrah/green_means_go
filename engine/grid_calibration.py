@@ -18,8 +18,8 @@ average because the grid is now thermal-dominant, so it is a defensible attribut
 value for this engine.)
 
 The correction is deliberately surgical:
-  - It runs ONLY for electricity inputs, ONLY in regions that carry an official
-    grid_ef_kgco2_per_kwh (today just GH), and only when the flag is on.
+  - It runs ONLY for electricity inputs, ONLY in regions that have a grid factor
+    (Region field or reference file; today GH and NG), and only when the flag is on.
   - It works at the INVENTORY level: it adds fossil CO2 (a climate-only flow, ReCiPe CF
     = 1.0 and zero in every other category) to the electricity's elementary flows so the
     climate impact lands exactly on the official factor. Because it edits the inventory,
@@ -28,11 +28,60 @@ The correction is deliberately surgical:
 
 Toggle with USE_OFFICIAL_GRID_EF (default on). Turning it off reverts to the raw
 ecoinvent electricity number.
+
+Per-region factor resolution (generic): getattr(region, "grid_ef_kgco2_per_kwh") and
+getattr(region, "grid_ef_source") when the Region carries them; otherwise the per-country
+reference file engine/recommend/reference/<country>_grid_ef.json (GH -> ghana_grid_ef.json,
+NG -> nigeria_grid_ef.json). Nigeria has no official national factor; its file calibrates
+to the Ember 2024 lifecycle intensity (0.496 kg CO2e/kWh) and says so.
 """
 from __future__ import annotations
 
+import json
 import os
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Optional
+
+_REF_DIR = Path(__file__).resolve().parent / "recommend" / "reference"
+_FALLBACK_FILES = {"GH": "ghana_grid_ef.json", "NG": "nigeria_grid_ef.json"}
+
+
+@lru_cache(maxsize=16)
+def _load(path: str) -> dict:
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _file_factor(region, filename: Optional[str] = None) -> tuple[Optional[float], Optional[str]]:
+    code = getattr(region, "code", "") or ""
+    name = (getattr(region, "name", "") or "").strip().lower().replace(" ", "_")
+    for fn in (filename, _FALLBACK_FILES.get(code), f"{name}_grid_ef.json" if name else None):
+        if not fn or not (_REF_DIR / fn).is_file():
+            continue
+        d = _load(str(_REF_DIR / fn))
+        cal = d.get("calibration") or {}
+        if cal.get("value") is not None:
+            return float(cal["value"]), cal.get("source") or fn
+        f = ((d.get("factors") or {}).get("all_other_projects") or {})
+        if f.get("value") is not None:
+            prov = d.get("provenance") or {}
+            return float(f["value"]), f"{prov.get('publication', fn)}, {prov.get('table', '')}".strip(", ")
+    return None, None
+
+
+def grid_factor(region) -> tuple[Optional[float], Optional[str]]:
+    """(kg CO2e/kWh, source) for the region's grid calibration, or (None, None)."""
+    ef = getattr(region, "grid_ef_kgco2_per_kwh", None)
+    src = getattr(region, "grid_ef_source", None)
+    # The registry stores grid_ef_source either as a citation string or as the name of a
+    # reference JSON under engine/recommend/reference/ holding the provenance.
+    src_file = src if src and src.endswith(".json") else None
+    if ef is not None:
+        if not src or src_file:
+            _, src = _file_factor(region, src_file)
+        return float(ef), src or "Region.grid_ef_kgco2_per_kwh"
+    return _file_factor(region, src_file)
 
 _CO2_UID: dict[str, Optional[str]] = {}
 
@@ -73,7 +122,7 @@ def apply(q, inp: dict, flows: dict, region, method: str) -> Optional[dict]:
             return None
         if (inp.get("kind") or "") != "electricity":
             return None
-        ef = getattr(region, "grid_ef_kgco2_per_kwh", None)
+        ef, source = grid_factor(region)
         if ef is None:
             return None
         kwh = float(inp.get("amount") or 0.0)
@@ -98,6 +147,6 @@ def apply(q, inp: dict, flows: dict, region, method: str) -> Optional[dict]:
             flows[uid] = {"amount": delta, "name": "Carbon dioxide, fossil",
                           "unit": "kg"}
         return {"ef": ef, "kwh": kwh, "climate_before": round(current, 4),
-                "climate_after": round(target, 4)}
+                "climate_after": round(target, 4), "source": source}
     except Exception:
         return None

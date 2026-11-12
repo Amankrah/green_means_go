@@ -1,5 +1,12 @@
 from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict, Union, Any
+from typing import ClassVar, List, Optional, Dict, Union, Any
+
+# Same strict request base as the farm side: unknown keys are a 422, removed keys listed in
+# `_legacy` are discarded so archived requests still re-run.
+try:
+    from production.models import StrictModel  # app/ on sys.path (uvicorn, tests)
+except ImportError:  # imported as a package (app.processing.models)
+    from app.production.models import StrictModel
 from datetime import datetime
 from enum import Enum
 
@@ -133,13 +140,18 @@ class AllocationBasis(str, Enum):
     ECONOMIC = "economic"
 
 # Processing facility profile
-class ProcessingFacilityProfile(BaseModel):
+class ProcessingFacilityProfile(StrictModel):
     facility_name: str
     company_name: str
+    # facility_type: selects the default raw material / conversion ratio when a product has
+    # no raw-material input (engine/conversion_ratios.py).
     facility_type: ProcessingFacilityType
+    # processing_capacity / operational_hours_per_day / location_type: report-only metadata
+    # (echoed in the ISO report goal & scope; capacity also drives the utilisation check in
+    # the data-quality section). They do not change the numbers.
     processing_capacity: float  # tonnes per day
     operational_hours_per_day: float = 8.0
-    operational_days_per_year: int = 250
+    operational_days_per_year: int = 250   # live: scales solid waste kg/day to a year
     established_year: Optional[int] = None
     certifications: List[str] = []
     employee_count: Optional[int] = None
@@ -156,93 +168,115 @@ class ProcessingFacilityProfile(BaseModel):
         return v
 
 # Energy management
-class EnergyManagement(BaseModel):
+class FuelStream(StrictModel):
+    """One fuel burned on site. A facility may have several (boiler wood + generator diesel)."""
+    # Diesel | Diesel generator | Petrol | Kerosene | LPG | Natural gas | Biodiesel |
+    # Firewood | Charcoal | Palm kernel shell | Palm fibre | Biogas
+    fuel_type: str
+    monthly_consumption: float
+    unit: Optional[str] = None         # L | kg | m3 | MJ; blank -> carrier's natural unit
+    use: Optional[str] = None          # report-only label (e.g. "boiler", "backup generator")
+
+
+class EnergyManagement(StrictModel):
+    # Removed: secondary_energy_sources (no amounts; use fuel_streams), backup_generator
+    # (enter the generator's diesel as a fuel stream), energy_efficiency_measures (free text).
+    _legacy: ClassVar[frozenset] = frozenset({
+        "secondary_energy_sources", "backup_generator", "energy_efficiency_measures"})
+    # Selects the electricity dataset: grid market, PV, hydro, wind, or a diesel genset
+    # (kWh -> diesel via specific fuel consumption). Mixed/Biomass/LPG/NaturalGas -> grid.
     primary_energy_source: EnergySource = EnergySource.GRID_ELECTRICITY
-    secondary_energy_sources: List[EnergySource] = []
     monthly_electricity_consumption: Optional[float] = None  # kWh
+    # Legacy single fuel stream; merged into fuel_streams by the engine.
     monthly_fuel_consumption: Optional[float] = None  # liters
     fuel_type: Optional[str] = None
+    fuel_streams: List[FuelStream] = []
+    # Share of electricity from on-site solar PV (modelled with the ecoinvent PV dataset).
     renewable_energy_percentage: float = 0.0
-    energy_efficiency_measures: List[str] = []
-    backup_generator: bool = False
 
 # Water management for processing
-class ProcessingWaterManagement(BaseModel):
+class ProcessingWaterManagement(StrictModel):
+    _legacy: ClassVar[frozenset] = frozenset({"water_conservation_measures"})
+    # water_source: Municipal -> tap-water dataset; Borehole/Well/River/... -> withdrawal
+    # elementary flow (groundwater / surface water) characterised by the water-use method.
     water_source: List[str] = []
     monthly_water_consumption: Optional[float] = None  # m3
+    # On-site treatment of the intake: Chemical -> decarbonised water dataset, Reverse
+    # osmosis / Comprehensive -> deionised water dataset, None / Basic -> as sourced.
     water_treatment: WaterTreatment = WaterTreatment.BASIC_FILTRATION
-    water_conservation_measures: List[str] = []
+    # None -> no treatment dataset and an explicit data-gap warning (untreated effluent);
+    # any treatment -> average wastewater treatment dataset.
     wastewater_treatment: WastewaterTreatment = WastewaterTreatment.BASIC_SEDIMENTATION
 
 # Byproduct utilization
-class ByproductUtilization(BaseModel):
+class ByproductUtilization(StrictModel):
+    # The utilised share of the solid-waste stream leaves the system burden-free (cut-off:
+    # it is a valorised by-product, not waste) instead of going to waste treatment.
     byproduct_name: str
     utilization_method: str
     percentage_utilized: float = 0.0
 
 # Waste management
-class ProcessingWasteManagement(BaseModel):
+class ProcessingWasteManagement(StrictModel):
+    _legacy: ClassVar[frozenset] = frozenset({"recycling_programs"})
     solid_waste_generation: Optional[float] = None  # kg/day
+    # Splits the waste: the organic share goes to the disposal method's biowaste dataset,
+    # the rest to the inert / mixed-waste dataset (engine/process_inputs.py).
     organic_waste_percentage: float = 70.0
     waste_disposal_method: WasteDisposalMethod = WasteDisposalMethod.LANDFILL
-    recycling_programs: List[str] = []
     byproduct_utilization: List[ByproductUtilization] = []
 
 # Storage practices
-class StoragePractices(BaseModel):
-    storage_type: str = "Warehouse"
-    climate_control: bool = False
-    pest_control_methods: List[str] = []
+class StoragePractices(StrictModel):
+    _legacy: ClassVar[frozenset] = frozenset({"storage_type", "climate_control", "pest_control_methods"})
+    # Raw-material loss in storage: applied to DEFAULT conversion ratios only (a measured
+    # kg-per-tonne-output figure already includes the facility's own losses).
     storage_loss_percentage: float = 5.0
 
 # Raw material sourcing
-class RawMaterialSourcing(BaseModel):
+class RawMaterialSourcing(StrictModel):
+    _legacy: ClassVar[frozenset] = frozenset({"supplier_sustainability_practices", "seasonal_variation"})
+    # Used only when average_transport_distance is blank: the default distance is a
+    # local/non-local weighted mean (engine/process_inputs.py, cited).
     local_sourcing_percentage: float = 80.0
-    average_transport_distance: float = 50.0  # km
+    average_transport_distance: Optional[float] = None  # km; blank -> default from local share
     transport_mode: TransportMode = TransportMode.TRUCK
-    supplier_sustainability_practices: List[str] = []
-    seasonal_variation: bool = True
     storage_practices: StoragePractices = StoragePractices()
 
 # Refrigerant / F-gas use (cold storage, chilling). Leakage is a direct on-site climate
 # emission (leaked mass x GWP100), separate from purchased energy.
-class RefrigerantManagement(BaseModel):
+class RefrigerantManagement(StrictModel):
     refrigerant_type: Optional[str] = None       # e.g. R-134a, R-404A, Ammonia
     annual_leakage_kg: Optional[float] = None     # kg of refrigerant lost per year
 
-# Equipment efficiency
-class EquipmentEfficiency(BaseModel):
-    equipment_age: EquipmentAge = EquipmentAge.MATURE
-    maintenance_frequency: MaintenanceFrequency = MaintenanceFrequency.MONTHLY
-    automation_level: AutomationLevel = AutomationLevel.SEMI_AUTOMATED
-    equipment_utilization_rate: float = 75.0  # percentage
-    modernization_investments: List[str] = []
-
 # Processing operations
-class ProcessingOperations(BaseModel):
+class ProcessingOperations(StrictModel):
     energy_management: EnergyManagement = EnergyManagement()
     water_management: ProcessingWaterManagement = ProcessingWaterManagement()
     waste_management: ProcessingWasteManagement = ProcessingWasteManagement()
     raw_material_sourcing: RawMaterialSourcing = RawMaterialSourcing()
-    equipment_efficiency: EquipmentEfficiency = EquipmentEfficiency()
     refrigerant_management: RefrigerantManagement = RefrigerantManagement()
+    # equipment_efficiency (age, maintenance, automation, utilisation) carried no flow; the
+    # metered energy already reflects it. Removed; archived requests are still accepted.
+    _legacy: ClassVar[frozenset] = frozenset({"equipment_efficiency"})
 
 # Raw material input
-class RawMaterialInput(BaseModel):
+class RawMaterialInput(StrictModel):
+    _legacy: ClassVar[frozenset] = frozenset({"quality_requirements", "seasonal_availability"})
     material_name: str
     quantity_per_tonne_output: float  # kg
-    source_location: Optional[str] = None
-    quality_requirements: List[str] = []
-    seasonal_availability: bool = True
+    source_location: Optional[str] = None   # report-only metadata (ISO report)
 
 # Processing step
-class ProcessingStep(BaseModel):
+class ProcessingStep(StrictModel):
+    # duration / yield_efficiency / emissions_factor removed: duration has no power to
+    # multiply, the mass balance comes from raw-material inputs or default conversion ratios,
+    # and a single CO2-eq number cannot be characterised across categories (and would double
+    # count the metered fuel).
+    _legacy: ClassVar[frozenset] = frozenset({"duration", "yield_efficiency", "emissions_factor"})
     step_name: str
-    energy_intensity: float  # kWh per tonne
-    water_usage: float  # liters per tonne
-    duration: float = 1.0  # hours
-    yield_efficiency: float = 95.0  # percentage
-    emissions_factor: Optional[float] = None  # kg CO2-eq per tonne
+    energy_intensity: float  # kWh per tonne (used when there is no facility meter)
+    water_usage: float  # liters per tonne (used when there is no facility meter)
 
     @field_validator('energy_intensity', 'water_usage')
     @classmethod
@@ -252,14 +286,15 @@ class ProcessingStep(BaseModel):
         return v
 
 # Packaging info
-class PackagingInfo(BaseModel):
+class PackagingInfo(StrictModel):
     packaging_material: PackagingMaterial = PackagingMaterial.PLASTIC_BAG
     package_size: float = 50.0  # kg
     packaging_weight_per_unit: float = 0.1  # kg
+    # Report-only metadata: end-of-life of the packaging is outside a cradle-to-gate boundary.
     recyclable: bool = False
 
 # Processed product
-class ProcessedProduct(BaseModel):
+class ProcessedProduct(StrictModel):
     id: str
     name: str
     product_type: ProductType
@@ -267,6 +302,7 @@ class ProcessedProduct(BaseModel):
     raw_material_inputs: List[RawMaterialInput] = []
     processing_steps: List[ProcessingStep] = []
     packaging: PackagingInfo = PackagingInfo()
+    # quality_grade / market_destination: report-only metadata (ISO report goal & scope).
     quality_grade: QualityGrade = QualityGrade.STANDARD
     market_destination: MarketDestination = MarketDestination.LOCAL
     economic_value: Optional[float] = None  # price per kg, used only for economic allocation
@@ -279,7 +315,7 @@ class ProcessedProduct(BaseModel):
         return v
 
 # Processing assessment request
-class ProcessingAssessmentRequest(BaseModel):
+class ProcessingAssessmentRequest(StrictModel):
     country: str  # one of the supported countries below
     region: Optional[str] = None
     facility_profile: ProcessingFacilityProfile

@@ -1,0 +1,249 @@
+{
+  "id": "activity.defaults.farm.ng",
+  "type": "activity_defaults",
+  "title": "Nigeria farm activity defaults (diesel, electricity, yield guides)",
+  "description": "Screening-level diesel (L/ha/yr), grid electricity (kWh/ha/yr), and yield guides for Nigerian farms when the Equipment & Energy step has no measured fuel/electricity. Same structure and keys as the Ghana table (mechanization x irrigated). Values are Tier-1 activity defaults with wide uncertainty (factor 2), pedigree 'estimated'. Values carried over from the Ghana table are listed per row in provenance.inherited_from_ghana. Never invent fertiliser rates here.",
+  "region": "NG",
+  "uncertainty_factor": 2.0,
+  "pedigree": "estimated",
+  "valid_from": "2026-11-01",
+  "staleness_policy": "annual",
+  "rows": [
+    {
+      "id": "rainfed_manual",
+      "mechanization": "fully_manual",
+      "irrigated": false,
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1939,
+        "rice": 1974,
+        "cassava": 6196,
+        "yam": 8194,
+        "cowpea": 856,
+        "sorghum": 1123,
+        "groundnut": 1246,
+        "millet": 780,
+        "soybean": 1200,
+        "tomato": 4532,
+        "cocoa": 272,
+        "oil_palm": 2567,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Nigeria-activity-defaults-synthesis",
+        "span": "73% of Nigerian farm households use neither tractor nor animal traction (Takeshima H & Kennedy A (2019) Mechanization in Nigeria, FtF Innovation Lab for Food Security Policy, Research Brief 98, Table 1 (LSMS-ISA 2010-2016): 4% of farm households use tractors, 24% animal traction, 73% neither. https://cgspace.cgiar.org/server/api/core/bitstreams/c25df961-baf0-4886-9e94-e5ec03ad6e6b/content). Rainfed manual: 0 L diesel and 0 kWh.",
+        "yield_source": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged).",
+        "inherited_from_ghana": []
+      }
+    },
+    {
+      "id": "irrigated_manual_bucket",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "manual_bucket",
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1939,
+        "rice": 1974,
+        "cassava": 6196,
+        "yam": 8194,
+        "cowpea": 856,
+        "sorghum": 1123,
+        "groundnut": 1246,
+        "millet": 780,
+        "soybean": 1200,
+        "tomato": 4532,
+        "cocoa": 272,
+        "oil_palm": 2567,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Nigeria-activity-defaults-synthesis",
+        "span": "Bucket / manual lifting: labour, no diesel or grid electricity.",
+        "yield_source": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged).",
+        "inherited_from_ghana": []
+      }
+    },
+    {
+      "id": "irrigated_manual_pumped",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "pumped",
+      "diesel_l_per_ha": 50,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1939,
+        "rice": 1974,
+        "cassava": 6196,
+        "yam": 8194,
+        "cowpea": 856,
+        "sorghum": 1123,
+        "groundnut": 1246,
+        "millet": 780,
+        "soybean": 1200,
+        "tomato": 4532,
+        "cocoa": 272,
+        "oil_palm": 2567,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Nigeria-activity-defaults-synthesis",
+        "span": "No verified Nigerian or West African L/ha figure for small diesel pumps was found (FADAMA-type SSI). The Ghana table's 50 L/ha/yr screening value (West African SSI literature band 20-100 L/ha) is RETAINED and flagged as inherited_from_ghana.",
+        "yield_source": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged).",
+        "inherited_from_ghana": [
+          "diesel_l_per_ha"
+        ]
+      }
+    },
+    {
+      "id": "rainfed_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 24,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1939,
+        "rice": 1974,
+        "cassava": 6196,
+        "yam": 8194,
+        "cowpea": 856,
+        "sorghum": 1123,
+        "groundnut": 1246,
+        "millet": 780,
+        "soybean": 1200,
+        "tomato": 4532,
+        "cocoa": 272,
+        "oil_palm": 2567,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Nigeria-activity-defaults-synthesis",
+        "span": "Partial mechanisation in Nigeria is overwhelmingly hired tractor ploughing (one pass): Ajav EA & Adewoyin AO, J. Agric. Eng. Technol. (NIAE), tractor mouldboard ploughing on sandy-loam, Oyo State: 20.0-27.2 L/ha at 5.5-7.5 km/h, means by tractor make 23.4-24.6 L/ha (https://jaet.niae.net/index.php/jaet/article/view/17). Pedigree: abstract-level value, full text not verified.",
+        "yield_source": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged).",
+        "inherited_from_ghana": []
+      }
+    },
+    {
+      "id": "irrigated_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 74,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1939,
+        "rice": 1974,
+        "cassava": 6196,
+        "yam": 8194,
+        "cowpea": 856,
+        "sorghum": 1123,
+        "groundnut": 1246,
+        "millet": 780,
+        "soybean": 1200,
+        "tomato": 4532,
+        "cocoa": 272,
+        "oil_palm": 2567,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Nigeria-activity-defaults-synthesis",
+        "span": "One hired ploughing pass (24 L/ha, Ajav EA & Adewoyin AO, J. Agric. Eng. Technol. (NIAE), tractor mouldboard ploughing on sandy-loam, Oyo State: 20.0-27.2 L/ha at 5.5-7.5 km/h, means by tractor make 23.4-24.6 L/ha (https://jaet.niae.net/index.php/jaet/article/view/17). Pedigree: abstract-level value, full text not verified.) plus diesel pumping (50 L/ha, inherited from Ghana: No verified Nigerian or West African L/ha figure for small diesel pumps was found (FADAMA-type SSI). The Ghana table's 50 L/ha/yr screening value (West African SSI literature band 20-100 L/ha) is RETAINED and flagged as inherited_from_ghana.)",
+        "yield_source": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged).",
+        "inherited_from_ghana": [
+          "diesel_l_per_ha (pump share 50 L)"
+        ]
+      }
+    },
+    {
+      "id": "rainfed_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 67,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1939,
+        "rice": 1974,
+        "cassava": 6196,
+        "yam": 8194,
+        "cowpea": 856,
+        "sorghum": 1123,
+        "groundnut": 1246,
+        "millet": 780,
+        "soybean": 1200,
+        "tomato": 4532,
+        "cocoa": 272,
+        "oil_palm": 2567,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Nigeria-activity-defaults-synthesis",
+        "span": "Full tractor suite: ABU Zaria maize tillage energy study (https://kubanni.abu.edu.ng/handle/123456789/8733): optimum fuel 20 L/ha ploughing, 23 L/ha harrowing, 24 L/ha ridging; plough+harrow+ridge = 67 L/ha (sum computed here). Pedigree: abstract-level.",
+        "yield_source": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged).",
+        "inherited_from_ghana": []
+      }
+    },
+    {
+      "id": "irrigated_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 117,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1939,
+        "rice": 1974,
+        "cassava": 6196,
+        "yam": 8194,
+        "cowpea": 856,
+        "sorghum": 1123,
+        "groundnut": 1246,
+        "millet": 780,
+        "soybean": 1200,
+        "tomato": 4532,
+        "cocoa": 272,
+        "oil_palm": 2567,
+        "_default": 1200
+      },
+      "provenance": {
+        "source": "Nigeria-activity-defaults-synthesis",
+        "span": "Full tractor suite 67 L/ha (ABU Zaria maize tillage energy study (https://kubanni.abu.edu.ng/handle/123456789/8733): optimum fuel 20 L/ha ploughing, 23 L/ha harrowing, 24 L/ha ridging; plough+harrow+ridge = 67 L/ha (sum computed here). Pedigree: abstract-level.) plus diesel pumping 50 L/ha (inherited from Ghana: No verified Nigerian or West African L/ha figure for small diesel pumps was found (FADAMA-type SSI). The Ghana table's 50 L/ha/yr screening value (West African SSI literature band 20-100 L/ha) is RETAINED and flagged as inherited_from_ghana.). Grid electricity set to 0 (Ghana assumes 80 kWh electric pumping): Nigerian grid supply to farms is unreliable and SSI pumps are predominantly petrol/diesel (NERC 2024 Annual Report reports 37.95% ATC&C losses).",
+        "yield_source": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged).",
+        "inherited_from_ghana": [
+          "diesel_l_per_ha (pump share 50 L)"
+        ]
+      }
+    }
+  ],
+  "sources": [
+    {
+      "key": "IPCC-2019",
+      "role": "method",
+      "note": "Tier 1 activity-data approach; this table supplies activity amounts, not emission factors."
+    },
+    {
+      "key": "FAOSTAT-QCL-2023",
+      "role": "yield",
+      "note": "FAOSTAT QCL (Crops and livestock products), Nigeria, element Yield, 2023, bulk file Production_Crops_Livestock_E_Africa.zip (https://bulks-faostat.fao.org/production/Production_Crops_Livestock_E_Africa.zip), retrieved 2026-11-12. Flags: rice A (official); maize, sorghum, groundnut, millet, soybean X (external); cassava, yam, cowpea, tomato, cocoa, oil palm FFB E (FAO estimate). National averages, not split by irrigation or mechanisation; '_default' 1200 is the Ghana table's screening default (inherited, flagged)."
+    },
+    {
+      "key": "Takeshima-Kennedy-2019",
+      "role": "mechanization",
+      "note": "Takeshima H & Kennedy A (2019) Mechanization in Nigeria, FtF Innovation Lab for Food Security Policy, Research Brief 98, Table 1 (LSMS-ISA 2010-2016): 4% of farm households use tractors, 24% animal traction, 73% neither. https://cgspace.cgiar.org/server/api/core/bitstreams/c25df961-baf0-4886-9e94-e5ec03ad6e6b/content"
+    },
+    {
+      "key": "Ajav-Adewoyin-NIAE",
+      "role": "energy",
+      "note": "Ajav EA & Adewoyin AO, J. Agric. Eng. Technol. (NIAE), tractor mouldboard ploughing on sandy-loam, Oyo State: 20.0-27.2 L/ha at 5.5-7.5 km/h, means by tractor make 23.4-24.6 L/ha (https://jaet.niae.net/index.php/jaet/article/view/17). Pedigree: abstract-level value, full text not verified."
+    },
+    {
+      "key": "ABU-Zaria-tillage",
+      "role": "energy",
+      "note": "ABU Zaria maize tillage energy study (https://kubanni.abu.edu.ng/handle/123456789/8733): optimum fuel 20 L/ha ploughing, 23 L/ha harrowing, 24 L/ha ridging; plough+harrow+ridge = 67 L/ha (sum computed here). Pedigree: abstract-level."
+    },
+    {
+      "key": "Ghana-table-inherited",
+      "role": "energy",
+      "note": "No verified Nigerian or West African L/ha figure for small diesel pumps was found (FADAMA-type SSI). The Ghana table's 50 L/ha/yr screening value (West African SSI literature band 20-100 L/ha) is RETAINED and flagged as inherited_from_ghana."
+    }
+  ]
+}

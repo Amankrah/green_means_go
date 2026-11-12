@@ -1,0 +1,47 @@
+{
+  "charcoal": {
+    "text": "charcoal",
+    "kind": "fuel",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Charcoal is a solid fuel and does not correspond to any of the allowed liquid or gaseous fuel labels.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "gas": {
+    "text": "gas",
+    "kind": "fuel",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "In Canada 'gas' usually means petrol (gasoline), but in West and Southern Africa it commonly refers to cooking gas (LPG), so the term is ambiguous between two labels.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "jet a1": {
+    "text": "jet a1",
+    "kind": "fuel",
+    "label": "kerosene",
+    "confidence": 0.8,
+    "reason": "Jet A-# is a kerosene-type aviation turbine fuel, so kerosene is the closest allowed label.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "naphtha": {
+    "text": "naphtha",
+    "kind": "fuel",
+    "label": "petrol",
+    "confidence": 0.4,
+    "reason": "Naphtha is a light petroleum distillate closest to petrol (and in some regions the word is used colloquially for gasoline or lighter fuel), but it is not an exact match to any listed fuel.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "two-stroke mix": {
+    "text": "two-stroke mix",
+    "kind": "fuel",
+    "label": "petrol",
+    "confidence": 0.8,
+    "reason": "Two-stroke mix is petrol blended with a small share of two-stroke oil, used in chainsaws, brush cutters and small engines, so petrol is the closest fuel label.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  }
+}

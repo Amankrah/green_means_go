@@ -18,6 +18,11 @@ the actual assessment, and nothing is claimed that the data or the process canno
 """
 from __future__ import annotations
 
+try:  # GWP basis statement (one basis per method, values read from the store)
+    from .gwp_basis import statement as _gwp_statement
+except ImportError:
+    from gwp_basis import statement as _gwp_statement
+
 from datetime import datetime, timezone
 
 STANDARD = "ISO 14040:2006, ISO 14044:2006 and ISO/TS 14071:2024"
@@ -375,6 +380,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "beyond what the database itself excludes."),
         "allocation_procedure": allocation,
         "lcia_method": method,
+        "gwp_basis": _gwp_statement(engine, method),
         "perspective": "Hierarchist" if is_hierarchist else "method default",
         "impact_categories": categories,
         "impact_categories_basis": (
@@ -554,6 +560,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
            + ("It is held back mainly by "
               + ", ".join(f"{x['indicator'].lower()} ({x['rating'].lower()})" for x in _worst)
               + "." if _worst else "All indicators rate good at this screening level."))
+    # Region registry values still at the Ghana number (engine/regions.py ghana_inherited).
+    _inherited = tuple(getattr(region, "ghana_inherited", None) or ())
+    if _inherited and getattr(region, "code", "GH") != "GH":
+        dqa += (f" Some {region_name} regional parameters are not yet region-specific and still "
+                f"use the Ghana value: {', '.join(_inherited)}.")
     # Sensitivity, derived from the computed contribution analysis rather than asserted. A
     # cradle-to-gate model is linear in the input amounts, so each source's share of a result
     # is also its elasticity: change that source by 1% and the total moves by about its share.

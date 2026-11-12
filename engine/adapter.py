@@ -18,20 +18,36 @@ MIDPOINT_MAP = {
     "Water use":                                    ("Water consumption", "m3"),
     "Land use":                                     ("Land use", "m2a crop-eq"),
     "Terrestrial acidification":                    ("Terrestrial acidification", "kg SO2-eq"),
+    "Acidification: terrestrial":                   ("Terrestrial acidification", "kg SO2-eq"),   # ReCiPe 2016 name in the ecoinvent 3.11 pack
     "Acidification":                                ("Terrestrial acidification", "mol H+-eq"),
     "Eutrophication: freshwater":                   ("Freshwater eutrophication", "kg P-eq"),
     "Eutrophication, freshwater":                   ("Freshwater eutrophication", "kg P-eq"),
     "Eutrophication: marine":                       ("Marine eutrophication", "kg N-eq"),
     "Eutrophication, marine":                       ("Marine eutrophication", "kg N-eq"),
     "Fossil resource scarcity":                     ("Fossil depletion", "kg oil-eq"),
-    "Energy resources: non-renewable, fossil":      ("Fossil depletion", "MJ"),
+    "Energy resources: non-renewable, fossil":      ("Fossil depletion", "kg oil-eq"),   # ReCiPe 2016
+    "Energy resources: non-renewable":              ("Fossil depletion", "MJ"),          # EF 3.1
     "Mineral resource scarcity":                    ("Mineral depletion", "kg Cu-eq"),
     "Material resources: metals/minerals":          ("Mineral depletion", "kg Sb-eq"),
     "Particulate matter formation":                 ("Particulate matter formation", "kg PM2.5-eq"),
     "Particulate matter":                           ("Particulate matter formation", "disease inc."),
     "Photochemical oxidant formation: human health": ("Photochemical oxidation", "kg NOx-eq"),
     "Photochemical ozone formation: human health":  ("Photochemical oxidation", "kg NMVOC-eq"),
+    # Reported, NOT in the single score (no normalisation in the single-score set; adding
+    # them is a weighting choice left to the reviewer). Needed once pesticide active
+    # ingredients reach agricultural soil (engine/pesticides.py).
+    "Ecotoxicity: freshwater":                      ("Freshwater ecotoxicity", "kg 1,4-DCB-eq"),
+    "Ecotoxicity: terrestrial":                     ("Terrestrial ecotoxicity", "kg 1,4-DCB-eq"),
+    "Ecotoxicity: marine":                          ("Marine ecotoxicity", "kg 1,4-DCB-eq"),
+    "Human toxicity: carcinogenic":                 ("Human toxicity, cancer", "kg 1,4-DCB-eq"),
+    "Human toxicity: non-carcinogenic":             ("Human toxicity, non-cancer", "kg 1,4-DCB-eq"),
+    "Ozone depletion":                              ("Ozone depletion", "kg CFC-11-eq"),
+    "Ionising radiation":                           ("Ionising radiation", "kBq Co-60-eq"),
+    "Ionising radiation: human health":             ("Ionising radiation", "kBq U235-eq"),
 }
+
+# Separate AWARE water-scarcity midpoint reported for EVERY method (engine/water_scarcity.py).
+AWARE_MIDPOINT = "Water scarcity (AWARE)"
 
 SOURCES = ["ecoinvent 3.11 (supply chain)", "IPCC 2019 AFOLU (field emissions)",
            "ReCiPe 2016 / EF 3.1 (characterization)"]
@@ -93,10 +109,15 @@ def _endpoints(engine, inventory: dict, method: str) -> dict:
                 "uncertainty_range": [val * 0.5, val * 2.0]} for k, val in out.items()}
 
 
-# ReCiPe 2016 midpoint normalization, World, Hierarchist perspective (impact per person
-# per year), from data/ReCipe2016/Normalization scores ReCiPe2016v1.1_20190514.xlsx.
-# A normalized single score = Σ(impact / NF) = person-equivalents, then ×1e6 → µPt.
-RECIPE_NF = {
+# Midpoint normalisation factors (impact per person per year). LOADED from the derived
+# file engine/lcia_reference/normalisation_factors.json, which ingestion/gmg_reference.py
+# builds from data/ReCipe2016/Normalization scores ReCiPe2016v1.1_20190514.xlsx (World 2010,
+# Hierarchist, midpoint) and, for EF 3.1, from the JRC EF 3.1 normalisation table
+# (Andreasson et al. 2024, JRC130796, Table 2; not in the EF 3.1 CF workbook on disk).
+# A normalized single score = sum(impact / NF) = person-equivalents, then x1e6 -> uPt.
+# The literals below are only the fallback if the derived file is missing; they equal the
+# file values (checked by engine/test_normalisation.py).
+_RECIPE_NF_FALLBACK = {
     "Global warming": 7990.0,          # kg CO2-eq / person / yr
     "Land use": 6167.0,                # m2a crop-eq
     "Water consumption": 266.6,        # m3
@@ -108,6 +129,18 @@ RECIPE_NF = {
     "Particulate matter formation": 25.57,  # kg PM2.5
     "Photochemical oxidation": 20.57,       # kg NOx
 }
+
+
+def _load_nf() -> tuple[dict, dict, str]:
+    import json as _j
+    import os as _o
+    path = _o.path.join(_o.path.dirname(__file__), "lcia_reference", "normalisation_factors.json")
+    try:
+        d = _j.loads(open(path, encoding="utf-8").read())
+        return (dict(d["recipe_2016"]["factors"]), dict(d["ef_3_1"]["factors"]),
+                "engine/lcia_reference/normalisation_factors.json")
+    except (OSError, ValueError, KeyError):
+        return dict(_RECIPE_NF_FALLBACK), dict(_EF_NF_FALLBACK), "fallback constants in engine/adapter.py"
 
 
 # Band thresholds are calibrated EMPIRICALLY against a benchmark basket of farm-gate
@@ -147,7 +180,7 @@ def _bands() -> dict:
 # (JRC EF reference package). Used when the method is EF, since EF midpoints are in
 # different units/magnitudes than ReCiPe — normalising EF values with ReCiPe factors
 # produces a nonsense score (e.g. EF land-use points ÷ ReCiPe m2a).
-EF_NF = {
+_EF_NF_FALLBACK = {
     "Global warming": 7550.0,            # kg CO2-eq
     "Terrestrial acidification": 55.6,   # mol H+-eq (EF "Acidification")
     "Freshwater eutrophication": 1.61,   # kg P-eq
@@ -159,6 +192,9 @@ EF_NF = {
     "Water consumption": 11500.0,        # m3 world-eq deprived
     "Fossil depletion": 65000.0,         # MJ
 }
+
+
+RECIPE_NF, EF_NF, NF_SOURCE = _load_nf()
 
 
 def single_score(midpoints: dict, ep: dict, method: str = "ReCiPe 2016 v1.03, midpoint (H)",
@@ -235,6 +271,16 @@ def to_assessment_response(result, assessment: dict, engine, total_kg: float,
         # kg oil-eq while EF's is MJ), so a hardcoded map unit can mislabel the value.
         unit = _norm_unit(v.get("unit")) or map_unit
         midpoints[fname] = _midpoint(v["value"] / total_kg, f"{unit} per kg")
+
+    # AWARE water scarcity (m3 world-eq deprived) for every method: background with the
+    # ecoinvent AWARE CFs, on-farm irrigation with the region's AWARE country CF.
+    try:
+        from .water_scarcity import aware_indicator
+    except ImportError:
+        from water_scarcity import aware_indicator
+    _aw = aware_indicator(engine, getattr(result, "inventory", None) or {})
+    if _aw and _aw["value"]:
+        midpoints[AWARE_MIDPOINT] = _midpoint(_aw["value"] / total_kg, f"{_aw['unit']} per kg")
 
     # endpoints (per kg) via the matching endpoint method
     ep = _endpoints(engine, {u: {**r, "amount": r["amount"] / total_kg}

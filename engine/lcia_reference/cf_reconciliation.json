@@ -1,0 +1,666 @@
+{
+ "generated": "2026-11-12",
+ "tolerance": 0.01,
+ "recipe": {
+  "method": "ReCiPe 2016 v1.03, midpoint (H)",
+  "file": "data/ReCipe2016/ReCiPe2016_CFs_v1.1_20180117.xlsx",
+  "n_compared": 53,
+  "n_diff_gt_1pct": 0,
+  "differences": [],
+  "pesticide_fw_ecotox_agri_soil": [
+   {
+    "ai": "imidacloprid",
+    "cas": "138261-41-3",
+    "spreadsheet_h": 1.305462658454137,
+    "store_values": [
+     1.31
+    ],
+    "rel_diff": 0.0035
+   },
+   {
+    "ai": "atrazine",
+    "cas": "1912-24-9",
+    "spreadsheet_h": 14.751209358079645,
+    "store_values": [
+     14.8
+    ],
+    "rel_diff": 0.0033
+   },
+   {
+    "ai": "chlorpyrifos",
+    "cas": "2921-88-2",
+    "spreadsheet_h": 329.2146054042047,
+    "store_values": [
+     329.0
+    ],
+    "rel_diff": 0.0007
+   },
+   {
+    "ai": "cypermethrin",
+    "cas": "52315-07-8",
+    "spreadsheet_h": 112.33953784734399,
+    "store_values": [
+     112.0
+    ],
+    "rel_diff": 0.003
+   },
+   {
+    "ai": "metalaxyl",
+    "cas": "57837-19-1",
+    "spreadsheet_h": 0.29232648180496545,
+    "store_values": [
+     0.292
+    ],
+    "rel_diff": 0.0011
+   },
+   {
+    "ai": "mancozeb",
+    "cas": "8018-01-7",
+    "spreadsheet_h": 10.65812639128267,
+    "store_values": [
+     10.7
+    ],
+    "rel_diff": 0.0039
+   },
+   {
+    "ai": "glyphosate",
+    "cas": "1071-83-6",
+    "spreadsheet_h": 0.35083618665407146,
+    "store_values": [
+     0.351
+    ],
+    "rel_diff": 0.0005
+   },
+   {
+    "ai": "paraquat",
+    "cas": "1910-42-5",
+    "spreadsheet_h": 4.548294785501146,
+    "store_values": [
+     4.55
+    ],
+    "rel_diff": 0.0004
+   },
+   {
+    "ai": "paraquat",
+    "cas": "4685-14-7",
+    "spreadsheet_h": 0.012858261872227031,
+    "store_values": [
+     0.0129
+    ],
+    "rel_diff": 0.0032
+   },
+   {
+    "ai": "2,4-D",
+    "cas": "94-75-7",
+    "spreadsheet_h": 0.3594658594279276,
+    "store_values": [
+     0.359
+    ],
+    "rel_diff": 0.0013
+   },
+   {
+    "ai": "metalaxyl",
+    "cas": "70630-17-0",
+    "spreadsheet_h": 0.347442844773761,
+    "store_values": [
+     0.347
+    ],
+    "rel_diff": 0.0013
+   },
+   {
+    "ai": "lambda-cyhalothrin",
+    "cas": "91465-08-6",
+    "spreadsheet_h": 68.91457792405224,
+    "store_values": [
+     68.9
+    ],
+    "rel_diff": 0.0002
+   },
+   {
+    "ai": "copper",
+    "cas": "7440-50-8",
+    "spreadsheet_h": 3.281424474547095,
+    "store_values": [
+     3.28
+    ],
+    "rel_diff": 0.0004
+   }
+  ]
+ },
+ "ef_3_1": {
+  "method": "EF v3.1",
+  "file": "data/EVvinronmental_Footprint_EF3.1/EF-LCIAMethod_CF(EF-v3.1).xlsx",
+  "n_compared": 1070,
+  "n_unmatched_by_name_or_cas": 1470,
+  "n_diff_gt_1pct": 13,
+  "differences": [
+   {
+    "category": "Climate change",
+    "flow": "carbon dioxide (biogenic)",
+    "medium": "air",
+    "sub": "emissions to lower stratosphere and upper troposphere",
+    "cas": "124-38-9",
+    "spreadsheet": 0.0,
+    "store_values": [
+     1.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Climate change",
+    "flow": "carbon dioxide (biogenic)",
+    "medium": "air",
+    "sub": "emissions to urban air close to ground",
+    "cas": "124-38-9",
+    "spreadsheet": 0.0,
+    "store_values": [
+     1.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Climate change",
+    "flow": "carbon dioxide (biogenic)",
+    "medium": "air",
+    "sub": "emissions to air, unspecified (long-term)",
+    "cas": "124-38-9",
+    "spreadsheet": 0.0,
+    "store_values": [
+     1.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Climate change",
+    "flow": "carbon dioxide (biogenic)",
+    "medium": "air",
+    "sub": "emissions to air, unspecified",
+    "cas": "124-38-9",
+    "spreadsheet": 0.0,
+    "store_values": [
+     1.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Climate change",
+    "flow": "carbon dioxide (biogenic)",
+    "medium": "air",
+    "sub": "emissions to air, indoor",
+    "cas": "124-38-9",
+    "spreadsheet": 0.0,
+    "store_values": [
+     1.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Climate change",
+    "flow": "carbon dioxide (biogenic)",
+    "medium": "air",
+    "sub": "emissions to non-urban air or from high stacks",
+    "cas": "124-38-9",
+    "spreadsheet": 0.0,
+    "store_values": [
+     1.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Eutrophication: freshwater",
+    "flow": "phosphate",
+    "medium": "water",
+    "sub": "emissions to sea water",
+    "cas": "14265-44-2",
+    "spreadsheet": 0.0,
+    "store_values": [
+     0.33
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Eutrophication: freshwater",
+    "flow": "phosphoric acid",
+    "medium": "water",
+    "sub": "emissions to sea water",
+    "cas": "7664-38-2",
+    "spreadsheet": 0.0,
+    "store_values": [
+     0.32
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Eutrophication: freshwater",
+    "flow": "phosphorus",
+    "medium": "water",
+    "sub": "emissions to sea water",
+    "cas": "7723-14-0",
+    "spreadsheet": 0.0,
+    "store_values": [
+     1.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Photochemical oxidant formation: human health",
+    "flow": "methane (land use change)",
+    "medium": "air",
+    "sub": "emissions to air, indoor",
+    "cas": "74-82-8",
+    "spreadsheet": 0.0,
+    "store_values": [
+     0.0101
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Photochemical oxidant formation: human health",
+    "flow": "methyl ether",
+    "medium": "air",
+    "sub": "emissions to air, indoor",
+    "cas": "115-10-6",
+    "spreadsheet": 0.0,
+    "store_values": [
+     0.319
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Energy resources: non-renewable",
+    "flow": "uranium",
+    "medium": "resource",
+    "sub": "non-renewable energy resources from ground",
+    "cas": "7440-61-1",
+    "spreadsheet": 1.0,
+    "store_values": [
+     560000.0
+    ],
+    "rel_diff": 1.0
+   },
+   {
+    "category": "Energy resources: non-renewable",
+    "flow": "peat",
+    "medium": "resource",
+    "sub": "non-renewable energy resources from ground",
+    "cas": null,
+    "spreadsheet": 1.0,
+    "store_values": [
+     9.76
+    ],
+    "rel_diff": 0.8975
+   }
+  ]
+ },
+ "pesticide_coverage": {
+  "glyphosate": {
+   "store_flows": [
+    {
+     "name": "Glyphosate",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     0.351
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     0.768
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     257.31
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     1.9373e-08
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "paraquat": {
+   "store_flows": [
+    {
+     "name": "Paraquat",
+     "source": "ecoinvent"
+    },
+    {
+     "name": "Paraquat dichloride",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     0.0129,
+     4.55
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     0.0604,
+     337.0
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     111.15,
+     495.46
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     5.7402e-08,
+     9.3687e-08
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "atrazine": {
+   "store_flows": [
+    {
+     "name": "Atrazine",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     14.8
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": [
+     0.285
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     1.13
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     14841.0
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": [
+     3.191e-07
+    ],
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     3.6991e-07
+    ]
+   },
+   "gaps": []
+  },
+  "2,4-D": {
+   "store_flows": [
+    {
+     "name": "2,4-D",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     0.359
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     2.1
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     10976.0
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     1.5974e-06
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "lambda-cyhalothrin": {
+   "store_flows": [
+    {
+     "name": "Lambda-cyhalothrin",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     68.9
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": null,
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     250950.0
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     1.6708e-07
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "cypermethrin": {
+   "store_flows": [
+    {
+     "name": "Zeta-cypermethrin",
+     "source": "agribalyse"
+    },
+    {
+     "name": "Cypermethrin",
+     "source": "ecoinvent"
+    },
+    {
+     "name": "Zeta-cypermethrin",
+     "source": "ecoinvent"
+    },
+    {
+     "name": "Beta-cypermethrin",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     112.0
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     0.93
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     19340.0
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     2.8822e-08
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "chlorpyrifos": {
+   "store_flows": [
+    {
+     "name": "Chlorpyrifos",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     329.0
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     79.8
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     236310.0
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     1.7886e-05
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "mancozeb": {
+   "store_flows": [
+    {
+     "name": "Mancozeb",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     10.7
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     2.75
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     3.3946
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     1.2981e-11
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "imidacloprid": {
+   "store_flows": [
+    {
+     "name": "Imidacloprid",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     1.31
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     11.3
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     29575.0
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     1.099e-07
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "emamectin benzoate": {
+   "store_flows": [
+    {
+     "name": "Emamectin benzoate",
+     "source": "agribalyse"
+    },
+    {
+     "name": "Emamectin benzoate",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": null,
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     134083.424359273
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     2.47679060505127e-05
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater",
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "metalaxyl": {
+   "store_flows": [
+    {
+     "name": "Metalaxil",
+     "source": "ecoinvent"
+    },
+    {
+     "name": "Metalaxyl-M",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     0.292,
+     0.347
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     7.53
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     561.76,
+     603.44
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     3.777e-07,
+     1.1198e-06
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  },
+  "copper": {
+   "store_flows": [
+    {
+     "name": "Copper ion",
+     "source": "agribalyse"
+    },
+    {
+     "name": "Copper",
+     "source": "ecoinvent"
+    }
+   ],
+   "cfs": {
+    "ReCiPe 2016 v1.03, midpoint (H) | Ecotoxicity: freshwater": [
+     3.28
+    ],
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic": null,
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: non-carcinogenic": [
+     18.6
+    ],
+    "EF v3.1 | Ecotoxicity: freshwater": [
+     24.5339514531318
+    ],
+    "EF v3.1 | Human toxicity: carcinogenic": null,
+    "EF v3.1 | Human toxicity: non-carcinogenic": [
+     1.1403e-06
+    ]
+   },
+   "gaps": [
+    "ReCiPe 2016 v1.03, midpoint (H) | Human toxicity: carcinogenic",
+    "EF v3.1 | Human toxicity: carcinogenic"
+   ]
+  }
+ }
+}

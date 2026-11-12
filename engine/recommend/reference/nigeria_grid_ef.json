@@ -1,0 +1,40 @@
+{
+  "id": "ef.grid.ng",
+  "type": "reference_factor",
+  "title": "Nigeria national grid emission factor",
+  "description": "Climate intensity of electricity supplied by Nigeria's national grid, used to calibrate the ecoinvent 'Electricity, low voltage {NG}' market the same way Ghana is calibrated (engine/grid_calibration.py). No Nigerian regulator or ministry publishes a national grid emission factor (NERC, TCN, ECN and the BUR/NDC were searched; the 2019 Designated National Authority commitment to publish an annual CDM Tool 07 factor has not produced a published value). The calibration value is therefore the Ember 2024 lifecycle carbon intensity of Nigerian generation, which is an attributional average (the right basis for consumption accounting in LCA) and is published annually under CC-BY. Alternatives are recorded below for sensitivity analysis.",
+  "calibration": {
+    "value": 0.496,
+    "unit": "kgCO2e/kWh",
+    "year": 2024,
+    "basis": "attributional average, lifecycle (includes upstream gas supply), all GHGs, per kWh generated; transmission and distribution losses NOT added",
+    "source": "Ember (2026), Yearly electricity data, processed by Our World in Data: 'Carbon intensity of electricity generation' (lifecycle), Nigeria 2024 = 495.74 gCO2e/kWh. https://ourworldindata.org/grapher/carbon-intensity-electricity (CSV https://ourworldindata.org/grapher/carbon-intensity-electricity.csv), last updated 2026-06-30, licence CC-BY 4.0",
+    "pedigree": "secondary, third-party compilation (not an official national figure)",
+    "loss_note": "NERC 2024 Annual Report, s.7.2.1 (pp.150-152, Fig 7.5): 2024 average transmission loss factor 8.71%. Distribution technical losses are not separately published (ATC&C 37.95%, of which technical plus commercial 17.88%, s.7.4.4). Dividing by (1-0.0871) would give 0.543 at transmission delivery; we keep the generation-level value, consistent with Ghana's treatment, and flag it as a likely underestimate at low voltage."
+  },
+  "alternatives": {
+    "ifi_harmonised_cm_2019": {
+      "value": 0.395, "unit": "kgCO2/kWh",
+      "basis": "combined margin, firm energy projects, generation-level (displacement factor, not an average)",
+      "source": "IFI Technical Working Group on GHG Accounting, Harmonized Grid Emission Factor Data Set v2.0 (July 2019), UNFCCC. https://unfccc.int/sites/default/files/resource/Harmonized_Grid_Emission_factor_data_set.pdf (Nigeria: 395 firm / 477 intermittent gCO2/kWh)"
+    },
+    "cdm_asb0034_wapp_om_2019": {
+      "value": 0.578, "unit": "tCO2/MWh",
+      "basis": "operating margin, West African Power Pool regional grid (9 countries incl. Nigeria and Ghana), 2019 data vintage",
+      "source": "UNFCCC CDM standardized baseline ASB0034 (Grid emission factor for the West African Power Pool), update request ASU_006, final recommendation 10/02/2021, Tables 1 and 3: OM 0.578, BM 0.556, CM 0.567. https://cdm.unfccc.int/sunsetcms/storage/contents/stored-file-20210325112248982/ASU_006_ASB0034_Final_recommendation.pdf"
+    },
+    "iea": {
+      "value": null,
+      "note": "IEA Emission Factors 2026 covers Nigeria 1990-2024 but is licensed; not used."
+    }
+  },
+  "history_lifecycle_gco2e_per_kwh": {"2020": 523.42, "2021": 522.70, "2022": 497.37, "2023": 510.26, "2024": 495.74, "2025": 455.71},
+  "generation_mix": {
+    "year": 2024,
+    "gas_share": 0.750, "hydro_share": 0.245,
+    "source": "Ember via Our World in Data, share of electricity by source, Nigeria 2024 (https://ourworldindata.org/grapher/share-elec-by-source.csv). NERC 2024 Annual Report: grid generation 37,093.70 GWh, hydro 11,469.85 GWh (30.92%) on the grid-connected basis."
+  },
+  "valid_from": "2026-11-01",
+  "staleness_policy": "annual",
+  "retrieved": "2026-11-12"
+}

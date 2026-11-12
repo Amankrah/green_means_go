@@ -29,6 +29,7 @@ import {
   sumAllocatedArea,
   remainingFarmArea,
 } from '@/lib/enhanced-assessment-schema';
+import { commonCropsForCountry } from '@/lib/regions';
 
 const foodCategories = [
   { value: 'Cereals', label: '🌾 Cereals (Maize, Rice, Millet, Sorghum)' },
@@ -111,7 +112,7 @@ export default function CropDetailsStep() {
     } else if (country === 'Canada') {
       return COMMON_CROPS_BY_REGION['Canada'] || [];
     }
-    return [];
+    return commonCropsForCountry(country);
   };
 
   const addNewCrop = () => {
@@ -500,6 +501,62 @@ export default function CropDetailsStep() {
                       {errors.cropProductions[index]?.areaAllocated?.message}
                     </p>
                   )}
+                </div>
+
+                <details className="md:col-span-2 rounded-lg border border-line p-3">
+                  <summary className="cursor-pointer text-sm font-medium text-ink">Advanced (optional): land-use change, residues, perennial establishment</summary>
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink mb-1">Land use before this crop</label>
+                      <select {...register(`cropProductions.${index}.landUseChange.previousLandUse`)} className="gmg-input">
+                        <option value="">Not converted / unknown</option>
+                        <option value="forest">Forest</option>
+                        <option value="grassland">Grassland</option>
+                        <option value="annual_cropland">Annual cropland</option>
+                        <option value="perennial_cropland">Perennial cropland</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink mb-1">Years since conversion</label>
+                      <input type="number" min="0" step="1" {...register(`cropProductions.${index}.landUseChange.yearsSinceConversion`)} className="gmg-input" />
+                    </div>
+                    <div />
+                    <div>
+                      <label className="block text-xs font-medium text-ink mb-1">Share of residues removed (0-1)</label>
+                      <input type="number" min="0" max="1" step="0.05" {...register(`cropProductions.${index}.residueManagement.fractionRemoved`)} className="gmg-input" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink mb-1">Share of residues burnt (0-1)</label>
+                      <input type="number" min="0" max="1" step="0.05" {...register(`cropProductions.${index}.residueManagement.fractionBurnt`)} className="gmg-input" />
+                    </div>
+                    <div />
+                    <div>
+                      <label className="block text-xs font-medium text-ink mb-1">Perennials: immature years</label>
+                      <input type="number" min="0" step="1" {...register(`cropProductions.${index}.establishment.immatureYears`)} className="gmg-input" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink mb-1">Perennials: productive years</label>
+                      <input type="number" min="0" step="1" {...register(`cropProductions.${index}.establishment.productiveYears`)} className="gmg-input" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink mb-1">Establishment input share</label>
+                      <input type="number" min="0" step="0.05" {...register(`cropProductions.${index}.establishment.inputShare`)} className="gmg-input" />
+                    </div>
+                  </div>
+                </details>
+
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-2">
+                    Seed sown (kg per hectare, optional)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    {...register(`cropProductions.${index}.seedRateKgPerHa`)}
+                    placeholder="blank = typical rate for this crop (FAO)"
+                    className="gmg-input"
+                  />
                 </div>
 
                 <div>

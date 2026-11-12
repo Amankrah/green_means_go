@@ -1,0 +1,47 @@
+{
+  "aluminium foil pouch": {
+    "text": "aluminium foil pouch",
+    "kind": "packaging",
+    "label": "Composite",
+    "confidence": 0.6,
+    "reason": "Aluminium foil pouches are almost always laminates of foil with plastic or paper layers, making them a composite material, though the user may simply have meant metal.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "basket": {
+    "text": "basket",
+    "kind": "packaging",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "A basket is typically woven from natural plant fibres such as raffia, palm or reed, or sometimes from plastic, so it does not clearly correspond to any of the allowed packaging materials.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "hdpe bottle": {
+    "text": "hdpe bottle",
+    "kind": "packaging",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "An HDPE bottle is a rigid high-density polyethylene container, which is neither a plastic bag nor polypropylene nor any other listed material, so no label fits well.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "jerrycan": {
+    "text": "jerrycan",
+    "kind": "packaging",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "A jerrycan in West and Southern Africa is typically a rigid HDPE plastic container (sometimes metal), which is neither polypropylene nor a plastic bag, so no listed label clearly fits.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "woven bag with liner": {
+    "text": "woven bag with liner",
+    "kind": "packaging",
+    "label": "Polypropylene",
+    "confidence": 0.6,
+    "reason": "A woven bag with a liner usually means a woven polypropylene sack with a polyethylene inner liner, so polypropylene is the main material, though the liner could also suggest a composite.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  }
+}

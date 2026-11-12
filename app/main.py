@@ -31,6 +31,7 @@ from auth.routes import router as auth_router
 from workspace.routes import router as workspace_router
 from share.routes import router as share_router
 from studies.routes import router as studies_router
+from intelligence.routes import router as intelligence_router
 from db import init_db
 
 # Environment detection
@@ -113,6 +114,7 @@ app.add_middleware(
 _API_ROUTERS = [
     auth_router, workspace_router, share_router, studies_router,
     processing_router, production_router, chat_router, inventory_router, farm_router,
+    intelligence_router,
 ]
 for _r in _API_ROUTERS:
     app.include_router(_r)               # legacy root surface

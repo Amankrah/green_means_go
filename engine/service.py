@@ -17,11 +17,53 @@ try:
     from .regions import get_region
     from .inputs import extract_purchased_inputs, total_production_kg
     from .adapter import to_assessment_response
+    from . import field_params, fuels, perennials
+    from .commodities import reject_unsupported_farm_commodities, UnsupportedCommodityError  # noqa: F401
+    from . import farm_flows
 except ImportError:
     from orchestrator import FarmLCA
     from regions import get_region
     from inputs import extract_purchased_inputs, total_production_kg
     from adapter import to_assessment_response
+    import field_params
+    import fuels
+    import perennials
+    from commodities import reject_unsupported_farm_commodities, UnsupportedCommodityError  # noqa: F401
+    import farm_flows
+
+WARNING_PREFIX = "validation warning: "
+
+
+def prepare_farm_run(assessment: dict, inputs: list[dict], region) -> tuple[dict, list[dict], list[str]]:
+    """Foreground preparation shared by every farm entry point (WS1):
+      * region/climate IPCC 2019 soil-N parameters and perennial residue renewal injected
+        for the Rust kernel (engine/field_params.py);
+      * LPG/kerosene/firewood/charcoal split into production (kg) + direct combustion flows
+        (engine/fuels.py), the flows riding on the assessment as `direct_combustion_lci`;
+      * perennial establishment amortisation of the purchased inputs (engine/perennials.py).
+    Returns (kernel_assessment, inputs, notes)."""
+    kernel_assessment, notes = field_params.prepare_kernel_assessment(assessment, region)
+    inputs, combustion, fuel_notes = fuels.expand_fuel_inputs(inputs)
+    if combustion:
+        kernel_assessment["direct_combustion_lci"] = combustion
+    inputs, per_notes = perennials.scale_purchased_inputs(inputs, assessment)
+    return kernel_assessment, inputs, notes + fuel_notes + per_notes
+
+
+def lift_validation_warnings(response: dict) -> dict:
+    """Copy notes carrying the validation-warning prefix into data_quality.warnings so the
+    client shows them as warnings instead of burying them in the notes."""
+    dq = response.get("data_quality")
+    if not isinstance(dq, dict):
+        return response
+    warnings = list(dq.get("warnings") or [])
+    for n in dq.get("notes") or []:
+        if isinstance(n, str) and n.startswith(WARNING_PREFIX):
+            w = n[len(WARNING_PREFIX):]
+            if w not in warnings:
+                warnings.append(w)
+    dq["warnings"] = warnings
+    return response
 
 _engines: dict[str, FarmLCA] = {}
 _locks: dict[str, threading.Lock] = {}
@@ -41,6 +83,12 @@ def _engine(region_code: str, method: str | None):
 def _region_of(assessment: dict, override: str | None) -> str:
     if override:
         return override
+    # An explicit engine region (e.g. "SN" with the kernel country bucket "Global") wins
+    # over the country; otherwise "Global" would resolve to CA.
+    try:
+        return get_region((assessment.get("region") or "").strip()).code
+    except KeyError:
+        pass
     country = (assessment.get("country") or "").strip()
     try:
         return get_region(country).code
@@ -77,6 +125,12 @@ def _sub_assessment(assessment: dict, food: dict, share: float) -> dict:
             "energy_sources": scale(ee.get("energy_sources"), "monthly_consumption"),
             "equipment": scale(ee.get("equipment"), "hours_per_year"),
         }
+    # A measured farm irrigation volume is a farm total: partition it by area like energy.
+    wm = ((assessment.get("management_practices") or {}).get("water_management")) or {}
+    if wm.get("irrigation_water_m3"):
+        mp = dict(assessment["management_practices"])
+        mp["water_management"] = {**wm, "irrigation_water_m3": wm["irrigation_water_m3"] * share}
+        sub["management_practices"] = mp
     return sub
 
 
@@ -118,6 +172,19 @@ def _sum_results(per_crop: dict):
     seen: set[str] = set()
     farm.notes = [n for n in farm.notes if not (n in seen or seen.add(n))]
     return farm
+
+
+def _with_metadata(assessment: dict, out: dict) -> dict:
+    """Echo the wizard's report-only fields verbatim in the ISO report scope (they do not
+    change the numbers; see engine/inputs.report_only_metadata)."""
+    try:
+        from .inputs import report_only_metadata
+    except ImportError:
+        from inputs import report_only_metadata
+    iso = out.get("iso_report")
+    if isinstance(iso, dict) and isinstance(iso.get("scope"), dict):
+        iso["scope"]["reported_metadata"] = report_only_metadata(assessment)
+    return out
 
 
 def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
@@ -202,6 +269,7 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
     run_uncertainty: when True (default), attach pedigree screening Monte Carlo
     percentiles (N from engine.uncertainty.DEFAULT_N unless overridden)."""
     _emit(on_progress, "prepare", "Reading your farm data")
+    reject_unsupported_farm_commodities(assessment)
     region_code = _region_of(assessment, region)
     eng, lock = _engine(region_code, method)
     total = total_production_kg(assessment)
@@ -221,32 +289,39 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
             share = (food.get("area_allocated") or 0) / total_area
             sub = _sub_assessment(assessment, food, share)
             inputs, _ = extract_purchased_inputs(sub)
+            kernel_sub, inputs, prep_notes = prepare_farm_run(sub, inputs, eng.region)
             with lock:
-                per_crop[_crop_label(food)] = eng.assess_farm(sub, inputs)
+                crop_res = eng.assess_farm(kernel_sub, inputs)
+                farm_flows.apply(crop_res, eng, sub)   # pesticide AI, irrigation water, composting
+            crop_res.notes = prep_notes + crop_res.notes
+            per_crop[_crop_label(food)] = crop_res
         _emit(on_progress, "characterize", "Characterizing impacts")
         farm = _sum_results(per_crop)
         if run_uncertainty:
             _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
         _emit(on_progress, "report", "Compiling your report")
-        return to_assessment_response(
+        return lift_validation_warnings(_with_metadata(assessment, to_assessment_response(
             farm, assessment, eng, total,
             assessment_id or str(uuid.uuid4()), per_crop=per_crop,
             run_uncertainty=run_uncertainty,
             uncertainty_n=uncertainty_n,
             uncertainty_seed=uncertainty_seed,
-        )
+        )))
 
     # single crop / no area -> one whole-farm system (fine-grained per-input progress)
     inputs, in_notes = extract_purchased_inputs(assessment)
+    kernel_assessment, inputs, prep_notes = prepare_farm_run(assessment, inputs, eng.region)
+    in_notes = list(in_notes) + prep_notes
     with lock:
-        res = eng.assess_farm(assessment, inputs, on_progress=on_progress)
+        res = eng.assess_farm(kernel_assessment, inputs, on_progress=on_progress)
+        farm_flows.apply(res, eng, assessment)   # pesticide AI, irrigation water, composting
     if run_uncertainty:
         _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
     _emit(on_progress, "report", "Compiling your report")
-    return to_assessment_response(
+    return lift_validation_warnings(_with_metadata(assessment, to_assessment_response(
         res, assessment, eng, total,
         assessment_id or str(uuid.uuid4()), in_notes,
         run_uncertainty=run_uncertainty,
         uncertainty_n=uncertainty_n,
         uncertainty_seed=uncertainty_seed,
-    )
+    )))
