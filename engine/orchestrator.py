@@ -62,6 +62,13 @@ ADJUDICATE_MAX_CANDIDATES = 6
 # (only the location string in the embedded text differs), so 0.03 admits them while
 # keeping out other products of the same family. Calibrated on the regression set.
 REGION_RECALL_DELTA = 0.03
+# Region fallback window: identity-passing datasets located better in the region's
+# preference list than every retrieved candidate (e.g. Burkina Faso has no national grid in
+# the store and only foreign or RoW grids were retrieved; the "Africa"/RAF market group is
+# preferred) are admitted if within this distance of the candidate that would otherwise win.
+# 0.10 is the spread observed on the six-region mapping between a
+# country-specific grid or plant and its RAF/RoW variant (only the location words differ).
+REGION_FALLBACK_DELTA = 0.10
 
 
 def _product_key(ref: str | None) -> str:
@@ -193,7 +200,7 @@ class FarmLCA:
         ref = c.get("reference_product") or ""
         return pid.passes(ident, self._provided(c), f"{c.get('name') or ''} {ref}")
 
-    def _identity_recall(self, text: str, ident) -> list[dict]:
+    def _identity_recall(self, text: str, ident, top_k: int = 40, where=None) -> list[dict]:
         """Every dataset in the store that passes the gate, scored against `text`. Used only
         when the embedding top-k holds no candidate of the right product."""
         if ident.basis == "none":
@@ -219,7 +226,15 @@ class FarmLCA:
                         ok |= us
                 sets.append(ok)
             uids = sorted(set.intersection(*sets)) if sets else []
-        return self.matcher.score_uids(text, uids, top_k=40)
+            # full gate (symmetric qualifiers, waste streams) on the index hits
+            meta = dict(zip(self.matcher.uids, self.matcher.meta))
+            uids = [u for u in uids
+                    if self._passes(ident, {"uid": u, "name": meta[u].get("name"),
+                                            "reference_product": self.matcher.reference_product(u)})]
+        if where is not None:
+            meta = dict(zip(self.matcher.uids, self.matcher.meta))
+            uids = [u for u in uids if where(meta[u])]
+        return self.matcher.score_uids(text, uids, top_k=top_k)
 
     def _rank(self, pool: list[dict], text: str = "") -> list[dict]:
         """Production-system fit first (a conventional query must not land on an organic or
@@ -231,6 +246,62 @@ class FarmLCA:
                                  location_rank(self.region, c.get("location")),
                                  -c["score"], c["uid"]))
         return kept
+
+    def _region_fallback(self, text: str, ident, passing: list[dict]) -> list[dict]:
+        """Admit identity-passing store datasets located BETTER in the region's preference
+        list than every retrieved passing candidate (e.g. the "Africa"/RAF market group
+        when only RoW or foreign grids were retrieved for Burkina Faso), if within
+        REGION_FALLBACK_DELTA of the candidate region ranking would otherwise pick."""
+        # Step down the preference tiers: each admitted tier becomes the new reference, so
+        # foreign -> RoW -> Africa/RAF is reached in steps of at most REGION_FALLBACK_DELTA.
+        passing = list(passing)
+        for _ in range(len(self.region.location_prefer) + 1):
+            best_rank = min(location_rank(self.region, c.get("location")) for c in passing)
+            if best_rank == 0:
+                break
+            # reference = the candidate region ranking would otherwise pick (best tier)
+            top = max(c["score"] for c in passing
+                      if location_rank(self.region, c.get("location")) == best_rank)
+            have = {c["uid"] for c in passing}
+            better = lambda meta, br=best_rank: location_rank(self.region, meta.get("location")) < br  # noqa: E731
+            extra = [c for c in self._identity_recall(text, ident, top_k=200, where=better)
+                     if c["uid"] not in have
+                     and c["score"] >= max(0.35, top - REGION_FALLBACK_DELTA)]
+            if not extra:
+                break
+            passing += extra
+        return passing
+
+    def _unit_compatible(self, passing: list[dict], context: dict, text: str) -> list[dict]:
+        """Prefer datasets whose reference unit the input amount can be converted to
+        (engine/units.py). An ecoinvent multi-output treatment activity exists once per
+        product ("treatment of biowaste by anaerobic digestion | biogas" per m3 and "... |
+        biowaste" per kg); a kg of waste must take the kg-referenced one, not be dropped at
+        solve time for a unit mismatch. If no candidate is compatible, all are kept and the
+        solve reports the mismatch as before."""
+        unit = context.get("amount_unit")
+        if not unit:
+            return passing
+        try:
+            from . import units
+        except ImportError:
+            import units
+        probe = {"name": context.get("input_name") or text, "match_as": text, "unit": unit,
+                 "amount": 1.0}
+        if context.get("substance"):
+            probe["substance"] = context["substance"]
+        ok = []
+        for c in passing:
+            ref_unit = c.get("ref_unit")
+            if ref_unit is None:
+                ref_unit = (self.q.get_process(c["uid"]) or {}).get("ref_unit")
+                c["ref_unit"] = ref_unit
+            try:
+                units.to_ref_unit(probe, ref_unit)
+                ok.append(c)
+            except units.UnitMismatchError:
+                continue
+        return ok or passing
 
     def _match_input(self, text: str, expand: bool = False, context: dict | None = None) -> dict | None:
         """Region-aware match behind a product-identity gate.
@@ -276,6 +347,13 @@ class FarmLCA:
                 if c["uid"] not in have and c["score"] >= top_pass - REGION_RECALL_DELTA:
                     passing.append(c)
                     have.add(c["uid"])
+        if passing:
+            # unit fit first (so the region check sees only usable datasets), then the
+            # region fallback, then unit fit again on what the fallback added
+            passing = self._unit_compatible(passing, context or {}, text)
+            if ident.basis in ("concept", "proxy"):   # not for loose (generic/token) identities
+                passing = self._region_fallback(text, ident, passing)
+                passing = self._unit_compatible(passing, context or {}, text)
         if passing:
             ranked = self._rank(passing, text)
             needs_review = ident.needs_review
@@ -355,7 +433,7 @@ class FarmLCA:
         Returns (match or None, fallback text used or None)."""
         target = inp.get("match_as") or inp["name"]
         ctx = {"input_name": inp.get("name"), "kind": inp.get("kind"),
-               "amount_unit": inp.get("unit")}
+               "amount_unit": inp.get("unit"), "substance": inp.get("substance")}
         m = self._match_input(target, expand=expand, context=ctx)
         chain = list(inp.get("fallbacks") or [])
         if inp.get("fallback") and inp["fallback"] not in chain:

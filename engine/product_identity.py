@@ -205,7 +205,35 @@ _C: dict[str, dict] = {
     "firewood": {"family": "fuel", "terms": ["firewood", "fuelwood", "fuel wood",
                                              "wood logs", "wood chips"]},
     "charcoal": {"family": "fuel", "terms": ["charcoal"]},
+    "biogas": {"family": "fuel", "terms": ["biogas"]},
     "electricity": {"family": "energy", "terms": ["electricity"]},
+    "low_voltage": {"family": "energy", "terms": ["low voltage"]},
+    "medium_voltage": {"family": "energy", "terms": ["medium voltage"]},
+    "high_voltage": {"family": "energy", "terms": ["high voltage"]},
+    # ---- qualifiers: process form / technology. They are SYMMETRIC (see passes): a
+    # candidate carrying one the query lacks fails, and vice versa, so "diesel, burned in
+    # machinery" never takes a diesel supply dataset, a supply query never takes a
+    # combustion dataset, seed for sowing is never grain, and a grid query never takes a
+    # single-technology plant. Read from the activity name as well as the product. ----
+    "combustion": {"family": "process", "qualifier": True,
+                   "terms": ["burned", "burnt", "combustion", "combusted"]},
+    "pump_operation": {"family": "process", "qualifier": True,
+                       "terms": ["water pump operation", "pump operation"]},
+    "sowing_seed": {"family": "process", "qualifier": True,
+                    "terms": ["for sowing", "seed for sowing", "planting material"]},
+    "hydro": {"family": "technology", "qualifier": True,
+              "terms": ["hydro", "hydropower", "hydroelectric", "hydroelectricity"]},
+    "wind": {"family": "technology", "qualifier": True,
+             "terms": ["wind", "wind turbine", "wind power"]},
+    "photovoltaic": {"family": "technology", "qualifier": True,
+                     "terms": ["photovoltaic", "solar pv", "pv"]},
+    # ---- chemicals with metal names (copper fungicides are copper salts, not the metal) ----
+    "copper_oxide": {"family": "pesticide", "terms": ["copper oxide", "cupric oxide",
+                                                      "copper hydroxide", "copper oxychloride"]},
+    "copper_sulfate": {"family": "pesticide", "terms": ["copper sulfate", "copper sulphate"]},
+    "copper_metal": {"family": "metal", "terms": ["copper", "copper cathode", "cathode copper"]},
+    # ---- by-products that share words with fuels / fertilisers ----
+    "digestate": {"family": "fertiliser", "terms": ["digestate"]},
     # ---- packaging materials ----
     "packaging": {"family": "packaging", "terms": ["packaging"], "generic": True},
     "polypropylene": {"family": "packaging", "terms": ["polypropylene"]},
@@ -226,6 +254,12 @@ _C: dict[str, dict] = {
     "jute": {"family": "packaging", "terms": ["jute", "jute sack", "jute bag"]},
     # ---- water and waste (service activities; identity read from the activity name) ----
     "tap_water": {"family": "water", "terms": ["tap water", "drinking water"]},
+    "deionised_water": {"family": "water", "terms": ["water deionised", "deionised water",
+                                                     "water deionized", "deionized water",
+                                                     "demineralised water"]},
+    "decarbonised_water": {"family": "water", "terms": ["water decarbonised",
+                                                        "decarbonised water"]},
+    "ultrapure_water": {"family": "water", "terms": ["water ultrapure", "ultrapure water"]},
     "wastewater": {"family": "waste", "terms": ["wastewater", "waste water", "effluent"]},
     "msw": {"family": "waste", "terms": ["municipal solid waste", "msw"]},
     "landfill": {"family": "waste", "terms": ["landfill"]},
@@ -243,7 +277,15 @@ _C: dict[str, dict] = {
 
 # Families whose identity sits in the ACTIVITY name rather than the reference product
 # (ecoinvent treatment and transport activities have the waste / service as reference).
-NAME_IDENTITY_FAMILIES = frozenset({"waste", "transport", "water"})
+NAME_IDENTITY_FAMILIES = frozenset({"waste", "transport", "water", "process", "technology"})
+
+# A candidate whose reference product is a WASTE or scrap stream ("market for waste glass",
+# "market for waste polyethylene") never satisfies a material / product query, even though
+# it names the material. It carries this marker concept instead (no terms, set by
+# candidate_concepts) and only waste-treatment queries accept it.
+_C["_waste_stream"] = {"family": "waste_stream", "terms": []}
+_WASTE_STREAM_PREFIXES = ("waste ", "scrap ", "used ", "spent ", "post consumer ")
+QUALIFIERS = frozenset(c for c, spec in _C.items() if spec.get("qualifier"))
 
 # Words that never identify a product: used by the token (head-noun) fallback.
 _STOPWORDS = frozenset("""
@@ -347,10 +389,20 @@ class Identity:
 
 
 def query_identity(query: str) -> Identity:
-    found = detect(query)
+    """Concepts a query requires. A query written as an ecoinvent dataset name
+    ("activity | product | system") is read like a candidate: concepts of the PRODUCT, plus
+    service, process and technology concepts of the activity (so "anaerobic digestion of
+    manure | biogas" requires biogas, not manure)."""
+    parts = [p.strip() for p in (query or "").split("|")]
+    if len(parts) >= 2 and parts[1]:
+        found = sorted(c for c in candidate_concepts(parts[0], parts[1]) if not c.startswith("_"))
+    else:
+        found = detect(query)
     specific = [c for c in found if not _C[c].get("generic")]
     if specific:
-        proxy = all(_C[c].get("accept") and c not in _C[c]["accept"] for c in specific)
+        core = [c for c in specific if not _C[c].get("qualifier")]
+        proxy = bool(core) and all(_C[c].get("accept") and c not in _C[c]["accept"]
+                                   for c in core)
         return Identity("proxy" if proxy else "concept", specific)
     if found:
         return Identity("generic", found)
@@ -362,9 +414,17 @@ def candidate_concepts(name: str | None, reference_product: str | None) -> froze
     """Concepts a background dataset provides: those of its reference product, plus
     service-family concepts read from the activity name."""
     ref = reference_product or name or ""
+    # Agribalyse copies of ecoinvent read "Product {LOC}| activity | system": the product is
+    # the part before the first "|"; the activity part counts like an activity name.
+    activity = name if name and name != ref else ""
+    if "|" in ref:
+        ref, rest = ref.split("|", 1)
+        activity = f"{activity} {rest}".strip()
     got = set(detect(ref))
-    if name and name != ref:
-        got.update(c for c in detect(name) if _C[c]["family"] in NAME_IDENTITY_FAMILIES)
+    if activity:
+        got.update(c for c in detect(activity) if _C[c]["family"] in NAME_IDENTITY_FAMILIES)
+    if normalise(ref).lstrip().startswith(_WASTE_STREAM_PREFIXES):
+        got.add("_waste_stream")
     return frozenset(got)
 
 
@@ -380,11 +440,18 @@ def satisfied(cid: str, provided: frozenset) -> bool:
 
 def passes(identity: Identity, provided: frozenset, cand_text: str = "") -> bool:
     """Gate: does a candidate (its provided concepts / text) carry the query's identity?"""
+    if identity.basis == "none":
+        return False
+    wanted = set(identity.concepts)
+    # symmetric qualifiers: the candidate may not add a process form / technology
+    if (provided & QUALIFIERS) - wanted:
+        return False
+    # a waste stream only satisfies a waste-treatment query
+    if "_waste_stream" in provided and not any(_C[c]["family"] == "waste" for c in wanted):
+        return False
     if identity.basis in ("concept", "proxy", "generic"):
         return all(satisfied(c, provided) for c in identity.concepts)
-    if identity.basis == "token":
-        return bool(identity.tokens & content_tokens(cand_text))
-    return False
+    return bool(identity.tokens & content_tokens(cand_text))
 
 
 def review_reason(identity: Identity) -> str | None:
