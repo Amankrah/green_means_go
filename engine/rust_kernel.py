@@ -119,7 +119,7 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
             notes.append(f"unmapped Rust flow '{sub}' (source: {item.get('source')})")
             continue
         flow = {"substance": key, "quantity": item.get("quantity", 0.0),
-                "unit": item.get("unit")}
+                "unit": item.get("unit"), "source": item.get("source")}
         if sub in ORIGIN_MAP:
             flow["origin"] = ORIGIN_MAP[sub]
         onfarm.append(flow)

@@ -70,14 +70,27 @@ def test_world_unknown_equals_ef31_background_cf():
     assert abs(ws._table()["world"]["unspecified"] - 42.95) < 0.01
 
 
-def test_measured_purchased_water_supersedes_kernel_estimate():
-    lci = [{"substance": "water", "quantity": 8000.0}]
+def test_consumed_share_follows_fao_application_efficiency():
+    # FAO Training Manual No. 4 Annex I: surface 0.60, sprinkler 0.75, drip 0.90
+    assert ws.consumptive_fraction("Flood irrigation") == (0.60, "surface")
+    assert ws.consumptive_fraction("Furrow irrigation")[0] == 0.60
+    assert ws.consumptive_fraction("Sprinkler System")[0] == 0.75
+    assert ws.consumptive_fraction("Drip irrigation")[0] == 0.90
+    assert ws.consumptive_fraction(None)[0] == 0.60           # unknown -> surface, never 1.0
+    lci = [{"substance": "water", "quantity": 8000.0, "source": "Irrigation water (Flood irrigation)"}]
     m3, notes = ws.foreground_consumption(lci, [])
-    assert m3 == 8000.0 and not notes
-    bought = [{"name": "irrigation water", "amount": 3000.0, "unit": "m3", "water_source": "borehole"}]
+    assert abs(m3 - 4800.0) < 1e-9 and any("0.60 consumed" in n for n in notes)
+    lci_d = [{"substance": "water", "quantity": 3000.0, "source": "Irrigation water (Drip irrigation)"}]
+    assert abs(ws.foreground_consumption(lci_d, [])[0] - 2700.0) < 1e-9
+
+
+def test_measured_purchased_water_supersedes_kernel_estimate():
+    lci = [{"substance": "water", "quantity": 8000.0, "source": "Irrigation water (Flood irrigation)"}]
+    bought = [{"name": "irrigation water", "amount": 3000.0, "unit": "m3", "water_source": "borehole",
+               "irrigation_system": "Sprinkler"}]
     m3, notes = ws.foreground_consumption(lci, bought)
-    assert m3 == 3000.0 and any("supersedes" in n for n in notes)
-    bought[0]["consumptive_fraction"] = 0.5
+    assert abs(m3 - 2250.0) < 1e-9 and any("supersedes" in n for n in notes)
+    bought[0]["consumptive_fraction"] = 0.5                 # user override wins
     assert ws.foreground_consumption(lci, bought)[0] == 1500.0
 
 
@@ -92,8 +105,8 @@ def test_apply_books_regional_flow_and_strips_background_evaporation():
     bought = [{"name": "irrigation water", "amount": 100.0, "unit": "m3", "water_source": "river"}]
     info = ws.apply(q, get_region("GH"), [{"substance": "water", "quantity": 500.0}], bought,
                     onfarm, supply, res, "EF v3.1")
-    assert info and info["country"] == "Ghana" and info["m3"] == 100.0
-    assert onfarm["w-gh"]["amount"] == 100.0                     # foreground, regional flow
+    assert info and info["country"] == "Ghana" and abs(info["m3"] - 60.0) < 1e-9   # 100 m3 x 0.60
+    assert abs(onfarm["w-gh"]["amount"] - 60.0) < 1e-9            # foreground, regional flow
     assert abs(supply["evap"]["amount"] - 10.0) < 1e-12          # 30 of 40 removed
     assert "evap" not in res.contribution_flows_by_source["irrigation water"]
     assert "river" in res.contribution_flows_by_source["irrigation water"]   # withdrawal kept
@@ -104,7 +117,7 @@ def test_apply_unknown_country_uses_world_flow_and_flags():
     onfarm = {}
     info = ws.apply(q, SimpleNamespace(aware_country="Atlantis", name="Atlantis"),
                     [{"substance": "water", "quantity": 10.0}], [], onfarm, {}, res, "EF v3.1")
-    assert info["country"] == "World" and onfarm["w-world"]["amount"] == 10.0
+    assert info["country"] == "World" and abs(onfarm["w-world"]["amount"] - 6.0) < 1e-9
     assert any("world default" in n for n in res.notes)
 
 
