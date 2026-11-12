@@ -66,8 +66,15 @@ REFINED_MATERIAL_HINTS = {
     "rapeseed oil": "rape oil",
     "canola oil": "rape oil",
     "sunflower oil": "sunflower oil",
-    "groundnut oil": "groundnut oil",
-    "peanut oil": "groundnut oil",
+    "groundnut oil": "peanut oil, at oil mill",
+    "peanut oil": "peanut oil, at oil mill",
+    "arachis oil": "peanut oil, at oil mill",
+    "peanut butter": "peanut butter or peanut paste, recipe, at plant",
+    "groundnut paste": "peanut butter or peanut paste, recipe, at plant",
+    "cottonseed oil": "cottonseed oil, crude, cottonseed oil mill operation",
+    "cotton seed oil": "cottonseed oil, crude, cottonseed oil mill operation",
+    "cotton lint": "fibre production, cotton, ginning | fibre, cotton",
+    "cotton fibre": "fibre production, cotton, ginning | fibre, cotton",
     "vegetable oil": "rape oil",
     "cocoa butter": "cocoa butter",
     "chocolate": "dark chocolate production",
@@ -85,32 +92,93 @@ REFINED_MATERIAL_HINTS = {
 # Raw-material crop-keyword hints -> a farm-gate PRODUCTION dataset to match against. This
 # steers free text like "Maize kernels" to "maize grain production" (the harvested crop),
 # not "maize seed production" (seed for sowing) or a consumer-stage Ciqual product. Keyed by
-# a substring found in the declared material name; first match wins after refined hints.
+# a WHOLE WORD (or phrase) of the declared material name, plural-insensitive; the longest
+# key wins after refined hints. Targets name datasets that exist in the canonical store
+# (ecoinvent 3.11 / Agribalyse 3.2); notes on coverage:
+#   groundnut/peanut: no "groundnut" dataset; ecoinvent "peanut production" (RoW, IN, CN, AR)
+#   eggplant/aubergine/brinjal/garden egg: "aubergine production, open field" (RoW, IN)
+#   cucumber: only "cucumber production, in heated greenhouse" (GLO); flagged as a proxy
+#     for open-field cucumber by the identity gate's reviewers, not by this table
+#   chilli / hot pepper / bare "pepper" (West African usage): "chilli production" (RoW, IN)
+#   bell / sweet pepper: "bell pepper production, open field" (RoW, IN)
+#   FFB / fresh fruit bunches: "palm fruit bunch production" (RoW, ID, MY, CO)
+#   honey: WFLDB "Honey, raw, small-scale production, unpackaged, at farm {CH}" (smallholder
+#     West African beekeeping is small-scale) or the large-scale {US} dataset
+#   millet: "millet production" (RoW, IN); sorghum: grain sorghum is only in Agribalyse
+#     ("Sorghum grain ... at farm gate" FR/US); sweet sorghum is a different crop
+#   sesame: "sesame seed production" (RoW, IN); seed cotton: "seed-cotton production,
+#     conventional" (RoW, BD, IN); cottonseed is a ginning co-product
+#   onion, sugarcane, orange, lemon, mandarin, grape, apple, pear: ecoinvent "<crop>
+#     production" datasets; ZA has orange, mandarin, apple and pear
+#   cassava, yam, plantain: no farm-gate dataset in the store (Agribalyse has FR consumer
+#     products only); the hint is kept so the gate searches by crop identity and flags
+#     the fallback when nothing passes.
 RAW_MATERIAL_HINTS = {
     "maize": "maize grain production", "corn": "maize grain production",
     "wheat": "wheat grain production", "rice": "rice production", "paddy": "rice production",
-    "soy": "soybean production", "sorghum": "sorghum grain production", "millet": "millet production",
+    "soy": "soybean production", "soybean": "soybean production", "soya": "soybean production",
+    "sorghum": "sorghum grain, at farm gate", "guinea corn": "sorghum grain, at farm gate",
+    "millet": "millet production", "pearl millet": "millet production",
     "potato": "potato production", "cassava": "cassava production", "manioc": "cassava production",
     "yam": "yam production", "plantain": "banana production", "banana": "banana production",
     "cocoa": "cocoa bean production", "coffee": "coffee green bean production",
-    "groundnut": "groundnut production", "peanut": "groundnut production",
-    "palm": "palm fruit bunch production", "sugarcane": "sugarcane production",
+    "groundnut": "peanut production", "ground nut": "peanut production",
+    "peanut": "peanut production",
+    "palm": "palm fruit bunch production", "oil palm": "palm fruit bunch production",
+    "ffb": "palm fruit bunch production", "fresh fruit bunch": "palm fruit bunch production",
+    "palm fruit": "palm fruit bunch production",
+    "sugarcane": "sugarcane production", "sugar cane": "sugarcane production",
     "sunflower": "sunflower production", "rape": "rape seed production", "canola": "rape seed production",
     "barley": "barley grain production", "oat": "oat grain production", "tomato": "tomato production",
     "cabbage": "white cabbage production", "onion": "onion production", "carrot": "carrot production",
     "fava": "fava bean production", "pea": "protein pea production", "bean": "fava bean production",
+    "eggplant": "aubergine production, open field", "aubergine": "aubergine production, open field",
+    "brinjal": "aubergine production, open field", "garden egg": "aubergine production, open field",
+    "cucumber": "cucumber production",
+    "chilli": "chilli production", "chili": "chilli production", "hot pepper": "chilli production",
+    "pepper": "chilli production", "scotch bonnet": "chilli production",
+    "bell pepper": "bell pepper production, open field",
+    "sweet pepper": "bell pepper production, open field",
+    "honey": "Honey, raw, small-scale production, unpackaged, at farm",
+    "honeycomb": "Honey, raw, small-scale production, unpackaged, at farm",
+    "sesame": "sesame seed production", "benniseed": "sesame seed production",
+    "cotton": "seed-cotton production, conventional",
+    "seed cotton": "seed-cotton production, conventional",
+    "cottonseed": "cottonseed, from cotton ginning",
+    "orange": "orange production, fresh grade", "citrus": "orange production, fresh grade",
+    "lemon": "lemon production", "mandarin": "mandarin production",
+    "tangerine": "mandarin production", "grapefruit": "grapefruit, at farm gate",
+    "grape": "grape production", "apple": "apple production", "pear": "pear production",
+    "pineapple": "pineapple production",
 }
 
 
+def _hint_key_re(key: str):
+    import re
+    words = re.findall(r"[a-z0-9]+", key.lower())
+    return re.compile(r"(?<![a-z0-9])" + r"[\s\-_]+".join(map(re.escape, words))
+                      + r"(?:s|es)?(?![a-z0-9])")
+
+
 def _raw_material_match(name: str) -> tuple[str, bool]:
-    """Return (match hint, is_refined). Refined intermediates win over farm-gate crop keywords."""
+    """Return (match hint, is_refined). Refined intermediates win over farm-gate crop keywords.
+    Keys match whole words (plural-insensitive), longest key first, so "Peanuts" is not
+    "pea", "Grapes" is not "rape", and "Pineapple" is not "apple"."""
     low = (name or "").lower()
-    for key in sorted(REFINED_MATERIAL_HINTS, key=len, reverse=True):
-        if key in low:
-            return REFINED_MATERIAL_HINTS[key], True
+    raw_key, raw_span = None, None
     for key in sorted(RAW_MATERIAL_HINTS, key=len, reverse=True):
-        if key in low:
-            return RAW_MATERIAL_HINTS[key], False
+        m = _hint_key_re(key).search(low)
+        if m:
+            raw_key, raw_span = key, m.span()
+            break
+    for key in sorted(REFINED_MATERIAL_HINTS, key=len, reverse=True):
+        m = _hint_key_re(key).search(low)
+        # a refined word inside a longer crop phrase is the crop ("sugar" in "sugar cane")
+        if m and not (raw_span and raw_span[0] <= m.start() and m.end() <= raw_span[1]
+                      and (raw_span[1] - raw_span[0]) > (m.end() - m.start())):
+            return REFINED_MATERIAL_HINTS[key], True
+    if raw_key:
+        return RAW_MATERIAL_HINTS[raw_key], False
     return f"{name} production", False
 
 

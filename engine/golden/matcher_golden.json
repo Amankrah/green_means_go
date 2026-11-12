@@ -1,0 +1,1746 @@
+{
+ "index_fingerprint": "35396a74b83f3f06",
+ "embedder": "openai:text-embedding-3-small",
+ "rows": {
+  "farm|GH|Bio-fertilizer fertiliser": {
+   "target": "Bio-fertilizer fertiliser",
+   "uid": "d246a1d8-fa35-3d9f-b8fc-3ca16a0fe437",
+   "name": "Compost, of manure and agroindustrial residues (for organic fertiliser) (amendment), allocation cut-off on process {RER} U",
+   "location": "Europe",
+   "score": 0.5742,
+   "needs_review": true,
+   "identity_basis": "proxy",
+   "fallback_used": null
+  },
+  "farm|GH|Diammonium Phosphate (DAP) 18-46-0 fertiliser": {
+   "target": "Diammonium Phosphate (DAP) 18-46-0 fertiliser",
+   "uid": "73e01523-47d8-3f85-ae59-5cbd2d50d7bb",
+   "name": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.8132,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|Diammonium Phosphate (DAP) fertiliser": {
+   "target": "Diammonium Phosphate (DAP) fertiliser",
+   "uid": "73e01523-47d8-3f85-ae59-5cbd2d50d7bb",
+   "name": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.8052,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|Foliar Fertilizer fertiliser": {
+   "target": "Foliar Fertilizer fertiliser",
+   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
+   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.5227,
+   "needs_review": true,
+   "identity_basis": "proxy",
+   "fallback_used": null
+  },
+  "farm|GH|Muriate of Potash fertiliser": {
+   "target": "Muriate of Potash fertiliser",
+   "uid": "3622a9c0-2db2-3582-a913-d322c674e058",
+   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.5494,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|NPK Compound 15-15-15 fertiliser": {
+   "target": "NPK Compound 15-15-15 fertiliser",
+   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
+   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.7586,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|NPK Compound fertiliser": {
+   "target": "NPK Compound fertiliser",
+   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
+   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.6914,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|NPK fertiliser": {
+   "target": "NPK fertiliser",
+   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
+   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.7088,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|None fertiliser": {
+   "target": "None fertiliser",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.5781,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|GH|Organic Fertilizer fertiliser": {
+   "target": "Organic Fertilizer fertiliser",
+   "uid": "7f574404-4e39-3d07-bdd6-3221c8bed247",
+   "name": "Organic fertiliser, >3% N, granulate, packaged, allocation cut-off on process {RER} U",
+   "location": "Europe",
+   "score": 0.6793,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|Single Super Phosphate fertiliser": {
+   "target": "Single Super Phosphate fertiliser",
+   "uid": "40e76043-1984-3698-858c-d17afe1193e8",
+   "name": "single superphosphate production | single superphosphate | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.705,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|Urea 46-0-0 fertiliser": {
+   "target": "Urea 46-0-0 fertiliser",
+   "uid": "122deec0-9e29-39ec-bc2e-4c89d0ae1c3e",
+   "name": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.673,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|Urea fertiliser": {
+   "target": "Urea fertiliser",
+   "uid": "122deec0-9e29-39ec-bc2e-4c89d0ae1c3e",
+   "name": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.6485,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|biodiesel, burned in agricultural machinery": {
+   "target": "biodiesel, burned in agricultural machinery",
+   "uid": "ab543b84-6ff7-3f94-b3b8-11c096f931f3",
+   "name": "market for diesel, burned in agricultural machinery | diesel, burned in agricultural machinery | Cutoff, U",
+   "location": "Global",
+   "score": 0.6407,
+   "needs_review": true,
+   "identity_basis": "proxy",
+   "fallback_used": null
+  },
+  "farm|GH|compost": {
+   "target": "market for compost",
+   "uid": "ceb5c5a1-97a2-3cb6-8ac4-bbbbbc67fd09",
+   "name": "market for compost | compost | Cutoff, U",
+   "location": "Global",
+   "score": 0.736,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|diesel, burned in agricultural machinery": {
+   "target": "diesel, burned in agricultural machinery",
+   "uid": "6cf78249-fa06-3970-971d-e9b534abcb47",
+   "name": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.7769,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|electricity low voltage": {
+   "target": "electricity low voltage",
+   "uid": "aa4c3599-4053-3ee3-954b-5101adaae2ac",
+   "name": "Electricity, low voltage {GH}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Ghana",
+   "score": 0.7529,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|glyphosate": {
+   "target": "pesticide production, unspecified",
+   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
+   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.819,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|kerosene, burned in agricultural machinery": {
+   "target": "kerosene, burned in agricultural machinery",
+   "uid": "64e52f06-2d56-3446-b161-2df0b94755c0",
+   "name": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.641,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|petrol, burned in agricultural machinery": {
+   "target": "petrol, burned in agricultural machinery",
+   "uid": "fbceef59-e7ca-334f-9246-ef4165a6f97a",
+   "name": "petrol, unleaded, burned in machinery | petrol, unleaded, burned in machinery | Cutoff, U",
+   "location": "Global",
+   "score": 0.6746,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|urea fertiliser": {
+   "target": "urea fertiliser",
+   "uid": "122deec0-9e29-39ec-bc2e-4c89d0ae1c3e",
+   "name": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.6069,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|Bio-fertilizer fertiliser": {
+   "target": "Bio-fertilizer fertiliser",
+   "uid": "d246a1d8-fa35-3d9f-b8fc-3ca16a0fe437",
+   "name": "Compost, of manure and agroindustrial residues (for organic fertiliser) (amendment), allocation cut-off on process {RER} U",
+   "location": "Europe",
+   "score": 0.5742,
+   "needs_review": true,
+   "identity_basis": "proxy",
+   "fallback_used": null
+  },
+  "farm|NG|Diammonium Phosphate (DAP) 18-46-0 fertiliser": {
+   "target": "Diammonium Phosphate (DAP) 18-46-0 fertiliser",
+   "uid": "73e01523-47d8-3f85-ae59-5cbd2d50d7bb",
+   "name": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.8132,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|Diammonium Phosphate (DAP) fertiliser": {
+   "target": "Diammonium Phosphate (DAP) fertiliser",
+   "uid": "73e01523-47d8-3f85-ae59-5cbd2d50d7bb",
+   "name": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.8052,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|Foliar Fertilizer fertiliser": {
+   "target": "Foliar Fertilizer fertiliser",
+   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
+   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.5227,
+   "needs_review": true,
+   "identity_basis": "proxy",
+   "fallback_used": null
+  },
+  "farm|NG|Muriate of Potash fertiliser": {
+   "target": "Muriate of Potash fertiliser",
+   "uid": "3622a9c0-2db2-3582-a913-d322c674e058",
+   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.5494,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|NPK Compound 15-15-15 fertiliser": {
+   "target": "NPK Compound 15-15-15 fertiliser",
+   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
+   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.7586,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|NPK Compound fertiliser": {
+   "target": "NPK Compound fertiliser",
+   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
+   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.6914,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|NPK fertiliser": {
+   "target": "NPK fertiliser",
+   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
+   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.7088,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|None fertiliser": {
+   "target": "None fertiliser",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.5781,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|NG|Organic Fertilizer fertiliser": {
+   "target": "Organic Fertilizer fertiliser",
+   "uid": "7f574404-4e39-3d07-bdd6-3221c8bed247",
+   "name": "Organic fertiliser, >3% N, granulate, packaged, allocation cut-off on process {RER} U",
+   "location": "Europe",
+   "score": 0.6793,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|Single Super Phosphate fertiliser": {
+   "target": "Single Super Phosphate fertiliser",
+   "uid": "40e76043-1984-3698-858c-d17afe1193e8",
+   "name": "single superphosphate production | single superphosphate | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.705,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|Urea 46-0-0 fertiliser": {
+   "target": "Urea 46-0-0 fertiliser",
+   "uid": "122deec0-9e29-39ec-bc2e-4c89d0ae1c3e",
+   "name": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.673,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|Urea fertiliser": {
+   "target": "Urea fertiliser",
+   "uid": "122deec0-9e29-39ec-bc2e-4c89d0ae1c3e",
+   "name": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.6485,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|biodiesel, burned in agricultural machinery": {
+   "target": "biodiesel, burned in agricultural machinery",
+   "uid": "ab543b84-6ff7-3f94-b3b8-11c096f931f3",
+   "name": "market for diesel, burned in agricultural machinery | diesel, burned in agricultural machinery | Cutoff, U",
+   "location": "Global",
+   "score": 0.6407,
+   "needs_review": true,
+   "identity_basis": "proxy",
+   "fallback_used": null
+  },
+  "farm|NG|compost": {
+   "target": "market for compost",
+   "uid": "ceb5c5a1-97a2-3cb6-8ac4-bbbbbc67fd09",
+   "name": "market for compost | compost | Cutoff, U",
+   "location": "Global",
+   "score": 0.736,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|diesel, burned in agricultural machinery": {
+   "target": "diesel, burned in agricultural machinery",
+   "uid": "6cf78249-fa06-3970-971d-e9b534abcb47",
+   "name": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.7769,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|electricity low voltage": {
+   "target": "electricity low voltage",
+   "uid": "6e53432d-9c3e-361d-b217-2b87c5675ba0",
+   "name": "Electricity, low voltage {NG}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Nigeria",
+   "score": 0.7695,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|glyphosate": {
+   "target": "pesticide production, unspecified",
+   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
+   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.819,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|kerosene, burned in agricultural machinery": {
+   "target": "kerosene, burned in agricultural machinery",
+   "uid": "64e52f06-2d56-3446-b161-2df0b94755c0",
+   "name": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.641,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|petrol, burned in agricultural machinery": {
+   "target": "petrol, burned in agricultural machinery",
+   "uid": "fbceef59-e7ca-334f-9246-ef4165a6f97a",
+   "name": "petrol, unleaded, burned in machinery | petrol, unleaded, burned in machinery | Cutoff, U",
+   "location": "Global",
+   "score": 0.6746,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|urea fertiliser": {
+   "target": "urea fertiliser",
+   "uid": "122deec0-9e29-39ec-bc2e-4c89d0ae1c3e",
+   "name": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U",
+   "location": "Rest of World",
+   "score": 0.6069,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|Cardboard packaging": {
+   "target": "market for corrugated board box",
+   "uid": "2424352b-3df3-3415-9fbf-a6b1eff0ce60",
+   "name": "market for corrugated board box | corrugated board box | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.8459,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|Composite packaging": {
+   "target": "market for packaging film, low density polyethylene",
+   "uid": "2c6f2262-deda-304a-bbc8-354f5e98fa5a",
+   "name": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7437,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|Glass packaging": {
+   "target": "market for packaging glass, white",
+   "uid": "7d98328c-e396-3a91-864b-17f339cac3b4",
+   "name": "packaging glass production, white | packaging glass, white | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7304,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|Jute packaging": {
+   "target": "market for kraft paper",
+   "uid": "bdcc15ba-3734-30f7-bdfc-72be6683a3d0",
+   "name": "market for kraft paper | kraft paper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7873,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|Metal packaging": {
+   "target": "market for steel, low-alloyed",
+   "uid": "51560769-9889-36d3-ae6e-b5d0b664c578",
+   "name": "steel production, electric, low-alloyed | steel, low-alloyed | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.7223,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|PaperBag packaging": {
+   "target": "market for kraft paper",
+   "uid": "bdcc15ba-3734-30f7-bdfc-72be6683a3d0",
+   "name": "market for kraft paper | kraft paper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7873,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|PlasticBag packaging": {
+   "target": "market for polypropylene, granulate",
+   "uid": "881eed86-35c6-3cc2-a352-263e9c4c34ee",
+   "name": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U",
+   "location": "Global",
+   "score": 0.8252,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|Polypropylene packaging": {
+   "target": "market for polypropylene, granulate",
+   "uid": "881eed86-35c6-3cc2-a352-263e9c4c34ee",
+   "name": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U",
+   "location": "Global",
+   "score": 0.8252,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|diesel (facility fuel)": {
+   "target": "diesel, burned in building machine",
+   "uid": "1adc7520-4ce2-39db-8d60-014918ba1aa0",
+   "name": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U",
+   "location": "Global",
+   "score": 0.7475,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|electricity low voltage": {
+   "target": "electricity low voltage",
+   "uid": "a36355ba-4740-3407-b007-3c025a8e60e5",
+   "name": "Electricity, low voltage {CA}| market group for | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Canada",
+   "score": 0.6924,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|inbound transport (mixed)": {
+   "target": "transport, freight, lorry",
+   "uid": "56216169-f24a-3b52-9f8f-d668dc56abe0",
+   "name": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7388,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|inbound transport (rail)": {
+   "target": "transport, freight train",
+   "uid": "f3c840d6-5668-3938-bc33-dece37032723",
+   "name": "transport, freight, train, steam | transport, freight, train, fleet average | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6686,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|inbound transport (ship)": {
+   "target": "transport, freight, sea, container ship",
+   "uid": "172e2b69-d1d6-3226-82bc-815ebe63011b",
+   "name": "transport, freight, sea, container ship, heavy fuel oil | transport, freight, sea, container ship, heavy fuel oil | Cutoff, U",
+   "location": "Global",
+   "score": 0.7588,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|inbound transport (truck)": {
+   "target": "transport, freight, lorry",
+   "uid": "56216169-f24a-3b52-9f8f-d668dc56abe0",
+   "name": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7388,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|kerosene (facility fuel)": {
+   "target": "kerosene, burned in building machine",
+   "uid": "64e52f06-2d56-3446-b161-2df0b94755c0",
+   "name": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.6434,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|lpg (facility fuel)": {
+   "target": "lpg, burned in building machine",
+   "uid": "9b7dc4da-0185-3d14-8bdf-9d838d363724",
+   "name": "Propane, burned in building machine {GLO}| propane, burned in building machine | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Global",
+   "score": 0.6433,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|petrol (facility fuel)": {
+   "target": "petrol, burned in building machine",
+   "uid": "f49e01c4-d83f-37f5-a365-6f6c80ee7d40",
+   "name": "Petrol, unleaded, burned in machinery {GLO}| market for petrol, unleaded, burned in machinery | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Global",
+   "score": 0.6096,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|solid waste, anaerobicdigestion": {
+   "target": "treatment of biowaste, anaerobic digestion",
+   "uid": "fc9233d0-6684-379d-a6ca-2abe879fea42",
+   "name": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7794,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|solid waste, composting": {
+   "target": "treatment of biowaste, industrial composting",
+   "uid": "336c712c-add0-373d-bd47-cdc87bd0c23a",
+   "name": "treatment of biowaste, industrial composting | biowaste | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7452,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|solid waste, incineration": {
+   "target": "treatment of municipal solid waste, incineration",
+   "uid": "502f8d6d-3797-3d93-838c-9cc4b77d7a6a",
+   "name": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U",
+   "location": "Canada",
+   "score": 0.7548,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|solid waste, landfill": {
+   "target": "treatment of municipal solid waste, sanitary landfill",
+   "uid": "33da29ca-17be-3ad3-9970-40c5e95588a5",
+   "name": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.753,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|solid waste, mixed": {
+   "target": "treatment of municipal solid waste, sanitary landfill",
+   "uid": "33da29ca-17be-3ad3-9970-40c5e95588a5",
+   "name": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.753,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|solid waste, recycling": {
+   "target": "treatment of waste paper, sorting",
+   "uid": "a6ad2857-a082-3bb1-bf56-cf7d27953d54",
+   "name": "treatment of waste paper to pulp, wet lap, totally chlorine free bleached | deinked pulp, wet lap | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.7327,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|tap water": {
+   "target": "market for tap water",
+   "uid": "1bab9c35-740f-3231-bce8-5aee3c8ede85",
+   "name": "market for tap water | tap water | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.8015,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|CA|wastewater treatment": {
+   "target": "treatment of wastewater, average",
+   "uid": "abc6c35b-dd97-3812-b6ce-7c01fbc7bacf",
+   "name": "treatment of wastewater, average, wastewater treatment | wastewater, average | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.8186,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|Cardboard packaging": {
+   "target": "market for corrugated board box",
+   "uid": "89f8f590-d32f-3a1c-a769-acb280eed05c",
+   "name": "market for corrugated board box | corrugated board box | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8007,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|Composite packaging": {
+   "target": "market for packaging film, low density polyethylene",
+   "uid": "2c6f2262-deda-304a-bbc8-354f5e98fa5a",
+   "name": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7437,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|Glass packaging": {
+   "target": "market for packaging glass, white",
+   "uid": "7d98328c-e396-3a91-864b-17f339cac3b4",
+   "name": "packaging glass production, white | packaging glass, white | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7304,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|Jute packaging": {
+   "target": "market for kraft paper",
+   "uid": "bdcc15ba-3734-30f7-bdfc-72be6683a3d0",
+   "name": "market for kraft paper | kraft paper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7873,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|Metal packaging": {
+   "target": "market for steel, low-alloyed",
+   "uid": "07832756-09d5-3a2b-b96d-be369e1e44a1",
+   "name": "steel production, electric, low-alloyed | steel, low-alloyed | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.658,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|PaperBag packaging": {
+   "target": "market for kraft paper",
+   "uid": "bdcc15ba-3734-30f7-bdfc-72be6683a3d0",
+   "name": "market for kraft paper | kraft paper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7873,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|PlasticBag packaging": {
+   "target": "market for polypropylene, granulate",
+   "uid": "f433bd84-bb66-358a-ba7f-efece51c5f0d",
+   "name": "polypropylene production, granulate | polypropylene, granulate | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6105,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|Polypropylene packaging": {
+   "target": "market for polypropylene, granulate",
+   "uid": "f433bd84-bb66-358a-ba7f-efece51c5f0d",
+   "name": "polypropylene production, granulate | polypropylene, granulate | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6105,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|diesel (facility fuel)": {
+   "target": "diesel, burned in building machine",
+   "uid": "1adc7520-4ce2-39db-8d60-014918ba1aa0",
+   "name": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U",
+   "location": "Global",
+   "score": 0.7475,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|electricity low voltage": {
+   "target": "electricity low voltage",
+   "uid": "aa4c3599-4053-3ee3-954b-5101adaae2ac",
+   "name": "Electricity, low voltage {GH}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Ghana",
+   "score": 0.7529,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|inbound transport (mixed)": {
+   "target": "transport, freight, lorry",
+   "uid": "56216169-f24a-3b52-9f8f-d668dc56abe0",
+   "name": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7388,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|inbound transport (rail)": {
+   "target": "transport, freight train",
+   "uid": "f3c840d6-5668-3938-bc33-dece37032723",
+   "name": "transport, freight, train, steam | transport, freight, train, fleet average | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6686,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|inbound transport (ship)": {
+   "target": "transport, freight, sea, container ship",
+   "uid": "172e2b69-d1d6-3226-82bc-815ebe63011b",
+   "name": "transport, freight, sea, container ship, heavy fuel oil | transport, freight, sea, container ship, heavy fuel oil | Cutoff, U",
+   "location": "Global",
+   "score": 0.7588,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|inbound transport (truck)": {
+   "target": "transport, freight, lorry",
+   "uid": "56216169-f24a-3b52-9f8f-d668dc56abe0",
+   "name": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7388,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|kerosene (facility fuel)": {
+   "target": "kerosene, burned in building machine",
+   "uid": "64e52f06-2d56-3446-b161-2df0b94755c0",
+   "name": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.6434,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|lpg (facility fuel)": {
+   "target": "lpg, burned in building machine",
+   "uid": "9b7dc4da-0185-3d14-8bdf-9d838d363724",
+   "name": "Propane, burned in building machine {GLO}| propane, burned in building machine | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Global",
+   "score": 0.6433,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|petrol (facility fuel)": {
+   "target": "petrol, burned in building machine",
+   "uid": "f49e01c4-d83f-37f5-a365-6f6c80ee7d40",
+   "name": "Petrol, unleaded, burned in machinery {GLO}| market for petrol, unleaded, burned in machinery | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Global",
+   "score": 0.6096,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|solid waste, anaerobicdigestion": {
+   "target": "treatment of biowaste, anaerobic digestion",
+   "uid": "fc9233d0-6684-379d-a6ca-2abe879fea42",
+   "name": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7794,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|solid waste, composting": {
+   "target": "treatment of biowaste, industrial composting",
+   "uid": "336c712c-add0-373d-bd47-cdc87bd0c23a",
+   "name": "treatment of biowaste, industrial composting | biowaste | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7452,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|solid waste, incineration": {
+   "target": "treatment of municipal solid waste, incineration",
+   "uid": "7a446a2e-39a2-3a9d-896c-0c8f2d647734",
+   "name": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7548,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|solid waste, landfill": {
+   "target": "treatment of municipal solid waste, sanitary landfill",
+   "uid": "bef08c22-f81b-367b-ae36-ab77873c4bb5",
+   "name": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7529,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|solid waste, mixed": {
+   "target": "treatment of municipal solid waste, sanitary landfill",
+   "uid": "bef08c22-f81b-367b-ae36-ab77873c4bb5",
+   "name": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7529,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|solid waste, recycling": {
+   "target": "treatment of waste paper, sorting",
+   "uid": "1876ebf9-c99d-398c-ad45-dc89b0fd1601",
+   "name": "treatment of waste paper, unsorted, sorting | waste paper, sorted | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7668,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|tap water": {
+   "target": "market for tap water",
+   "uid": "6354808d-1c16-3d24-a016-9da90503bf67",
+   "name": "market for tap water | tap water | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7509,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|GH|wastewater treatment": {
+   "target": "treatment of wastewater, average",
+   "uid": "5f987b60-7574-33bc-a86f-2b870d7edb22",
+   "name": "treatment of wastewater, average, wastewater treatment | wastewater, average | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7935,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|Cardboard packaging": {
+   "target": "market for corrugated board box",
+   "uid": "89f8f590-d32f-3a1c-a769-acb280eed05c",
+   "name": "market for corrugated board box | corrugated board box | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8007,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|Composite packaging": {
+   "target": "market for packaging film, low density polyethylene",
+   "uid": "2c6f2262-deda-304a-bbc8-354f5e98fa5a",
+   "name": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7437,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|Glass packaging": {
+   "target": "market for packaging glass, white",
+   "uid": "7d98328c-e396-3a91-864b-17f339cac3b4",
+   "name": "packaging glass production, white | packaging glass, white | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7304,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|Jute packaging": {
+   "target": "market for kraft paper",
+   "uid": "bdcc15ba-3734-30f7-bdfc-72be6683a3d0",
+   "name": "market for kraft paper | kraft paper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7873,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|Metal packaging": {
+   "target": "market for steel, low-alloyed",
+   "uid": "07832756-09d5-3a2b-b96d-be369e1e44a1",
+   "name": "steel production, electric, low-alloyed | steel, low-alloyed | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.658,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|PaperBag packaging": {
+   "target": "market for kraft paper",
+   "uid": "bdcc15ba-3734-30f7-bdfc-72be6683a3d0",
+   "name": "market for kraft paper | kraft paper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7873,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|PlasticBag packaging": {
+   "target": "market for polypropylene, granulate",
+   "uid": "f433bd84-bb66-358a-ba7f-efece51c5f0d",
+   "name": "polypropylene production, granulate | polypropylene, granulate | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6328,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|Polypropylene packaging": {
+   "target": "market for polypropylene, granulate",
+   "uid": "f433bd84-bb66-358a-ba7f-efece51c5f0d",
+   "name": "polypropylene production, granulate | polypropylene, granulate | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6328,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|diesel (facility fuel)": {
+   "target": "diesel, burned in building machine",
+   "uid": "1adc7520-4ce2-39db-8d60-014918ba1aa0",
+   "name": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U",
+   "location": "Global",
+   "score": 0.7475,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|electricity low voltage": {
+   "target": "electricity low voltage",
+   "uid": "6e53432d-9c3e-361d-b217-2b87c5675ba0",
+   "name": "Electricity, low voltage {NG}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Nigeria",
+   "score": 0.7695,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|inbound transport (mixed)": {
+   "target": "transport, freight, lorry",
+   "uid": "56216169-f24a-3b52-9f8f-d668dc56abe0",
+   "name": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7388,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|inbound transport (rail)": {
+   "target": "transport, freight train",
+   "uid": "f3c840d6-5668-3938-bc33-dece37032723",
+   "name": "transport, freight, train, steam | transport, freight, train, fleet average | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6686,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|inbound transport (ship)": {
+   "target": "transport, freight, sea, container ship",
+   "uid": "172e2b69-d1d6-3226-82bc-815ebe63011b",
+   "name": "transport, freight, sea, container ship, heavy fuel oil | transport, freight, sea, container ship, heavy fuel oil | Cutoff, U",
+   "location": "Global",
+   "score": 0.7588,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|inbound transport (truck)": {
+   "target": "transport, freight, lorry",
+   "uid": "56216169-f24a-3b52-9f8f-d668dc56abe0",
+   "name": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7388,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|kerosene (facility fuel)": {
+   "target": "kerosene, burned in building machine",
+   "uid": "64e52f06-2d56-3446-b161-2df0b94755c0",
+   "name": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.6434,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|lpg (facility fuel)": {
+   "target": "lpg, burned in building machine",
+   "uid": "9b7dc4da-0185-3d14-8bdf-9d838d363724",
+   "name": "Propane, burned in building machine {GLO}| propane, burned in building machine | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Global",
+   "score": 0.6433,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|petrol (facility fuel)": {
+   "target": "petrol, burned in building machine",
+   "uid": "f49e01c4-d83f-37f5-a365-6f6c80ee7d40",
+   "name": "Petrol, unleaded, burned in machinery {GLO}| market for petrol, unleaded, burned in machinery | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Global",
+   "score": 0.6096,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|solid waste, anaerobicdigestion": {
+   "target": "treatment of biowaste, anaerobic digestion",
+   "uid": "fc9233d0-6684-379d-a6ca-2abe879fea42",
+   "name": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7794,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|solid waste, composting": {
+   "target": "treatment of biowaste, industrial composting",
+   "uid": "336c712c-add0-373d-bd47-cdc87bd0c23a",
+   "name": "treatment of biowaste, industrial composting | biowaste | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7452,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|solid waste, incineration": {
+   "target": "treatment of municipal solid waste, incineration",
+   "uid": "7a446a2e-39a2-3a9d-896c-0c8f2d647734",
+   "name": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7548,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|solid waste, landfill": {
+   "target": "treatment of municipal solid waste, sanitary landfill",
+   "uid": "bef08c22-f81b-367b-ae36-ab77873c4bb5",
+   "name": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7529,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|solid waste, mixed": {
+   "target": "treatment of municipal solid waste, sanitary landfill",
+   "uid": "bef08c22-f81b-367b-ae36-ab77873c4bb5",
+   "name": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7529,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|solid waste, recycling": {
+   "target": "treatment of waste paper, sorting",
+   "uid": "1876ebf9-c99d-398c-ad45-dc89b0fd1601",
+   "name": "treatment of waste paper, unsorted, sorting | waste paper, sorted | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7668,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|tap water": {
+   "target": "market for tap water",
+   "uid": "6354808d-1c16-3d24-a016-9da90503bf67",
+   "name": "market for tap water | tap water | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7509,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "processing|NG|wastewater treatment": {
+   "target": "treatment of wastewater, average",
+   "uid": "5f987b60-7574-33bc-a86f-2b870d7edb22",
+   "name": "treatment of wastewater, average, wastewater treatment | wastewater, average | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7935,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Aubergine": {
+   "target": "aubergine production, open field",
+   "uid": "a8555e36-b84e-33c1-8d3c-4caa7979e7a3",
+   "name": "aubergine production, open field | aubergine | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7299,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Bell peppers": {
+   "target": "bell pepper production, open field",
+   "uid": "3c4f282e-f696-3851-af71-f24c698401f4",
+   "name": "bell pepper production, open field | bell pepper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7859,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Chilli peppers": {
+   "target": "chilli production",
+   "uid": "43d58d35-1cdb-370e-b5a9-520d3932464f",
+   "name": "chilli production | chilli | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7228,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Cocoa beans": {
+   "target": "cocoa bean production",
+   "uid": "e1747ab2-1d66-303b-b9ce-38a57ef6d3dc",
+   "name": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7095,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Cocoa beans, dried fermented": {
+   "target": "cocoa bean production",
+   "uid": "e1747ab2-1d66-303b-b9ce-38a57ef6d3dc",
+   "name": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7095,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Cocoa butter": {
+   "target": "cocoa butter",
+   "uid": "96695db6-8632-3eb8-afa4-7a85f3b21ffe",
+   "name": "Cocoa butter, processed in FR | Ambient (long) | Pack proxy | at supermarket {FR} U",
+   "location": "France",
+   "score": 0.6164,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Corn": {
+   "target": "maize grain production",
+   "uid": "9b85bd33-0805-370f-96d9-84ab633fa748",
+   "name": "maize grain production | maize grain | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.7712,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Cucumber": {
+   "target": "cucumber production",
+   "uid": "70f6bf22-d5df-3ba3-8d11-2a41cfa81d44",
+   "name": "cucumber production, in heated greenhouse | cucumber | Cutoff, U",
+   "location": "Global",
+   "score": 0.714,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Eggplant": {
+   "target": "aubergine production, open field",
+   "uid": "a8555e36-b84e-33c1-8d3c-4caa7979e7a3",
+   "name": "aubergine production, open field | aubergine | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7299,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Fresh fruit bunches (FFB)": {
+   "target": "palm fruit bunch production",
+   "uid": "dcc38a63-db4e-3fb8-a027-5d2b50937f8b",
+   "name": "palm fruit bunch production | palm fruit bunch | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7505,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Groundnuts (shelled)": {
+   "target": "peanut production",
+   "uid": "7d2312bc-a77d-3c6e-916f-804d68b0284b",
+   "name": "peanut production | peanut | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6976,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Honeycomb from bee hives": {
+   "target": "Honey, raw, small-scale production, unpackaged, at farm",
+   "uid": "20b73c64-407c-3e90-89fe-e235688cb74e",
+   "name": "Honey, raw, small-scale production, unpackaged, at farm {CH} - Adapted from WFLDB U",
+   "location": "Switzerland",
+   "score": 0.8072,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Maize kernels": {
+   "target": "maize grain production",
+   "uid": "9b85bd33-0805-370f-96d9-84ab633fa748",
+   "name": "maize grain production | maize grain | Cutoff, U",
+   "location": "Canada, Quebec",
+   "score": 0.7712,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Oil palm fresh fruit bunches": {
+   "target": "palm fruit bunch production",
+   "uid": "dcc38a63-db4e-3fb8-a027-5d2b50937f8b",
+   "name": "palm fruit bunch production | palm fruit bunch | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7505,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Peanuts": {
+   "target": "peanut production",
+   "uid": "7d2312bc-a77d-3c6e-916f-804d68b0284b",
+   "name": "peanut production | peanut | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6976,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Raw honey": {
+   "target": "Honey, raw, small-scale production, unpackaged, at farm",
+   "uid": "20b73c64-407c-3e90-89fe-e235688cb74e",
+   "name": "Honey, raw, small-scale production, unpackaged, at farm {CH} - Adapted from WFLDB U",
+   "location": "Switzerland",
+   "score": 0.8072,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|Tomato": {
+   "target": "tomato production",
+   "uid": "9281160c-e29f-3879-ac4d-f8beba9689c5",
+   "name": "tomato production, processing grade, open field | tomato, processing grade | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6358,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|crude palm oil": {
+   "target": "palm oil",
+   "uid": "0f613ecb-a667-3744-9cd5-e824e1e6cc08",
+   "name": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.6506,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|CA|groundnut oil": {
+   "target": "peanut oil, at oil mill",
+   "uid": "479c5b75-ef17-3066-ab35-39abea972cb7",
+   "name": "Peanut oil, at oil mill {SN} U",
+   "location": "Senegal",
+   "score": 0.7614,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Aubergine": {
+   "target": "aubergine production, open field",
+   "uid": "a8555e36-b84e-33c1-8d3c-4caa7979e7a3",
+   "name": "aubergine production, open field | aubergine | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7299,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Bell peppers": {
+   "target": "bell pepper production, open field",
+   "uid": "3c4f282e-f696-3851-af71-f24c698401f4",
+   "name": "bell pepper production, open field | bell pepper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7859,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Chilli peppers": {
+   "target": "chilli production",
+   "uid": "43d58d35-1cdb-370e-b5a9-520d3932464f",
+   "name": "chilli production | chilli | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7228,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Cocoa beans": {
+   "target": "cocoa bean production",
+   "uid": "bae51cc6-57d9-31b5-a839-7afd382e5121",
+   "name": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U",
+   "location": "Ghana",
+   "score": 0.7868,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Cocoa beans, dried fermented": {
+   "target": "cocoa bean production",
+   "uid": "bae51cc6-57d9-31b5-a839-7afd382e5121",
+   "name": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U",
+   "location": "Ghana",
+   "score": 0.7868,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Cocoa butter": {
+   "target": "cocoa butter",
+   "uid": "96695db6-8632-3eb8-afa4-7a85f3b21ffe",
+   "name": "Cocoa butter, processed in FR | Ambient (long) | Pack proxy | at supermarket {FR} U",
+   "location": "France",
+   "score": 0.6164,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Corn": {
+   "target": "maize grain production",
+   "uid": "ba01d774-7088-347e-a8da-e47e09758545",
+   "name": "maize grain production | maize grain | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.69,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Cucumber": {
+   "target": "cucumber production",
+   "uid": "70f6bf22-d5df-3ba3-8d11-2a41cfa81d44",
+   "name": "cucumber production, in heated greenhouse | cucumber | Cutoff, U",
+   "location": "Global",
+   "score": 0.714,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Eggplant": {
+   "target": "aubergine production, open field",
+   "uid": "a8555e36-b84e-33c1-8d3c-4caa7979e7a3",
+   "name": "aubergine production, open field | aubergine | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7299,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Fresh fruit bunches (FFB)": {
+   "target": "palm fruit bunch production",
+   "uid": "dcc38a63-db4e-3fb8-a027-5d2b50937f8b",
+   "name": "palm fruit bunch production | palm fruit bunch | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7505,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Groundnuts (shelled)": {
+   "target": "peanut production",
+   "uid": "7d2312bc-a77d-3c6e-916f-804d68b0284b",
+   "name": "peanut production | peanut | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6976,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Honeycomb from bee hives": {
+   "target": "Honey, raw, small-scale production, unpackaged, at farm",
+   "uid": "20b73c64-407c-3e90-89fe-e235688cb74e",
+   "name": "Honey, raw, small-scale production, unpackaged, at farm {CH} - Adapted from WFLDB U",
+   "location": "Switzerland",
+   "score": 0.8072,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Maize kernels": {
+   "target": "maize grain production",
+   "uid": "ba01d774-7088-347e-a8da-e47e09758545",
+   "name": "maize grain production | maize grain | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.69,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Oil palm fresh fruit bunches": {
+   "target": "palm fruit bunch production",
+   "uid": "dcc38a63-db4e-3fb8-a027-5d2b50937f8b",
+   "name": "palm fruit bunch production | palm fruit bunch | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7505,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Peanuts": {
+   "target": "peanut production",
+   "uid": "7d2312bc-a77d-3c6e-916f-804d68b0284b",
+   "name": "peanut production | peanut | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6976,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Raw honey": {
+   "target": "Honey, raw, small-scale production, unpackaged, at farm",
+   "uid": "20b73c64-407c-3e90-89fe-e235688cb74e",
+   "name": "Honey, raw, small-scale production, unpackaged, at farm {CH} - Adapted from WFLDB U",
+   "location": "Switzerland",
+   "score": 0.8072,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|Tomato": {
+   "target": "tomato production",
+   "uid": "9281160c-e29f-3879-ac4d-f8beba9689c5",
+   "name": "tomato production, processing grade, open field | tomato, processing grade | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6358,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|crude palm oil": {
+   "target": "palm oil",
+   "uid": "0f613ecb-a667-3744-9cd5-e824e1e6cc08",
+   "name": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.6506,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|GH|groundnut oil": {
+   "target": "peanut oil, at oil mill",
+   "uid": "479c5b75-ef17-3066-ab35-39abea972cb7",
+   "name": "Peanut oil, at oil mill {SN} U",
+   "location": "Senegal",
+   "score": 0.7628,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Aubergine": {
+   "target": "aubergine production, open field",
+   "uid": "a8555e36-b84e-33c1-8d3c-4caa7979e7a3",
+   "name": "aubergine production, open field | aubergine | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7299,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Bell peppers": {
+   "target": "bell pepper production, open field",
+   "uid": "3c4f282e-f696-3851-af71-f24c698401f4",
+   "name": "bell pepper production, open field | bell pepper | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7859,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Chilli peppers": {
+   "target": "chilli production",
+   "uid": "43d58d35-1cdb-370e-b5a9-520d3932464f",
+   "name": "chilli production | chilli | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7228,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Cocoa beans": {
+   "target": "cocoa bean production",
+   "uid": "e1747ab2-1d66-303b-b9ce-38a57ef6d3dc",
+   "name": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7095,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Cocoa beans, dried fermented": {
+   "target": "cocoa bean production",
+   "uid": "e1747ab2-1d66-303b-b9ce-38a57ef6d3dc",
+   "name": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7095,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Cocoa butter": {
+   "target": "cocoa butter",
+   "uid": "96695db6-8632-3eb8-afa4-7a85f3b21ffe",
+   "name": "Cocoa butter, processed in FR | Ambient (long) | Pack proxy | at supermarket {FR} U",
+   "location": "France",
+   "score": 0.6164,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Corn": {
+   "target": "maize grain production",
+   "uid": "ba01d774-7088-347e-a8da-e47e09758545",
+   "name": "maize grain production | maize grain | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.69,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Cucumber": {
+   "target": "cucumber production",
+   "uid": "70f6bf22-d5df-3ba3-8d11-2a41cfa81d44",
+   "name": "cucumber production, in heated greenhouse | cucumber | Cutoff, U",
+   "location": "Global",
+   "score": 0.714,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Eggplant": {
+   "target": "aubergine production, open field",
+   "uid": "a8555e36-b84e-33c1-8d3c-4caa7979e7a3",
+   "name": "aubergine production, open field | aubergine | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7299,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Fresh fruit bunches (FFB)": {
+   "target": "palm fruit bunch production",
+   "uid": "dcc38a63-db4e-3fb8-a027-5d2b50937f8b",
+   "name": "palm fruit bunch production | palm fruit bunch | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7505,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Groundnuts (shelled)": {
+   "target": "peanut production",
+   "uid": "7d2312bc-a77d-3c6e-916f-804d68b0284b",
+   "name": "peanut production | peanut | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6976,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Honeycomb from bee hives": {
+   "target": "Honey, raw, small-scale production, unpackaged, at farm",
+   "uid": "20b73c64-407c-3e90-89fe-e235688cb74e",
+   "name": "Honey, raw, small-scale production, unpackaged, at farm {CH} - Adapted from WFLDB U",
+   "location": "Switzerland",
+   "score": 0.8072,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Maize kernels": {
+   "target": "maize grain production",
+   "uid": "ba01d774-7088-347e-a8da-e47e09758545",
+   "name": "maize grain production | maize grain | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.69,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Oil palm fresh fruit bunches": {
+   "target": "palm fruit bunch production",
+   "uid": "dcc38a63-db4e-3fb8-a027-5d2b50937f8b",
+   "name": "palm fruit bunch production | palm fruit bunch | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.7505,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Peanuts": {
+   "target": "peanut production",
+   "uid": "7d2312bc-a77d-3c6e-916f-804d68b0284b",
+   "name": "peanut production | peanut | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6976,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Raw honey": {
+   "target": "Honey, raw, small-scale production, unpackaged, at farm",
+   "uid": "20b73c64-407c-3e90-89fe-e235688cb74e",
+   "name": "Honey, raw, small-scale production, unpackaged, at farm {CH} - Adapted from WFLDB U",
+   "location": "Switzerland",
+   "score": 0.8072,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|Tomato": {
+   "target": "tomato production",
+   "uid": "9281160c-e29f-3879-ac4d-f8beba9689c5",
+   "name": "tomato production, processing grade, open field | tomato, processing grade | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.6358,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|crude palm oil": {
+   "target": "palm oil",
+   "uid": "0f613ecb-a667-3744-9cd5-e824e1e6cc08",
+   "name": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U",
+   "location": "Global",
+   "score": 0.6506,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "raw_material|NG|groundnut oil": {
+   "target": "peanut oil, at oil mill",
+   "uid": "479c5b75-ef17-3066-ab35-39abea972cb7",
+   "name": "Peanut oil, at oil mill {SN} U",
+   "location": "Senegal",
+   "score": 0.7682,
+   "needs_review": false,
+   "identity_basis": "concept",
+   "fallback_used": null
+  }
+ }
+}

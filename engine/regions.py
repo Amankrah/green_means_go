@@ -388,12 +388,35 @@ def field_gsd(region: Region, field_name: str, basic_gsd: float = 1.10) -> float
 
 def location_rank(region: Region, location: str | None) -> int:
     """Lower is better. Rank a background process's location against the region's
-    preference list; unknown locations sort last."""
-    loc = (location or "").strip()
-    for i, pref in enumerate(region.location_prefer):
-        if loc == pref or (pref and pref in loc):
-            return i
-    return len(region.location_prefer) + 1
+    preference list; unknown locations sort last.
+
+    An EXACT match on preference i ranks 2*i (ecoinvent codes and store names are treated
+    as equal: "GLO" == "Global", "RoW" == "Rest of World"). A SUB-NATIONAL form of a
+    preference ("Canada, Ontario", "Canada without Quebec", "CA-QC" against "Canada"/"CA")
+    ranks 2*i+1, so the national dataset outranks a sub-national one and the two never tie.
+    A bare substring does NOT count: "Africa" (the RAF market groups) must not match
+    "South Africa", which is another country. Callers break remaining ties by similarity
+    score and then uid (see orchestrator.FarmLCA._match_input)."""
+    same = {"glo": "global", "row": "rest of world"}
+
+    def norm(s):
+        s = (s or "").strip().lower()
+        return same.get(s, s)
+
+    loc = norm(location)
+    prefs = [norm(p) for p in region.location_prefer]
+    best = None
+    for i, pref in enumerate(prefs):
+        if not pref:
+            continue
+        if loc == pref:
+            r = 2 * i
+        elif loc.startswith((pref + ",", pref + " without ", pref + "-")):
+            r = 2 * i + 1
+        else:
+            continue
+        best = r if best is None else min(best, r)
+    return best if best is not None else 2 * len(prefs) + 1
 
 
 if __name__ == "__main__":
