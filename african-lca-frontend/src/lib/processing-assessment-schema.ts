@@ -43,7 +43,7 @@ export const FUEL_TYPES = ['Diesel', 'LPG', 'Natural gas', 'Kerosene', 'Biodiese
 export const ALLOCATION_BASES = ['mass', 'economic'] as const;
 
 // UI countries (the page maps these to the backend country + engine region via COUNTRY_TO_REGION).
-export const COUNTRIES = ['Canada', 'Ghana', 'Nigeria'] as const;
+export const COUNTRIES = ['Canada', 'Ghana', 'Nigeria', 'Senegal', 'Burkina Faso', 'South Africa'] as const;
 
 // ---- numeric coercion: form inputs arrive as strings; "" -> undefined -------------------
 const toNum = (v: unknown): number | undefined => {

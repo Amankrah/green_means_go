@@ -10,7 +10,7 @@ import { assessmentAPI, AssessmentSummary, Facility } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
-const COUNTRIES = ['Canada', 'Ghana', 'Nigeria'];
+const COUNTRIES = ['Canada', 'Ghana', 'Nigeria', 'Senegal', 'Burkina Faso', 'South Africa'];
 const FACILITY_TYPES = [
   'Mill', 'Bakery', 'CassivaProcessing', 'RiceProcessing', 'PalmOilMill', 'CocoaProcessing',
   'FishProcessing', 'MeatProcessing', 'DairyProcessing', 'FruitProcessing', 'VegetableProcessing', 'General',

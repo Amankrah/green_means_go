@@ -3,7 +3,7 @@
 // Basic enums and country types
 // UI-level countries. 'Global' is the backend country used for Canada (which is sent with
 // region 'CA'); the api transform maps 'Canada' -> 'Global' before the request leaves.
-export type Country = 'Ghana' | 'Nigeria' | 'Global' | 'Canada';
+export type Country = 'Ghana' | 'Nigeria' | 'Global' | 'Canada' | 'Senegal' | 'Burkina Faso' | 'South Africa';
 
 export type FoodCategory = 
   | 'Cereals' 

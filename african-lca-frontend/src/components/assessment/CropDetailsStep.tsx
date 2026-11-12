@@ -29,6 +29,7 @@ import {
   sumAllocatedArea,
   remainingFarmArea,
 } from '@/lib/enhanced-assessment-schema';
+import { commonCropsForCountry } from '@/lib/regions';
 
 const foodCategories = [
   { value: 'Cereals', label: '🌾 Cereals (Maize, Rice, Millet, Sorghum)' },
@@ -111,7 +112,7 @@ export default function CropDetailsStep() {
     } else if (country === 'Canada') {
       return COMMON_CROPS_BY_REGION['Canada'] || [];
     }
-    return [];
+    return commonCropsForCountry(country);
   };
 
   const addNewCrop = () => {

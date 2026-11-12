@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { NEW_REGIONS_BY_COUNTRY, NEW_COMMON_CROPS } from './regions';
 import {
   FarmType,
   FarmingSystem,
@@ -102,7 +103,7 @@ export const farmProfileSchema = z.object({
     .min(2, "Farm name must be at least 2 characters")
     .max(100, "Farm name must be less than 100 characters"),
   
-  country: z.enum(['Ghana', 'Nigeria', 'Canada'], {
+  country: z.enum(['Ghana', 'Nigeria', 'Senegal', 'Burkina Faso', 'South Africa', 'Canada'], {
     message: "Please select your country"
   }),
   
@@ -431,7 +432,8 @@ export const REGIONS_BY_COUNTRY = {
     "Alberta", "British Columbia", "Manitoba", "New Brunswick",
     "Newfoundland and Labrador", "Nova Scotia", "Ontario",
     "Prince Edward Island", "Quebec", "Saskatchewan"
-  ]
+  ],
+  ...NEW_REGIONS_BY_COUNTRY,
 };
 
 export const COMMON_CROPS_BY_REGION = {
@@ -442,7 +444,8 @@ export const COMMON_CROPS_BY_REGION = {
   "Nigeria-Southern": ["Cassava", "Plantain", "Cocoyam", "Vegetables", "Oil Palm", "Cocoa"],
   "Canada-Prairies": ["Wheat", "Canola", "Barley", "Oats", "Lentils", "Field Peas", "Flax"],
   "Canada-Central": ["Corn", "Soybeans", "Wheat", "Barley", "Potatoes"],
-  "Canada": ["Wheat", "Canola", "Barley", "Corn", "Soybeans", "Oats", "Potatoes"]
+  "Canada": ["Wheat", "Canola", "Barley", "Corn", "Soybeans", "Oats", "Potatoes"],
+  ...NEW_COMMON_CROPS,
 };
 
 export const CROP_VARIETIES = {

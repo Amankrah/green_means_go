@@ -14,6 +14,7 @@ import {
   EquipmentType, PowerSource, EnergyType, StorageFacilityType, RoadAccessType, TransportMode,
   Currency, ApplicationMethod, TimingStrategy, FunctionalUnit, SystemBoundary,
 } from '@/types/enhanced-assessment';
+import { NEW_COUNTRY_TO_REGION } from './regions';
 
 const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o));
 
@@ -218,4 +219,5 @@ export const COUNTRY_TO_REGION: Record<string, { country: string; region: string
   Ghana: { country: 'Ghana', region: 'GH' },
   Nigeria: { country: 'Nigeria', region: 'NG' },
   Canada: { country: 'Global', region: 'CA' },  // engine has a CA region but no "Canada" country
+  ...NEW_COUNTRY_TO_REGION,                       // Senegal/Burkina Faso/South Africa -> Global + SN/BF/ZA
 };
