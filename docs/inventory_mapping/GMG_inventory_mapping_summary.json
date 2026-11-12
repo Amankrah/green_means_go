@@ -1,0 +1,727 @@
+{
+  "document": "Green Means Go - Inventory Database Mapping",
+  "generated_on": "2026-11-12",
+  "repository_commit": "45ad6b6",
+  "requested_scope": [
+    "cocoa",
+    "palm oil",
+    "maize",
+    "groundnuts",
+    "honey",
+    "tomato",
+    "eggplant",
+    "cucumber",
+    "chilli peppers",
+    "bell peppers"
+  ],
+  "executive_summary": {
+    "one_paragraph": "Green Means Go does not hold a per-crop inventory. Every farm assessment, whatever the crop, is built from the same generic on-farm model (IPCC 2019 Tier 1 N2O from the user's fertiliser rates, on-farm fuel CO2, irrigation water by system type, land occupation = area) plus purchased inputs that are matched by semantic search to background datasets in a canonical store of AGRIBALYSE 3.2 and ecoinvent 3.11, then characterised with ReCiPe 2016 midpoint (H) for Ghana and Nigeria (EF 3.1 for Canada). The crop name only switches a few hooks (rice methane, legume N2O credit, Ghana yield benchmarks, recommendations). Processing works the same way: electricity, fuel, water, packaging, waste, transport and refrigerants are shared across all facility types, and only the raw-material name changes the result.",
+    "per_commodity": {
+      "cocoa": "Farm: generic inventory; Ghana yield guides 400-450 kg/ha; 5 Ghana measures. Processing: raw 'Cocoa beans' -> ecoinvent 'cocoa bean production, sun-dried' (Ghana for GH, RoW for NG). Only commodity with Ghana-specific farm-gate datasets in the store.",
+      "palm_oil": "Farm: generic inventory, category Oils, no FFB token. Processing (PalmOilMill): raw material with 'palm' in the name -> ecoinvent 'palm fruit bunch production' (RoW, no GH/NG dataset); 'Fresh fruit bunches (FFB)' without 'palm' mismatches (GH -> Ghana cocoa). No FFB-to-CPO extraction rate; user enters kg FFB per tonne output.",
+      "maize": "Farm: generic inventory; Ghana MoFA/FAO yield guides 1500-3500 kg/ha; 6 Ghana measures. Processing (Mill/FlourMaize): raw 'Maize kernels' -> ecoinvent 'maize grain production' (RoW for GH/NG; Canada, Quebec for CA).",
+      "groundnuts": "Farm: generic inventory; 'groundnut'/'peanut' only act as a legume token giving a neighbouring crop a 20% N2O credit; own N fixation not modelled. Processing: no enum; hint 'groundnut production' has no dataset, so GH mismatches to Ghana cocoa, NG -> 'peanut seed production' RoW, CA -> protein pea. Treat processing results as unreliable.",
+      "honey": "NOT SUPPORTED. No apiculture/livestock inventory path, no enum, no hint. If entered it is modelled as a generic field crop. Processing raw 'Raw honey' mismatches (GH cocoa, NG onshore petroleum, CA maple syrup). WFLDB honey datasets (US, CH) exist in the store but are never selected automatically.",
+      "tomato": "Farm: generic inventory, category Vegetables, variety list only. Processing (VegetableProcessing): hint 'tomato' -> ecoinvent 'tomato production, processing grade' (RoW).",
+      "eggplant": "Farm: generic inventory; no token in code. Processing: no hint; correct ecoinvent aubergine dataset reached only for NG; GH mismatches to Ghana cocoa.",
+      "cucumber": "Farm: generic inventory; no token in code. Processing: no hint; store has only 'cucumber, heated greenhouse' GLO, reached only for NG; GH mismatches to Ghana cocoa.",
+      "chilli_peppers": "Farm: generic inventory; 'pepper' sets frontend category Vegetables only. Processing: no hint, no chilli dataset in store; GH mismatches to Ghana cocoa.",
+      "bell_peppers": "Farm: generic inventory; 'pepper' sets frontend category Vegetables only. Processing: no hint; store has bell pepper only as French unheated greenhouse; GH mismatches to Ghana cocoa."
+    },
+    "top_data_quality_issues": [
+      "Wizard pesticide entries never reach the engine (frontend key pesticides_used vs API model field pesticides; pydantic drops it).",
+      "Region location preference outranks similarity, so unknown raw materials in Ghana resolve to the Ghana cocoa dataset.",
+      "Kerosene maps to an aviation-kerosene dataset per kg while the amount is in MJ (about 37x overstatement); LPG, firewood, charcoal and unknown fuels collapse to diesel.",
+      "Ghana grid is calibrated to the official 0.35 kg CO2e/kWh; Nigeria uses the raw ecoinvent dataset (about 0.17).",
+      "The AWARE 2.0, USEtox 2.14, LANCA and IPCC GWP spreadsheets in data/ are not read by any code; only the ecoinvent 3.11 method pack (ReCiPe 2016, EF 3.1) in the store is used. Irrigation water characterises to zero.",
+      "Any fertiliser type the kernel does not know (SSP, MOP, organic, bio, foliar, 'None') is assigned 10% N and generates N2O."
+    ]
+  },
+  "how_this_was_produced": {
+    "method": "Three independent agents read the engine source (Rust kernel african_lca_backend/src, Python engine engine/, API app/) and EXECUTED the production input matcher (FarmLCA._match_input / FarmLCA.assess) for Ghana (GH) and Nigeria (NG), and the processing matcher for GH, NG and Canada (CA). Every parameter carries a code_location (file:line) so it can be checked.",
+    "execution_status": {
+      "farm_inputs": "executed matcher",
+      "processing_inputs": "executed matcher"
+    },
+    "canonical_store": "data/canonical/lca_engineer.sqlite: AGRIBALYSE 3.2 + ecoinvent 3.11 (45,852 processes) + ecoinvent 3.11 method pack (ReCiPe 2016 v1.03 midpoint (H), EF v3.1).",
+    "matching_method": "Semantic retrieval: cosine similarity of openai text-embedding-3-small embeddings over process name|category|location; candidates re-ranked by the region's location preference list (e.g. GH > WA > RAF > RoW > GLO). Scores in this file are cosine similarities (0-1)."
+  },
+  "how_to_read": {
+    "input_name": "The text the software builds from the user's form (or the user's free text) and sends to the matcher.",
+    "matched_process / by_region": "The background LCI dataset in the canonical store that the input is resolved to (the 'consequential data'). Its full cradle-to-gate inventory is then solved and characterised.",
+    "on_farm_field_flows": "Direct emissions computed by the Rust kernel (N2O, nitrate, CO2 from fuel, water, land) and the characterisation factors applied.",
+    "crop_specific_data": "Values in the software that depend on the crop name. If this list is short it is because the engine is crop-agnostic (see engine_architecture_summary).",
+    "farm_production_support_status": {
+      "generic_inventory_with_crop_hooks": "Runs through the shared generic on-farm inventory AND the crop name triggers at least one engine behaviour (Ghana yield benchmark key, legume N2O credit token, recommendation measures, legacy per-kg factor).",
+      "generic_inventory_name_only": "Runs through the same shared generic on-farm inventory; the crop name is carried as a label and does not change any inventory value. Results are therefore not crop-specific.",
+      "not_supported": "No inventory model exists for this product system (e.g. apiculture). If entered anyway it is modelled as a generic field crop from area and fertiliser, which is not meaningful.",
+      "note": "The inventory numbers themselves are identical across the first two statuses. The distinction is only whether the crop name is recognised anywhere in the engine."
+    }
+  },
+  "validation": {
+    "performed_on": "2026-11-12",
+    "independent_re_execution": {
+      "rows_re_executed": 69,
+      "exact_matches": 69,
+      "discrepancies": 0,
+      "scope": "24 farm purchased-input rows (GH, NG), 33 processing raw-material rows (GH, NG, CA), 12 shared processing rows (GH, NG, CA); matched process name, source, location, ref_unit, uid and score (2 dp) compared; every matched process confirmed present in the SQLite processes table with the stated source and location.",
+      "determinism": "GH farm sample run twice: identical processes; scores vary in the 4th decimal (embedding jitter). CA electricity match varies between two datasets (see note on that row)."
+    },
+    "code_citation_audit": {
+      "code_locations_in_file": 486,
+      "sampled": 69,
+      "pass": 68,
+      "partial": 1,
+      "fail": 0,
+      "partial_detail": "cocoa IPCC SOC factor citation wording corrected in this version."
+    },
+    "engine_claims_audited": {
+      "claims": 12,
+      "pass": 12,
+      "fail": 0,
+      "claims_list": [
+        "default engine path and legacy Rust LCIA switch",
+        "crop name has no inventory effect except rice CH4, legume N2O credit, Ghana yield benchmarks, recommendations, ISO wording",
+        "fertiliser N contents",
+        "regional EF1 overrides",
+        "irrigation water defaults by system",
+        "wizard pesticides dropped by pydantic (pesticides_used vs pesticides)",
+        "Ghana grid calibrated to 0.35 kg CO2e/kWh, Nigeria not",
+        "processing fuel LHVs, diesel fallback, wastewater 0.8",
+        "refrigerant GWPs",
+        "no honey/apiculture/FFB token in code",
+        "data/ LCIA spreadsheets not read by code",
+        "processing enums never branched on by the Python engine"
+      ]
+    },
+    "not_validated": "Amounts, characterisation-factor values, and rows outside the samples above were not independently re-executed."
+  },
+  "quick_mapping_tables": {
+    "farm_purchased_inputs_all_crops": {
+      "NPK Compound 15-15-15 fertiliser": {
+        "category": "fertiliser",
+        "GH": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]",
+        "NG": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "NPK Compound fertiliser": {
+        "category": "fertiliser",
+        "GH": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]",
+        "NG": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "Urea 46-0-0 fertiliser": {
+        "category": "fertiliser",
+        "GH": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]",
+        "NG": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "Urea fertiliser": {
+        "category": "fertiliser",
+        "GH": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]",
+        "NG": "Urea (with 46% N), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "Diammonium Phosphate (DAP) 18-46-0 fertiliser": {
+        "category": "fertiliser",
+        "GH": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]",
+        "NG": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "Diammonium Phosphate (DAP) fertiliser": {
+        "category": "fertiliser",
+        "GH": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]",
+        "NG": "Diammonium phosphate (DAP) (with 18% N, 46% P2O5), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "Single Super Phosphate fertiliser": {
+        "category": "fertiliser",
+        "GH": "single superphosphate production | single superphosphate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "single superphosphate production | single superphosphate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      },
+      "Muriate of Potash fertiliser": {
+        "category": "fertiliser",
+        "GH": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      },
+      "Organic Fertilizer fertiliser": {
+        "category": "fertiliser",
+        "GH": "Organic fertiliser, >3% N, granulate, packaged, allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
+        "NG": "Organic fertiliser, >3% N, granulate, packaged, allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]"
+      },
+      "Bio-fertilizer fertiliser": {
+        "category": "fertiliser",
+        "GH": "Cocoa beans, sun-dried, low inputs, at farm {GH} - Adapted from WFLDB U [Agribalyse 3.2, Ghana, per kg]",
+        "NG": "Compost, of manure and agroindustrial residues (for organic fertiliser) (amendment), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]"
+      },
+      "Foliar Fertilizer fertiliser": {
+        "category": "fertiliser",
+        "GH": "Cocoa beans, sun-dried, low inputs, at farm {GH} - Adapted from WFLDB U [Agribalyse 3.2, Ghana, per kg]",
+        "NG": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "None fertiliser": {
+        "category": "fertiliser",
+        "GH": "Cocoa beans, sun-dried, low inputs, at farm {GH} - Adapted from WFLDB U [Agribalyse 3.2, Ghana, per kg]",
+        "NG": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      },
+      "diesel, burned in agricultural machinery": {
+        "category": "fuel",
+        "GH": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
+        "NG": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]"
+      },
+      "petrol, burned in agricultural machinery": {
+        "category": "fuel",
+        "GH": "petrol, unleaded, burned in machinery | petrol, unleaded, burned in machinery | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
+        "NG": "petrol, unleaded, burned in machinery | petrol, unleaded, burned in machinery | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
+      },
+      "kerosene, burned in agricultural machinery": {
+        "category": "fuel",
+        "GH": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
+        "NG": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]"
+      },
+      "biodiesel, burned in agricultural machinery": {
+        "category": "fuel",
+        "GH": "market for diesel, burned in agricultural machinery | diesel, burned in agricultural machinery | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
+        "NG": "market for diesel, burned in agricultural machinery | diesel, burned in agricultural machinery | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
+      },
+      "electricity low voltage": {
+        "category": "electricity",
+        "GH": "Electricity, low voltage {GH}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Ghana, per kWh]",
+        "NG": "Electricity, low voltage {NG}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Nigeria, per kWh]"
+      },
+      "glyphosate": {
+        "category": "pesticide",
+        "GH": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      },
+      "compost": {
+        "category": "other",
+        "GH": "market for compost | compost | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+        "NG": "market for compost | compost | Cutoff, U [ecoinvent 3.11, Global, per kg]"
+      },
+      "NPK fertiliser": {
+        "category": "fertiliser",
+        "GH": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]",
+        "NG": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U [Agribalyse 3.2, Rest of World, per kg]"
+      },
+      "urea fertiliser": {
+        "category": "fertiliser",
+        "GH": "urea ammonium nitrate production | urea ammonium nitrate mix | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "urea ammonium nitrate production | urea ammonium nitrate mix | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      }
+    },
+    "farm_direct_field_emissions_all_crops": [
+      {
+        "flow": "N2O",
+        "store_flow": "Dinitrogen monoxide",
+        "compartment": "Elementary flows/Emission to air/lower stratosphere + upper troposphere"
+      },
+      {
+        "flow": "CH4",
+        "store_flow": "Methane",
+        "compartment": "Elementary flows/Emission to air/low population density, long-term"
+      },
+      {
+        "flow": "CH4_bio",
+        "store_flow": "Methane, non-fossil",
+        "compartment": "Elementary flows/Emission to air/lower stratosphere + upper troposphere"
+      },
+      {
+        "flow": "CO2",
+        "store_flow": "Carbon dioxide, fossil",
+        "compartment": "Elementary flows/Emission to air/low population density"
+      },
+      {
+        "flow": "CO2_bio",
+        "store_flow": "Carbon dioxide, non-fossil",
+        "compartment": "Elementary flows/Emission to air/lower stratosphere + upper troposphere"
+      },
+      {
+        "flow": "NH3",
+        "store_flow": "Ammonia",
+        "compartment": "Elementary flows/Emission to air/lower stratosphere + upper troposphere"
+      },
+      {
+        "flow": "NOx",
+        "store_flow": "Nitrogen oxides",
+        "compartment": "Elementary flows/Emission to air/low population density"
+      },
+      {
+        "flow": "NO3",
+        "store_flow": "Nitrate",
+        "compartment": "Elementary flows/Emission to water/fresh water"
+      },
+      {
+        "flow": "PO4",
+        "store_flow": "Phosphate",
+        "compartment": "Elementary flows/Emission to water/fresh water"
+      },
+      {
+        "flow": "P",
+        "store_flow": "Phosphorus",
+        "compartment": "Elementary flows/Emission to water/river, long-term"
+      },
+      {
+        "flow": "SO2",
+        "store_flow": "Sulfur dioxide",
+        "compartment": "Elementary flows/Emission to air/low population density"
+      },
+      {
+        "flow": "PM25",
+        "store_flow": "Particulate Matter, < 2.5 um",
+        "compartment": "Elementary flows/Emission to air/low population density"
+      },
+      {
+        "flow": "water",
+        "store_flow": "Water",
+        "compartment": "Elementary flows/Resource/in water"
+      },
+      {
+        "flow": "land_occ",
+        "store_flow": "Occupation, annual crop",
+        "compartment": "Elementary flows/Resource/land"
+      }
+    ],
+    "processing_shared_inputs_all_commodities": {
+      "electricity low voltage": {
+        "GH": "Electricity, low voltage {GH}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Ghana, per kWh]",
+        "NG": "Electricity, low voltage {NG}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Nigeria, per kWh]",
+        "CA": "Electricity, low voltage {CA}| market group for | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Canada, per kWh]"
+      },
+      "diesel (facility fuel)": {
+        "GH": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
+        "NG": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
+        "CA": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
+      },
+      "petrol (facility fuel)": {
+        "GH": "Petrol, unleaded, burned in machinery {GLO}| market for petrol, unleaded, burned in machinery | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Global, per MJ]",
+        "NG": "Petrol, unleaded, burned in machinery {GLO}| market for petrol, unleaded, burned in machinery | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Global, per MJ]",
+        "CA": "Petrol, unleaded, burned in machinery {GLO}| market for petrol, unleaded, burned in machinery | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Global, per MJ]"
+      },
+      "kerosene (facility fuel)": {
+        "GH": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
+        "NG": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
+        "CA": "Kerosene, burned in airplane/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]"
+      },
+      "lpg (facility fuel)": {
+        "GH": "Propane, burned in building machine {GLO}| propane, burned in building machine | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Global, per MJ]",
+        "NG": "Propane, burned in building machine {GLO}| propane, burned in building machine | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Global, per MJ]",
+        "CA": "Propane, burned in building machine {GLO}| propane, burned in building machine | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Global, per MJ]"
+      },
+      "tap water": {
+        "GH": "market for tap water | tap water | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "market for tap water | tap water | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "market for tap water | tap water | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "wastewater treatment": {
+        "GH": "treatment of wastewater, average, wastewater treatment | wastewater, average | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+        "NG": "treatment of wastewater, average, wastewater treatment | wastewater, average | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+        "CA": "treatment of wastewater, average, wastewater treatment | wastewater, average | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per m3]"
+      },
+      "PlasticBag packaging": {
+        "GH": "market for polyvinylidenchloride, granulate | polyvinylidenchloride, granulate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "market for polyvinylidenchloride, granulate | polyvinylidenchloride, granulate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "market for polyvinylidenchloride, granulate | polyvinylidenchloride, granulate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      },
+      "Polypropylene packaging": {
+        "GH": "market for polyvinylidenchloride, granulate | polyvinylidenchloride, granulate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "market for polyvinylidenchloride, granulate | polyvinylidenchloride, granulate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "market for polyvinylidenchloride, granulate | polyvinylidenchloride, granulate | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      },
+      "PaperBag packaging": {
+        "GH": "market for kraft paper | kraft paper | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "market for kraft paper | kraft paper | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "market for corrugated board box | corrugated board box | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "Jute packaging": {
+        "GH": "market for kraft paper | kraft paper | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "market for kraft paper | kraft paper | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "market for corrugated board box | corrugated board box | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "Cardboard packaging": {
+        "GH": "market for corrugated board box | corrugated board box | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "market for corrugated board box | corrugated board box | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "market for corrugated board box | corrugated board box | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "Metal packaging": {
+        "GH": "steel production, electric, low-alloyed | steel, low-alloyed | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "steel production, electric, low-alloyed | steel, low-alloyed | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "steel production, electric, low-alloyed | steel, low-alloyed | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "Glass packaging": {
+        "GH": "packaging glass production, white | packaging glass, white | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "packaging glass production, white | packaging glass, white | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "market for corrugated board box | corrugated board box | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "Composite packaging": {
+        "GH": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "extrusion, plastic film | extrusion, plastic film | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "solid waste, landfill": {
+        "GH": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "treatment of municipal solid waste, unsanitary landfill, moist infiltration class (300mm) | municipal solid waste | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+        "CA": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "solid waste, mixed": {
+        "GH": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "treatment of municipal solid waste, unsanitary landfill, moist infiltration class (300mm) | municipal solid waste | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+        "CA": "treatment of municipal solid waste, sanitary landfill | municipal solid waste | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "solid waste, incineration": {
+        "GH": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
+        "NG": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Norway, per MJ]",
+        "CA": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Canada, per MJ]"
+      },
+      "solid waste, composting": {
+        "GH": "treatment of biowaste, industrial composting | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "treatment of biowaste, industrial composting | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "treatment of biowaste, industrial composting | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
+      },
+      "solid waste, anaerobicdigestion": {
+        "GH": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+        "NG": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+        "CA": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]"
+      },
+      "solid waste, recycling": {
+        "GH": "treatment of waste paper, unsorted, sorting | waste paper, sorted | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "NG": "treatment of waste paper, unsorted, sorting | waste paper, sorted | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+        "CA": "treatment of waste paper to pulp, wet lap, totally chlorine free bleached | deinked pulp, wet lap | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+      },
+      "inbound transport (truck)": {
+        "GH": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]",
+        "NG": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]",
+        "CA": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]"
+      },
+      "inbound transport (mixed)": {
+        "GH": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]",
+        "NG": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]",
+        "CA": "transport, freight, lorry, all sizes, EURO 4 to generic market for transport, freight, lorry, unspecified | transport, freight, lorry, diesel, unspecified | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]"
+      },
+      "inbound transport (rail)": {
+        "GH": "transport, freight, train, steam | transport, freight, train, fleet average | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]",
+        "NG": "transport, freight, train, steam | transport, freight, train, fleet average | Cutoff, U [ecoinvent 3.11, Rest of World, per t*km]",
+        "CA": "Transport, 53' dry van (Class 8) /AM U (N-A Background) {CA} - Adapted for maple syrup U [Agribalyse 3.2, Canada, per t*km]"
+      },
+      "inbound transport (ship)": {
+        "GH": "transport, freight, sea, container ship, heavy fuel oil | transport, freight, sea, container ship, heavy fuel oil | Cutoff, U [ecoinvent 3.11, Global, per t*km]",
+        "NG": "transport, freight, sea, container ship, heavy fuel oil | transport, freight, sea, container ship, heavy fuel oil | Cutoff, U [ecoinvent 3.11, Global, per t*km]",
+        "CA": "transport, freight, sea, container ship, heavy fuel oil | transport, freight, sea, container ship, heavy fuel oil | Cutoff, U [ecoinvent 3.11, Global, per t*km]"
+      },
+      "refrigerant leakage (on-site)": {}
+    },
+    "processing_raw_material_by_commodity": {
+      "cocoa": {
+        "raw material: 'Cocoa beans'": {
+          "matcher_target": "cocoa bean production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "soybean beverage production | protein feed, 100% crude | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        },
+        "raw material: 'Cocoa beans, dried fermented'": {
+          "matcher_target": "cocoa bean production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "soybean beverage production | protein feed, 100% crude | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        },
+        "raw material: 'Cocoa butter'": {
+          "matcher_target": "cocoa butter",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "Cocoa butter, processed in FR | Ambient (long) | Pack proxy | at packaging {FR} U [Agribalyse 3.2, France]",
+          "CA": "Cocoa beans, sun-dried, at farm {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global]"
+        }
+      },
+      "palm_oil": {
+        "raw material: 'Fresh fruit bunches (FFB)'": {
+          "matcher_target": "Fresh fruit bunches (FFB) production",
+          "GH": "Cocoa beans, sun-dried, production mix, at farm {GH} - Adapted from WFLDB U [Agribalyse 3.2, Ghana]",
+          "NG": "palm fruit bunch production | palm fruit bunch | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "fava bean production | fava bean | Cutoff, U [ecoinvent 3.11, Canada, Manitoba]"
+        },
+        "raw material: 'Oil palm fresh fruit bunches'": {
+          "matcher_target": "palm fruit bunch production",
+          "GH": "palm fruit bunch production | palm fruit bunch | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "NG": "palm fruit bunch production | palm fruit bunch | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "palm fruit bunch production | palm fruit bunch | Cutoff, U [ecoinvent 3.11, Rest of World]"
+        },
+        "raw material: 'crude palm oil'": {
+          "matcher_target": "palm oil",
+          "GH": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global]",
+          "NG": "palm oil mill operation | palm kernel meal | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "soybean meal and crude oil production, mechanical extraction | protein feed, 100% crude | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        }
+      },
+      "maize": {
+        "raw material: 'Maize kernels'": {
+          "matcher_target": "maize grain production",
+          "GH": "maize grain production | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "NG": "maize grain production | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "maize grain production | maize grain | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        },
+        "raw material: 'Corn'": {
+          "matcher_target": "maize grain production",
+          "GH": "maize grain production | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "NG": "maize grain production | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "maize grain production | maize grain | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        }
+      },
+      "groundnuts": {
+        "raw material: 'Groundnuts (shelled)'": {
+          "matcher_target": "groundnut production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "peanut seed production, at farm | peanut seed, at farm | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "protein pea production | protein pea | Cutoff, U [ecoinvent 3.11, Canada, Manitoba]"
+        },
+        "raw material: 'Peanuts'": {
+          "matcher_target": "groundnut production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "peanut seed production, at farm | peanut seed, at farm | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "protein pea production | protein pea | Cutoff, U [ecoinvent 3.11, Canada, Manitoba]"
+        },
+        "raw material: 'groundnut oil'": {
+          "matcher_target": "groundnut oil",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "Peanut oil, at oil mill {SN} U [Agribalyse 3.2, Senegal]",
+          "CA": "soybean meal and crude oil production, mechanical extraction | protein feed, 100% crude | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        }
+      },
+      "honey": {
+        "raw material: 'Raw honey'": {
+          "matcher_target": "Raw honey production",
+          "GH": "Cocoa beans, sun-dried, production mix, at farm {GH} - Adapted from WFLDB U [Agribalyse 3.2, Ghana]",
+          "NG": "petroleum and gas production, onshore | petroleum | Cutoff, U [ecoinvent 3.11, Nigeria]",
+          "CA": "Syrup, maple, at processing {CA} U [Agribalyse 3.2, Canada]"
+        },
+        "raw material: 'Honeycomb from bee hives'": {
+          "matcher_target": "Honeycomb from bee hives production",
+          "GH": "Cocoa beans, sun-dried, production mix, at farm {GH} - Adapted from WFLDB U [Agribalyse 3.2, Ghana]",
+          "NG": "Sugar, from sugar beet {RoW}| beet sugar production | Cut-off, U - Copied from Ecoinvent U [Agribalyse 3.2, Rest of World]",
+          "CA": "Syrup, maple, at packaging {CA} U [Agribalyse 3.2, Canada]"
+        }
+      },
+      "tomato": {
+        "raw material: 'Tomato'": {
+          "matcher_target": "tomato production",
+          "GH": "tomato production, processing grade, open field | tomato, processing grade | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "NG": "tomato production, processing grade, open field | tomato, processing grade | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "tomato production, processing grade, open field | tomato, processing grade | Cutoff, U [ecoinvent 3.11, Rest of World]"
+        }
+      },
+      "eggplant": {
+        "raw material: 'Eggplant'": {
+          "matcher_target": "Eggplant production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "Eggplant, peeled, at processing {FR} U [Agribalyse 3.2, France]",
+          "CA": "rape seed production | rape seed | Cutoff, U [ecoinvent 3.11, Canada without Quebec]"
+        },
+        "raw material: 'Aubergine'": {
+          "matcher_target": "Aubergine production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "aubergine production, open field | aubergine | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "potato production | potato | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        }
+      },
+      "cucumber": {
+        "raw material: 'Cucumber'": {
+          "matcher_target": "Cucumber production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "cucumber production, in heated greenhouse | cucumber | Cutoff, U [ecoinvent 3.11, Global]",
+          "CA": "potato production | potato | Cutoff, U [ecoinvent 3.11, Canada, Quebec]"
+        }
+      },
+      "chilli_peppers": {
+        "raw material: 'Chilli peppers'": {
+          "matcher_target": "Chilli peppers production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "chilli production | chilli | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "pinto bean production | pinto bean | Cutoff, U [ecoinvent 3.11, Canada, Alberta]"
+        }
+      },
+      "bell_peppers": {
+        "raw material: 'Bell peppers'": {
+          "matcher_target": "Bell peppers production",
+          "GH": "cocoa bean production, sun-dried | cocoa bean | Cutoff, U [ecoinvent 3.11, Ghana]",
+          "NG": "bell pepper production, open field | bell pepper | Cutoff, U [ecoinvent 3.11, Rest of World]",
+          "CA": "pinto bean production | pinto bean | Cutoff, U [ecoinvent 3.11, Canada, Alberta]"
+        }
+      }
+    }
+  },
+  "regions": {
+    "GH": {
+      "name": "Ghana",
+      "default_method": "ReCiPe 2016 v1.03, midpoint (H)",
+      "climate_zone": "wet tropical",
+      "ipcc_n2o_ef1": 0.016,
+      "aware_country_key": "Ghana",
+      "aware_key_used_at_runtime": false,
+      "location_prefer": [
+        "GH",
+        "Ghana",
+        "WA",
+        "RAF",
+        "Rest of World",
+        "RoW",
+        "GLO"
+      ],
+      "grid": {
+        "matched_dataset": "Electricity, low voltage {GH}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U (Agribalyse 3.2 copy of ecoinvent)",
+        "dataset_kgco2e_per_kwh": 0.1606,
+        "official_grid_ef_kgco2_per_kwh": 0.35,
+        "calibration": "grid_calibration.py adds fossil CO2 so climate = 0.35 (USE_OFFICIAL_GRID_EF=1 default)"
+      },
+      "activity_defaults": "engine/activity_defaults.py injects estimated diesel/electricity when unmeasured (Ghana only)",
+      "matcher_executed": true
+    },
+    "NG": {
+      "name": "Nigeria",
+      "default_method": "ReCiPe 2016 v1.03, midpoint (H)",
+      "climate_zone": "wet/dry tropical",
+      "ipcc_n2o_ef1": 0.016,
+      "aware_country_key": "Nigeria",
+      "aware_key_used_at_runtime": false,
+      "location_prefer": [
+        "NG",
+        "Nigeria",
+        "WA",
+        "RAF",
+        "Rest of World",
+        "RoW",
+        "GLO"
+      ],
+      "grid": {
+        "matched_dataset": "Electricity, low voltage {NG}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U (Agribalyse 3.2 copy of ecoinvent)",
+        "official_grid_ef_kgco2_per_kwh": null,
+        "calibration": "none (raw dataset)"
+      },
+      "activity_defaults": "none (Ghana-only table)",
+      "matcher_executed": true
+    },
+    "CA": {
+      "name": "Canada",
+      "default_method": "EF v3.1",
+      "climate_zone": "cool temperate",
+      "ipcc_n2o_ef1": 0.01,
+      "aware_country_key": "Canada",
+      "aware_key_used_at_runtime": false,
+      "location_prefer": [
+        "CA",
+        "Canada",
+        "Canada, Quebec",
+        "Canada, Ontario",
+        "CA-QC",
+        "CA-ON",
+        "US",
+        "RNA",
+        "Rest of World",
+        "RoW",
+        "Global",
+        "GLO"
+      ],
+      "grid": {
+        "official_grid_ef_kgco2_per_kwh": null,
+        "calibration": "none"
+      },
+      "matcher_executed": false,
+      "note": "registry entry only; matcher not run for CA in this exercise"
+    },
+    "aliases": "country 'Global' and Canadian province names resolve to CA; unknown country defaults to GH (engine/service.py _region_of)"
+  },
+  "lcia_methods": [
+    {
+      "method": "ReCiPe 2016 v1.03, midpoint (H)",
+      "source": "ecoinvent 3.11 LCIA method pack loaded into data/canonical/lca_engineer.sqlite (impact_methods source_id=2)",
+      "version": "v1.03 (AR5 GWP100: N2O 298, CH4 non-fossil 34)",
+      "default_for_regions": [
+        "GH",
+        "NG"
+      ],
+      "applied_to": "merged on-farm + supply-chain elementary flows via ingestion/query.py characterize_flows",
+      "role": "default midpoint method; researcher toggle (SUPPORTED_LCIA_METHODS)"
+    },
+    {
+      "method": "EF v3.1",
+      "source": "ecoinvent 3.11 LCIA method pack in the canonical store (source_id=2)",
+      "version": "3.1 (AR6: N2O 273); Water use category 'm3 world Eq deprived' = AWARE-based CFs as shipped by ecoinvent, keyed to specific water flows",
+      "default_for_regions": [
+        "CA"
+      ],
+      "applied_to": "same path; selectable for GH/NG via lcia_method",
+      "role": "second served method"
+    },
+    {
+      "method": "IPCC GWP",
+      "source": "data/IPCC GWP/Global-Warming-Potential-Values (August 2024).pdf (reference document only); IPCC 2013/2021 method packs exist in the store (ecoinvent and Agribalyse) but are not served",
+      "version": "AR6 PDF on disk; AR5 factors effectively used via ReCiPe, AR6 via EF 3.1",
+      "default_for_regions": [],
+      "role": "NOT applied directly. IPCC 2019 Refinement Vol.4 Ch.11 supplies the on-farm N2O emission factors (EF1 per climate, EF4 0.010, EF5 0.011, FracGASM 0.21, FracLEACH 0.24), i.e. inventory not characterisation"
+    },
+    {
+      "method": "AWARE 2.0",
+      "source": "data/AWARE2.0/*.xlsx on disk only; NOT ingested and no code reads it. The store holds Agribalyse-bundled 'AWARE' and 'AWARE 1.2' methods (source_id=1) which are not served",
+      "version": "2.0 spreadsheets (2023/2024)",
+      "default_for_regions": [],
+      "role": "regions.aware_country is declared but never consumed at runtime; on-farm irrigation water characterises to 0 water use"
+    },
+    {
+      "method": "USEtox 2.14",
+      "source": "data/USEtox_2.14/ on disk only; NOT ingested. Store holds 'USEtox v2.13, midpoint/endpoint' (ecoinvent pack) and 'USEtox 2 (recommended...)' (Agribalyse), not served",
+      "version": "2.14 on disk / 2.13 in store",
+      "default_for_regions": [],
+      "role": "toxicity categories actually come from ReCiPe (1,4-DCB-eq) or EF 3.1 (CTUe/CTUh, USEtox-based) as shipped by ecoinvent"
+    },
+    {
+      "method": "LANCA",
+      "source": "data/LANCA/ PDFs and mmc spreadsheets on disk only; NOT ingested, no code reads it",
+      "version": "n/a",
+      "default_for_regions": [],
+      "role": "EF 3.1 'Land use' (dimensionless Pt, LANCA-based as shipped by ecoinvent) is what is applied; ReCiPe uses m2a crop-eq"
+    },
+    {
+      "method": "ReCiPe 2016 spreadsheets (data/ReCipe2016) and EF 3.1 spreadsheet (data/EVvinronmental_Footprint_EF3.1)",
+      "source": "on disk only; NOT ingested. Characterisation uses the ecoinvent 3.11 method pack in the store",
+      "version": "ReCiPe v1.1 2018 xlsx; EF-v3.1 xlsx",
+      "default_for_regions": [],
+      "role": "reference copies"
+    },
+    {
+      "method": "Single score bands",
+      "source": "engine/single_score_bands.json (tertiles of 20 ecoinvent farm-gate crops)",
+      "version": "Low<930, Moderate<1990 uPt/kg",
+      "default_for_regions": [
+        "GH",
+        "NG",
+        "CA"
+      ],
+      "role": "normalisation/weighting layer in engine/adapter.py, not an LCIA method"
+    }
+  ],
+  "known_gaps_and_caveats": {
+    "farm_path": [
+      "Only five purchased-input families are extracted on the farm path: fertiliser (per application), fuel (diesel/petrol/kerosene/biodiesel words), grid electricity, pesticides (generic dataset), purchased compost. Seeds, irrigation water, packaging and transport are never purchased inputs.",
+      "Fertilisers mostly resolve to Agribalyse 3.2 'Adapted from WFLDB' RoW datasets (NPK, urea, DAP), SSP and MOP to ecoinvent 3.11 RoW; Organic to an Agribalyse RER dataset; Bio-fertilizer, Foliar and 'None' produce low-score nonsense matches (cocoa beans in GH).",
+      "Wizard pesticides never reach the engine: frontend posts 'pesticides_used', backend model expects 'pesticides' (verified).",
+      "LPG and electric/solar power sources are silently modelled as diesel; kerosene maps to aviation kerosene per kg with an MJ amount (unit mismatch only noted).",
+      "Grid electricity resolves to the Agribalyse copy of the ecoinvent national LV market ({GH}/{NG}); GH climate is recalibrated to 0.35 kg CO2e/kWh.",
+      "Characterisation uses only the ecoinvent 3.11 method pack in the store (ReCiPe 2016 midpoint (H) default for GH/NG, EF v3.1 for CA). The AWARE 2.0, USEtox 2.14, LANCA, IPCC GWP and ReCiPe/EF spreadsheets in data/ are not ingested or read by code; regions.aware_country is never used; on-farm irrigation water characterises to zero.",
+      "Rust assigns 10% N to any fertiliser type it does not know (SSP, MOP, organic, bio, foliar, 'None'), so these generate field N2O."
+    ],
+    "processing_path": [
+      {
+        "commodity": "groundnuts",
+        "status": "no facility_type / product_type enum, no groundnut hint target in the store (hint 'groundnut production' has no dataset; matches wrong crops in GH and CA). Usable only as General/Other with free text; results for GH/CA raw material are wrong-crop."
+      },
+      {
+        "commodity": "honey",
+        "status": "no enum, no hint, no apiculture/honey production dataset in the store; raw material matches cocoa (GH), onshore petroleum (NG) or maple syrup (CA). No valid processing path."
+      },
+      {
+        "commodity": "vegetables other than tomato (eggplant/aubergine, cucumber, chilli peppers, bell peppers)",
+        "status": "VegetableProcessing facility enum exists but no vegetable ProductType; no hint keys, so the raw name + ' production' is matched: correct crop datasets are reached only for NG; GH consistently returns Ghana cocoa and CA an arbitrary Canadian crop."
+      },
+      {
+        "commodity": "palm oil when FFB is written without the word 'palm' (e.g. 'Fresh fruit bunches (FFB)')",
+        "status": "no hint hit; GH -> cocoa, CA -> fava bean. Works only if the material name contains 'palm'."
+      },
+      {
+        "commodity": "biomass fuels (firewood, charcoal, palm fibre/shell, cocoa pod husk)",
+        "status": "fuel_type falls back to diesel at 38.7 MJ/L; no biomass combustion dataset path."
+      }
+    ]
+  },
+  "full_detail_file": "GMG_inventory_database_mapping.json (same folder): per-commodity crop parameters with file:line citations, all 51 farm input rows, 14 field flows, 26 shared processing inputs, processing raw materials by region."
+}
