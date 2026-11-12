@@ -19,7 +19,7 @@
   "per_commodity": {
    "cocoa": "Farm: perennial (3 + 22 years, permanent-crop land, generic residue row, DRY 0.925). Processing: cocoa beans -> ecoinvent 'cocoa bean production, sun-dried' (Ghana for GH, RoW elsewhere); default ratio 1250 kg beans per tonne powder or butter. Cocoa butter as an ingredient matches a French consumer-stage proxy.",
    "palm_oil": "Farm: perennial (3 + 22 years), generic residue row. Processing: FFB / fresh fruit bunch / palm fruit -> ecoinvent 'palm fruit bunch production' RoW in every region (no African dataset); default OER 0.20 (5000 kg FFB per tonne CPO); crude palm oil -> WFLDB GLO.",
-   "maize": "Farm: IPCC Table 11.1A Maize residue row, FAO seed 25 kg/ha, water need 650 mm, yield guides GH/NG/SN/BF/ZA. Processing: maize grain production (RoW; South Africa for ZA; Canada, Quebec for CA). Seed input matches maize GRAIN, not seed (unflagged).",
+   "maize": "Farm: IPCC Table 11.1A Maize residue row, FAO seed 25 kg/ha, water need 650 mm, yield guides GH/NG/SN/BF/ZA. Processing: maize grain production (RoW; South Africa for ZA; Canada, Quebec for CA). Seed input matches 'market for maize seed, for sowing' (GLO); seed for sowing and grain are distinct products in the identity gate.",
    "groundnuts": "Farm: IPCC Peanuts residue row, seed 80 kg/ha; legume credit only for neighbours. Processing: now 'peanut production' RoW in every region (was cocoa / pea at 45ad6b6); groundnut oil -> Agribalyse peanut oil {SN}.",
    "honey": "Farm: REJECTED (HTTP 422). Processing: raw honey -> WFLDB small-scale honey {CH}, flagged proxy (was cocoa, petroleum, maple syrup).",
    "tomato": "Farm: generic residue row with DRY 0.055, nursery seed (carrot seed proxy), water 600 mm. Processing: tomato production, processing grade, open field (RoW).",
@@ -29,10 +29,10 @@
    "bell_peppers": "Farm: generic residue row DRY 0.061. Processing: 'bell pepper production, open field' (RoW) (was cocoa in GH)."
   },
   "top_data_quality_issues": [
-   "Unflagged wrong-product matches: ZA fuels match import/supply datasets (no combustion); BF grid matches a South African voltage-transformation activity; ZA copper fungicide, glass and film packaging match unrelated or waste datasets; maize seed matches maize grain.",
-   "Incineration and anaerobic-digestion waste and biogas fuel are excluded in every region (dataset reference unit MJ / m3 / digestate kg vs a kg or m3 amount).",
+   "Fixed after the first six-region run (WS4 follow-up): burned-fuel inputs now always match a combustion ('burned in') dataset (ZA had matched import/supply datasets); BF grid now matches the 'Africa' (RAF) low-voltage market group, never South Africa; ZA copper fungicide matches copper oxide, glass and film packaging match the material (not a waste stream); reverse-osmosis water matches deionised water; maize seed matches maize seed for sowing.",
+   "Fixed: incineration and anaerobic-digestion waste now match the kg-referenced (waste) output of the treatment activity, and biogas matches 'anaerobic digestion of manure | biogas' (m3) instead of digestate; no executed row is excluded for a unit mismatch any more.",
    "Bio-fertilizer, Foliar Fertilizer and 'None' fertiliser have no dataset: needs_review in all regions.",
-   "Hydro and wind electricity land on non-African locations chosen outside the preference list; two live runs differed for these and for Canadian sub-national variants.",
+   "Hydro and wind electricity have no dataset for GH, NG, SN or BF: they now fall to the Rest-of-World dataset (ZA and CA use their own); the matcher steps down the region preference list (country, Africa/RAF, RoW, GLO) instead of taking an unranked foreign location.",
    "No African farm-gate datasets for most crops in scope: RoW datasets are used (cocoa GH is the exception).",
    "Perennial lifetimes and the organic-fertiliser 3% N are screening values."
   ]
@@ -312,7 +312,7 @@
     "NG": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "SN": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "BF": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
-    "ZA": "diesel, import from RoW | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "CA": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]"
    },
    "petrol (farm)": {
@@ -322,7 +322,7 @@
     "NG": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
     "SN": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
     "BF": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
-    "ZA": "petrol, unleaded, import from RoW | petrol, unleaded | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
     "CA": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]"
    },
    "kerosene (farm)": {
@@ -352,7 +352,7 @@
     "NG": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "SN": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "BF": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
-    "ZA": "diesel, import from RoW | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "CA": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]"
    },
    "electricity low voltage": {
@@ -361,7 +361,7 @@
     "GH": "Electricity, low voltage {GH}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Ghana, per kWh]",
     "NG": "Electricity, low voltage {NG}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Nigeria, per kWh]",
     "SN": "Electricity, low voltage {SN}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Senegal, per kWh]",
-    "BF": "electricity voltage transformation from medium to low voltage | electricity, low voltage | Cutoff, U [ecoinvent 3.11, South Africa, per kWh]",
+    "BF": "market group for electricity, low voltage | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Africa, per kWh]",
     "ZA": "Electricity, low voltage {ZA}| market for | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, South Africa, per kWh]",
     "CA": "Electricity, low voltage {CA}| market group for | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Canada, per kWh]"
    },
@@ -372,7 +372,7 @@
     "NG": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "SN": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "BF": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "ZA": "market for diesel | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "CA": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
    },
    "solar PV electricity (on-farm)": {
@@ -382,18 +382,18 @@
     "NG": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
     "SN": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
     "BF": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
-    "ZA": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "ZA": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U [ecoinvent 3.11, South Africa, per kWh]",
     "CA": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Canada, Ontario, per kWh]"
    },
    "biogas (on-farm)": {
     "category": "heat_fuel",
     "match_target": "anaerobic digestion of manure | biogas | Cutoff, U",
-    "GH": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "NG": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "SN": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "BF": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "ZA": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "CA": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]"
+    "GH": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "NG": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "SN": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "BF": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "ZA": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "CA": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]"
    },
    "firewood (on-farm)": {
     "category": "fuel",
@@ -422,7 +422,7 @@
     "NG": "water pump operation, diesel | water pump operation, diesel | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
     "SN": "water pump operation, diesel | water pump operation, diesel | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
     "BF": "water pump operation, diesel | water pump operation, diesel | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
-    "ZA": "market for diesel | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "water pump operation, diesel | water pump operation, diesel | Cutoff, U [ecoinvent 3.11, South Africa, per MJ]",
     "CA": "water pump operation, diesel | water pump operation, diesel | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per MJ]"
    },
    "irrigation pumping (electric)": {
@@ -433,7 +433,7 @@
     "SN": "water pump operation, electric | water pump operation, electric | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
     "BF": "water pump operation, electric | water pump operation, electric | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
     "ZA": "water pump operation, electric | water pump operation, electric | Cutoff, U [ecoinvent 3.11, South Africa, per MJ]",
-    "CA": "water pump operation, electric | water pump operation, electric | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]"
+    "CA": "water pump operation, electric | water pump operation, electric | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per MJ]"
    },
    "irrigation water (municipal supply)": {
     "category": "water",
@@ -492,7 +492,7 @@
     "NG": "copper oxide production | copper oxide | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "SN": "copper oxide production | copper oxide | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "BF": "copper oxide production | copper oxide | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "ZA": "platinum group metal, extraction and refinery operations | copper, cathode | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "copper oxide production | copper oxide | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "CA": "copper oxide production | copper oxide | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
    },
    "Imidacloprid": {
@@ -518,12 +518,12 @@
    "Maize seed": {
     "category": "seed",
     "match_target": "market for maize seed, for sowing",
-    "GH": "market for maize grain | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "NG": "market for maize grain | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "SN": "market for maize grain | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "BF": "market for maize grain | maize grain | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "ZA": "market for maize grain | maize grain | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
-    "CA": "maize grain production | maize grain | Cutoff, U [ecoinvent 3.11, Canada, Quebec, per kg]"
+    "GH": "market for maize seed, for sowing | maize seed, for sowing | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "NG": "market for maize seed, for sowing | maize seed, for sowing | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "SN": "market for maize seed, for sowing | maize seed, for sowing | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "BF": "market for maize seed, for sowing | maize seed, for sowing | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "ZA": "market for maize seed, for sowing | maize seed, for sowing | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "CA": "market for maize seed, for sowing | maize seed, for sowing | Cutoff, U [ecoinvent 3.11, Global, per kg]"
    },
    "Groundnuts seed": {
     "category": "seed",
@@ -754,7 +754,7 @@
     "GH": "Electricity, low voltage {GH}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Ghana, per kWh]",
     "NG": "Electricity, low voltage {NG}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Nigeria, per kWh]",
     "SN": "Electricity, low voltage {SN}| market for electricity, low voltage | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Senegal, per kWh]",
-    "BF": "electricity voltage transformation from medium to low voltage | electricity, low voltage | Cutoff, U [ecoinvent 3.11, South Africa, per kWh]",
+    "BF": "market group for electricity, low voltage | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Africa, per kWh]",
     "ZA": "Electricity, low voltage {ZA}| market for | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, South Africa, per kWh]",
     "CA": "Electricity, low voltage {CA}| market group for | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, Canada, per kWh]"
    },
@@ -764,7 +764,7 @@
     "NG": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
     "SN": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
     "BF": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
-    "ZA": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "ZA": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U [ecoinvent 3.11, South Africa, per kWh]",
     "CA": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U [ecoinvent 3.11, Canada, Ontario, per kWh]"
    },
    "diesel generator electricity (on-site)": {
@@ -773,25 +773,25 @@
     "NG": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "SN": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "BF": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "ZA": "market for diesel | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "CA": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
    },
    "hydro": {
     "match_target": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U",
-    "GH": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Shanghai (上海), per kWh]",
-    "NG": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Shanghai (上海), per kWh]",
-    "SN": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Shanghai (上海), per kWh]",
-    "BF": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Shanghai (上海), per kWh]",
+    "GH": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "NG": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "SN": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "BF": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
     "ZA": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, South Africa, per kWh]",
     "CA": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Canada, Yukon, per kWh]"
    },
    "wind": {
     "match_target": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U",
-    "GH": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, North America, Texas Regional Entity, per kWh]",
-    "NG": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Fujian (福建), per kWh]",
-    "SN": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Fujian (福建), per kWh]",
-    "BF": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Fujian (福建), per kWh]",
-    "ZA": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, China, Fujian (福建), per kWh]",
+    "GH": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "NG": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "SN": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "BF": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Rest of World, per kWh]",
+    "ZA": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, South Africa, per kWh]",
     "CA": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U [ecoinvent 3.11, Canada, Saskatchewan, per kWh]"
    },
    "Diesel (facility fuel)": {
@@ -800,7 +800,7 @@
     "NG": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "SN": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "BF": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "ZA": "diesel, import from RoW | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "CA": "diesel, burned in building machine | diesel, burned in building machine | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
    },
    "Diesel generator (facility fuel)": {
@@ -809,7 +809,7 @@
     "NG": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "SN": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "BF": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "ZA": "market for diesel | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
     "CA": "market for diesel, burned in diesel-electric generating set, 18.5kW | diesel, burned in diesel-electric generating set, 18.5kW | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
    },
    "Petrol (facility fuel)": {
@@ -818,7 +818,7 @@
     "NG": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
     "SN": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
     "BF": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
-    "ZA": "petrol, unleaded, import from RoW | petrol, unleaded | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
     "CA": "Petrol, unleaded, burned in machinery/kg {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]"
    },
    "LPG (facility fuel)": {
@@ -854,7 +854,7 @@
     "NG": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "SN": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "BF": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
-    "ZA": "diesel, import from RoW | diesel | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]",
     "CA": "Diesel, burned in agricultural machinery {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per MJ]"
    },
    "Firewood (facility fuel)": {
@@ -895,12 +895,12 @@
    },
    "Biogas (facility fuel)": {
     "match_target": "anaerobic digestion of manure | biogas | Cutoff, U",
-    "GH": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "NG": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "SN": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "BF": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "ZA": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]",
-    "CA": "Digestate, from anaerobic digestion of manure and slurry mix (fertilizer), allocation cut-off on process {RER} U [Agribalyse 3.2, Europe, per kg]"
+    "GH": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "NG": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "SN": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "BF": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "ZA": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
+    "CA": "anaerobic digestion of manure | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]"
    },
    "tap water": {
     "match_target": "market for tap water",
@@ -926,8 +926,8 @@
     "NG": "market for water, deionised | water, deionised | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "SN": "market for water, deionised | water, deionised | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "BF": "market for water, deionised | water, deionised | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "ZA": "market for water, decarbonised | water, decarbonised | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
-    "CA": "market for water, decarbonised | water, decarbonised | Cutoff, U [ecoinvent 3.11, Canada, per kg]"
+    "ZA": "market for water, deionised | water, deionised | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "CA": "market for water, deionised | water, deionised | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
    },
    "wastewater treatment": {
     "match_target": "treatment of wastewater, average, wastewater treatment",
@@ -998,7 +998,7 @@
     "NG": "packaging glass production, white | packaging glass, white | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "SN": "packaging glass production, white | packaging glass, white | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "BF": "packaging glass production, white | packaging glass, white | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "ZA": "market for waste glass | waste glass | Cutoff, U [ecoinvent 3.11, South Africa, per kg]",
+    "ZA": "packaging glass production, white | packaging glass, white | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "CA": "packaging glass production, white | packaging glass, white | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
    },
    "Composite packaging": {
@@ -1007,7 +1007,7 @@
     "NG": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "SN": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "BF": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
-    "ZA": "Waste polyethylene {ZA}| market for waste polyethylene | Cut-off, S - Copied from Ecoinvent U [Agribalyse 3.2, South Africa, per kg]",
+    "ZA": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
     "CA": "packaging film production, low density polyethylene | packaging film, low density polyethylene | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
    },
    "solid waste (organic), landfill": {
@@ -1048,21 +1048,21 @@
    },
    "solid waste (organic), incineration": {
     "match_target": "treatment of biowaste, municipal incineration",
-    "GH": "treatment of biowaste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "NG": "treatment of biowaste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "SN": "treatment of biowaste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "BF": "treatment of biowaste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "ZA": "treatment of biowaste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Global, per MJ]",
-    "CA": "treatment of biowaste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Global, per MJ]"
+    "GH": "treatment of biowaste, municipal incineration | biowaste | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "NG": "treatment of biowaste, municipal incineration | biowaste | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "SN": "treatment of biowaste, municipal incineration | biowaste | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "BF": "treatment of biowaste, municipal incineration | biowaste | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "ZA": "treatment of biowaste, municipal incineration | biowaste | Cutoff, U [ecoinvent 3.11, Global, per kg]",
+    "CA": "treatment of biowaste, municipal incineration | biowaste | Cutoff, U [ecoinvent 3.11, Global, per kg]"
    },
    "solid waste (inorganic), incineration": {
     "match_target": "treatment of municipal solid waste, municipal incineration",
-    "GH": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
-    "NG": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
-    "SN": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
-    "BF": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
-    "ZA": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Rest of World, per MJ]",
-    "CA": "treatment of municipal solid waste, municipal incineration | heat, for reuse in municipal waste incineration only | Cutoff, U [ecoinvent 3.11, Canada, per MJ]"
+    "GH": "treatment of municipal solid waste, municipal incineration | municipal solid waste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "NG": "treatment of municipal solid waste, municipal incineration | municipal solid waste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "SN": "treatment of municipal solid waste, municipal incineration | municipal solid waste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "BF": "treatment of municipal solid waste, municipal incineration | municipal solid waste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "ZA": "treatment of municipal solid waste, municipal incineration | municipal solid waste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "CA": "treatment of municipal solid waste, municipal incineration | municipal solid waste | Cutoff, U [ecoinvent 3.11, Canada, per kg]"
    },
    "solid waste (organic), composting": {
     "match_target": "treatment of biowaste, industrial composting",
@@ -1084,12 +1084,12 @@
    },
    "solid waste (organic), anaerobicdigestion": {
     "match_target": "treatment of biowaste by anaerobic digestion",
-    "GH": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
-    "NG": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
-    "SN": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
-    "BF": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
-    "ZA": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]",
-    "CA": "treatment of biowaste by anaerobic digestion | biogas | Cutoff, U [ecoinvent 3.11, Rest of World, per m3]"
+    "GH": "treatment of biowaste by anaerobic digestion | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "NG": "treatment of biowaste by anaerobic digestion | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "SN": "treatment of biowaste by anaerobic digestion | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "BF": "treatment of biowaste by anaerobic digestion | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "ZA": "treatment of biowaste by anaerobic digestion | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+    "CA": "treatment of biowaste by anaerobic digestion | biowaste | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
    },
    "solid waste (inorganic), anaerobicdigestion": {
     "match_target": "treatment of inert waste, sanitary landfill",
@@ -1209,12 +1209,12 @@
     },
     "raw material: 'crude palm oil'": {
      "match_target": "palm oil",
-     "GH": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
-     "NG": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
-     "SN": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
-     "BF": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
-     "ZA": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]",
-     "CA": "Palm oil, crude, at oil mill {GLO} - Adapted from WFLDB U [Agribalyse 3.2, Global, per kg]"
+     "GH": "palm oil mill operation | palm oil, crude | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+     "NG": "palm oil mill operation | palm oil, crude | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+     "SN": "palm oil mill operation | palm oil, crude | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+     "BF": "palm oil mill operation | palm oil, crude | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+     "ZA": "palm oil mill operation | palm oil, crude | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]",
+     "CA": "palm oil mill operation | palm oil, crude | Cutoff, U [ecoinvent 3.11, Rest of World, per kg]"
     },
     "raw material: 'Oil palm fresh fruit bunches (FFB)'": {
      "match_target": "palm fruit bunch production",
@@ -1561,8 +1561,8 @@
     "GLO"
    ],
    "grid": {
-    "matched_dataset": "electricity voltage transformation from medium to low voltage | electricity, low voltage | Cutoff, U",
-    "matched_location": "South Africa",
+    "matched_dataset": "market group for electricity, low voltage | electricity, low voltage | Cutoff, U",
+    "matched_location": "Africa",
     "calibration_kgco2e_per_kwh": 0.569,
     "calibration_source": "Nana B, Zalle H, Ouarma I, Daho T, Yonli A, Bere A (2023) Assessment of carbon dioxide emission factors from power generation in Burkina Faso. Clean Air Journal 33(2). doi:10.17159/caj/2023/33/2.15701, Abstract and section 'Assessment of the contribution of renewable energies'",
     "calibration": "grid_calibration.apply adds fossil CO2 to grid-electricity inputs so the climate result equals 0.569 kg CO2e/kWh (USE_OFFICIAL_GRID_EF=1 default)"
@@ -1774,7 +1774,7 @@
    "Biogas (farm energy source) matches a digestate dataset per kg; the m3 amount cannot be converted, so biogas is excluded from the result with a validation warning.",
    "Bio-fertilizer, Foliar Fertilizer and 'None' fertiliser still have no dataset of their own: flagged needs_review in all six regions (they carry 0 field N unless a grade is declared).",
    "Vegetable seeds use a carrot-seed proxy dataset; seed and water defaults do not distinguish chilli from bell pepper.",
-   "Hydro and wind electricity have no African dataset; the chosen location (China, Texas, Yukon, Saskatchewan) is unranked and can differ between runs among equal-product datasets.",
+   "Hydro and wind electricity have no West African dataset; GH, NG, SN and BF use the Rest-of-World dataset, ZA its South African dataset and CA a provincial one (store limitation, not a matcher choice).",
    "The kernel's per-ha irrigation default (3000/5000/8000/4000 m3) still exists and is used only when engine/inputs.irrigation_water returns no volume.",
    "Organic fertiliser without a declared grade is assumed 3% N; an unrecognised fertiliser type gets 0 N with a warning (no field N2O).",
    "Perennial establishment uses screening lifetimes and input_share 1 unless foods[].establishment is declared; standing biomass carbon is counted only through declared dLUC.",
@@ -1818,7 +1818,7 @@
  "full_detail_file": "GMG_inventory_database_mapping.json (same folder): per-commodity crop parameters with file:line citations, 300 farm input rows (6 regions), 16 field flows, 45 shared processing inputs, processing raw materials by region. Regenerate with: .venv/Scripts/python.exe scripts/regenerate_inventory_mapping.py (then hand-verified prose).",
  "generation_run": {
   "script": "scripts/regenerate_inventory_mapping.py",
-  "repository_commit": "c673579",
+  "repository_commit": "7616a72",
   "baseline_commit": "45ad6b6",
   "regions": [
    "GH",
@@ -1854,8 +1854,8 @@
    "raw_material|ZA": 29,
    "raw_material|CA": 29
   },
-  "changed_vs_baseline": 75,
-  "unchanged_vs_baseline": 99,
+  "changed_vs_baseline": 81,
+  "unchanged_vs_baseline": 93,
   "not_in_baseline": 564,
   "needs_review_rows": [
    "farm|GH|Bio-fertilizer fertiliser",
