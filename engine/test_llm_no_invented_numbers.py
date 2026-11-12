@@ -126,16 +126,25 @@ def test_a_classification_never_changes_amounts():
     got, _ = extract_purchased_inputs(classified)
 
     assert fake.calls, "the adversarial model path was not exercised"
-    assert [i["amount"] for i in got] == [i["amount"] for i in want]
-    assert [i["unit"] for i in got] == [i["unit"] for i in want]
+    # Non-fuel inputs: a relabel changes no amount. A fuel relabel legitimately selects that
+    # carrier's cited LHV (the adversarial fake picks the wrong fuel on purpose), so fuels
+    # are checked against the cited table instead of the unclassified run.
+    nonfuel = lambda xs: [(i["amount"], i["unit"]) for i in xs if i["kind"] != "fuel"]
+    assert nonfuel(got) == nonfuel(want)
     _assert_no_adversarial(got)
     # every amount is user number x user number (x area), or x a cited LHV constant
     area = sum(f.get("area_allocated") or 0 for f in base["foods"])
     for inp, app in zip([i for i in got if i["kind"] == "fertiliser"], mp):
         assert inp["amount"] == app["application_rate"] * (app.get("applications_per_season") or 1) * area
-    fuel = [i for i in got if i["kind"] == "fuel" and "estimated" not in i]
-    if fuel:
-        assert fuel[0]["amount"] == pytest.approx(45 * 12 * FUEL_MJ_PER_L["diesel"])
+    # user litres: metered monthly x 12, or equipment hours x the user's L/h (the pump stops
+    # being de-duplicated against the metered stream once that stream is relabelled)
+    user_litres = {45 * 12} | {eq["hours_per_year"] * eq["fuel_efficiency"]
+                               for eq in base["equipment_energy"]["equipment"]
+                               if eq.get("fuel_efficiency") and eq.get("hours_per_year")}
+    for fuel in [i for i in got if i["kind"] == "fuel" and "estimated" not in i]:
+        assert fuel["native_amount"] in user_litres
+        assert fuel["lhv_mj_per_unit"] == FUEL_MJ_PER_L[fuel["fuel"]]  # a cited constant
+        assert fuel["amount"] == pytest.approx(fuel["native_amount"] * FUEL_MJ_PER_L[fuel["fuel"]])
 
 
 def test_a_raw_material_classification_never_changes_amounts():
