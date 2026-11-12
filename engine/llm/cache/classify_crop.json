@@ -1,0 +1,137 @@
+{
+  "bambara groundnut": {
+    "text": "bambara groundnut",
+    "kind": "crop",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Bambara groundnut (Vigna subterranea) is a distinct legume from groundnut (peanut), and its closest botanical relative in the list is cowpea, so none of the labels is a clean match and mapping it to groundnut would misrepresent the crop.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "bissap": {
+    "text": "bissap",
+    "kind": "crop",
+    "label": "vegetables",
+    "confidence": 0.45,
+    "reason": "Bissap is the West African name for roselle (Hibiscus sabdariffa), which has no specific label; its leaves are eaten as a vegetable, but it is mainly grown for its calyces, so the fit with the general vegetables category is uncertain.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "cashew": {
+    "text": "cashew",
+    "kind": "crop",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Cashew is a distinct tree nut crop with no corresponding label in the allowed list, and it should not be mapped to groundnut or any other crop.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "egusi melon": {
+    "text": "egusi melon",
+    "kind": "crop",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Egusi melon is a cucurbit grown mainly for its oil-rich seeds, and none of the allowed labels matches it: it is not sesame or groundnut, and calling it a generic vegetable would misrepresent a seed crop.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "fonio": {
+    "text": "fonio",
+    "kind": "crop",
+    "label": "millet",
+    "confidence": 0.6,
+    "reason": "Fonio is a small-grained West African cereal (Digitaria exilis) commonly grouped with millets, and millet is the closest available label, though it is botanically a distinct crop.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "garden egg": {
+    "text": "garden egg",
+    "kind": "crop",
+    "label": "vegetables",
+    "confidence": 0.85,
+    "reason": "Garden egg is the common West African name for African eggplant, a vegetable crop with no more specific label in the list.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "gari": {
+    "text": "gari",
+    "kind": "crop",
+    "label": "cassava",
+    "confidence": 0.85,
+    "reason": "Gari is the widely known West African fermented and roasted granule made from cassava, so the underlying harvested crop is cassava even though the user named the processed product.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "hot pepper": {
+    "text": "hot pepper",
+    "kind": "crop",
+    "label": "vegetables",
+    "confidence": 0.75,
+    "reason": "Hot pepper is a vegetable crop with no specific label in the list, so the general vegetables category is the best fit.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "mango": {
+    "text": "mango",
+    "kind": "crop",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Mango is a tropical fruit tree crop that does not correspond to any allowed label, as it is neither citrus nor a vegetable.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "okra": {
+    "text": "okra",
+    "kind": "crop",
+    "label": "vegetables",
+    "confidence": 0.82,
+    "reason": "Okra is a common West African vegetable crop with no specific label, so it falls under the general vegetables category.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "pineapple": {
+    "text": "pineapple",
+    "kind": "crop",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Pineapple is a distinct tropical fruit crop that does not match any allowed label, and despite the shared word it is unrelated to apples.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "shea": {
+    "text": "shea",
+    "kind": "crop",
+    "label": null,
+    "confidence": 0.0,
+    "reason": "Shea is a distinct tree nut (Vitellaria paradoxa) used for butter and oil, and no allowed label corresponds to it; oil palm is a different species.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "sweet corn": {
+    "text": "sweet corn",
+    "kind": "crop",
+    "label": "maize",
+    "confidence": 0.8,
+    "reason": "Sweet corn is a variety of maize (Zea mays), though it is sometimes classed as a vegetable crop, so maize is the closest botanical match.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "sweet potato leaves": {
+    "text": "sweet potato leaves",
+    "kind": "crop",
+    "label": "sweet potato",
+    "confidence": 0.6,
+    "reason": "The leaves are a harvested product of the sweet potato plant, though as a leafy green they could alternatively be classed under vegetables.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  },
+  "teff": {
+    "text": "teff",
+    "kind": "crop",
+    "label": "millet",
+    "confidence": 0.45,
+    "reason": "Teff is a small-grained cereal (Eragrostis tef) often grouped with millets in agricultural statistics, though it is botanically distinct and the match is approximate.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-12"
+  }
+}

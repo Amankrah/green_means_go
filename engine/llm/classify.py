@@ -31,6 +31,18 @@ from .vocab import KINDS, SYNONYMS, VOCABULARIES
 
 CONFIRM_THRESHOLD = float(os.getenv("GMG_LLM_CONFIRM_THRESHOLD", "0.8"))
 CONTAINS_CONFIDENCE = 0.9
+# A label found inside a phrase that also carries other content words ("bambara groundnut",
+# "ammonium sulfate nitrate") may name a different product. It is offered as a suggestion
+# that needs confirmation, and the model (or cache) is consulted first when available.
+WEAK_CONTAINS_CONFIDENCE = 0.6
+_GENERIC_TOKENS = {
+    "fertiliser", "fertilizer", "fertilisers", "fertilizers", "fert", "bag", "bags", "sack",
+    "sacks", "of", "the", "a", "an", "and", "for", "from", "my", "our", "used", "use", "grain",
+    "grains", "seed", "seeds", "crop", "crops", "local", "variety", "improved", "hybrid",
+    "fresh", "dried", "dry", "white", "yellow", "red", "granular", "granules", "prilled",
+    "prills", "fuel", "type", "brand", "bought", "purchased", "leaves", "roots", "tubers",
+    "harvest", "farm", "field", "rouge", "blanc", "blanche", "npk",
+}
 NONE_LABEL = "NONE"
 
 # Synonym / label keys too short or too generic to trust inside a longer phrase
@@ -109,7 +121,14 @@ def _deterministic(kind: str, norm: str, vocab: list[str], default_vocab: bool) 
     # Two different labels named in one phrase ("maize and cowpea") is ambiguous: ask the
     # model (or the user) rather than silently dropping one.
     if len(top) == 1 and not others:
-        return _result(top[0], CONTAINS_CONFIDENCE, "deterministic", False, "contains")
+        label = top[0]
+        keys = [k for k, lab in list(by_norm.items()) + list(syn.items())
+                if lab == label and len(k) == best and _words(k) in _words(norm)]
+        extras = [t for t in norm.split() if t not in set(keys[0].split())
+                  and t not in _GENERIC_TOKENS and len(t) > 1 and not any(c.isdigit() for c in t)]
+        if extras:
+            return _result(label, WEAK_CONTAINS_CONFIDENCE, "deterministic", False, "contains_weak")
+        return _result(label, CONTAINS_CONFIDENCE, "deterministic", False, "contains")
     return None
 
 
@@ -164,11 +183,12 @@ def classify(kind: str, text: str, vocabulary: list[str] | None = None, *,
         return _result(None, 0.0, "deterministic", False, "empty")
 
     det = _deterministic(kind, norm, vocab, default_vocab)
-    if det:
+    if det and det["source"] != "contains_weak":
         return det
+    weak = det  # a needs-confirmation suggestion, used when the model cannot do better
 
     if llm_globally_disabled():
-        return _result(None, 0.0, "deterministic", False, "disabled")
+        return weak or _result(None, 0.0, "deterministic", False, "disabled")
 
     cname = f"classify_{kind}"
     ckey = _cache_key(kind, norm, vocab, default_vocab)
@@ -182,7 +202,7 @@ def classify(kind: str, text: str, vocabulary: list[str] | None = None, *,
 
     llm = client if client is not None else (get_client() if use_model else None)
     if llm is None:
-        return _result(None, 0.0, "deterministic", False, "no_model")
+        return weak or _result(None, 0.0, "deterministic", False, "no_model")
 
     user = (f"Kind: {kind} ({_KIND_HELP[kind]})\n"
             f"User text: {text!r}\n"
@@ -192,6 +212,8 @@ def classify(kind: str, text: str, vocabulary: list[str] | None = None, *,
         ans = llm.complete_json(system=_SYSTEM, user=user, schema=_schema(vocab),
                                 max_tokens=2048, effort="low")
     except LLMError as e:
+        if weak:
+            return {**weak, "error": str(e)}
         return _result(None, 0.0, getattr(llm, "model", "unknown"), False, "error", error=str(e))
 
     raw_label = ans.get("label")
