@@ -198,8 +198,8 @@ REGIONS: dict[str, Region] = {
         aware_country="Senegal", default_method="ReCiPe 2016 v1.03, midpoint (H)",
         # Store strings that exist: "Senegal" (11 processes incl. the SN low/medium-voltage
         # grid), "Africa" (RAF market groups), "Rest of World", "Global". "WA" does not
-        # exist in the store, so it is omitted. NOTE: location_rank matches by substring,
-        # so "Africa" also matches "South Africa" (reported to WS4).
+        # exist in the store, so it is omitted. location_rank matches exact names and
+        # sub-national prefixes only, so "Africa" never matches "South Africa".
         location_prefer=("SN", "Senegal", "Africa", "RAF", "Rest of World", "RoW",
                          "Global", "GLO"),
         grid_ef_kgco2_per_kwh=0.744,
