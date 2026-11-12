@@ -1,7 +1,10 @@
-"""Matcher regression: every input name in docs/inventory_mapping/GMG_inventory_database_mapping.json
-(farm purchased inputs, shared processing inputs, commodity raw materials; every region) is run
-through FarmLCA.resolve_input and the matched process uid is compared with the committed golden
-file engine/golden/matcher_golden.json. Any change fails.
+"""Matcher regression: every input row of the PM mapping (docs/inventory_mapping/
+GMG_inventory_database_mapping.json: farm purchased inputs, shared processing inputs and the
+commodity raw materials) is rebuilt by EXECUTING the engine's current extraction code, exactly as
+scripts/regenerate_inventory_mapping.py does (engine/inputs.py, engine/process_inputs.py,
+engine/commodities.py, engine/fuels.py), run through FarmLCA.resolve_input for every region in
+REGIONS_RUN (GH, NG, SN, BF, ZA, CA), and the matched process uid is compared with the committed
+golden file engine/golden/matcher_golden.json. Any change fails.
 
 Reproducibility: query embeddings are pinned in engine/golden/matcher_query_embeddings.npz, so
 the test needs neither the embedding API nor network access, only the canonical store and its
@@ -32,13 +35,61 @@ CHANGES = GOLDEN_DIR / "matcher_changes_vs_mapping.json"
 EMBEDDER_NAME = "openai:text-embedding-3-small"
 UPDATE = os.getenv("GMG_UPDATE_GOLDEN") == "1"
 
-# Facility-fuel fallback chain as built by engine/process_inputs.py (kept literal so the
-# regression does not depend on that file's extraction code, owned by another workstream).
-_FUEL_FALLBACKS = ["heat production, natural gas", "{w}, burned in agricultural machinery"]
+REGEN_SCRIPT = ROOT / "scripts" / "regenerate_inventory_mapping.py"
+# Extra query vectors the mapping regeneration used (untracked, optional): loaded when present
+# so a golden update reproduces the committed mapping bit for bit.
+EXTRA_QCACHE = ROOT / ".scratch" / "extra_qcache.npz"
+
+
+def _regen():
+    """The mapping-regeneration script as a module (its input catalogues are the source of
+    truth for which inputs the engine builds)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("regenerate_inventory_mapping", REGEN_SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def current_rows() -> list[dict]:
+    """Rows as the CURRENT engine builds them, for all six regions, with the committed
+    mapping's match as `before`."""
+    R = _regen()
+    d = json.loads(MAPPING.read_text(encoding="utf-8"))
+    before: dict = {}
+    for r in d["shared_farm_inventory"]["purchased_inputs_to_database_processes"]:
+        before[("farm", r.get("region"), r["input_name"])] = r
+    for r in d["shared_processing_inventory"]["inputs_to_database_processes"]:
+        for reg, v in (r.get("by_region") or {}).items():
+            before[("processing", reg, r["input_name"])] = v
+    raw_names: list[str] = []
+    for cv in d["commodities"].values():
+        for p in cv.get("processing") or []:
+            for i in p.get("commodity_specific_inputs") or []:
+                m = re.match(r"raw material: '(.*)'", i["input_name"])
+                if m and m.group(1) not in raw_names:
+                    raw_names.append(m.group(1))
+                for reg, v in (i.get("by_region") or {}).items():
+                    if m:
+                        before[("raw_material", reg, m.group(1))] = v
+    rows = []
+    cat = ([("farm", r["input_name"], r["inp"]) for r in R.farm_catalogue()]
+           + [("processing", r["input_name"], r["inp"]) for r in R.processing_catalogue()]
+           + [("raw_material", n, R.raw_material_input(n)) for n in raw_names])
+    for section, name, inp in cat:
+        for reg in R.REGIONS_RUN:
+            b = before.get((section, reg, name)) or {}
+            rows.append({"key": f"{section}|{reg}|{name}", "section": section, "region": reg,
+                         "input_name": name, "inp": inp,
+                         "before": {"name": b.get("matched_process"), "location": b.get("location"),
+                                    "uid": b.get("uid")}})
+    return rows
 
 
 def collect_rows() -> list[dict]:
-    """(section, region, input) rows with the inputs the engine would build for them."""
+    """LEGACY parser for the 45ad6b6-format mapping (GH, NG, CA; used by
+    scripts/regenerate_inventory_mapping.py to read the baseline `before` column). The input
+    dicts carry no fallbacks: the engine no longer sends fuel or raw-material fallbacks."""
     from engine.process_inputs import _raw_material_match
     d = json.loads(MAPPING.read_text(encoding="utf-8"))
     rows: list[dict] = []
@@ -60,10 +111,6 @@ def collect_rows() -> list[dict]:
     for r in d["shared_processing_inventory"]["inputs_to_database_processes"]:
         tgt = r.get("match_target_sent_to_matcher") or r["input_name"]
         inp = {"name": r["input_name"], "match_as": tgt, "kind": r.get("category")}
-        m = re.match(r"(\w+) \(facility fuel\)$", r["input_name"])
-        if m:
-            fbs = [f.format(w=m.group(1)) for f in _FUEL_FALLBACKS]
-            inp["fallbacks"] = [f for f in fbs if f != tgt]
         for reg, v in (r.get("by_region") or {}).items():
             add("processing", reg, r["input_name"], inp,
                 {"name": v.get("matched_process"), "location": v.get("location"),
@@ -76,7 +123,7 @@ def collect_rows() -> list[dict]:
                     continue
                 name = m.group(1)
                 hint, refined = _raw_material_match(name)
-                inp = {"name": name, "match_as": hint, "fallback": name, "kind": "raw_material",
+                inp = {"name": name, "match_as": hint, "kind": "raw_material",
                        "refined": refined, "unit": "kg"}
                 for reg, v in (i.get("by_region") or {}).items():
                     add("raw_material", reg, name, inp,
@@ -139,6 +186,8 @@ def engines():
     matcher = ProcessMatcher(q, embedder=emb or _PinnedOnly())
     matcher.build_index()
     matcher.load_query_cache(QCACHE)
+    if EXTRA_QCACHE.exists():
+        matcher.load_query_cache(EXTRA_QCACHE)
     cache = {}
 
     def get(region):
@@ -169,7 +218,7 @@ def _fingerprint(matcher) -> str:
 
 def _run_all(get) -> dict:
     out = {}
-    for r in collect_rows():
+    for r in current_rows():
         eng = get(r["region"])
         if eng is None:
             continue
@@ -195,6 +244,8 @@ def _changes(results: dict) -> list[dict]:
     rows = []
     for k, v in results.items():
         b = v["_before"]
+        if not b.get("name") and not b.get("uid"):
+            continue                          # row not in the committed mapping
         if b.get("uid"):
             same = b["uid"] == v["uid"]
         else:
@@ -212,7 +263,7 @@ def _changes(results: dict) -> list[dict]:
 def test_matcher_matches_golden(engines):
     get, matcher, fp = engines
     results = _run_all(get)
-    assert results, "no rows collected from the mapping JSON"
+    assert results, "no rows collected from the engine catalogues"
     if UPDATE:
         GOLDEN_DIR.mkdir(exist_ok=True)
         golden = {"index_fingerprint": fp, "embedder": EMBEDDER_NAME,
@@ -257,7 +308,7 @@ def test_known_bad_rows_fixed(engines):
         eng = get(region)
         hint, refined = _raw_material_match(name)
         try:
-            m, _ = eng.resolve_input({"name": name, "match_as": hint, "fallback": name,
+            m, _ = eng.resolve_input({"name": name, "match_as": hint,
                                       "kind": "raw_material"})
         except LookupError as e:
             pytest.skip(str(e))
