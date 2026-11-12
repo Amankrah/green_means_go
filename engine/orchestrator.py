@@ -80,9 +80,9 @@ def _adjudicator():
         return None
     try:
         try:
-            from .llm.adjudicate import adjudicate
+            from engine.llm.adjudicate import adjudicate
         except ImportError:
-            from llm.adjudicate import adjudicate
+            from llm.adjudicate import adjudicate  # engine/ run as a script directory
         return adjudicate
     except ImportError:
         return None
