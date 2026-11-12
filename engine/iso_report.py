@@ -554,6 +554,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
            + ("It is held back mainly by "
               + ", ".join(f"{x['indicator'].lower()} ({x['rating'].lower()})" for x in _worst)
               + "." if _worst else "All indicators rate good at this screening level."))
+    # Region registry values still at the Ghana number (engine/regions.py ghana_inherited).
+    _inherited = tuple(getattr(region, "ghana_inherited", None) or ())
+    if _inherited and getattr(region, "code", "GH") != "GH":
+        dqa += (f" Some {region_name} regional parameters are not yet region-specific and still "
+                f"use the Ghana value: {', '.join(_inherited)}.")
     # Sensitivity, derived from the computed contribution analysis rather than asserted. A
     # cradle-to-gate model is linear in the input amounts, so each source's share of a result
     # is also its elasticity: change that source by 1% and the total moves by about its share.

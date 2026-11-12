@@ -41,6 +41,12 @@ def _engine(region_code: str, method: str | None):
 def _region_of(assessment: dict, override: str | None) -> str:
     if override:
         return override
+    # An explicit engine region (e.g. "SN" with the kernel country bucket "Global") wins
+    # over the country; otherwise "Global" would resolve to CA.
+    try:
+        return get_region((assessment.get("region") or "").strip()).code
+    except KeyError:
+        pass
     country = (assessment.get("country") or "").strip()
     try:
         return get_region(country).code
