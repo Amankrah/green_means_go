@@ -265,3 +265,37 @@ def test_refined_hint_not_inside_crop_phrase():
     assert _raw_material_match("Sugar cane")[1] is False
     assert _raw_material_match("raw sugar")[1] is True
     assert _raw_material_match("groundnut oil") == ("peanut oil, at oil mill", True)
+
+
+# ------------------------------------------------- "Africa" must not match "South Africa"
+def _bf_like():
+    """A Burkina Faso style region (WS3b adds the real one); built here so the test runs on
+    any branch. Preference strings follow the store's location names."""
+    from engine.regions import Region
+    return Region(code="BF", name="Burkina Faso", currency="XOF", climate_zone="dry tropical",
+                  ipcc_n2o_ef1=0.005, aware_country="Burkina Faso",
+                  default_method="ReCiPe 2016 v1.03, midpoint (H)",
+                  location_prefer=("BF", "Burkina Faso", "Africa", "Rest of World", "RoW",
+                                   "Global", "GLO"))
+
+
+def test_location_rank_africa_is_not_south_africa():
+    bf = _bf_like()
+    assert location_rank(bf, "South Africa") == location_rank(bf, "Narnia")
+    assert location_rank(bf, "Africa") < location_rank(bf, "Rest of World")
+    assert location_rank(bf, "Global") == location_rank(bf, "GLO")
+    ca = get_region("CA")
+    assert location_rank(ca, "Canada without Quebec") < location_rank(ca, "Rest of World")
+
+
+def test_bf_electricity_does_not_resolve_to_za():
+    eng = _engine("GH", [
+        _c("za", "market for electricity, low voltage", "South Africa", 0.75,
+           "electricity, low voltage"),
+        _c("raf", "market group for electricity, low voltage", "Africa", 0.72,
+           "electricity, low voltage"),
+        _c("glo", "market group for electricity, low voltage", "Global", 0.70,
+           "electricity, low voltage")])
+    eng.region = _bf_like()
+    m = eng._match_input("electricity low voltage")
+    assert m["uid"] == "raf" and m["location"] != "South Africa"
