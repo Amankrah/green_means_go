@@ -263,3 +263,21 @@ def test_case_studies_present():
         d = json.loads((cs / f"{stem}.json").read_text(encoding="utf-8"))
         assert d["region"] == code and d["country"] == "Global"
         assert (cs / f"{stem}.sources.md").exists()
+
+
+@pytest.mark.skipif(not STORE.exists(), reason="canonical store not present")
+@pytest.mark.parametrize("code,pattern", [("ZA", "Electricity, low voltage {ZA}%"),
+                                          ("SN", "Electricity, low voltage {SN}%")])
+def test_grid_calibration_lands_on_official_factor(code, pattern):
+    """The new regions' grid EF flows through engine/grid_calibration.py unchanged."""
+    import grid_calibration
+    from ingestion.query import CanonicalQuery
+    q = CanonicalQuery(str(STORE))
+    r = R.REGIONS[code]
+    uid = sqlite3.connect(f"file:{STORE.as_posix()}?mode=ro", uri=True).execute(
+        "select uid from processes where name like ? limit 1", (pattern,)).fetchone()[0]
+    sc = q.cradle_to_gate(uid, amount=1.0)
+    info = grid_calibration.apply(q, {"kind": "electricity", "amount": 1.0},
+                                  sc.elementary_flows, r, r.default_method)
+    assert info is not None and abs(info["climate_after"] - r.grid_ef_kgco2_per_kwh) < 1e-3
+    assert info["climate_before"] < r.grid_ef_kgco2_per_kwh  # ecoinvent understates both
