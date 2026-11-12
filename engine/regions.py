@@ -90,12 +90,25 @@ def get_region(code_or_name: str) -> Region:
 
 def location_rank(region: Region, location: str | None) -> int:
     """Lower is better. Rank a background process's location against the region's
-    preference list; unknown locations sort last."""
+    preference list; unknown locations sort last.
+
+    An EXACT match on preference i ranks 2*i; a substring match (e.g. "Canada, Ontario"
+    against "Canada") ranks 2*i+1, so the national dataset outranks a sub-national one on
+    the same preference and the two can never tie. Callers break remaining ties by
+    similarity score and then uid (see orchestrator.FarmLCA._match_input)."""
     loc = (location or "").strip()
-    for i, pref in enumerate(region.location_prefer):
-        if loc == pref or (pref and pref in loc):
-            return i
-    return len(region.location_prefer) + 1
+    prefs = region.location_prefer
+    for i, pref in enumerate(prefs):
+        if pref and loc == pref:
+            exact = 2 * i
+            break
+    else:
+        exact = None
+    for i, pref in enumerate(prefs):
+        if pref and pref in loc:
+            sub = 2 * i + 1
+            return sub if exact is None else min(exact, sub)
+    return exact if exact is not None else 2 * len(prefs) + 1
 
 
 if __name__ == "__main__":
