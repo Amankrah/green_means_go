@@ -1,0 +1,40 @@
+{
+  "id": "ef.grid.sn",
+  "type": "reference_factor",
+  "title": "Senegal national grid emission factor",
+  "description": "CO2e per MWh from Senegal's grid. No figure is published by SENELEC or the regulator (CRSE); the best national figure found is the ex-post operating margin computed with the UNFCCC CDM grid tool from Senegal's national energy balance for GIZ's Programme Energies Durables. The OM excludes low-cost / must-run plants (OMVS hydro imports, solar, ~15% in 2018), so it sits above the generation average; that roughly offsets the T&D losses (~17%) when applied at low voltage. ecoinvent 3.11's SN low-voltage market characterises to ~0.31 kgCO2e/kWh in this store (ReCiPe 2016 H), understating it ~2.4x.",
+  "factors": {
+    "all_other_projects": {
+      "value": 0.744,
+      "unit": "kgCO2e/kWh",
+      "unit_source": "0.744 tCO2e/MWh, which equals 0.744 kgCO2e/kWh",
+      "year": 2018,
+      "use_for": "Grid electricity consumption accounting (engine/grid_calibration.py)."
+    }
+  },
+  "regional_reference": {
+    "value": 0.567,
+    "unit": "tCO2/MWh",
+    "what": "UNFCCC ASB0034 WAPP standardized baseline (update ASU_006, Feb 2021), combined margin, all projects except wind/solar, 1st crediting period; OM 0.578, BM 0.556; data vintage 2019. WAPP-wide (9 countries), so not national.",
+    "source": "https://cdm.unfccc.int/sunsetcms/storage/contents/stored-file-20210325112248982/ASU_006_ASB0034_Final_recommendation.pdf"
+  },
+  "provenance": {
+    "source": "GIZ-PED-Senegal-2021",
+    "table": "Tableau 5 : Estimations du facteur d'emission du reseau (GEF), Ex-post",
+    "span": "GEF OM (phase operationnelle) tCO2e/MWh: 2017 0,781; 2018 0,744. GEF ACV: 2017 0,885; 2018 0,839.",
+    "publication": "Perspectives Climate Group (2021) Rapport final de presentation des resultats et recommandations, GIZ Programme Energies Durables Senegal, contrat 81268887, 29 Sept 2021",
+    "url": "https://energypedia.info/images/b/b8/GIZ_PED_Senegal_Rapport_FINAL_20210929.pdf",
+    "licence": "GIZ project report, publicly posted on energypedia; cite",
+    "extracted_by": "pdftotext -layout, 2026-11-12"
+  },
+  "pedigree": {
+    "reliability": 3,
+    "completeness": 2,
+    "temporal": 3,
+    "geographical": 1,
+    "technological": 3
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual",
+  "acquire_next": "A CRSE / SIE-Senegal published grid EF for 2023-2025 (post Sendou coal, Taiba Ndiaye wind and gas-to-power)."
+}

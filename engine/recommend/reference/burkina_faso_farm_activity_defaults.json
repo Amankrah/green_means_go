@@ -1,0 +1,226 @@
+{
+  "id": "activity.defaults.farm.bf",
+  "type": "activity_defaults",
+  "title": "Burkina Faso farm activity defaults (diesel, electricity, yield guides)",
+  "description": "Screening-level diesel (L/ha/yr), grid electricity (kWh/ha/yr), and yield guides for Burkina Faso farms when the Equipment & Energy step has no measured fuel/electricity. Keyed by mechanization x irrigated, same schema as ghana_farm_activity_defaults.json. Built for this region, NOT copied from Ghana: pumping energy is derived from water volume, head and pump efficiency; yields are FAOSTAT national means. Uncertainty is wide (factor ~2); every row carries a pedigree. Never invent fertiliser rates here.",
+  "uncertainty_factor": 2.0,
+  "pedigree": "estimated",
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual",
+  "rows": [
+    {
+      "id": "rainfed_manual",
+      "mechanization": "fully_manual",
+      "irrigated": false,
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1606,
+        "sorghum": 972,
+        "millet": 829,
+        "cotton": 1087,
+        "sesame": 548,
+        "groundnut": 847,
+        "cowpea": 484,
+        "soybean": 1097,
+        "_default": 972
+      },
+      "provenance": {
+        "source": "BF-CDN-2021",
+        "span": "Rainfed smallholder cereals and cotton worked by hand or animal traction; screening 0 L diesel, 0 kWh.",
+        "bounds": "diesel 0; electricity 0",
+        "pedigree": {
+          "reliability": 3,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 2
+        }
+      }
+    },
+    {
+      "id": "irrigated_manual_bucket",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "manual_bucket",
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "rice": 2209,
+        "tomato": 17132,
+        "maize": 1606,
+        "_default": 2209
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Dry-season gardens watered by hand from wells: no diesel or grid energy.",
+        "bounds": "diesel 0; electricity 0",
+        "pedigree": {
+          "reliability": 3,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 2
+        }
+      }
+    },
+    {
+      "id": "irrigated_manual_pumped",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "pumped",
+      "diesel_l_per_ha": 100,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "rice": 2209,
+        "tomato": 17132,
+        "maize": 1606,
+        "_default": 2209
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Motor-pump dry-season vegetables: 6000 m3/ha x 10 m head, pumpset efficiency 0.15: hydraulic 164 kWh = 101 L/ha.",
+        "bounds": "diesel ~50-180 L/ha; electricity 0",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "rainfed_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 10,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1606,
+        "sorghum": 972,
+        "millet": 829,
+        "cotton": 1087,
+        "sesame": 548,
+        "groundnut": 847,
+        "cowpea": 484,
+        "soybean": 1097,
+        "_default": 972
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Cotton belt: animal traction is the common partial mechanisation; tractor hire is occasional. Screening 10 L/ha.",
+        "bounds": "diesel ~0-25 L/ha; electricity 0",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 4,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "irrigated_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 90,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "rice": 2209,
+        "tomato": 17132,
+        "maize": 1606,
+        "_default": 2209
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Pumped rice schemes (e.g. Sourou): 14000 m3/ha x 4 m, efficiency 0.25 = 57 L/ha, plus ~35 L/ha land preparation. Gravity schemes (Bagre) need no pumping: report 0 if so.",
+        "bounds": "diesel ~35-150 L/ha; electricity 0",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "rainfed_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 55,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "maize": 1606,
+        "sorghum": 972,
+        "millet": 829,
+        "cotton": 1087,
+        "sesame": 548,
+        "groundnut": 847,
+        "cowpea": 484,
+        "soybean": 1097,
+        "_default": 972
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Tractor-based cereal and cotton production on ferruginous soils: screening 55 L/ha within the 40-80 L/ha mechanised band.",
+        "bounds": "diesel ~40-80 L/ha; electricity 0",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 4,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "irrigated_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 130,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "rice": 2209,
+        "tomato": 17132,
+        "maize": 1606,
+        "_default": 2209
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Mechanised pumped schemes: ~60 L/ha diesel pumping plus ~70 L/ha field operations. The grid rarely reaches irrigated perimeters, so pumping is diesel by default.",
+        "bounds": "diesel ~80-200 L/ha; electricity 0 unless reported",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    }
+  ],
+  "sources": [
+    {
+      "key": "IPCC-2019",
+      "role": "method",
+      "note": "Tier 1 activity-data approach; this table supplies activity amounts, not emission factors."
+    },
+    {
+      "key": "BF-CDN-2021",
+      "role": "context",
+      "note": "Burkina Faso CDN 2021-2025 (Oct 2021): irrigation projects (PARIIS-BF, PIRA-BF drip) and land restoration dominate the agriculture actions."
+    },
+    {
+      "key": "FAOSTAT-QCL",
+      "role": "yield",
+      "note": "FAOSTAT (2025) Crops and livestock products (QCL), Yield (kg/ha), bulk Production_Crops_Livestock_E_Africa.csv dated 2025-12-23. Mean of 2021-2023; see the region's yield-guide file for flags and pedigree."
+    },
+    {
+      "key": "engineering-screening-WS3b",
+      "role": "energy",
+      "note": "Pump energy = volume x 9.81 x head / 3.6e6 / efficiency (kWh); diesel L = hydraulic kWh / (efficiency x 10.75 kWh/L, 38.7 MJ/L). Efficiencies: small diesel pumpset 0.15, larger diesel 0.25, electric wire-to-water 0.6 (FAO Irrigation Water Management training manuals, pump efficiency ranges). Field-operation diesel uses the mechanised-cereal 40-80 L/ha band. Reviewer to confirm against national surveys."
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "id": "price.xof.producer.bf",
+  "type": "reference_price",
+  "title": "Burkina Faso producer (farm-gate) prices",
+  "description": "Annual producer prices for Burkina Faso from FAOSTAT PP (national official series, flag A), converted LCU/tonne to LCU/kg. Revenue side of the economic screen; farm-gate, so no trader margin (unlike the Ghana SRID wholesale proxy).",
+  "currency": "XOF",
+  "prices": {
+    "maize": {
+      "price_per_kg": 232.0,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 232000.0,
+      "year": 2022,
+      "faostat_item": "Maize (corn)",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 2,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "millet": {
+      "price_per_kg": 327.0,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 327000.0,
+      "year": 2022,
+      "faostat_item": "Millet",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 2,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sorghum": {
+      "price_per_kg": 258.0,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 258000.0,
+      "year": 2022,
+      "faostat_item": "Sorghum",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 2,
+        "geographical": 1,
+        "technological": 2
+      }
+    }
+  },
+  "not_covered": [
+    "cotton (seed cotton price is announced per season by AICB/SOFITEX; not in FAOSTAT PP 2021-2024)",
+    "sesame",
+    "tomato",
+    "rice",
+    "groundnut",
+    "cowpea"
+  ],
+  "provenance": {
+    "source": "FAOSTAT-PP",
+    "publication": "FAOSTAT (2025) Producer Prices (PP), Producer Price (LCU/tonne), annual value, bulk Prices_E_Africa.csv dated 2025-12-23",
+    "licence": "FAO statistical databases: CC BY 4.0 (FAO Statistical Database Terms of Use) - cite"
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}

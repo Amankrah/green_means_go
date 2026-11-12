@@ -41,6 +41,18 @@ Legend - `use`: **clean** (reuse incl. commercial) · **cite** (derive numbers, 
 | `ef.grid.gh` | ✅ **RESOLVED** | Ghana govt publication | **cite** | **Gap closed.** Official Ghana grid EF extracted from `2025 Energy Statistics.pdf` (Energy Commission), Table 6.3: **0.35 kgCO2e/kWh** (2024, all-other-projects), 0.32 for displacement projects. Recorded with provenance in [`engine/recommend/reference/ghana_grid_ef.json`](../../engine/recommend/reference/ghana_grid_ef.json). Supersedes the stale IEA-2011/Climatiq 0.2629. Caveat: column alignment inferred from a flattened extraction; verify the 2024 cell visually before publishing figures. Now wired into the engine via `engine/grid_calibration.py` (climate-only, inventory-level, toggle `USE_OFFICIAL_GRID_EF`). |
 | `activity.defaults.farm.gh` | Screening activity defaults (diesel L/ha, grid kWh/ha, yield guides) | Synthesis citing IPCC 2019 method, Ghana CSAIP/MoFA context, FAO/MoFA yield guides, WA mechanization/SSI literature | **cite** | Static table [`ghana_farm_activity_defaults.json`](../../engine/recommend/reference/ghana_farm_activity_defaults.json); applied by `engine/activity_defaults.py`. Wide uncertainty (×2); pedigree estimated. Replaces the retired Rust flat 80 L + 200 kWh/ha fallback for rainfed/manual. |
 
+## Senegal, Burkina Faso, South Africa (WS3b, 2026-11-12)
+
+| Key | Source | Licence | `use` | Notes |
+|---|---|---|---|---|
+| `CIAT-CSA-Senegal-2016` | CIAT; BFS/USAID (2016) Climate-Smart Agriculture in Senegal, CSA Country Profiles for Africa (CGSpace hdl 10568/74524) | Open Access, no CC licence stated | **cite** | Spans for the SN starter measures are quoted verbatim from Table 1. |
+| `BF-CDN-2021` | Burkina Faso, Contribution Determinee au Niveau National 2021-2025 (Oct 2021), UNFCCC NDC registry | Government publication | **cite** | Spans for the BF starter measures quoted verbatim (French). |
+| `ZA-DAFF-CSA-Framework-2018` | DAFF (2018) Draft Climate Smart Agriculture Strategic Framework, Government Gazette 41811, Notice 428 | Government gazette | **cite** | Spans for the ZA starter measures quoted verbatim. Draft framework; no final version located. |
+| `GIZ-PED-Senegal-2021` | Perspectives Climate Group for GIZ PED Senegal (2021), Rapport final, Tableau 5 | GIZ report on energypedia | **cite** | SN grid EF 0.744 tCO2e/MWh (2018 OM). `reference/senegal_grid_ef.json`. |
+| `Nana-2023-CleanAirJournal` | Nana et al. (2023) Clean Air Journal 33(2), doi:10.17159/caj/2023/33/2.15701 | CC BY | **clean** | BF grid EF 0.569 kgCO2/kWh (SONABEL 2018). `reference/burkina_faso_grid_ef.json`. |
+| `Eskom-IR-2024` | Eskom Holdings (2024) Integrated Report, p 122 | Corporate report | **cite** | ZA grid EF 1.04 tCO2/MWh sold (FY2023/24). `reference/south_africa_grid_ef.json`. |
+| `FAOSTAT-QCL`, `FAOSTAT-PP` | FAOSTAT yields and producer prices (bulk download 2025-12-23) | FAO statistical database terms (CC BY 4.0) | **cite** | `reference/{senegal,burkina_faso,south_africa}_{yield_guides,producer_prices}.json`. |
+
 ## FAO EX-ACT (methodological spine)
 
 | File | Licence | `use` | Notes |
