@@ -65,14 +65,24 @@ async def regions():
 
 @router.post("/assess")
 async def assess(req: FarmAssessRequest):
+    from engine.commodities import reject_unsupported_farm_commodities, UnsupportedCommodityError
+    from engine.service import prepare_farm_run
+    try:
+        reject_unsupported_farm_commodities(req.assessment)
+    except UnsupportedCommodityError as e:
+        # Honey/apiculture is not a field crop: reject explicitly instead of running it
+        # through the crop model (engine/commodities.py documents the decision).
+        raise HTTPException(422, str(e))
     try:
         eng, lock = _get_engine(req.region, req.method)
     except KeyError as e:
         raise HTTPException(400, str(e))
     inputs = [i.model_dump() for i in req.purchased_inputs]
+    kernel_assessment, inputs, prep_notes = prepare_farm_run(req.assessment, inputs, eng.region)
     try:
         with lock:                                   # serialise: sqlite conn not thread-safe
-            res = eng.assess_farm(req.assessment, inputs, expand_matching=req.expand_matching)
+            res = eng.assess_farm(kernel_assessment, inputs, expand_matching=req.expand_matching)
+        res.notes = prep_notes + res.notes
     except FileNotFoundError as e:
         raise HTTPException(503, f"Rust LCI kernel not built: {e}")
     except Exception as e:

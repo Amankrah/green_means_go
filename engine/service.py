@@ -17,11 +17,51 @@ try:
     from .regions import get_region
     from .inputs import extract_purchased_inputs, total_production_kg
     from .adapter import to_assessment_response
+    from . import field_params, fuels, perennials
+    from .commodities import reject_unsupported_farm_commodities, UnsupportedCommodityError  # noqa: F401
 except ImportError:
     from orchestrator import FarmLCA
     from regions import get_region
     from inputs import extract_purchased_inputs, total_production_kg
     from adapter import to_assessment_response
+    import field_params
+    import fuels
+    import perennials
+    from commodities import reject_unsupported_farm_commodities, UnsupportedCommodityError  # noqa: F401
+
+WARNING_PREFIX = "validation warning: "
+
+
+def prepare_farm_run(assessment: dict, inputs: list[dict], region) -> tuple[dict, list[dict], list[str]]:
+    """Foreground preparation shared by every farm entry point (WS1):
+      * region/climate IPCC 2019 soil-N parameters and perennial residue renewal injected
+        for the Rust kernel (engine/field_params.py);
+      * LPG/kerosene/firewood/charcoal split into production (kg) + direct combustion flows
+        (engine/fuels.py), the flows riding on the assessment as `direct_combustion_lci`;
+      * perennial establishment amortisation of the purchased inputs (engine/perennials.py).
+    Returns (kernel_assessment, inputs, notes)."""
+    kernel_assessment, notes = field_params.prepare_kernel_assessment(assessment, region)
+    inputs, combustion, fuel_notes = fuels.expand_fuel_inputs(inputs)
+    if combustion:
+        kernel_assessment["direct_combustion_lci"] = combustion
+    inputs, per_notes = perennials.scale_purchased_inputs(inputs, assessment)
+    return kernel_assessment, inputs, notes + fuel_notes + per_notes
+
+
+def lift_validation_warnings(response: dict) -> dict:
+    """Copy notes carrying the validation-warning prefix into data_quality.warnings so the
+    client shows them as warnings instead of burying them in the notes."""
+    dq = response.get("data_quality")
+    if not isinstance(dq, dict):
+        return response
+    warnings = list(dq.get("warnings") or [])
+    for n in dq.get("notes") or []:
+        if isinstance(n, str) and n.startswith(WARNING_PREFIX):
+            w = n[len(WARNING_PREFIX):]
+            if w not in warnings:
+                warnings.append(w)
+    dq["warnings"] = warnings
+    return response
 
 _engines: dict[str, FarmLCA] = {}
 _locks: dict[str, threading.Lock] = {}
@@ -202,6 +242,7 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
     run_uncertainty: when True (default), attach pedigree screening Monte Carlo
     percentiles (N from engine.uncertainty.DEFAULT_N unless overridden)."""
     _emit(on_progress, "prepare", "Reading your farm data")
+    reject_unsupported_farm_commodities(assessment)
     region_code = _region_of(assessment, region)
     eng, lock = _engine(region_code, method)
     total = total_production_kg(assessment)
@@ -221,32 +262,37 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
             share = (food.get("area_allocated") or 0) / total_area
             sub = _sub_assessment(assessment, food, share)
             inputs, _ = extract_purchased_inputs(sub)
+            kernel_sub, inputs, prep_notes = prepare_farm_run(sub, inputs, eng.region)
             with lock:
-                per_crop[_crop_label(food)] = eng.assess_farm(sub, inputs)
+                crop_res = eng.assess_farm(kernel_sub, inputs)
+            crop_res.notes = prep_notes + crop_res.notes
+            per_crop[_crop_label(food)] = crop_res
         _emit(on_progress, "characterize", "Characterizing impacts")
         farm = _sum_results(per_crop)
         if run_uncertainty:
             _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
         _emit(on_progress, "report", "Compiling your report")
-        return to_assessment_response(
+        return lift_validation_warnings(to_assessment_response(
             farm, assessment, eng, total,
             assessment_id or str(uuid.uuid4()), per_crop=per_crop,
             run_uncertainty=run_uncertainty,
             uncertainty_n=uncertainty_n,
             uncertainty_seed=uncertainty_seed,
-        )
+        ))
 
     # single crop / no area -> one whole-farm system (fine-grained per-input progress)
     inputs, in_notes = extract_purchased_inputs(assessment)
+    kernel_assessment, inputs, prep_notes = prepare_farm_run(assessment, inputs, eng.region)
+    in_notes = list(in_notes) + prep_notes
     with lock:
-        res = eng.assess_farm(assessment, inputs, on_progress=on_progress)
+        res = eng.assess_farm(kernel_assessment, inputs, on_progress=on_progress)
     if run_uncertainty:
         _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
     _emit(on_progress, "report", "Compiling your report")
-    return to_assessment_response(
+    return lift_validation_warnings(to_assessment_response(
         res, assessment, eng, total,
         assessment_id or str(uuid.uuid4()), in_notes,
         run_uncertainty=run_uncertainty,
         uncertainty_n=uncertainty_n,
         uncertainty_seed=uncertainty_seed,
-    )
+    ))
