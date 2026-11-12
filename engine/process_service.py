@@ -67,9 +67,20 @@ def run_process_assessment(request: dict, region: str | None = None,
     region_code = _resolve_region(request, region)
     eng, lock = _engine(region_code, method)
     inputs, notes, total_kg = extract_processing_inputs(request)
+    # WS1: honey raw material flagged + steered to the WFLDB honey proxy; LPG/kerosene/
+    # firewood/charcoal split into production + IPCC 2006 direct combustion flows.
+    try:
+        from .commodities import flag_processing_raw_materials
+        from .fuels import expand_fuel_inputs
+    except ImportError:
+        from commodities import flag_processing_raw_materials
+        from fuels import expand_fuel_inputs
+    inputs, honey_notes = flag_processing_raw_materials(inputs)
+    inputs, combustion, fuel_notes = expand_fuel_inputs(inputs)
+    notes = list(notes) + honey_notes + fuel_notes
     _emit(on_progress, "inventory", "Building the life-cycle inventory")
     with lock:
-        res = eng.assess(on_farm_lci=[], purchased_inputs=inputs, on_progress=on_progress)
+        res = eng.assess(on_farm_lci=combustion, purchased_inputs=inputs, on_progress=on_progress)
     if run_uncertainty:
         _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
     _emit(on_progress, "report", "Compiling your report")

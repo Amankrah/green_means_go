@@ -31,10 +31,12 @@ try:
     from .regions import get_region, location_rank
     from .flowmap import OnFarmFlowMap
     from . import grid_calibration
+    from . import units
 except ImportError:
     from regions import get_region, location_rank
     from flowmap import OnFarmFlowMap
     import grid_calibration
+    import units
 
 
 def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
@@ -190,8 +192,21 @@ class FarmLCA:
                 continue
             proc = self.q.get_process(m["uid"]) or {}
             ref_unit = proc.get("ref_unit")
+            # The amount MUST be in the matched dataset's reference unit: convert it
+            # (engine/units.py, cited LHV/density) or exclude the input, never pass through.
             try:
-                sc = self.q.cradle_to_gate(m["uid"], amount=float(inp["amount"]))
+                solve_amount, unit_note = units.to_ref_unit(inp, ref_unit)
+            except units.UnitMismatchError as e:
+                res.notes.append(f"validation warning: {e}")
+                res.input_matches.append({"input": inp["name"], "amount": inp["amount"],
+                                          "amount_unit": inp.get("unit"), "matched": m["name"],
+                                          "ref_unit": ref_unit, "kind": inp.get("kind"),
+                                          "excluded": "unit mismatch", "score": m["score"]})
+                continue
+            if unit_note:
+                res.notes.append(unit_note)
+            try:
+                sc = self.q.cradle_to_gate(m["uid"], amount=solve_amount)
                 # Correct grid electricity to the official national grid EF (climate-only,
                 # inventory-level) before the flows are consumed, so the per-source
                 # contribution, the merged total, and the single score are all consistent.
@@ -214,17 +229,12 @@ class FarmLCA:
                     _add(src_flows, uid, ef["amount"], ef.get("name"), ef.get("unit"))
             except Exception as e:
                 res.notes.append(f"solve failed for '{inp['name']}' -> {m['name']}: {e}")
-            # The amount MUST be in the matched process's reference unit. Surface it so a
-            # kg amount against an MJ/kWh process is caught, not silently mis-scaled.
-            if inp.get("unit") and ref_unit and inp["unit"] != ref_unit:
-                res.notes.append(
-                    f"unit mismatch for '{inp['name']}': amount given in "
-                    f"'{inp['unit']}' but '{m['name']}' is per '{ref_unit}' — convert first.")
             match_row = {
                 "input": inp["name"], "amount": inp["amount"], "amount_unit": inp.get("unit"),
                 "matched": m["name"], "ref_unit": ref_unit, "kind": inp.get("kind"),
                 "source": self.q.source_label(m["uid"]),
                 "location": m.get("location"), "score": m["score"],
+                "solved_amount": solve_amount,
             }
             if inp.get("estimated"):
                 match_row["estimated"] = True
