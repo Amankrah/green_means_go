@@ -1,8 +1,8 @@
 """
-report_grounding.py — build a slim, token-efficient grounding payload from the
+report_grounding.py: build a slim, token-efficient grounding payload from the
 deterministic iso_report + assessment metrics for AI plain-language guides.
 
-The AI layer must only interpret what is already in this JSON — never invent
+The AI layer must only interpret what is already in this JSON and never invent
 methodology, numbers, or exclusions.
 """
 from __future__ import annotations
@@ -104,7 +104,7 @@ def build_grounding_payload(assessment_data: dict) -> dict:
 
     fu = assessment_data.get("functional_units") or {}
     land_note = fu.get("land_intensity_note") or (
-        "Land use (m² per kg) is land intensity — area occupied per kilogram of crop — "
+        "Land use (m² per kg) is land intensity, the area occupied per kilogram of crop, "
         "not a judgment that using farmland is environmentally wrong. "
         "Higher yield lowers land intensity per kg."
     )
