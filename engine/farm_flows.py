@@ -37,6 +37,13 @@ WATER_SOURCE_FLOWS = {
 }
 UNSPECIFIED_WATER = "Water, unspecified natural origin"
 
+# Consumptive use. In the ecoinvent 3.11 method pack in the store, ReCiPe / EF "Water use" is
+# characterised on water EVAPORATED ("Water", emission to air), i.e. withdrawal minus
+# return. The withdrawal flows above carry no water-use CF, so the evapotranspired share of
+# the irrigation water is also emitted to air: applied volume x field application efficiency
+# (the share taken up by the crop; field losses return to ground / surface water).
+EVAPORATED_WATER = ("Water", "Elementary flows/Emission to air/unspecified")
+
 # IPCC 2006 Vol.5 Ch.4 Table 4.1, composting: 4 g CH4 and 0.3 g N2O per kg of wet waste
 # treated. Applied compost mass is used as the treated mass (lower bound: mass is lost during
 # composting). Only farm-made compost; manure storage belongs to the livestock system.
@@ -92,6 +99,17 @@ def extra_flows(assessment: dict, conn, fmap=None) -> tuple[list[dict], list[str
             uid = _flow_uid(conn, name, RESOURCE_IN_WATER)
             if uid:
                 flows.append({"uid": uid, "name": name, "unit": "m3", "amount": share})
+        try:
+            from .crop_defaults import APPLICATION_EFFICIENCY, EFFICIENCY_SOURCE
+        except ImportError:
+            from crop_defaults import APPLICATION_EFFICIENCY, EFFICIENCY_SOURCE  # type: ignore
+        eff = APPLICATION_EFFICIENCY.get(w["system"], APPLICATION_EFFICIENCY["surface"])
+        uid = _flow_uid(conn, *EVAPORATED_WATER)
+        if uid:
+            flows.append({"uid": uid, "name": "Water (evapotranspired irrigation)", "unit": "m3",
+                          "amount": w["m3"] * eff})
+            notes.append(f"consumptive irrigation water {w['m3'] * eff:.0f} m3 = applied x {eff:g} "
+                         f"field application efficiency ({EFFICIENCY_SOURCE})")
         notes.append(f"irrigation water: {w['m3']:.0f} m3 by source {srcs} "
                      f"({'estimated: ' + w['source'] if w['estimated'] else 'measured'})")
 
