@@ -306,7 +306,7 @@ def _run(q, inputs, onfarm_lci, client, chosen: dict):
     eng.method = eng.region.default_method
     by_name = {i.get("match_as") or i["name"]: i for i in inputs}
 
-    def match(text, expand=False):
+    def match(text, expand=False, context=None):
         inp = by_name.get(text)
         if inp is None:
             return None

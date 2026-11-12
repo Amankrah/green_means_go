@@ -128,7 +128,7 @@ def _stub_engine(ref_unit):
     eng.method = "m"
     eng.q = _StubQ(ref_unit)
     eng.fmap = SimpleNamespace(resolve=lambda s: None)
-    eng._match_input = lambda text, expand=False: {"uid": "u", "name": "market for kerosene",
+    eng._match_input = lambda text, expand=False, context=None: {"uid": "u", "name": "market for kerosene",
                                                    "score": 0.9, "location": "RoW"}
     return eng
 
