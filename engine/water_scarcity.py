@@ -190,14 +190,33 @@ def apply(q, region, on_farm_lci: list[dict], purchased_inputs: list[dict],
 def aware_indicator(engine, inventory: dict) -> dict | None:
     """'Water scarcity (AWARE)' for ANY served method: EF 3.1 'Water use' of the merged
     inventory (ecoinvent AWARE CFs for background, regional AWARE for the foreground).
-    Returns {"value", "unit"} or None."""
+    Returns {"value", "unit"} or None.
+
+    Computed as sum(amount x CF) over the EF 3.1 'Water use' CFs matched by flow UID, which
+    is exactly what query._characterize does for water categories (they are never bridged by
+    name/CAS/FEDEFL), but without characterising every other EF category."""
     try:
-        if not engine.q.find_method(AWARE_METHOD):
+        cfs = _water_use_cfs(engine.q)
+        if not cfs:
             return None
-        imp = engine.characterize(inventory, AWARE_METHOD)
-        v = imp.get("Water use")
-        if not v:
-            return None
-        return {"value": v["value"], "unit": "m3 world-eq deprived"}
+        total = sum((r.get("amount") or 0.0) * cfs[uid] for uid, r in (inventory or {}).items() if uid in cfs)
+        return {"value": total, "unit": "m3 world-eq deprived"}
     except Exception:
         return None
+
+
+_WU_CACHE: dict = {}
+
+
+def _water_use_cfs(q) -> dict:
+    key = id(q)
+    if key not in _WU_CACHE:
+        m = q.find_method(AWARE_METHOD)
+        cfs = {}
+        if m and m.get("name") == AWARE_METHOD:
+            for r in q.conn.execute(
+                "SELECT cf.flow_uid, cf.factor FROM characterization_factors cf JOIN impact_categories ic "
+                "ON ic.uid=cf.category_uid WHERE ic.method_uid=? AND ic.name='Water use'", (m["uid"],)):
+                cfs[r[0]] = r[1]
+        _WU_CACHE[key] = cfs
+    return _WU_CACHE[key]

@@ -18,6 +18,11 @@ the actual assessment, and nothing is claimed that the data or the process canno
 """
 from __future__ import annotations
 
+try:  # GWP basis statement (one basis per method, values read from the store)
+    from .gwp_basis import statement as _gwp_statement
+except ImportError:
+    from gwp_basis import statement as _gwp_statement
+
 from datetime import datetime, timezone
 
 STANDARD = "ISO 14040:2006, ISO 14044:2006 and ISO/TS 14071:2024"
@@ -375,6 +380,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "beyond what the database itself excludes."),
         "allocation_procedure": allocation,
         "lcia_method": method,
+        "gwp_basis": _gwp_statement(engine, method),
         "perspective": "Hierarchist" if is_hierarchist else "method default",
         "impact_categories": categories,
         "impact_categories_basis": (
