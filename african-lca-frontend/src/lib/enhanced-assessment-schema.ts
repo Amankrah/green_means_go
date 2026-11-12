@@ -208,7 +208,40 @@ export const cropProductionSchema = z.array(z.object({
     seedRateKgPerHa: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
       z.number().min(0, "Seed rate cannot be negative").max(500, "Please verify seed rate").optional()
-    )
+    ),
+
+    // Advanced (optional): land-use change, residue management, perennial establishment.
+    landUseChange: z.object({
+      previousLandUse: z.enum(['', 'forest', 'grassland', 'annual_cropland', 'perennial_cropland']).optional(),
+      yearsSinceConversion: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+    }).optional(),
+    residueManagement: z.object({
+      fractionRemoved: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).max(1).optional()
+    ),
+      fractionBurnt: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).max(1).optional()
+    ),
+    }).optional(),
+    establishment: z.object({
+      immatureYears: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+      productiveYears: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+      inputShare: z.preprocess(
+      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
+      z.number().min(0).optional()
+    ),
+    }).optional()
   }))
   .min(1, "Please add at least one crop")
   .max(10, "Maximum 10 crops can be assessed at once");

@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
-from typing import ClassVar, List, Optional, Dict, Union, Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing import ClassVar, List, Literal, Optional, Dict, Union, Any
 from datetime import datetime
 from enum import Enum
 
@@ -215,6 +215,25 @@ class FarmLogistics(StrictModel):
     # Blank -> default distance (engine/inputs.py, cited).
     input_transport_km: Optional[float] = None
 
+class LandUseChange(StrictModel):
+    """Read by WS1's field model: IPCC stock-change LUC carbon, 20-year amortisation."""
+    previous_land_use: Literal["forest", "grassland", "annual_cropland", "perennial_cropland"]
+    years_since_conversion: int = Field(ge=0)
+
+
+class ResidueManagement(StrictModel):
+    """Read by WS1's field model: crop-residue N2O and burning."""
+    fraction_removed: float = Field(default=0.0, ge=0.0, le=1.0)
+    fraction_burnt: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class Establishment(StrictModel):
+    """Perennials (cocoa, oil palm): establishment phase amortised over productive years."""
+    immature_years: Optional[float] = Field(default=None, ge=0)
+    productive_years: Optional[float] = Field(default=None, gt=0)
+    input_share: Optional[float] = Field(default=None, ge=0)
+
+
 class FoodItem(StrictModel):
     id: str
     name: str
@@ -234,6 +253,10 @@ class FoodItem(StrictModel):
     # Seed / planting material sown (kg per ha per season). Blank -> crop default
     # (engine/crop_defaults.py, FAO seed rates), chosen by crop name, else by category.
     seed_rate_kg_per_ha: Optional[float] = None
+    # Advanced field-model inputs (engine field model, WS1).
+    land_use_change: Optional[LandUseChange] = None
+    residue_management: Optional[ResidueManagement] = None
+    establishment: Optional[Establishment] = None
 
     # The wizard used to nest a copy of farm_profile / management_practices inside every
     # food; they were never read. Discard them so cached clients keep working.

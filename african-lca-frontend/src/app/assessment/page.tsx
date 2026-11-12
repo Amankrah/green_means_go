@@ -582,6 +582,9 @@ function ComprehensiveAssessmentPage({
         averageYieldPerHectare: crop.averageYieldPerHectare,
         postHarvestLosses: crop.postHarvestLosses,
         seedRateKgPerHa: crop.seedRateKgPerHa,
+        landUseChange: crop.landUseChange,
+        residueManagement: crop.residueManagement,
+        establishment: crop.establishment,
         qualityGrades: [] // Default to empty array, can be enhanced later
       })),
       managementPractices: {

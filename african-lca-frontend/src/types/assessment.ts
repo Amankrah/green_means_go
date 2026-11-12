@@ -36,6 +36,9 @@ export interface FoodItem {
   intercropping_partners?: string[];
   post_harvest_losses?: number;
   seed_rate_kg_per_ha?: number;
+  land_use_change?: { previous_land_use: string; years_since_conversion: number };
+  residue_management?: { fraction_removed: number; fraction_burnt: number };
+  establishment?: { immature_years?: number; productive_years?: number; input_share?: number };
 }
 
 export interface AssessmentRequest {

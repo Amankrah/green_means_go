@@ -187,3 +187,15 @@ def test_removed_processing_fields_accepted_from_archives_but_not_kept():
     assert "equipment_efficiency" not in dumped["processing_operations"]
     assert set(dumped["processed_products"][0]["processing_steps"][0]) == {
         "step_name", "energy_intensity", "water_usage"}
+
+
+def test_ws1_advanced_food_fields_accepted_and_validated():
+    d = json.loads(json.dumps(FRONTEND_FARM_PAYLOAD))
+    d["foods"][0]["land_use_change"] = {"previous_land_use": "forest", "years_since_conversion": 5}
+    d["foods"][0]["residue_management"] = {"fraction_removed": 0.3, "fraction_burnt": 0.1}
+    d["foods"][0]["establishment"] = {"immature_years": 3, "productive_years": 25, "input_share": 0.1}
+    r = AssessmentRequest(**d)
+    assert r.foods[0].land_use_change.previous_land_use == "forest"
+    d["foods"][0]["residue_management"]["fraction_burnt"] = 1.5
+    with pytest.raises(ValidationError):
+        AssessmentRequest(**d)

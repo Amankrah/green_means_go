@@ -68,8 +68,9 @@ PUMP_MJ_PER_M3 = {
     "drip": {"diesel": 0.3003, "electric": 0.5255},
 }
 PUMP_SOURCE = "ecoinvent 3.11 'irrigation, surface/sprinkler/drip' (RoW): water pump operation per m3"
-PUMP_DATASET = {"diesel": "market for water pump operation, diesel",
-                "electric": "market for water pump operation, electric"}
+# Full "name | product | system" strings: the short electric name matched grid electricity.
+PUMP_DATASET = {"diesel": "market for water pump operation, diesel | water pump operation, diesel | Cutoff, U",
+                "electric": "water pump operation, electric"}
 
 # ---- logistics ------------------------------------------------------------------------
 # Packaging of the harvest when the material is given without a mass: one 0.1 kg sack per
@@ -77,8 +78,8 @@ PUMP_DATASET = {"diesel": "market for water pump operation, diesel",
 # 50 kg package).
 PACKAGING_DEFAULT_KG_PER_T = 2.0
 FARM_PACKAGING_MATCH = {
-    "polypropylene": "market for polypropylene, granulate", "pp": "market for polypropylene, granulate",
-    "plastic": "market for polypropylene, granulate", "sack": "market for polypropylene, granulate",
+    "polypropylene": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U", "pp": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U",
+    "plastic": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U", "sack": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U",
     "jute": "market for kraft paper",     # ecoinvent lacks jute bags; kraft paper fibre proxy
     "paper": "market for kraft paper", "cardboard": "market for corrugated board box",
     "crate": "market for polyethylene, high density, granulate",
@@ -376,7 +377,7 @@ def _logistics_inputs(assessment, inputs, notes):
         if est:
             kg_t = PACKAGING_DEFAULT_KG_PER_T
         ds = next((v for k, v in FARM_PACKAGING_MATCH.items() if k in mat),
-                  "market for polypropylene, granulate")
+                  "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U")
         row = {"name": f"{lg.get('packaging_material')} packaging (harvest)", "match_as": ds,
                "amount": kg_t * harvest_t, "unit": "kg", "kind": "packaging"}
         if est:

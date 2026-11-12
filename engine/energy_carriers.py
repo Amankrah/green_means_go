@@ -58,9 +58,12 @@ GENSET_L_PER_KWH_SOURCE = ("typical small (20 to 200 kVA) diesel genset at part 
 DATASETS = {
     "diesel": {"farm": ("diesel, burned in agricultural machinery", "MJ"),
                "facility": ("diesel, burned in building machine", "MJ"),
-               "genset": ("diesel, burned in diesel-electric generating set, 18.5kW", "MJ"),
+               "genset": ("market for diesel, burned in diesel-electric generating set, 18.5kW", "MJ"),
                "heat": ("diesel, burned in building machine", "MJ")},
-    "petrol": {"*": ("petrol, unleaded, burned in machinery", "MJ")},
+    # WFLDB (AGRIBALYSE) per-kg combustion dataset: the matcher lands on it for this text,
+    # and it includes combustion, so petrol is sent in kg (L x 0.772 kg/L, ratio of the
+    # IPCC-based LHVs above).
+    "petrol": {"*": ("petrol, unleaded, burned in machinery", "kg")},
     # No kerosene combustion dataset in the store; the supply dataset is per kg. Combustion
     # CO2/CH4/N2O of kerosene is WS1's fuel-combustion path (IPCC 2006 Vol.2 Table 2.5).
     "kerosene": {"*": ("market for kerosene", "kg")},
@@ -68,17 +71,17 @@ DATASETS = {
     "lpg": {"*": ("propane, burned in building machine", "MJ")},
     "natural_gas": {"*": ("heat production, natural gas, at industrial furnace >100kW", "MJ")},
     # Fuel energy is fed as heat energy: conservative by 1/furnace efficiency.
-    "firewood": {"*": ("heat production, hardwood chips from forest, at furnace 50kW", "MJ")},
+    "firewood": {"*": ("heat production, hardwood chips from forest, at furnace 50kW | heat, central or small-scale, other than natural gas | Cutoff, U", "MJ")},
     # Same combustion proxy, but mill residues are a by-product of the same facility, so the
     # wood supply chain in the proxy overstates them slightly (conservative, noted).
-    "biomass_residue": {"*": ("heat production, hardwood chips from forest, at furnace 50kW", "MJ")},
+    "biomass_residue": {"*": ("heat production, hardwood chips from forest, at furnace 50kW | heat, central or small-scale, other than natural gas | Cutoff, U", "MJ")},
     # Charcoal production (kiln emissions dominate). Stove combustion CH4/N2O: WS1 path.
     "charcoal": {"*": ("market for charcoal", "kg")},
-    "biogas": {"*": ("anaerobic digestion of manure", "m3")},
+    "biogas": {"*": ("anaerobic digestion of manure | biogas | Cutoff, U", "m3")},
     "grid": {"*": ("electricity low voltage", "kWh")},
-    "solar": {"*": ("electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si", "kWh")},
-    "hydro": {"*": ("electricity production, hydro, run-of-river", "kWh")},
-    "wind": {"*": ("electricity production, wind, 1-3MW turbine, onshore", "kWh")},
+    "solar": {"*": ("electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U", "kWh")},
+    "hydro": {"*": ("electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U", "kWh")},
+    "wind": {"*": ("electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U", "kWh")},
 }
 
 NATURAL_UNIT = {
@@ -92,9 +95,10 @@ NATURAL_UNIT = {
 # Engine fuels are "fuel" (activity_defaults.py treats these as measured fuel); solid
 # biomass / biogas used for heat are "heat_fuel" so they do not suppress the machinery-diesel
 # default.
+# Solid fuels stay kind "fuel" so WS1's engine.fuels.expand_fuel_inputs (which keys on
+# kind fuel/energy and lpg/kerosene/firewood/charcoal in the name) can add their combustion.
 KIND = {"grid": "electricity", "solar": "electricity_onsite", "hydro": "electricity_onsite",
-        "wind": "electricity_onsite", "firewood": "heat_fuel", "charcoal": "heat_fuel",
-        "biomass_residue": "heat_fuel", "biogas": "heat_fuel"}
+        "wind": "electricity_onsite", "biomass_residue": "heat_fuel", "biogas": "heat_fuel"}
 
 # Free-text -> carrier key. Order matters: more specific first.
 _KEYWORDS = [
@@ -153,9 +157,9 @@ def carrier_input(carrier: str, amount: float, unit: str | None, *, context: str
         if ds_unit == "MJ" and unit in LHV.get(carrier, {}):
             lhv, _src = LHV[carrier][unit]
             out_amount, out_unit = amount * lhv, "MJ"
-        elif ds_unit == "kg" and unit == "L" and carrier == "kerosene":
-            # kerosene density 0.80 kg/L: ratio of the two IPCC-based LHVs above
-            dens = LHV["kerosene"]["L"][0] / LHV["kerosene"]["kg"][0]
+        elif ds_unit == "kg" and unit == "L" and carrier in ("kerosene", "petrol"):
+            # density from the ratio of the two LHVs above (kerosene 0.80, petrol 0.772 kg/L)
+            dens = LHV[carrier]["L"][0] / LHV[carrier]["kg"][0]
             out_amount, out_unit = amount * dens, "kg"
         elif ds_unit == "kg" and unit == "MJ" and "kg" in LHV.get(carrier, {}):
             out_amount, out_unit = amount / LHV[carrier]["kg"][0], "kg"

@@ -139,6 +139,11 @@ export interface CropProduction {
 
   // Seed / planting material sown (kg/ha). Blank -> FAO default for the crop or category.
   seedRateKgPerHa?: number;
+
+  // Advanced field-model inputs (optional).
+  landUseChange?: { previousLandUse?: 'forest' | 'grassland' | 'annual_cropland' | 'perennial_cropland' | ''; yearsSinceConversion?: number };
+  residueManagement?: { fractionRemoved?: number; fractionBurnt?: number };
+  establishment?: { immatureYears?: number; productiveYears?: number; inputShare?: number };
 }
 
 export enum ProductionSystem {

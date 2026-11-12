@@ -607,6 +607,19 @@ class AssessmentAPI {
         intercropping_partners: crop.intercroppingPartners,
         post_harvest_losses: crop.postHarvestLosses,
         seed_rate_kg_per_ha: crop.seedRateKgPerHa ?? undefined,
+        land_use_change: crop.landUseChange?.previousLandUse
+          ? { previous_land_use: crop.landUseChange.previousLandUse,
+              years_since_conversion: crop.landUseChange.yearsSinceConversion ?? 0 }
+          : undefined,
+        residue_management: (crop.residueManagement?.fractionRemoved != null || crop.residueManagement?.fractionBurnt != null)
+          ? { fraction_removed: crop.residueManagement?.fractionRemoved ?? 0,
+              fraction_burnt: crop.residueManagement?.fractionBurnt ?? 0 }
+          : undefined,
+        establishment: (crop.establishment?.immatureYears != null || crop.establishment?.productiveYears != null)
+          ? { immature_years: crop.establishment?.immatureYears,
+              productive_years: crop.establishment?.productiveYears,
+              input_share: crop.establishment?.inputShare }
+          : undefined,
       })),
     };
 

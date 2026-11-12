@@ -39,8 +39,8 @@ FUEL_MJ_PER_L = {"diesel": 38.7, "petrol": 34.2, "gasoline": 34.2, "kerosene": 3
 
 # Packaging material -> representative ecoinvent dataset to match against.
 PACKAGING_MATCH = {
-    "PlasticBag": "market for polypropylene, granulate",
-    "Polypropylene": "market for polypropylene, granulate",
+    "PlasticBag": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U",
+    "Polypropylene": "market for polypropylene, granulate | polypropylene, granulate | Cutoff, U",
     "PaperBag": "market for kraft paper",
     "Jute": "market for kraft paper",  # ecoinvent lacks jute; kraft paper is the closest fibre proxy
     "Cardboard": "market for corrugated board box",
