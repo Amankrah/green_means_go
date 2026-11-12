@@ -53,10 +53,15 @@ export default function ReviewStep({
           <h3 className="font-semibold text-ink mb-2">Utilities</h3>
           <Row label="Electricity" value={num(v.utilities.elecKwhMonth, ' kWh/mo')} />
           <Row label="Renewable share" value={num(v.utilities.renewablePct, '%')} />
-          <Row label="Fuel" value={v.utilities.fuelLMonth ? `${v.utilities.fuelLMonth} L/mo (${v.utilities.fuelType})` : '—'} />
-          <Row label="Water" value={num(v.utilities.waterM3Month, ' m³/mo')} />
+          <Row label="Electricity supply" value={v.utilities.electricitySupply} />
+          <Row
+            label="Fuels"
+            value={(v.utilities.fuelStreams ?? []).filter((f) => (f.amountMonth ?? 0) > 0)
+              .map((f) => `${f.fuelType} ${f.amountMonth} ${f.unit}/mo`).join(', ') || 'none'}
+          />
+          <Row label="Water" value={`${num(v.utilities.waterM3Month, ' m³/mo')} (${v.utilities.waterSource}, wastewater: ${v.utilities.wastewaterTreatment})`} />
           <Row label="Solid waste" value={v.utilities.solidWasteKgDay ? `${v.utilities.solidWasteKgDay} kg/day (${v.utilities.wasteDisposalMethod})` : '—'} />
-          <Row label="Inbound transport" value={v.utilities.transportKm ? `${v.utilities.transportKm} km (${v.utilities.transportMode})` : '—'} />
+          <Row label="Inbound transport" value={v.utilities.transportKm ? `${v.utilities.transportKm} km (${v.utilities.transportMode})` : `default from ${v.utilities.localSourcingPct ?? 80}% local sourcing (${v.utilities.transportMode})`} />
           {v.products.length > 1 && <Row label="Allocation" value={v.utilities.allocationBasis === 'economic' ? 'Economic value' : 'Output mass'} />}
         </section>
       </div>

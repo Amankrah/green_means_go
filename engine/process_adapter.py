@@ -20,11 +20,13 @@ try:
     from .iso_report import _data_quality_scorecard
     from .refrigerants import refrigerant_co2e
     from .process_iso_report import build_process_iso_report
+    from .process_inputs import report_only_metadata
 except ImportError:
     from adapter import MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands, _provenance
     from iso_report import _data_quality_scorecard
     from refrigerants import refrigerant_co2e
     from process_iso_report import build_process_iso_report
+    from process_inputs import report_only_metadata
 
 _PROC_BANDS_FILE = os.path.join(os.path.dirname(__file__), "process_single_score_bands.json")
 _PROC_BANDS_CACHE: dict | None = None
@@ -211,6 +213,14 @@ def to_process_response(result, request: dict, engine, total_kg: float,
         allocation, extra_notes=run_notes, assessment_id=assessment_id,
         uncertainty=uncertainty_block,
     )
+    # Report-only request fields, echoed verbatim (they do not change the numbers), with the
+    # capacity-utilisation consistency check for the data-quality section.
+    meta = report_only_metadata(request)
+    if isinstance(iso.get("scope"), dict):
+        iso["scope"]["reported_metadata"] = meta
+    dq_warnings = []
+    if meta.get("capacity_check") and meta["capacity_check"] != "consistent":
+        dq_warnings.append(f"capacity utilisation {meta['capacity_utilisation']}: {meta['capacity_check']}")
 
     region_code = getattr(getattr(engine, "region", None), "code", None) or request.get("region")
     # API country enum uses "Global" for Canada; surface a clear display label.
@@ -244,7 +254,7 @@ def to_process_response(result, request: dict, engine, total_kg: float,
                                    / len(result.input_matches)) if result.input_matches else 1.0,
             "scorecard": dq_indicators,
             "regional_adaptation": True,
-            "warnings": [],
+            "warnings": dq_warnings,
             "recommendations": [],
             "notes": run_notes + result.notes,
         },

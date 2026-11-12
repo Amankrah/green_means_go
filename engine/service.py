@@ -19,6 +19,7 @@ try:
     from .adapter import to_assessment_response
     from . import field_params, fuels, perennials
     from .commodities import reject_unsupported_farm_commodities, UnsupportedCommodityError  # noqa: F401
+    from . import farm_flows
 except ImportError:
     from orchestrator import FarmLCA
     from regions import get_region
@@ -28,6 +29,7 @@ except ImportError:
     import fuels
     import perennials
     from commodities import reject_unsupported_farm_commodities, UnsupportedCommodityError  # noqa: F401
+    import farm_flows
 
 WARNING_PREFIX = "validation warning: "
 
@@ -123,6 +125,12 @@ def _sub_assessment(assessment: dict, food: dict, share: float) -> dict:
             "energy_sources": scale(ee.get("energy_sources"), "monthly_consumption"),
             "equipment": scale(ee.get("equipment"), "hours_per_year"),
         }
+    # A measured farm irrigation volume is a farm total: partition it by area like energy.
+    wm = ((assessment.get("management_practices") or {}).get("water_management")) or {}
+    if wm.get("irrigation_water_m3"):
+        mp = dict(assessment["management_practices"])
+        mp["water_management"] = {**wm, "irrigation_water_m3": wm["irrigation_water_m3"] * share}
+        sub["management_practices"] = mp
     return sub
 
 
@@ -164,6 +172,19 @@ def _sum_results(per_crop: dict):
     seen: set[str] = set()
     farm.notes = [n for n in farm.notes if not (n in seen or seen.add(n))]
     return farm
+
+
+def _with_metadata(assessment: dict, out: dict) -> dict:
+    """Echo the wizard's report-only fields verbatim in the ISO report scope (they do not
+    change the numbers; see engine/inputs.report_only_metadata)."""
+    try:
+        from .inputs import report_only_metadata
+    except ImportError:
+        from inputs import report_only_metadata
+    iso = out.get("iso_report")
+    if isinstance(iso, dict) and isinstance(iso.get("scope"), dict):
+        iso["scope"]["reported_metadata"] = report_only_metadata(assessment)
+    return out
 
 
 def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
@@ -271,6 +292,7 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
             kernel_sub, inputs, prep_notes = prepare_farm_run(sub, inputs, eng.region)
             with lock:
                 crop_res = eng.assess_farm(kernel_sub, inputs)
+                farm_flows.apply(crop_res, eng, sub)   # pesticide AI, irrigation water, composting
             crop_res.notes = prep_notes + crop_res.notes
             per_crop[_crop_label(food)] = crop_res
         _emit(on_progress, "characterize", "Characterizing impacts")
@@ -278,13 +300,13 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
         if run_uncertainty:
             _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
         _emit(on_progress, "report", "Compiling your report")
-        return lift_validation_warnings(to_assessment_response(
+        return lift_validation_warnings(_with_metadata(assessment, to_assessment_response(
             farm, assessment, eng, total,
             assessment_id or str(uuid.uuid4()), per_crop=per_crop,
             run_uncertainty=run_uncertainty,
             uncertainty_n=uncertainty_n,
             uncertainty_seed=uncertainty_seed,
-        ))
+        )))
 
     # single crop / no area -> one whole-farm system (fine-grained per-input progress)
     inputs, in_notes = extract_purchased_inputs(assessment)
@@ -292,13 +314,14 @@ def run_farm_assessment(assessment: dict, region: str | None = None,
     in_notes = list(in_notes) + prep_notes
     with lock:
         res = eng.assess_farm(kernel_assessment, inputs, on_progress=on_progress)
+        farm_flows.apply(res, eng, assessment)   # pesticide AI, irrigation water, composting
     if run_uncertainty:
         _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
     _emit(on_progress, "report", "Compiling your report")
-    return lift_validation_warnings(to_assessment_response(
+    return lift_validation_warnings(_with_metadata(assessment, to_assessment_response(
         res, assessment, eng, total,
         assessment_id or str(uuid.uuid4()), in_notes,
         run_uncertainty=run_uncertainty,
         uncertainty_n=uncertainty_n,
         uncertainty_seed=uncertainty_seed,
-    ))
+    )))

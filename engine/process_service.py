@@ -14,13 +14,17 @@ import uuid
 try:
     from .service import _engine
     from .regions import get_region
-    from .process_inputs import extract_processing_inputs
+    from .process_inputs import extract_processing_inputs, processing_water_withdrawals
     from .process_adapter import to_process_response
+    from .farm_flows import RESOURCE_IN_WATER, EVAPORATED_WATER, merge_elementary, _flow_uid
+    from .process_inputs import WASTEWATER_SHARE
 except ImportError:
     from service import _engine
     from regions import get_region
-    from process_inputs import extract_processing_inputs
+    from process_inputs import extract_processing_inputs, processing_water_withdrawals
     from process_adapter import to_process_response
+    from farm_flows import RESOURCE_IN_WATER, EVAPORATED_WATER, merge_elementary, _flow_uid
+    from process_inputs import WASTEWATER_SHARE
 
 
 def _resolve_region(request: dict, override: str | None) -> str:
@@ -42,6 +46,9 @@ def _resolve_region(request: dict, override: str | None) -> str:
     if country in ("global", "canada", "ca"):
         return "CA"
     return "GH"   # regions registry is the single source of truth for the default
+
+
+WATER_LABEL = "Water withdrawal (on-site)"
 
 
 def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
@@ -81,6 +88,21 @@ def run_process_assessment(request: dict, region: str | None = None,
     _emit(on_progress, "inventory", "Building the life-cycle inventory")
     with lock:
         res = eng.assess(on_farm_lci=combustion, purchased_inputs=inputs, on_progress=on_progress)
+        # Self-supplied water (borehole, well, river, dam) is an elementary withdrawal, not a
+        # purchased product, so the water-use indicator sees the source.
+        flows = []
+        for name, m3 in processing_water_withdrawals(request):
+            uid = _flow_uid(eng.q.conn, name, RESOURCE_IN_WATER)
+            if uid:
+                flows.append({"uid": uid, "name": name, "unit": "m3", "amount": m3})
+            # consumptive share (not returned as wastewater) for the water-use indicator,
+            # which in the store's method pack is characterised on evaporated water
+            evap = _flow_uid(eng.q.conn, *EVAPORATED_WATER)
+            if evap:
+                flows.append({"uid": evap, "name": "Water (consumed on site)", "unit": "m3",
+                              "amount": m3 * (1.0 - WASTEWATER_SHARE)})
+        if flows:
+            merge_elementary(res, eng, WATER_LABEL, flows)
     if run_uncertainty:
         _emit(on_progress, "uncertainty", "Running pedigree screening Monte Carlo")
     _emit(on_progress, "report", "Compiling your report")

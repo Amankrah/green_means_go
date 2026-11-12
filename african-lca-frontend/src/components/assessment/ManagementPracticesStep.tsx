@@ -563,6 +563,25 @@ export default function ManagementPracticesStep() {
             </select>
           </div>
 
+          {/* Irrigation volume */}
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Irrigation water applied (m³ per year, optional)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              {...register('managementPractices.waterManagement.irrigationWaterM3')}
+              placeholder="e.g., 5000"
+              className="gmg-input"
+            />
+            <p className="text-xs text-muted mt-1">
+              Leave blank to estimate it from the crop&apos;s water need and your irrigation system (FAO).
+              The water source above decides whether it counts as groundwater, surface water or bought water.
+            </p>
+          </div>
+
           {/* Additional Water Management */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="flex items-center space-x-2">

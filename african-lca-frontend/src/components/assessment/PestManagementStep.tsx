@@ -142,7 +142,7 @@ export default function PestManagementStep() {
 
           <div>
             <label className="block text-sm font-medium text-ink mb-2">
-              Management Approach *
+              Management Approach * <span className="ml-1 text-xs font-normal text-muted">(for the report, does not change the numbers)</span>
             </label>
             <select
               {...register('pestManagement.managementApproach')}
@@ -163,7 +163,7 @@ export default function PestManagementStep() {
 
           <div>
             <label className="block text-sm font-medium text-ink mb-2">
-              Monitoring Frequency *
+              Monitoring Frequency * <span className="ml-1 text-xs font-normal text-muted">(for the report, does not change the numbers)</span>
             </label>
             <select
               {...register('pestManagement.pestMonitoringFrequency')}
@@ -190,7 +190,7 @@ export default function PestManagementStep() {
                 className="text-moss focus:ring-moss rounded"
               />
               <span className="text-sm text-ink">
-                I use Integrated Pest Management (IPM)
+                I use Integrated Pest Management (IPM) <span className="ml-1 text-xs font-normal text-muted">(for the report, does not change the numbers)</span>
               </span>
             </label>
 
@@ -328,6 +328,24 @@ export default function PestManagementStep() {
                         {errors.pestManagement.pesticides[index].activeIngredient.message}
                       </p>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-2">
+                      Active ingredient content (optional)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      max="1"
+                      {...register(`pestManagement.pesticides.${index}.activeIngredientContent`)}
+                      placeholder="e.g., 0.36 for a 360 g/L product"
+                      className="gmg-input"
+                    />
+                    <p className="text-xs text-muted mt-1">
+                      From the label: grams per litre divided by 1000. Blank uses the usual strength for that active ingredient.
+                    </p>
                   </div>
 
                   <div>

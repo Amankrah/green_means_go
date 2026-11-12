@@ -97,7 +97,9 @@ def test_non_ghana_skips_table() -> None:
     a["region"] = "CA"
     assert resolve_energy_defaults(a) is None
     inputs, notes = extract_purchased_inputs(a)
-    assert not any(i.get("estimated") for i in inputs)
+    # Only energy is governed by the activity-default table; seed / transport defaults
+    # (engine/inputs.py, cited) are estimated independently of the region table.
+    assert not any(i.get("estimated") for i in inputs if i.get("kind") in ("fuel", "electricity"))
     assert not any("used activity defaults" in n for n in notes)
     print("[ok] non-Ghana assessments skip the Ghana table")
 

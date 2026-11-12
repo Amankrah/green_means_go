@@ -6,10 +6,12 @@
  * emit the same request shape. Mirrors the farm side (enhanced-assessment-schema.ts) and the
  * backend contract in app/processing/models.py.
  *
- * Only fields the validated engine actually consumes are collected: raw materials, energy,
- * water, packaging, solid waste, inbound transport, refrigerant, and per-product price (for
- * economic co-product allocation). Fields the engine ignores are deliberately left out so the
- * form does not promise rigor the result cannot deliver.
+ * Only fields the validated engine actually consumes are collected: raw materials (blank ->
+ * cited default conversion ratio), electricity and its supply, several fuel streams, water
+ * source / treatment / wastewater, packaging, solid waste (organic share, by-products used),
+ * inbound transport (blank distance -> default from the local-sourcing share), refrigerant,
+ * and per-product price (economic co-product allocation). Capacity, operating hours and
+ * location type are kept for the report only and are labelled so in the form.
  */
 import { z } from 'zod';
 
@@ -38,7 +40,25 @@ export const WASTE_DISPOSAL_METHODS = [
 
 export const TRANSPORT_MODES = ['Truck', 'Rail', 'Ship', 'Mixed'] as const;
 
-export const FUEL_TYPES = ['Diesel', 'LPG', 'Natural gas', 'Kerosene', 'Biodiesel'] as const;
+export const FUEL_TYPES = [
+  'Diesel', 'Diesel generator', 'Petrol', 'LPG', 'Natural gas', 'Kerosene', 'Biodiesel',
+  'Firewood', 'Charcoal', 'Palm kernel shell', 'Palm fibre', 'Biogas',
+] as const;
+export const FUEL_UNITS = ['L', 'kg', 'm3', 'MJ'] as const;
+// Natural unit per fuel, used as the default when a stream is added.
+export const FUEL_DEFAULT_UNIT: Record<(typeof FUEL_TYPES)[number], (typeof FUEL_UNITS)[number]> = {
+  'Diesel': 'L', 'Diesel generator': 'L', 'Petrol': 'L', 'LPG': 'kg', 'Natural gas': 'm3',
+  'Kerosene': 'L', 'Biodiesel': 'L', 'Firewood': 'kg', 'Charcoal': 'kg', 'Palm kernel shell': 'kg',
+  'Palm fibre': 'kg', 'Biogas': 'm3',
+};
+
+// Electricity supply (backend EnergySource values) -> which dataset the kWh are modelled with.
+export const ELECTRICITY_SUPPLY = [
+  'GridElectricity', 'DieselGenerator', 'SolarPower', 'HydroElectricity', 'WindPower',
+] as const;
+export const WATER_SOURCES = ['Municipal', 'Borehole', 'Well', 'River', 'Dam/Reservoir', 'Rainwater'] as const;
+export const WATER_TREATMENTS = ['None', 'BasicFiltration', 'ChemicalTreatment', 'ReverseOsmosis', 'Comprehensive'] as const;
+export const WASTEWATER_TREATMENTS = ['None', 'BasicSedimentation', 'BiologicalTreatment', 'ChemicalTreatment', 'Advanced'] as const;
 
 export const ALLOCATION_BASES = ['mass', 'economic'] as const;
 
@@ -89,15 +109,31 @@ export const productSchema = z.object({
   packaging: packagingSchema,
 });
 
+const optPct = (msg: string) =>
+  z.preprocess(toNum, z.number().min(0).max(100, msg).optional()).optional();
+
+export const fuelStreamSchema = z.object({
+  fuelType: z.enum(FUEL_TYPES),
+  amountMonth: optNonNeg('Fuel cannot be negative'),
+  unit: z.enum(FUEL_UNITS),
+});
+
 export const utilitiesSchema = z.object({
   elecKwhMonth: optNonNeg('Electricity cannot be negative'),
-  renewablePct: z.preprocess(toNum, z.number().min(0).max(100, 'Renewable share is a percentage (0-100)').optional()).optional(),
-  fuelLMonth: optNonNeg('Fuel cannot be negative'),
-  fuelType: z.enum(FUEL_TYPES),
+  electricitySupply: z.enum(ELECTRICITY_SUPPLY),
+  renewablePct: optPct('Renewable share is a percentage (0-100)'),
+  fuelStreams: z.array(fuelStreamSchema),
   waterM3Month: optNonNeg('Water cannot be negative'),
+  waterSource: z.enum(WATER_SOURCES),
+  waterTreatment: z.enum(WATER_TREATMENTS),
+  wastewaterTreatment: z.enum(WASTEWATER_TREATMENTS),
   transportKm: optNonNeg('Distance cannot be negative'),
+  localSourcingPct: optPct('Local share is a percentage (0-100)'),
   transportMode: z.enum(TRANSPORT_MODES),
   solidWasteKgDay: optNonNeg('Solid waste cannot be negative'),
+  organicWastePct: optPct('Organic share is a percentage (0-100)'),
+  byproductPct: optPct('By-product share is a percentage (0-100)'),
+  byproductName: z.string().trim().max(80).optional(),
   wasteDisposalMethod: z.enum(WASTE_DISPOSAL_METHODS),
   allocationBasis: z.enum(ALLOCATION_BASES),
   refrigerantType: z.string().trim().max(60).optional(),
@@ -193,13 +229,20 @@ export const defaultProcessingForm = (): ProcessingFormData => ({
   products: [newProduct()],
   utilities: {
     elecKwhMonth: undefined,
+    electricitySupply: 'GridElectricity',
     renewablePct: 0,
-    fuelLMonth: undefined,
-    fuelType: 'Diesel',
+    fuelStreams: [],
     waterM3Month: undefined,
-    transportKm: 50,
+    waterSource: 'Municipal',
+    waterTreatment: 'BasicFiltration',
+    wastewaterTreatment: 'BasicSedimentation',
+    transportKm: undefined,
+    localSourcingPct: 80,
     transportMode: 'Truck',
     solidWasteKgDay: undefined,
+    organicWastePct: 70,
+    byproductPct: 0,
+    byproductName: '',
     wasteDisposalMethod: 'Landfill',
     allocationBasis: 'mass',
     refrigerantType: '',
@@ -241,20 +284,32 @@ export function buildProcessingPayload(
     },
     processing_operations: {
       energy_management: {
+        primary_energy_source: u.electricitySupply,
         monthly_electricity_consumption: u.elecKwhMonth || undefined,
-        monthly_fuel_consumption: u.fuelLMonth || undefined,
-        fuel_type: u.fuelType,
         renewable_energy_percentage: u.renewablePct || 0,
+        fuel_streams: (u.fuelStreams ?? [])
+          .filter((f) => (f.amountMonth ?? 0) > 0)
+          .map((f) => ({ fuel_type: f.fuelType, monthly_consumption: f.amountMonth, unit: f.unit })),
       },
       water_management: {
         monthly_water_consumption: u.waterM3Month || undefined,
+        water_source: [u.waterSource],
+        water_treatment: u.waterTreatment,
+        wastewater_treatment: u.wastewaterTreatment,
       },
       waste_management: {
         solid_waste_generation: u.solidWasteKgDay || undefined,
+        organic_waste_percentage: u.organicWastePct ?? 70,
         waste_disposal_method: u.wasteDisposalMethod,
+        byproduct_utilization: (u.byproductPct ?? 0) > 0
+          ? [{ byproduct_name: u.byproductName?.trim() || 'By-product', utilization_method: 'reused or sold',
+               percentage_utilized: u.byproductPct }]
+          : [],
       },
       raw_material_sourcing: {
-        average_transport_distance: u.transportKm || 0,
+        // Blank distance -> the engine's cited default from the local-sourcing share.
+        average_transport_distance: u.transportKm ?? undefined,
+        local_sourcing_percentage: u.localSourcingPct ?? 80,
         transport_mode: u.transportMode,
       },
       refrigerant_management: {
