@@ -1,0 +1,36 @@
+{
+  "id": "ef.grid.bf",
+  "type": "reference_factor",
+  "title": "Burkina Faso national grid emission factor",
+  "description": "CO2 per kWh of SONABEL generation. SONABEL and the regulator (ARSE) publish no grid EF; the country-specific figure is the peer-reviewed 2018 SONABEL generation-mix factor (country-specific HFO/DDO carbon contents). It excludes imports from Cote d'Ivoire and Ghana (~35% of supply) and T&D losses. The same paper reports that the environment ministry (MEEVCC 2018) references a WAPES regional EF of 0.588 for SONABEL's interconnected grid, 3% above. ecoinvent has no BF grid; the matcher falls to the RAF market group (~0.24 kgCO2e/kWh).",
+  "factors": {
+    "all_other_projects": {
+      "value": 0.569,
+      "unit": "kgCO2/kWh",
+      "year": 2018,
+      "use_for": "Grid electricity consumption accounting (engine/grid_calibration.py)."
+    }
+  },
+  "regional_reference": {
+    "value": 0.588,
+    "unit": "kgCO2/kWh",
+    "what": "WAPES regional grid EF referenced to SONABEL's grid by MEEVCC (2018), as cited by Nana et al. (2023)."
+  },
+  "provenance": {
+    "source": "Nana-2023-CleanAirJournal",
+    "table": "Abstract and section 'Assessment of the contribution of renewable energies'",
+    "span": "The CO2 emission factor for thermal power generation was estimated at 0.663 kg/kWh and that of the electricity generation mix at 0.569 kg/kWh.",
+    "publication": "Nana B, Zalle H, Ouarma I, Daho T, Yonli A, Bere A (2023) Assessment of carbon dioxide emission factors from power generation in Burkina Faso. Clean Air Journal 33(2). doi:10.17159/caj/2023/33/2.15701",
+    "licence": "CC BY (Clean Air Journal, 'Published under a Creative Commons Attribution Licence')",
+    "extracted_by": "pdftotext -layout, 2026-11-12"
+  },
+  "pedigree": {
+    "reliability": 2,
+    "completeness": 3,
+    "temporal": 3,
+    "geographical": 1,
+    "technological": 2
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}

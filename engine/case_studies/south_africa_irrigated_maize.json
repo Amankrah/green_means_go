@@ -1,0 +1,151 @@
+{
+  "company_name": "Van der Merwe Boerdery - Douglas Pivot Maize",
+  "country": "Global",
+  "region": "ZA",
+  "farm_profile": {
+    "farmer_name": "Pieter van der Merwe",
+    "farm_name": "Van der Merwe Boerdery",
+    "total_farm_size": 50.0,
+    "farming_experience": 25,
+    "farm_type": "Commercial",
+    "primary_farming_system": "Commercial",
+    "certifications": [],
+    "participates_in_programs": [
+      "Water Conservation Program"
+    ]
+  },
+  "management_practices": {
+    "soil_management": {
+      "soil_type": "SandyLoam",
+      "uses_compost": false,
+      "compost_source": null,
+      "conservation_practices": [
+        "Minimum Tillage"
+      ],
+      "soil_testing_frequency": "Annually"
+    },
+    "fertilization": {
+      "uses_fertilizers": true,
+      "fertilizer_applications": [
+        {
+          "fertilizer_type": "MAP",
+          "npk_ratio": "11-52-0",
+          "application_rate": 150,
+          "applications_per_season": 1,
+          "cost": 2100
+        },
+        {
+          "fertilizer_type": "Urea",
+          "npk_ratio": "46-0-0",
+          "application_rate": 175,
+          "applications_per_season": 2,
+          "cost": 2400
+        }
+      ],
+      "soil_test_based": true,
+      "follows_nutrient_plan": true
+    },
+    "water_management": {
+      "water_source": [
+        "River/Stream"
+      ],
+      "irrigation_system": "Sprinkler",
+      "water_conservation_practices": [
+        "Soil moisture monitoring"
+      ]
+    },
+    "pest_management": {
+      "management_approach": "Chemical pesticides only",
+      "uses_ipm": false,
+      "pesticides": [
+        {
+          "pesticide_type": "Herbicide",
+          "active_ingredient": "Atrazine",
+          "application_rate": 1.5,
+          "applications_per_season": 1,
+          "target_pests": [
+            "Broadleaf weeds"
+          ]
+        },
+        {
+          "pesticide_type": "Herbicide",
+          "active_ingredient": "Glyphosate",
+          "application_rate": 2.0,
+          "applications_per_season": 1,
+          "target_pests": [
+            "Weeds"
+          ]
+        },
+        {
+          "pesticide_type": "Insecticide",
+          "active_ingredient": "Lambda-cyhalothrin",
+          "application_rate": 0.1,
+          "applications_per_season": 1,
+          "target_pests": [
+            "Stalk borer"
+          ]
+        }
+      ],
+      "pest_monitoring_frequency": "Weekly"
+    }
+  },
+  "equipment_energy": {
+    "equipment": [
+      {
+        "equipment_type": "Large Tractor (>100HP)",
+        "power_source": "Diesel engine",
+        "age": 7,
+        "hours_per_year": 300,
+        "fuel_efficiency": 12.0
+      },
+      {
+        "equipment_type": "Combine Harvester",
+        "power_source": "Diesel engine",
+        "age": 9,
+        "hours_per_year": 80,
+        "fuel_efficiency": 18.0
+      },
+      {
+        "equipment_type": "Water Pump",
+        "power_source": "Electric",
+        "age": 6,
+        "hours_per_year": 1400,
+        "fuel_efficiency": null
+      }
+    ],
+    "energy_sources": [
+      {
+        "energy_type": "Grid Electricity",
+        "monthly_consumption": 6875,
+        "primary_use": "Centre-pivot irrigation pumping",
+        "cost": 17000,
+        "currency": "ZAR"
+      }
+    ],
+    "fuel_consumption": [
+      {
+        "fuel_type": "Diesel",
+        "monthly_consumption": 290,
+        "primary_use": "Tillage, planting, spraying and harvest",
+        "cost": 6400
+      }
+    ]
+  },
+  "foods": [
+    {
+      "id": "crop_maize",
+      "name": "Maize",
+      "quantity_kg": 600000,
+      "category": "Cereals",
+      "crop_type": "Yellow maize hybrid",
+      "origin_country": "South Africa",
+      "production_system": "Irrigated",
+      "seasonal_factor": "WetSeason",
+      "variety": "Yellow maize hybrid",
+      "area_allocated": 50.0,
+      "cropping_pattern": "Monoculture",
+      "intercropping_partners": [],
+      "post_harvest_losses": 3
+    }
+  ]
+}

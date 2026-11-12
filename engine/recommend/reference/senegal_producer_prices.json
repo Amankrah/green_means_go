@@ -1,0 +1,129 @@
+{
+  "id": "price.xof.producer.sn",
+  "type": "reference_price",
+  "title": "Senegal producer (farm-gate) prices",
+  "description": "Annual producer prices for Senegal from FAOSTAT PP (national official series, flag A), converted LCU/tonne to LCU/kg. Revenue side of the economic screen; farm-gate, so no trader margin (unlike the Ghana SRID wholesale proxy).",
+  "currency": "XOF",
+  "prices": {
+    "groundnut": {
+      "price_per_kg": 305.0,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 305000.0,
+      "year": 2024,
+      "faostat_item": "Groundnuts, excluding shelled",
+      "faostat_flag": "A",
+      "note": "Official campaign farm-gate price (prix plancher) set by the government each season.",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "millet": {
+      "price_per_kg": 278.1667,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 278166.7,
+      "year": 2024,
+      "faostat_item": "Millet",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "maize": {
+      "price_per_kg": 250.0,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 250000.0,
+      "year": 2024,
+      "faostat_item": "Maize (corn)",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sorghum": {
+      "price_per_kg": 311.9942,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 311994.2,
+      "year": 2024,
+      "faostat_item": "Sorghum",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "rice": {
+      "price_per_kg": 162.0,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 162000.0,
+      "year": 2023,
+      "faostat_item": "Rice (paddy)",
+      "faostat_flag": "A",
+      "note": "paddy price; 2021-2023 unchanged",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "tomato": {
+      "price_per_kg": 414.7854,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 414785.4,
+      "year": 2023,
+      "faostat_item": "Tomatoes",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "onion": {
+      "price_per_kg": 459.3881,
+      "unit": "XOF/kg",
+      "lcu_per_tonne": 459388.1,
+      "year": 2023,
+      "faostat_item": "Onions and shallots, dry",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    }
+  },
+  "not_covered": [],
+  "provenance": {
+    "source": "FAOSTAT-PP",
+    "publication": "FAOSTAT (2025) Producer Prices (PP), Producer Price (LCU/tonne), annual value, bulk Prices_E_Africa.csv dated 2025-12-23",
+    "licence": "FAO statistical databases: CC BY 4.0 (FAO Statistical Database Terms of Use) - cite"
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}

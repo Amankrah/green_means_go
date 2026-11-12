@@ -82,6 +82,7 @@ import ManagementPracticesStep from '@/components/assessment/ManagementPractices
 import PestManagementStep from '@/components/assessment/PestManagementStep';
 import EquipmentEnergyStep from '@/components/assessment/EquipmentEnergyStep';
 import ReviewSubmitStep from '@/components/assessment/ReviewSubmitStep';
+import { ALL_COUNTRIES } from '@/lib/regions';
 
 const stepIcons = {
   [FormStep.FARM_PROFILE]: User,
@@ -385,8 +386,8 @@ function ComprehensiveAssessmentPage({
         if (!active) return;
         setLinkedFarmName(farm.name);
         methods.setValue('farmProfile.farmName', farm.name);
-        if (farm.country && ['Ghana', 'Nigeria', 'Canada'].includes(farm.country)) {
-          methods.setValue('farmProfile.country', farm.country as 'Ghana' | 'Nigeria' | 'Canada');
+        if (farm.country && (ALL_COUNTRIES as readonly string[]).includes(farm.country)) {
+          methods.setValue('farmProfile.country', farm.country as EnhancedAssessmentFormData['farmProfile']['country']);
         }
         if (farm.region) methods.setValue('farmProfile.region', farm.region);
         if (farm.size_ha != null) methods.setValue('farmProfile.totalFarmSize', farm.size_ha);

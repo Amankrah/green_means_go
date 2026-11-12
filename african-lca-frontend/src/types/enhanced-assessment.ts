@@ -15,18 +15,24 @@ import { FoodCategory, Country } from './assessment';
 export enum Currency {
   GHS = "GHS", // Ghana Cedi
   NGN = "NGN", // Nigerian Naira
+  XOF = "XOF", // West African CFA franc (Senegal, Burkina Faso)
+  ZAR = "ZAR", // South African Rand
   USD = "USD"  // US Dollar
 }
 
 export const CurrencySymbols: Record<Currency, string> = {
   [Currency.GHS]: "GH₵",
   [Currency.NGN]: "₦",
+  [Currency.XOF]: "FCFA",
+  [Currency.ZAR]: "R",
   [Currency.USD]: "$"
 };
 
 export const CurrencyNames: Record<Currency, string> = {
   [Currency.GHS]: "Ghana Cedi",
   [Currency.NGN]: "Nigerian Naira",
+  [Currency.XOF]: "West African CFA franc",
+  [Currency.ZAR]: "South African Rand",
   [Currency.USD]: "US Dollar"
 };
 
@@ -39,6 +45,11 @@ export function getCurrencyForCountry(country: Country): Currency {
       return Currency.GHS;
     case "Nigeria":
       return Currency.NGN;
+    case "Senegal":
+    case "Burkina Faso":
+      return Currency.XOF;
+    case "South Africa":
+      return Currency.ZAR;
     default:
       return Currency.USD;
   }

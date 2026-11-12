@@ -1,0 +1,226 @@
+{
+  "id": "yield.guides.za",
+  "type": "yield_guides",
+  "title": "South Africa national crop yield guides (FAOSTAT)",
+  "description": "National average yields for South Africa used as screening guides when a farmer gives area but no quantity. Never overwrites a reported quantity_kg. FAOSTAT flag A = official national figure (pedigree reliability 2), E = FAO estimate (reliability 4). National averages pool irrigated and rainfed systems and smallholder and commercial farms.",
+  "crops": {
+    "maize": {
+      "value": 6057,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Maize (corn); national, dominated by commercial farms",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "wheat": {
+      "value": 3966,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Wheat",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "soybean": {
+      "value": 2372,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Soya beans",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sunflower": {
+      "value": 1325,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Sunflower seed",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sorghum": {
+      "value": 3306,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Sorghum",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "groundnut": {
+      "value": 1493,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Groundnuts, excluding shelled",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sugarcane": {
+      "value": 69692,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Sugar cane",
+      "faostat_flag": "A/A/E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "orange": {
+      "value": 44772,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Oranges",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "citrus": {
+      "value": 44772,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Oranges (used as the citrus guide)",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "lemon": {
+      "value": 21566,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Lemons and limes",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "grapes": {
+      "value": 17728,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Grapes",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "apple": {
+      "value": 41831,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Apples",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "pear": {
+      "value": 37119,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Pears",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "potato": {
+      "value": 37469,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Potatoes",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "tomato": {
+      "value": 65876,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Tomatoes",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    }
+  },
+  "provenance": {
+    "source": "FAOSTAT-QCL",
+    "publication": "FAOSTAT (2025) Crops and livestock products (QCL), Yield (kg/ha), bulk Production_Crops_Livestock_E_Africa.csv dated 2025-12-23",
+    "licence": "FAO statistical databases: CC BY 4.0 (FAO Statistical Database Terms of Use) - cite",
+    "national_source_note": "FAOSTAT A-flag figures for South Africa are the DALRRD / Crop Estimates Committee official series."
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}

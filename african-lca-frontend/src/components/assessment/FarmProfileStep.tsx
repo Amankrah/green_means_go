@@ -212,6 +212,9 @@ export default function FarmProfileStep() {
               <option value="">Select your country</option>
               <option value="Ghana">🇬🇭 Ghana</option>
               <option value="Nigeria">🇳🇬 Nigeria</option>
+              <option value="Senegal">🇸🇳 Senegal</option>
+              <option value="Burkina Faso">🇧🇫 Burkina Faso</option>
+              <option value="South Africa">🇿🇦 South Africa</option>
               <option value="Canada">🇨🇦 Canada</option>
             </select>
             {errors.farmProfile?.country && (

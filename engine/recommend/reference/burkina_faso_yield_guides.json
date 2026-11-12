@@ -1,0 +1,156 @@
+{
+  "id": "yield.guides.bf",
+  "type": "yield_guides",
+  "title": "Burkina Faso national crop yield guides (FAOSTAT)",
+  "description": "National average yields for Burkina Faso used as screening guides when a farmer gives area but no quantity. Never overwrites a reported quantity_kg. FAOSTAT flag A = official national figure (pedigree reliability 2), E = FAO estimate (reliability 4). National averages pool irrigated and rainfed systems and smallholder and commercial farms.",
+  "crops": {
+    "maize": {
+      "value": 1606,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Maize (corn)",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sorghum": {
+      "value": 972,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Sorghum",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "millet": {
+      "value": 829,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Millet",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "cotton": {
+      "value": 1087,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Seed cotton, unginned",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sesame": {
+      "value": 548,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Sesame seed",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "groundnut": {
+      "value": 847,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Groundnuts, excluding shelled",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "cowpea": {
+      "value": 484,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Cow peas, dry",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    },
+    "soybean": {
+      "value": 1097,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Soya beans",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "rice": {
+      "value": 2209,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Rice (paddy; national mix of irrigated schemes and rainfed lowland)",
+      "faostat_flag": "A",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "tomato": {
+      "value": 17132,
+      "unit": "kg/ha",
+      "basis": "mean of 2021, 2022, 2023",
+      "faostat_item": "Tomatoes",
+      "faostat_flag": "E",
+      "pedigree": {
+        "reliability": 4,
+        "completeness": 3,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 3
+      }
+    }
+  },
+  "provenance": {
+    "source": "FAOSTAT-QCL",
+    "publication": "FAOSTAT (2025) Crops and livestock products (QCL), Yield (kg/ha), bulk Production_Crops_Livestock_E_Africa.csv dated 2025-12-23",
+    "licence": "FAO statistical databases: CC BY 4.0 (FAO Statistical Database Terms of Use) - cite",
+    "national_source_note": "FAOSTAT A-flag figures for Burkina Faso are the DGESS (Ministry of Agriculture) official series."
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}

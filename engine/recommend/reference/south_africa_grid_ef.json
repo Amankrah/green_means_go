@@ -1,0 +1,39 @@
+{
+  "id": "ef.grid.za",
+  "type": "reference_factor",
+  "title": "South Africa national grid emission factor",
+  "description": "CO2 per MWh of electricity SOLD by Eskom (sales are after T&D losses, own use and wheeling, and include IPP purchases), i.e. a delivered-electricity factor suited to low-voltage consumption. ecoinvent 3.11's ZA low-voltage market characterises to only ~0.32 kgCO2e/kWh in this store (ReCiPe 2016 H), which a coal-dominated grid cannot produce; the official Eskom factor is ~3.3x higher.",
+  "factors": {
+    "all_other_projects": {
+      "value": 1.04,
+      "unit": "kgCO2/kWh",
+      "unit_source": "1.04 t CO2/MWh sold (Factor 1)",
+      "year": 2024,
+      "use_for": "Grid electricity consumption accounting (engine/grid_calibration.py)."
+    },
+    "per_generated": {
+      "value": 1.06,
+      "unit": "kgCO2/kWh",
+      "year": 2024,
+      "use_for": "Factor 2, per MWh generated less pumped-storage consumption (not used by the engine)."
+    }
+  },
+  "provenance": {
+    "source": "Eskom-IR-2024",
+    "table": "Integrated report 2024, p 122, 'Environmental implications of using or saving electricity'",
+    "span": "190.4Mt of CO2 / 183 311GWh sales = 1.04 tons per MWh. Figures represent the 12-month period from 1 April 2023 to 31 March 2024.",
+    "publication": "Eskom Holdings SOC Ltd (2024) Integrated Report 2024",
+    "url": "https://www.eskom.co.za/wp-content/uploads/2024/12/Eskom-integrated-report-2024.pdf",
+    "licence": "Corporate report; cite",
+    "extracted_by": "pdftotext -layout, 2026-11-12"
+  },
+  "pedigree": {
+    "reliability": 2,
+    "completeness": 2,
+    "temporal": 1,
+    "geographical": 1,
+    "technological": 2
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}

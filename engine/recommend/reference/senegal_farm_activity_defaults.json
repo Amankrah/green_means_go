@@ -1,0 +1,224 @@
+{
+  "id": "activity.defaults.farm.sn",
+  "type": "activity_defaults",
+  "title": "Senegal farm activity defaults (diesel, electricity, yield guides)",
+  "description": "Screening-level diesel (L/ha/yr), grid electricity (kWh/ha/yr), and yield guides for Senegal farms when the Equipment & Energy step has no measured fuel/electricity. Keyed by mechanization x irrigated, same schema as ghana_farm_activity_defaults.json. Built for this region, NOT copied from Ghana: pumping energy is derived from water volume, head and pump efficiency; yields are FAOSTAT national means. Uncertainty is wide (factor ~2); every row carries a pedigree. Never invent fertiliser rates here.",
+  "uncertainty_factor": 2.0,
+  "pedigree": "estimated",
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual",
+  "rows": [
+    {
+      "id": "rainfed_manual",
+      "mechanization": "fully_manual",
+      "irrigated": false,
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "groundnut": 1315,
+        "millet": 1153,
+        "maize": 2855,
+        "sorghum": 1330,
+        "cowpea": 684,
+        "sesame": 921,
+        "_default": 1153
+      },
+      "provenance": {
+        "source": "CIAT-CSA-Senegal-2016",
+        "span": "Most cultivation is rain-fed; smallholders work by hand or animal traction (CIAT; BFS/USAID 2016, Senegal CSA profile). Screening 0 L diesel, 0 kWh.",
+        "bounds": "diesel 0; electricity 0",
+        "pedigree": {
+          "reliability": 3,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 2
+        }
+      }
+    },
+    {
+      "id": "irrigated_manual_bucket",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "manual_bucket",
+      "diesel_l_per_ha": 0,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "rice": 3743,
+        "tomato": 18384,
+        "onion": 31290,
+        "maize": 2855,
+        "_default": 3743
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Watering-can / bucket irrigation (Niayes market gardens) is human labour: no diesel or grid energy.",
+        "bounds": "diesel 0; electricity 0",
+        "pedigree": {
+          "reliability": 3,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 2
+        }
+      }
+    },
+    {
+      "id": "irrigated_manual_pumped",
+      "mechanization": "fully_manual",
+      "irrigated": true,
+      "irrigation_mode": "pumped",
+      "diesel_l_per_ha": 140,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "rice": 3743,
+        "tomato": 18384,
+        "onion": 31290,
+        "maize": 2855,
+        "_default": 3743
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Motor-pump horticulture: 7000 m3/ha/season x 12 m head (well lift + hose pressure), small diesel pumpset overall efficiency 0.15: hydraulic 229 kWh / (0.15 x 10.75 kWh/L) = 142 L/ha.",
+        "bounds": "diesel ~70-250 L/ha; electricity 0 unless reported",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "rainfed_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 10,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "groundnut": 1315,
+        "millet": 1153,
+        "maize": 2855,
+        "sorghum": 1330,
+        "cowpea": 684,
+        "sesame": 921,
+        "_default": 1153
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Groundnut basin: animal-traction seeders and hoes dominate; partial mechanisation means occasional hired tractor ploughing or shelling. Screening 10 L/ha.",
+        "bounds": "diesel ~0-25 L/ha; electricity 0",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 4,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "irrigated_partial",
+      "mechanization": "partially_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 100,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "rice": 3743,
+        "tomato": 18384,
+        "onion": 31290,
+        "maize": 2855,
+        "_default": 3743
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Senegal River Valley village rice scheme: diesel pump 15000 m3/ha x 4 m lift, efficiency 0.25 = 61 L/ha, plus ~35 L/ha hired land preparation.",
+        "bounds": "diesel ~60-160 L/ha; electricity 0",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "rainfed_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": false,
+      "diesel_l_per_ha": 50,
+      "electricity_kwh_per_ha": 0,
+      "yield_guides_kg_per_ha": {
+        "groundnut": 1315,
+        "millet": 1153,
+        "maize": 2855,
+        "sorghum": 1330,
+        "cowpea": 684,
+        "sesame": 921,
+        "_default": 1153
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Full tractor suite on light sandy (dior) soils: screening 50 L/ha within the mechanised-cereal band 40-80 L/ha; no default grid electricity.",
+        "bounds": "diesel ~40-80 L/ha; electricity 0",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 4,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    },
+    {
+      "id": "irrigated_full",
+      "mechanization": "fully_mechanized",
+      "irrigated": true,
+      "diesel_l_per_ha": 90,
+      "electricity_kwh_per_ha": 270,
+      "yield_guides_kg_per_ha": {
+        "rice": 3743,
+        "tomato": 18384,
+        "onion": 31290,
+        "maize": 2855,
+        "_default": 3743
+      },
+      "provenance": {
+        "source": "engineering-screening-WS3b",
+        "span": "Large Senegal River Valley schemes: electric pumping station 15000 m3/ha x 4 m, wire-to-water efficiency 0.6 = 272 kWh/ha; tractor + combine ~90 L/ha.",
+        "bounds": "diesel ~60-120 L/ha; electricity ~150-450 kWh/ha",
+        "pedigree": {
+          "reliability": 4,
+          "completeness": 3,
+          "temporal": 2,
+          "geographical": 2,
+          "technological": 3
+        }
+      }
+    }
+  ],
+  "sources": [
+    {
+      "key": "IPCC-2019",
+      "role": "method",
+      "note": "Tier 1 activity-data approach; this table supplies activity amounts, not emission factors."
+    },
+    {
+      "key": "CIAT-CSA-Senegal-2016",
+      "role": "context",
+      "note": "CIAT; BFS/USAID (2016) Climate-Smart Agriculture in Senegal: rainfed dominates; irrigated rice (SRV) and horticulture (Niayes) are the irrigated systems."
+    },
+    {
+      "key": "FAOSTAT-QCL",
+      "role": "yield",
+      "note": "FAOSTAT (2025) Crops and livestock products (QCL), Yield (kg/ha), bulk Production_Crops_Livestock_E_Africa.csv dated 2025-12-23. Mean of 2021-2023; see the region's yield-guide file for flags and pedigree."
+    },
+    {
+      "key": "engineering-screening-WS3b",
+      "role": "energy",
+      "note": "Pump energy = volume x 9.81 x head / 3.6e6 / efficiency (kWh); diesel L = hydraulic kWh / (efficiency x 10.75 kWh/L, 38.7 MJ/L). Efficiencies: small diesel pumpset 0.15, larger diesel 0.25, electric wire-to-water 0.6 (FAO Irrigation Water Management training manuals, pump efficiency ranges). Field-operation diesel uses the mechanised-cereal 40-80 L/ha band. Reviewer to confirm against national surveys."
+    }
+  ]
+}

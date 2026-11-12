@@ -28,6 +28,20 @@ LICENCE_STATUS: dict[str, str] = {
     "UNIDO-RECP": "unconfirmed",
     "internal-data-quality": "clean",
     "Ghana-EnergyCommission-2025-EnergyStatistics": "cite",
+    # --- Senegal / Burkina Faso / South Africa (WS3b, see LICENCES.md) ---
+    # CIAT; BFS/USAID (2016) CSA country profile, CGSpace hdl 10568/74524, Open Access;
+    # no CC licence stated on the copy, so derive + attribute only.
+    "CIAT-CSA-Senegal-2016": "cite",
+    # Burkina Faso CDN 2021-2025 (UNFCCC NDC registry): government publication.
+    "BF-CDN-2021": "cite",
+    # DAFF (2018) Draft CSA Strategic Framework, Government Gazette 41811 Notice 428.
+    "ZA-DAFF-CSA-Framework-2018": "cite",
+    # Grid EF / statistics sources (reference JSONs, not measures).
+    "GIZ-PED-Senegal-2021": "cite",
+    "Nana-2023-CleanAirJournal": "clean",   # CC BY
+    "Eskom-IR-2024": "cite",
+    "FAOSTAT-QCL": "cite",
+    "FAOSTAT-PP": "cite",
 }
 
 # Statuses that must NOT appear in a commercial deployment until resolved.

@@ -1,0 +1,179 @@
+{
+  "id": "price.zar.producer.za",
+  "type": "reference_price",
+  "title": "South Africa producer (farm-gate) prices",
+  "description": "Annual producer prices for South Africa from FAOSTAT PP (national official series, flag A), converted LCU/tonne to LCU/kg. Revenue side of the economic screen; farm-gate, so no trader margin (unlike the Ghana SRID wholesale proxy).",
+  "currency": "ZAR",
+  "prices": {
+    "maize": {
+      "price_per_kg": 4.0882,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 4088.2,
+      "year": 2024,
+      "faostat_item": "Maize (corn)",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "wheat": {
+      "price_per_kg": 5.361,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 5361.0,
+      "year": 2024,
+      "faostat_item": "Wheat",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "soybean": {
+      "price_per_kg": 8.5163,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 8516.3,
+      "year": 2024,
+      "faostat_item": "Soya beans",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "sugarcane": {
+      "price_per_kg": 0.937,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 937.0,
+      "year": 2024,
+      "faostat_item": "Sugar cane",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "orange": {
+      "price_per_kg": 6.5543,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 6554.3,
+      "year": 2024,
+      "faostat_item": "Oranges",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "citrus": {
+      "price_per_kg": 6.5543,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 6554.3,
+      "year": 2024,
+      "faostat_item": "Oranges (used as the citrus price)",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "lemon": {
+      "price_per_kg": 16.9177,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 16917.7,
+      "year": 2024,
+      "faostat_item": "Lemons and limes",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "grapes": {
+      "price_per_kg": 24.8251,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 24825.1,
+      "year": 2024,
+      "faostat_item": "Grapes",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "apple": {
+      "price_per_kg": 10.0403,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 10040.3,
+      "year": 2024,
+      "faostat_item": "Apples",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    },
+    "pear": {
+      "price_per_kg": 9.813,
+      "unit": "ZAR/kg",
+      "lcu_per_tonne": 9813.0,
+      "year": 2024,
+      "faostat_item": "Pears",
+      "faostat_flag": "A",
+      "note": "",
+      "pedigree": {
+        "reliability": 2,
+        "completeness": 2,
+        "temporal": 1,
+        "geographical": 1,
+        "technological": 2
+      }
+    }
+  },
+  "not_covered": [
+    "deciduous fruit other than apple/pear (stone fruit) not extracted"
+  ],
+  "provenance": {
+    "source": "FAOSTAT-PP",
+    "publication": "FAOSTAT (2025) Producer Prices (PP), Producer Price (LCU/tonne), annual value, bulk Prices_E_Africa.csv dated 2025-12-23",
+    "licence": "FAO statistical databases: CC BY 4.0 (FAO Statistical Database Terms of Use) - cite"
+  },
+  "valid_from": "2026-11-12",
+  "staleness_policy": "annual"
+}
