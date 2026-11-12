@@ -165,9 +165,11 @@ REGIONS: dict[str, Region] = {
         aware_country="Nigeria", default_method="ReCiPe 2016 v1.03, midpoint (H)",
         location_prefer=("NG", "Nigeria", "WA", "RAF", "Rest of World", "RoW", "GLO"),
         frac_leach=FRAC_LEACH_WET, ef4=EF4_WET,
-        # Nigeria equivalents of the Ghana tables are WS3's deliverable; set these when
-        # those files land.
-        activity_defaults_file=None, yield_guide_file=None, grid_ef_source=None,
+        # Nigeria tables (FAOSTAT 2023 yields, NIAE/ABU diesel) and grid calibration
+        # (Ember 2024 lifecycle intensity; no official national factor exists).
+        activity_defaults_file="nigeria_farm_activity_defaults.json",
+        yield_guide_file=None,  # yield guides are embedded in the activity-defaults rows
+        grid_ef_kgco2_per_kwh=0.496, grid_ef_source="nigeria_grid_ef.json",
         ghana_inherited=("ipcc_n2o_ef1", "ef4", "frac_leach"),
         field_sources={
             **_ipcc_sources("wet climate"),
@@ -175,8 +177,18 @@ REGIONS: dict[str, Region] = {
                              "dry north (<1000 mm) is under-represented, IPCC 2019 Table 11.1 fn 4"),
             "aware_country": _AWARE,
             "location_prefer": "existing NG matcher preference (unchanged)",
+            "grid_ef_kgco2_per_kwh": ("Ember (2026) via Our World in Data, carbon intensity of "
+                                      "electricity generation (lifecycle), Nigeria 2024 = 495.74 "
+                                      "gCO2e/kWh; no official national factor exists (NERC/ECN "
+                                      "publish none). See nigeria_grid_ef.json"),
         },
-        field_pedigree={"ipcc_n2o_ef1": {**_PED_IPCC, "geographical": 4}},
+        field_pedigree={
+            "ipcc_n2o_ef1": {**_PED_IPCC, "geographical": 4},
+            # Generation-level lifecycle intensity applied at low voltage (no T&D losses):
+            # technological correlation 3.
+            "grid_ef_kgco2_per_kwh": {"reliability": 2, "completeness": 2, "temporal": 1,
+                                      "geographical": 1, "technological": 3},
+        },
     ),
     "SN": Region(
         code="SN", name="Senegal", currency="XOF",

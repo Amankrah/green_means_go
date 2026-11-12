@@ -53,10 +53,10 @@ def _load(path: str) -> dict:
         return json.load(fh)
 
 
-def _file_factor(region) -> tuple[Optional[float], Optional[str]]:
+def _file_factor(region, filename: Optional[str] = None) -> tuple[Optional[float], Optional[str]]:
     code = getattr(region, "code", "") or ""
     name = (getattr(region, "name", "") or "").strip().lower().replace(" ", "_")
-    for fn in (_FALLBACK_FILES.get(code), f"{name}_grid_ef.json" if name else None):
+    for fn in (filename, _FALLBACK_FILES.get(code), f"{name}_grid_ef.json" if name else None):
         if not fn or not (_REF_DIR / fn).is_file():
             continue
         d = _load(str(_REF_DIR / fn))
@@ -73,12 +73,15 @@ def _file_factor(region) -> tuple[Optional[float], Optional[str]]:
 def grid_factor(region) -> tuple[Optional[float], Optional[str]]:
     """(kg CO2e/kWh, source) for the region's grid calibration, or (None, None)."""
     ef = getattr(region, "grid_ef_kgco2_per_kwh", None)
+    src = getattr(region, "grid_ef_source", None)
+    # The registry stores grid_ef_source either as a citation string or as the name of a
+    # reference JSON under engine/recommend/reference/ holding the provenance.
+    src_file = src if src and src.endswith(".json") else None
     if ef is not None:
-        src = getattr(region, "grid_ef_source", None)
-        if not src:
-            _, src = _file_factor(region)
+        if not src or src_file:
+            _, src = _file_factor(region, src_file)
         return float(ef), src or "Region.grid_ef_kgco2_per_kwh"
-    return _file_factor(region)
+    return _file_factor(region, src_file)
 
 _CO2_UID: dict[str, Optional[str]] = {}
 

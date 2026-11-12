@@ -44,6 +44,24 @@ def test_non_ghana_returns_none():
     assert compute_regional_benchmark({"country": "Canada", "region": "CA", "foods": []}) is None
 
 
+def test_senegal_uses_its_own_faostat_guides():
+    bench = compute_regional_benchmark({"country": "Global", "region": "SN", "foods": [
+        {"name": "Groundnut", "area_allocated": 2.0, "quantity_kg": 2000},
+        {"name": "Dragonfruit", "area_allocated": 1.0, "quantity_kg": 500}]})
+    assert bench["region"] == "SN" and "Senegal" in bench["reference"]
+    gn, other = bench["crops"]
+    assert gn["guide_yield_kg_per_ha"] == 1315          # FAOSTAT 2021-2023 mean, not Ghana's
+    assert other["guide_yield_kg_per_ha"] is None       # no guide is invented for unknown crops
+    assert bench["aggregate"]["guide_yield_kg_per_ha"] == 1315
+
+
+def test_nigeria_uses_nigeria_table():
+    bench = compute_regional_benchmark({"country": "Nigeria", "region": "NG", "foods": [
+        {"name": "Maize", "area_allocated": 1.0, "quantity_kg": 1500}]})
+    assert bench is not None and bench["region"] == "NG"
+    assert "Nigeria" in bench["reference"]
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v"])

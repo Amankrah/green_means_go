@@ -322,13 +322,114 @@
   },
   {
    "path": "engine/recommend/reference/ipcc_stock_change_factors_gh.json",
-   "status": "documented_unused",
-   "reason": "land-use-change stock factors; wiring belongs to the foreground workstream (perennials / LUC), not read at this commit"
+   "status": "ingested_and_used",
+   "reason": "GH dLUC stock-change factors (IPCC Vol 4 Ch 2/5), 20-year amortisation",
+   "code_path": "engine/land_use_change.py",
+   "evidence": "ipcc_stock_change_factors_"
   },
   {
    "path": "engine/recommend/reference/ghana_electricity_tariff.json",
    "status": "documented_unused",
    "reason": "ECG tariff extract; not read by the economics screen yet"
+  },
+  {
+   "path": "engine/recommend/reference/senegal_farm_activity_defaults.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/activity_defaults.py",
+   "evidence": "activity_defaults_file",
+   "reason": "SN activity defaults via Region.activity_defaults_file"
+  },
+  {
+   "path": "engine/recommend/reference/senegal_grid_ef.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/grid_calibration.py",
+   "evidence": "grid_ef_source",
+   "reason": "SN grid calibration provenance via Region.grid_ef_source"
+  },
+  {
+   "path": "engine/recommend/reference/senegal_yield_guides.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/regional_benchmark.py",
+   "evidence": "yield_guide_file",
+   "reason": "SN FAOSTAT yield guides for the regional benchmark"
+  },
+  {
+   "path": "engine/recommend/reference/senegal_producer_prices.json",
+   "status": "documented_unused",
+   "reason": "SN FAOSTAT producer prices in local currency. Recommendation economics (engine/recommend/economics.py) is GHS-denominated end to end, so wiring a non-GHS feed would mislabel currency; held until economics is made currency-aware (open item)."
+  },
+  {
+   "path": "engine/recommend/reference/burkina_faso_farm_activity_defaults.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/activity_defaults.py",
+   "evidence": "activity_defaults_file",
+   "reason": "BF activity defaults via Region.activity_defaults_file"
+  },
+  {
+   "path": "engine/recommend/reference/burkina_faso_grid_ef.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/grid_calibration.py",
+   "evidence": "grid_ef_source",
+   "reason": "BF grid calibration provenance via Region.grid_ef_source"
+  },
+  {
+   "path": "engine/recommend/reference/burkina_faso_yield_guides.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/regional_benchmark.py",
+   "evidence": "yield_guide_file",
+   "reason": "BF FAOSTAT yield guides for the regional benchmark"
+  },
+  {
+   "path": "engine/recommend/reference/burkina_faso_producer_prices.json",
+   "status": "documented_unused",
+   "reason": "BF FAOSTAT producer prices in local currency. Recommendation economics (engine/recommend/economics.py) is GHS-denominated end to end, so wiring a non-GHS feed would mislabel currency; held until economics is made currency-aware (open item)."
+  },
+  {
+   "path": "engine/recommend/reference/south_africa_farm_activity_defaults.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/activity_defaults.py",
+   "evidence": "activity_defaults_file",
+   "reason": "ZA activity defaults via Region.activity_defaults_file"
+  },
+  {
+   "path": "engine/recommend/reference/south_africa_grid_ef.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/grid_calibration.py",
+   "evidence": "grid_ef_source",
+   "reason": "ZA grid calibration provenance via Region.grid_ef_source"
+  },
+  {
+   "path": "engine/recommend/reference/south_africa_yield_guides.json",
+   "status": "ingested_and_used",
+   "code_path": "engine/regional_benchmark.py",
+   "evidence": "yield_guide_file",
+   "reason": "ZA FAOSTAT yield guides for the regional benchmark"
+  },
+  {
+   "path": "engine/recommend/reference/south_africa_producer_prices.json",
+   "status": "documented_unused",
+   "reason": "ZA FAOSTAT producer prices in local currency. Recommendation economics (engine/recommend/economics.py) is GHS-denominated end to end, so wiring a non-GHS feed would mislabel currency; held until economics is made currency-aware (open item)."
+  },
+  {
+   "path": "engine/case_studies/senegal_groundnut_rainfed.json",
+   "status": "used_by_test",
+   "code_path": "scripts/run_case_studies.py",
+   "evidence": "case_studies",
+   "reason": "new-region case study, run end to end; extraction exercised by test_reference_data_usage"
+  },
+  {
+   "path": "engine/case_studies/burkina_faso_maize_compost.json",
+   "status": "used_by_test",
+   "code_path": "scripts/run_case_studies.py",
+   "evidence": "case_studies",
+   "reason": "new-region case study, run end to end; extraction exercised by test_reference_data_usage"
+  },
+  {
+   "path": "engine/case_studies/south_africa_irrigated_maize.json",
+   "status": "used_by_test",
+   "code_path": "scripts/run_case_studies.py",
+   "evidence": "case_studies",
+   "reason": "new-region case study, run end to end; extraction exercised by test_reference_data_usage"
   }
  ]
 }
