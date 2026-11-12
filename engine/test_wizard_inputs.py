@@ -325,3 +325,50 @@ def test_carrier_table_sources_present():
             assert val > 0 and src
     assert ec.carrier_of("Liquefied Petroleum Gas (LPG)") == "lpg"
     assert ec.carrier_of("Diesel engine") == "diesel"
+
+
+@pytest.mark.skipif(not DB.exists(), reason="canonical store not available")
+def test_farm_flows_apply_replaces_rust_water_and_recharacterises():
+    """apply() swaps the Rust generic water flow for the source-specific withdrawal and keeps
+    per-source flows, the merged inventory and the totals consistent."""
+    from types import SimpleNamespace
+    from engine import farm_flows
+
+    conn = sqlite3.connect(str(DB))
+
+    class Q:
+        def __init__(self):
+            self.conn = conn
+
+        def characterize_flows(self, flows, method):
+            return {"total": {"value": sum(r["amount"] for r in flows.values()), "unit": "x"}}
+
+    class FMap:
+        def resolve(self, key):
+            return {"water": "RUST_WATER", "N2O": "N2O_UID", "CH4_bio": "CH4_UID"}.get(key)
+
+    eng = SimpleNamespace(q=Q(), fmap=FMap(), method="m")
+    res = SimpleNamespace(
+        contribution_flows_by_source={farm_flows.FIELD_LABEL: {
+            "RUST_WATER": {"name": "water", "unit": "m3", "amount": 999.0}}},
+        inventory={"RUST_WATER": {"name": "water", "unit": "m3", "amount": 999.0},
+                   "OTHER": {"name": "x", "unit": "kg", "amount": 1.0}},
+        contribution={}, contribution_by_source={}, impacts={}, notes=[])
+    a = _farm()
+    a["management_practices"]["water_management"] = {"water_source": ["Borehole"],
+                                                     "irrigation_system": "Drip Irrigation",
+                                                     "irrigation_water_m3": 300.0}
+    a["management_practices"]["soil_management"] = {"uses_compost": True, "compost_source": "Farm-made compost",
+                                                    "compost_application_rate": 1.0}
+    try:
+        farm_flows.apply(res, eng, a)
+    finally:
+        conn.close()
+    field = res.contribution_flows_by_source[farm_flows.FIELD_LABEL]
+    assert "RUST_WATER" not in field and "RUST_WATER" not in res.inventory
+    well = [r for r in field.values() if r["name"] == "Water, well, in ground"]
+    assert well and well[0]["amount"] == pytest.approx(300.0)
+    assert field["CH4_UID"]["amount"] == pytest.approx(2000.0 * 0.004)     # 1 t/ha x 2 ha
+    assert field["N2O_UID"]["amount"] == pytest.approx(2000.0 * 0.0003)
+    assert res.impacts["total"]["value"] == pytest.approx(sum(r["amount"] for r in res.inventory.values()))
+    assert res.contribution["on_farm"] == res.contribution_by_source[farm_flows.FIELD_LABEL]
