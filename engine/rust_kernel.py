@@ -29,12 +29,31 @@ BINARIES = [RUST_DIR / f"target/release/server{_EXE}", RUST_DIR / f"target/debug
 SUBSTANCE_MAP = {
     "Dinitrogen monoxide (N2O)": "N2O",
     "Dinitrogen monoxide (N2O) - indirect": "N2O",
+    "Dinitrogen monoxide (N2O) - crop residues": "N2O",
+    "Dinitrogen monoxide (N2O) - organic fertiliser": "N2O",
+    "Dinitrogen monoxide (N2O) - residue burning": "N2O",
     "Nitrate (NO3-)": "NO3",
     "Carbon dioxide (CO2)": "CO2",           # kept only when source is direct (see below)
     "Methane (CH4)": "CH4_bio",              # rice paddy CH4 is biogenic
+    "Methane (CH4) - residue burning": "CH4_bio",
     "Water": "water",
     "Land occupation, annual crop": "land_occ",
 }
+
+# Where each N2O flow comes from, so engine/field_model.py applies the legume intercrop
+# credit to synthetic-fertiliser N2O only (never to residue, organic or burning N2O).
+ORIGIN_MAP = {
+    "Dinitrogen monoxide (N2O)": "synthetic_fertiliser",
+    "Dinitrogen monoxide (N2O) - indirect": "synthetic_fertiliser",
+    "Dinitrogen monoxide (N2O) - crop residues": "crop_residues",
+    "Dinitrogen monoxide (N2O) - organic fertiliser": "organic_fertiliser",
+    "Dinitrogen monoxide (N2O) - residue burning": "residue_burning",
+    "Methane (CH4) - residue burning": "residue_burning",
+}
+
+# Prefix for kernel validation warnings in the notes; engine/service.py lifts notes with
+# this prefix into the response's data_quality.warnings.
+WARNING_PREFIX = "validation warning: "
 
 # Sources that mean UPSTREAM production (come from the supply-chain solver) -> drop.
 _UPSTREAM_MARKERS = ("production", "mining", "transport of")
@@ -87,7 +106,7 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
         src = (item.get("source") or "").lower()
         if "equivalent" in sub.lower():
             continue                                    # pre-aggregated, already CO2-eq
-        if any(mk in src for mk in _UPSTREAM_MARKERS):
+        if sub not in ORIGIN_MAP and any(mk in src for mk in _UPSTREAM_MARKERS):
             dropped += 1                                # upstream -> supply-chain solver
             continue
         # Drop on-farm fuel/electricity combustion CO2 — the supply-chain solver's ecoinvent
@@ -99,8 +118,14 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
         if not key:
             notes.append(f"unmapped Rust flow '{sub}' (source: {item.get('source')})")
             continue
-        onfarm.append({"substance": key, "quantity": item.get("quantity", 0.0),
-                       "unit": item.get("unit")})
+        flow = {"substance": key, "quantity": item.get("quantity", 0.0),
+                "unit": item.get("unit")}
+        if sub in ORIGIN_MAP:
+            flow["origin"] = ORIGIN_MAP[sub]
+        onfarm.append(flow)
+    res = result.get("results") or {}
+    for w in res.get("lci_warnings") or result.get("lci_warnings") or []:
+        notes.append(WARNING_PREFIX + str(w))
     if dropped:
         notes.append(f"dropped {dropped} upstream-production flow(s) (covered by supply-chain solver)")
     if dropped_energy:
