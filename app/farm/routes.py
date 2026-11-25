@@ -9,14 +9,12 @@ POST /farm/assess runs the region-aware cradle-to-gate LCA:
 This is the migration target that replaces the Rust hardcoded-LCIA path. The old
 /assess route stays until the frontend is switched over.
 
-Engines are cached per region (the matcher index is ~300 MB) and calls are serialised
-per engine with a lock, since the SQLite connection is not thread-safe and farm
-assessments are low-frequency.
+Engines come from engine/service.py, which shares one ~300 MB matcher index and one
+store connection across regions and serialises calls with a single lock.
 """
 from __future__ import annotations
 
 import sys
-import threading
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -28,11 +26,6 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 router = APIRouter(prefix="/farm", tags=["farm"])
-
-_engines: dict[str, object] = {}
-_locks: dict[str, threading.Lock] = {}
-_build_lock = threading.Lock()
-
 
 class PurchasedInput(BaseModel):
     name: str
@@ -79,9 +72,13 @@ async def assess(req: FarmAssessRequest):
         raise HTTPException(400, str(e))
     inputs = [i.model_dump() for i in req.purchased_inputs]
     kernel_assessment, inputs, prep_notes = prepare_farm_run(req.assessment, inputs, eng.region)
-    try:
+    def _run():
         with lock:                                   # serialise: sqlite conn not thread-safe
-            res = eng.assess_farm(kernel_assessment, inputs, expand_matching=req.expand_matching)
+            return eng.assess_farm(kernel_assessment, inputs, expand_matching=req.expand_matching)
+
+    try:
+        from starlette.concurrency import run_in_threadpool
+        res = await run_in_threadpool(_run)
         res.notes = prep_notes + res.notes
     except FileNotFoundError as e:
         raise HTTPException(503, f"Rust LCI kernel not built: {e}")

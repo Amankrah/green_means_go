@@ -32,7 +32,10 @@ CLI:
 """
 from __future__ import annotations
 
+import os
 import sqlite3
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -56,13 +59,38 @@ class InventoryResult:
     notes: list = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class _UnitSolve:
+    """Cradle-to-gate inventory of ONE unit of a process's reference demand."""
+    target_name: str
+    n_processes: int
+    n_unlinked_inputs: int
+    native_amount: float            # the process's own reference amount (demand when amount=None)
+    flows: tuple                    # ((flow_key, name, unit, amount_per_unit_demand), ...)
+    notes: tuple
+
+
+# The solve is linear in demand (T s = a·e  =>  g scales with a), so one solve per dataset
+# serves every amount. Shared by every CanonicalQuery on the same store file and keyed by
+# its mtime/size, so a rebuilt store never serves stale inventories.
+_SOLVE_CACHE_MAX = int(os.getenv("GMG_SOLVE_CACHE_SIZE", "128"))
+_solve_cache: "OrderedDict[tuple, _UnitSolve]" = OrderedDict()
+_solve_cache_lock = threading.Lock()
+
+
+def clear_solve_cache() -> None:
+    with _solve_cache_lock:
+        _solve_cache.clear()
+
+
 class CanonicalQuery:
     def __init__(self, db_path: Path | str = DEFAULT_DB):
         # check_same_thread=False: the engine is built once (possibly in a warmup thread)
         # and served from FastAPI's threadpool threads; access is serialised by a per-
         # engine lock in engine/service.py, so cross-thread use of this read-only
         # connection is safe.
-        self.conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        self.db_path = str(db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._producers: Optional[dict] = None   # flow_uid -> [(process_uid, source_id)]
         self._source_of: Optional[dict] = None   # process_uid -> source_id
@@ -253,10 +281,11 @@ class CanonicalQuery:
         pool = sorted(same) if same else sorted(u for u, _ in cands)
         return pool[0], True
 
-    def _exchanges_for(self, process_uids: list[str]) -> dict[str, list[dict]]:
-        """Fetch all exchanges for a set of processes in chunked IN queries
-        (one round-trip per ~900 processes instead of one per process)."""
-        out: dict[str, list[dict]] = {u: [] for u in process_uids}
+    def _iter_exchanges(self, process_uids: list[str]):
+        """Stream all exchanges for a set of processes in chunked IN queries (one
+        round-trip per ~900 processes instead of one per process). Streamed rather than
+        collected: an ecoinvent supply chain is ~10^6 exchanges, and holding them all
+        dominated the solver's peak memory."""
         CH = 900
         for i in range(0, len(process_uids), CH):
             chunk = process_uids[i:i + CH]
@@ -265,12 +294,66 @@ class CanonicalQuery:
                 "is_reference, amount, unit, provider_process_uid FROM exchanges "
                 f"WHERE process_uid IN ({','.join('?' * len(chunk))})"
             )
-            for r in self.conn.execute(q, chunk):
-                out[r["process_uid"]].append(dict(r))
-        return out
+            yield from self.conn.execute(q, chunk)
 
     def cradle_to_gate(self, target_uid: str, method_name: Optional[str] = None,
                        max_nodes: int = 50000, amount: Optional[float] = None) -> InventoryResult:
+        """Elementary-flow inventory of `amount` of the target's reference product
+        (default: the process's native reference amount), optionally characterized."""
+        unit = self._unit_solve(target_uid, max_nodes)
+        demand = unit.native_amount if amount is None else float(amount)
+        elementary = {}
+        for key, name, flow_unit, per_unit in unit.flows:
+            g = per_unit * demand
+            if g != 0.0:
+                elementary[key] = {"name": name, "unit": flow_unit, "amount": g}
+
+        result = InventoryResult(
+            target_uid=target_uid, target_name=unit.target_name, n_processes=unit.n_processes,
+            n_unlinked_inputs=unit.n_unlinked_inputs, elementary_flows=elementary,
+            notes=list(unit.notes),
+        )
+
+        # optional characterization
+        if method_name:
+            m = self.find_method(method_name)
+            if not m:
+                result.notes.append(f"method '{method_name}' not found; skipped characterization.")
+            else:
+                self._characterize(elementary, m, result)
+        return result
+
+    def _solve_key(self, target_uid: str, max_nodes: int) -> Optional[tuple]:
+        try:
+            st = os.stat(self.db_path)
+        except OSError:          # ":memory:" or a non-file store: never cache
+            return None
+        try:
+            wal = os.stat(self.db_path + "-wal")
+            wal_sig = (wal.st_mtime_ns, wal.st_size)
+        except OSError:
+            wal_sig = None
+        return (os.path.realpath(self.db_path), st.st_mtime_ns, st.st_size, wal_sig,
+                target_uid, max_nodes)
+
+    def _unit_solve(self, target_uid: str, max_nodes: int) -> _UnitSolve:
+        key = self._solve_key(target_uid, max_nodes)
+        if key is not None:
+            with _solve_cache_lock:
+                hit = _solve_cache.get(key)
+                if hit is not None:
+                    _solve_cache.move_to_end(key)
+                    return hit
+        unit = self._solve_unit_demand(target_uid, max_nodes)
+        if key is not None and _SOLVE_CACHE_MAX > 0:
+            with _solve_cache_lock:
+                _solve_cache[key] = unit
+                _solve_cache.move_to_end(key)
+                while len(_solve_cache) > _SOLVE_CACHE_MAX:
+                    _solve_cache.popitem(last=False)
+        return unit
+
+    def _solve_unit_demand(self, target_uid: str, max_nodes: int) -> _UnitSolve:
         try:
             import numpy as np
         except ImportError:
@@ -295,97 +378,107 @@ class CanonicalQuery:
         # ---- assemble T (sparse) and B ------------------------------------
         # A dense n x n is untenable here (ecoinvent reaches ~13.5k processes ->
         # ~1.5 GB and an O(n^3) solve). Technosphere matrices are very sparse.
-        from scipy.sparse import coo_matrix, csc_matrix
-        from scipy.sparse.linalg import spsolve
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.linalg import splu
 
-        rows: list[int] = []
-        cols: list[int] = []
-        vals: list[float] = []
-        bio: dict[str, dict] = {}     # flow_uid -> {"name","unit","idx":[], "amt":[]}
-        diag_target = 1.0
+        from array import array
+        rows = array("q")
+        cols = array("q")
+        vals = array("d")
+        bio: dict[str, dict] = {}     # flow_uid -> {"name","unit","idx":array, "amt":array}
+        diag = np.zeros(n)
         ambiguous = 0
 
-        for ex_proc_uid, exs in self._exchanges_for(procs).items():
+        for ex in self._iter_exchanges(procs):
+            ex_proc_uid = ex["process_uid"]
             j = idx[ex_proc_uid]
-            diag = 0.0
-            for ex in exs:
-                amt = ex["amount"] or 0.0
-                if ex["is_elementary"]:
-                    key = ex["flow_uid"] or f"name::{ex['flow_name']}"
-                    rec = bio.setdefault(key, {"name": ex["flow_name"], "unit": ex["unit"],
-                                               "idx": [], "amt": []})
-                    # NOTE: do NOT negate inputs. openLCA encodes direction in the
-                    # FLOW ITSELF ("Carbon dioxide, in air" [resource] is a different
-                    # flow from "Carbon dioxide, fossil" [emission]) and its CFs are
-                    # signed accordingly (CO2-in-air has a negative climate CF for
-                    # biogenic uptake). Negating here double-counts the sign and
-                    # flips resource/land-use impacts negative.
-                    rec["idx"].append(j)
-                    rec["amt"].append(amt)
-                elif ex["is_reference"]:
-                    # Reference flow defines this process's own product row.
-                    # Waste-treatment activities have the reference as an INPUT,
-                    # so the diagonal must carry the direction.
+            amt = ex["amount"] or 0.0
+            if ex["is_elementary"]:
+                key = ex["flow_uid"] or f"name::{ex['flow_name']}"
+                rec = bio.get(key)
+                if rec is None:
+                    rec = bio[key] = {"name": ex["flow_name"], "unit": ex["unit"],
+                                      "idx": array("q"), "amt": array("d")}
+                # NOTE: do NOT negate inputs. openLCA encodes direction in the
+                # FLOW ITSELF ("Carbon dioxide, in air" [resource] is a different
+                # flow from "Carbon dioxide, fossil" [emission]) and its CFs are
+                # signed accordingly (CO2-in-air has a negative climate CF for
+                # biogenic uptake). Negating here double-counts the sign and
+                # flips resource/land-use impacts negative.
+                rec["idx"].append(j)
+                rec["amt"].append(amt)
+            elif ex["is_reference"]:
+                # Reference flow defines this process's own product row.
+                # Waste-treatment activities have the reference as an INPUT,
+                # so the diagonal must carry the direction.
+                tamt = amt * self._unit_factor(ex["unit"])
+                diag[j] += -tamt if ex["is_input"] else tamt
+            else:
+                prov = ex["provider_process_uid"]
+                if not prov:  # Agribalyse: resolve by product flow
+                    prov, amb = self._resolve_provider(ex["flow_uid"], ex_proc_uid)
+                    if amb:
+                        ambiguous += 1
+                if prov and prov in idx:
+                    # input  = consumption of provider's product (negative supply)
+                    # output = supply back to that product row (rare: co-/waste flows)
                     tamt = amt * self._unit_factor(ex["unit"])
-                    diag += -tamt if ex["is_input"] else tamt
-                else:
-                    prov = ex["provider_process_uid"]
-                    if not prov:  # Agribalyse: resolve by product flow
-                        prov, amb = self._resolve_provider(ex["flow_uid"], ex_proc_uid)
-                        if amb:
-                            ambiguous += 1
-                    if prov and prov in idx:
-                        # input  = consumption of provider's product (negative supply)
-                        # output = supply back to that product row (rare: co-/waste flows)
-                        tamt = amt * self._unit_factor(ex["unit"])
-                        rows.append(idx[prov]); cols.append(j)
-                        vals.append(-tamt if ex["is_input"] else tamt)
-            if diag == 0.0:
-                diag = 1.0  # process with no explicit reference exchange
-            rows.append(j); cols.append(j); vals.append(diag)
-            if ex_proc_uid == target_uid:
-                diag_target = diag
+                    rows.append(idx[prov]); cols.append(j)
+                    vals.append(-tamt if ex["is_input"] else tamt)
+        diag[diag == 0.0] = 1.0  # process with no explicit reference exchange
+        diag_target = float(diag[idx[target_uid]])
 
-        T = coo_matrix((vals, (rows, cols)), shape=(n, n)).tocsc()
+        rr = np.concatenate([np.frombuffer(rows, dtype=np.int64), np.arange(n)])
+        cc = np.concatenate([np.frombuffer(cols, dtype=np.int64), np.arange(n)])
+        vv = np.concatenate([np.frombuffer(vals, dtype=np.float64), diag])
+        del rows, cols, vals
+        T = coo_matrix((vv, (rr, cc)), shape=(n, n)).tocsc()
+        del rr, cc, vv
 
-        # Demand. Default = the process's NATIVE reference amount (one process run) —
-        # note this is not always 1 (an Agribalyse crop can be ~10,672 kg = 1 ha yield).
-        # Pass amount=1.0 to get results per kg.
+        # Unit demand; cradle_to_gate scales by the requested (or native) amount. The
+        # native reference amount is not always 1 (an Agribalyse crop can be ~10,672 kg
+        # = 1 ha yield).
         f = np.zeros(n)
-        f[idx[target_uid]] = diag_target if amount is None else float(amount)
+        f[idx[target_uid]] = 1.0
         if ambiguous:
             notes.append(f"{ambiguous} exchange(s) had multiple candidate producers; "
                          "picked deterministically (same-database preferred).")
 
-        s = spsolve(T, f)
+        # MMD on A^T+A: on the ~17k-process ecoinvent chain this factors ~4x faster than
+        # SuperLU's default COLAMD with ~2.5x less fill (peak memory). The technosphere is
+        # ill-conditioned enough that a single direct solve leaves ~1e-9 error in s, which
+        # cancellation in B·s amplifies to ~1e-6 in the impacts; two refinement steps on
+        # the same factors (~10 ms each) bring s to machine precision.
+        try:
+            lu = splu(T, permc_spec="MMD_AT_PLUS_A")
+        except RuntimeError as e:   # exactly singular
+            raise RuntimeError("technosphere solve failed (singular matrix) — check provider "
+                               f"links for this product: {e}") from e
+        s = lu.solve(f)
+        for _ in range(2):
+            if not np.all(np.isfinite(s)):
+                break
+            s = s + lu.solve(f - T @ s)
+        del lu
         if not np.all(np.isfinite(s)):
             raise RuntimeError("technosphere solve produced non-finite scaling factors "
                                "(singular matrix) — check provider links for this product")
         # residual check: a good solve should have ||T s - f|| ~ 0
         resid = float(np.linalg.norm(T @ s - f))
-        scale = max(1.0, float(np.linalg.norm(f)))
-        if resid / scale > 1e-6:
+        if resid > 1e-6:
             notes.append(f"linear solve residual is high ({resid:.2e}); results may be unreliable.")
 
-        elementary = {}
+        flows = []
         for key, rec in bio.items():
-            g = float(np.dot(np.array(rec["amt"]), s[np.array(rec["idx"])]))
+            g = float(np.dot(np.frombuffer(rec["amt"], dtype=np.float64),
+                             s[np.frombuffer(rec["idx"], dtype=np.int64)]))
             if abs(g) > 0:
-                elementary[key] = {"name": rec["name"], "unit": rec["unit"], "amount": g}
+                flows.append((key, rec["name"], rec["unit"], g))
 
-        result = InventoryResult(
-            target_uid=target_uid, target_name=proc["name"], n_processes=n,
-            n_unlinked_inputs=unlinked, elementary_flows=elementary, notes=notes,
+        return _UnitSolve(
+            target_name=proc["name"], n_processes=n, n_unlinked_inputs=unlinked,
+            native_amount=diag_target, flows=tuple(flows), notes=tuple(notes),
         )
-
-        # optional characterization
-        if method_name:
-            m = self.find_method(method_name)
-            if not m:
-                notes.append(f"method '{method_name}' not found; skipped characterization.")
-            else:
-                self._characterize(elementary, m, result)
-        return result
 
     def characterize_flows(self, elementary: dict, method_name: str) -> dict:
         """Characterize an arbitrary elementary-flow inventory with a named LCIA method,
@@ -427,6 +520,60 @@ class CanonicalQuery:
         inv_key = {uid: fk.get(uid) for uid in elementary}
         inv_cas = {uid: ck.get(uid) for uid in elementary}
         inv_fed = {uid: fed.get(uid) for uid in elementary}
+        known_uids, cat_tables = self._cf_tables(method["uid"])
+
+        bridged_total = 0
+        for (cat, is_climate, bridge_name, bridge_cas, by_uid, by_fed_fine, by_fed_med,
+             by_key_fine, by_key_med, by_cas_fine, by_cas_med) in cat_tables:
+            total = 0.0
+            bridged = 0
+            for uid, ef in elementary.items():
+                fac = by_uid.get(uid)
+                fdf = inv_fed.get(uid)
+                bio = _biogenic_kind(inv_key.get(uid)) if is_climate else None
+                if fac is None and bio == "co2" and uid not in known_uids:
+                    # Biogenic CO2 = 0 (IPCC / PEF carbon-neutrality convention; dLUC CO2 is
+                    # booked as fossil-equivalent CO2 separately). FEDEFL has one flowable
+                    # 'carbon dioxide' for fossil and biogenic, so the bridge below would
+                    # otherwise give it the fossil CF 1.0.
+                    continue
+                if fac is None and fdf != "__NOMAP__" and uid not in known_uids:
+                    # Tier 1 — authoritative FEDEFL id (GLAD/FEDEFL canonical flowable+
+                    # compartment). Handles cross-naming the heuristic can't; NO_FLOW_MATCH
+                    # (e.g. biogenic CO2) is blocked above via the __NOMAP__ sentinel.
+                    if bridge_name and fdf and not bio:   # not water; biogenic flows bridge by name only
+                        fac = by_fed_fine.get(fdf)
+                        if fac is None:
+                            fac = by_fed_med.get(medium_of(fdf))
+                    # Tiers 2-4 — heuristic fallback for flows FEDEFL didn't resolve.
+                    if fac is None:
+                        nf = inv_key.get(uid); cf_ = inv_cas.get(uid)
+                        if bridge_name:
+                            fac = by_key_fine.get(nf)
+                        if fac is None and bridge_cas:
+                            fac = by_cas_fine.get(cf_)
+                        if fac is None and bridge_name:   # name-specific, safe for biogenic
+                            fac = by_key_med.get(medium_of(nf))
+                    if fac is not None:
+                        bridged += 1
+                if fac:
+                    total += ef["amount"] * fac
+            if total != 0.0:
+                result.impacts[cat["name"]] = {"value": total, "unit": cat["ref_unit"]}
+            bridged_total += bridged
+        if bridged_total:
+            result.notes.append(f"{bridged_total} flow→CF match(es) resolved via canonical "
+                                 "flow key (nomenclature bridge).")
+
+    def _cf_tables(self, method_uid: str) -> tuple[set, list]:
+        """Per-method CF lookup tables, built once per connection. They depend only on the
+        store, never on the inventory; rebuilding them from ~10^5 CF rows took ~8 s per
+        characterization call (23 calls per farm assessment)."""
+        cache = self.__dict__.setdefault("_cf_cache", {})
+        hit = cache.get(method_uid)
+        if hit is not None:
+            return hit
+        fk, ck, fed = self._flow_keys()
 
         # Flows the method ALREADY knows by UID (in any category). Their omission from
         # a given category is a deliberate CF=0 — never bridge them. This is what keeps
@@ -435,11 +582,11 @@ class CanonicalQuery:
         known_uids = {r["flow_uid"] for r in self.conn.execute(
             "SELECT DISTINCT cf.flow_uid FROM characterization_factors cf "
             "JOIN impact_categories ic ON ic.uid = cf.category_uid WHERE ic.method_uid = ?",
-            (method["uid"],),
+            (method_uid,),
         )}
 
-        bridged_total = 0
-        for cat in self.categories(method["uid"]):
+        tables = []
+        for cat in self.categories(method_uid):
             # Water use / scarcity CFs (AWARE) are NET consumption keyed to specific
             # water flows, not a per-substance factor. A coarse "water" key would apply
             # one deprivation factor to every water flow (river, cooling, turbine…) and
@@ -484,46 +631,11 @@ class CanonicalQuery:
             by_key_med = {k: next(iter(v)) for k, v in km_v.items() if len(v) == 1}
             by_cas_fine = {k: next(iter(v)) for k, v in cf_v.items() if len(v) == 1}
             by_cas_med = {k: next(iter(v)) for k, v in cm_v.items() if len(v) == 1}
-
-            total = 0.0
-            bridged = 0
-            for uid, ef in elementary.items():
-                fac = by_uid.get(uid)
-                fdf = inv_fed.get(uid)
-                bio = _biogenic_kind(inv_key.get(uid)) if is_climate else None
-                if fac is None and bio == "co2" and uid not in known_uids:
-                    # Biogenic CO2 = 0 (IPCC / PEF carbon-neutrality convention; dLUC CO2 is
-                    # booked as fossil-equivalent CO2 separately). FEDEFL has one flowable
-                    # 'carbon dioxide' for fossil and biogenic, so the bridge below would
-                    # otherwise give it the fossil CF 1.0.
-                    continue
-                if fac is None and fdf != "__NOMAP__" and uid not in known_uids:
-                    # Tier 1 — authoritative FEDEFL id (GLAD/FEDEFL canonical flowable+
-                    # compartment). Handles cross-naming the heuristic can't; NO_FLOW_MATCH
-                    # (e.g. biogenic CO2) is blocked above via the __NOMAP__ sentinel.
-                    if bridge_name and fdf and not bio:   # not water; biogenic flows bridge by name only
-                        fac = by_fed_fine.get(fdf)
-                        if fac is None:
-                            fac = by_fed_med.get(medium_of(fdf))
-                    # Tiers 2-4 — heuristic fallback for flows FEDEFL didn't resolve.
-                    if fac is None:
-                        nf = inv_key.get(uid); cf_ = inv_cas.get(uid)
-                        if bridge_name:
-                            fac = by_key_fine.get(nf)
-                        if fac is None and bridge_cas:
-                            fac = by_cas_fine.get(cf_)
-                        if fac is None and bridge_name:   # name-specific, safe for biogenic
-                            fac = by_key_med.get(medium_of(nf))
-                    if fac is not None:
-                        bridged += 1
-                if fac:
-                    total += ef["amount"] * fac
-            if total != 0.0:
-                result.impacts[cat["name"]] = {"value": total, "unit": cat["ref_unit"]}
-            bridged_total += bridged
-        if bridged_total:
-            result.notes.append(f"{bridged_total} flow→CF match(es) resolved via canonical "
-                                 "flow key (nomenclature bridge).")
+            tables.append(({"name": cat["name"], "ref_unit": cat["ref_unit"]}, is_climate,
+                           bridge_name, bridge_cas, by_uid, by_fed_fine, by_fed_med,
+                           by_key_fine, by_key_med, by_cas_fine, by_cas_med))
+        cache[method_uid] = (known_uids, tables)
+        return known_uids, tables
 
 
 def _biogenic_kind(flow_key: Optional[str]) -> Optional[str]:

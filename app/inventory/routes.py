@@ -132,12 +132,19 @@ def _q() -> CanonicalQuery:
 
 
 def get_matcher() -> ProcessMatcher:
+    """The engine's process-wide matcher: one ~300 MB index per worker, not two.
+    Callers must hold engine.service.engine_lock while using it."""
     global _matcher
     if _matcher is None:
-        m = ProcessMatcher(_q())
-        m.build_index()
-        _matcher = m
+        from engine.service import shared_matcher
+        _matcher = shared_matcher()
     return _matcher
+
+
+def _with_engine_lock(fn):
+    from engine.service import engine_lock
+    with engine_lock:
+        return fn()
 
 
 @router.get("/health")
@@ -191,7 +198,8 @@ async def cradle_to_gate(uid: str, method: str | None = None, top: int = 25):
     _require_store()
     conn = _q()
     try:
-        res = conn.cradle_to_gate(uid, method_name=method)
+        # A cold solve walks a ~17k-process supply chain: keep it off the event loop.
+        res = await run_in_threadpool(conn.cradle_to_gate, uid, method_name=method)
     except ValueError as e:
         raise HTTPException(404, str(e))
     except SystemExit as e:  # numpy missing
@@ -221,16 +229,22 @@ async def match(
     # match() embeds the query (and, with expand, calls an LLM) — CPU/network work
     # that would otherwise block the event loop. Run it in the threadpool.
     candidates = await run_in_threadpool(
-        lambda: get_matcher().match(q, top_k=top, expand=expand)
+        _with_engine_lock, lambda: get_matcher().match(q, top_k=top, expand=expand)
     )
     return {"query": q, "candidates": candidates}
 
 
 def _do_reindex() -> dict:
-    global _matcher
-    m = ProcessMatcher(_q())
-    n = m.build_index(force=True)
-    _matcher = m
+    # Re-embed outside the engine lock (minutes of API calls), then swap the index in.
+    fresh = ProcessMatcher(_q())
+    n = fresh.build_index(force=True)
+    fresh.q.close()
+    m = get_matcher()
+
+    def _swap():
+        m.uids, m.meta, m.matrix = fresh.uids, fresh.meta, fresh.matrix
+        m.__dict__.pop("_identity_cache", None)
+    _with_engine_lock(_swap)
     return {"status": "ok", "indexed_processes": n, "embedder": m.embedder.name}
 
 

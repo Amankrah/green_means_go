@@ -173,12 +173,15 @@ def _system_mismatch(text: str, cand: dict) -> int:
 
 
 class FarmLCA:
-    def __init__(self, region_code: str, method: str = None, db=DEFAULT_DB, matcher=None):
+    def __init__(self, region_code: str, method: str = None, db=DEFAULT_DB, matcher=None,
+                 query=None):
         self.region = get_region(region_code)
-        self.q = CanonicalQuery(db)
-        # `matcher` lets a caller share one loaded index across regions (tests, batch runs).
+        # `query` / `matcher` let a caller share one store connection and one loaded
+        # ~300 MB index across regions and methods (engine/service.py, tests, batch runs).
+        self.q = query or CanonicalQuery(db)
         self.matcher = matcher or ProcessMatcher(self.q)
-        self.matcher.build_index()
+        if self.matcher.matrix is None:
+            self.matcher.build_index()
         self.fmap = OnFarmFlowMap(db)
         self.method = method or self.region.default_method
 

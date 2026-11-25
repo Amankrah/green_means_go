@@ -301,6 +301,18 @@ sudo apt install -y \
 
 print_status "Build dependencies installed"
 
+print_step "2.1b Configuring Swap"
+# The engine's supply-chain solve peaks well above steady state; without swap a burst
+# lets the OOM killer take out an API worker (nginx then returns 502).
+if [ ! -f /swapfile ]; then
+    sudo fallocate -l 4G /swapfile
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile > /dev/null
+    sudo swapon /swapfile
+fi
+grep -q "^/swapfile" /etc/fstab || echo "/swapfile none swap sw 0 0" | sudo tee -a /etc/fstab > /dev/null
+print_status "Swap configured"
+
 print_step "2.2 Installing Rust"
 if ! command -v cargo &> /dev/null; then
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -616,7 +628,7 @@ print_step "4.2 Configuring Supervisor"
 # API configuration
 sudo tee /etc/supervisor/conf.d/greenmeansgo-api.conf > /dev/null << EOF
 [program:greenmeansgo-api]
-command=$VENV_DIR/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 4 --env-file .env
+command=$VENV_DIR/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 2 --env-file .env
 directory=$API_DIR
 user=$USER
 autostart=true
@@ -624,7 +636,7 @@ autorestart=true
 redirect_stderr=true
 stdout_logfile=/var/log/greenmeansgo-api.log
 stderr_logfile=/var/log/greenmeansgo-api-error.log
-environment=PATH="$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin",RUST_BACKEND_PATH="$RUST_BINARY",PYTHONPATH="$API_DIR"
+environment=PATH="$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin",RUST_BACKEND_PATH="$RUST_BINARY",PYTHONPATH="$API_DIR",MALLOC_ARENA_MAX="2",OPENBLAS_NUM_THREADS="1",OMP_NUM_THREADS="1"
 stopwaitsecs=60
 stopsignal=KILL
 stopasgroup=true

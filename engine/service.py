@@ -4,8 +4,10 @@ service.py: one entry point that runs the full validated farm LCA and returns th
 frontend AssessmentResponse shape. Used by the production /assess route (replacing the
 Rust hardcoded-LCIA path) and by /farm/assess.
 
-Engines are cached per region (the matcher index is ~300 MB); calls are serialised per
-engine with a lock (SQLite is not thread-safe; farm assessments are low-frequency).
+Engines are cached per (region, method) but all share ONE store connection and ONE
+~300 MB matcher index per process; calls are serialised with a single lock (the shared
+SQLite connection and matcher caches are not thread-safe; farm assessments are
+low-frequency).
 """
 from __future__ import annotations
 
@@ -66,18 +68,37 @@ def lift_validation_warnings(response: dict) -> dict:
     return response
 
 _engines: dict[str, FarmLCA] = {}
-_locks: dict[str, threading.Lock] = {}
 _build_lock = threading.Lock()
+# Guards everything the engines share (store connection, matcher index and caches).
+engine_lock = threading.Lock()
+_shared: dict = {}
+
+
+def shared_matcher():
+    """The process-wide matcher (index loaded once); callers must hold `engine_lock`."""
+    with _build_lock:
+        m = _shared.get("matcher")
+        if m is None:
+            try:
+                from ingestion.query import CanonicalQuery
+                from ingestion.matching import ProcessMatcher
+            except ImportError:
+                from query import CanonicalQuery
+                from matching import ProcessMatcher
+            m = ProcessMatcher(CanonicalQuery())
+            m.build_index()
+            _shared["matcher"] = m
+        return m
 
 
 def _engine(region_code: str, method: str | None):
     key = f"{get_region(region_code).code}|{method or ''}"
     if key not in _engines:
+        m = shared_matcher()
         with _build_lock:
             if key not in _engines:
-                _engines[key] = FarmLCA(region_code, method=method)
-                _locks[key] = threading.Lock()
-    return _engines[key], _locks[key]
+                _engines[key] = FarmLCA(region_code, method=method, matcher=m, query=m.q)
+    return _engines[key], engine_lock
 
 
 def _region_of(assessment: dict, override: str | None) -> str:
@@ -106,7 +127,9 @@ def warm(regions=("GH",)) -> None:
     fast. Safe to call from a background thread at app startup."""
     for rc in regions:
         try:
-            _engine(rc, None)
+            eng, lock = _engine(rc, None)
+            with lock:
+                eng.q.characterize_flows({}, eng.method)   # builds the method's CF tables
         except Exception:
             pass
 
