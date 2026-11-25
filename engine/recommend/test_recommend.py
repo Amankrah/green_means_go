@@ -19,10 +19,10 @@ from pathlib import Path
 
 try:
     from .schema import load_measures, MeasureValidationError, AbatementMeasure
-    from .matcher import match_measures
+    from .matcher import already_adopted, match_measures
 except ImportError:
     from schema import load_measures, MeasureValidationError, AbatementMeasure
-    from matcher import match_measures
+    from matcher import already_adopted, match_measures
 
 
 # --- realistic payloads (subset of the real AssessmentResponse shape) -------------
@@ -267,6 +267,51 @@ def test_off_axis_system_does_not_nuke_everything() -> None:
     # split_application is conventional/intensive only -> dropped for an organic farm
     assert "meas.n.split_application.gh" not in [r.id for r in org]
     print(f"[ok] off-axis system kept {len(off)} measures; in-vocab 'organic' still filters")
+
+
+def _ghana_rice_payload() -> dict:
+    """Irrigated Ghana rice whose biggest climate driver is field CH4."""
+    p = _ghana_maize_payload()
+    p["breakdown_by_food"] = {"rice (3000kg)": {}}
+    p["contribution_by_source"]["Field emissions (on-farm)"]["Climate change"]["value"] = 0.6
+    return p
+
+
+def test_adopted_practices_drop_their_own_measures() -> None:
+    """A farm that already practises AWD / no-till / split N is not told to adopt it."""
+    as_of = date(2026, 7, 15)
+    rice = _ghana_rice_payload()
+    flags = {"flags": {"irrigated_rice": True}}
+    base = [r.id for r in match_measures(rice, reviewed_only=False, as_of=as_of, context=flags)]
+    assert "meas.rice.awd.gh" in base, base
+    awd = [r.id for r in match_measures(rice, reviewed_only=False, as_of=as_of,
+                                        context={**flags, "practices_adopted": ["awd"]})]
+    assert "meas.rice.awd.gh" not in awd
+    assert set(base) - set(awd) == {"meas.rice.awd.gh"}, "AWD must drop only its own measure"
+
+    maize = _ghana_maize_payload()
+    base = [r.id for r in match_measures(maize, reviewed_only=False, as_of=as_of)]
+    assert {"meas.soil.conservation_tillage.gh", "meas.n.split_application.gh"} <= set(base), base
+    got = [r.id for r in match_measures(
+        maize, reviewed_only=False, as_of=as_of,
+        context={"practices_adopted": ["no_till", "split_application"]})]
+    assert "meas.soil.conservation_tillage.gh" not in got
+    assert "meas.n.split_application.gh" not in got
+    assert "meas.n.nitrification_inhibitor.gh" in got, "unrelated N measures must stay"
+    print("[ok] adopted practices (awd, no_till, split_application) drop their measures")
+
+
+def test_adopted_practice_stems_cover_every_regional_variant() -> None:
+    ids = [m.id for m in load_measures()]
+    split = {i for i in ids if already_adopted(i, ["split_application"])}
+    assert split == {i for i in ids if ".split_application." in i} and len(split) >= 3, split
+    tillage = {i for i in ids if already_adopted(i, ["reduced_tillage"])}
+    assert {"meas.soil.conservation_tillage.gh", "meas.fuel.conservation_agriculture.za"} <= tillage
+    assert already_adopted("meas.rice.sri.sn", ["awd"]) is None   # SRI is more than AWD
+    assert not any(already_adopted(i, ["cover_crops", "mulching", "placed_fertiliser"])
+                   for i in ids if "cover" not in i and "mulch" not in i and "placement" not in i)
+    assert not any(already_adopted(i, []) for i in ids)
+    print("[ok] adopted-practice stems match every regional variant and nothing else")
 
 
 def _run_all() -> int:

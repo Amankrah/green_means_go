@@ -42,7 +42,9 @@ def test_facility_fuel_is_deterministic_without_dead_fallbacks():
     inputs, notes, _ = extract_processing_inputs(req)
     fuel = next(i for i in inputs if i["kind"] == "fuel")
     assert fuel["match_as"] == "diesel, burned in building machine"
-    assert fuel["unit"] == "MJ" and abs(fuel["amount"] - 100.0 * 12 * 38.7) < 1e-6
+    from engine import energy_carriers as ec
+    # diesel LHV 43.0 MJ/kg x 0.837 kg/L = 35.99 MJ/L (energy_carriers.LHV; was 38.7, audit 3.19)
+    assert fuel["unit"] == "MJ" and abs(fuel["amount"] - 100.0 * 12 * ec.LHV["diesel"]["L"][0]) < 1e-6
     assert all("fallback" not in i and "fallbacks" not in i for i in inputs)
 
 

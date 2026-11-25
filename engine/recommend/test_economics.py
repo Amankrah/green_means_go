@@ -17,11 +17,13 @@ try:
     from .economics import (estimate_annual_revenue, screen_measures, build_action_plan,
                             recommend)
     from .schema import Horizon
+    from .matcher import match_measures
 except ImportError:
     from prices import PriceBook
     from economics import (estimate_annual_revenue, screen_measures, build_action_plan,
                            recommend)
     from schema import Horizon
+    from matcher import match_measures
 
 _AS_OF = date(2026, 7, 15)
 
@@ -137,7 +139,6 @@ def test_revenue_unpriced_crop_is_a_gap_not_a_guess() -> None:
 def test_screen_payback_for_capex_measure() -> None:
     """The gari stove has capex 1800 GHS and saves 62 GHS/month -> payback ~29 months."""
     pb = PriceBook.load()
-    from matcher import match_measures
     matched = match_measures(_gari_processor_payload(), reviewed_only=False, as_of=_AS_OF)
     screened = screen_measures(matched, _gari_processor_payload(), pb, as_of=_AS_OF)
     stove = next((s for s in screened if s.measure.id == "meas.proc.efficient_gari_stove.gh"), None)
@@ -155,7 +156,6 @@ def test_per_ha_opex_needs_farm_size() -> None:
     """A per-hectare opex can't be annualised without a farm size - it must be a gap,
     not a silently-wrong annual figure."""
     pb = PriceBook.load()
-    from matcher import match_measures
     payload = _ghana_maize_payload()
     matched = match_measures(payload, reviewed_only=False, as_of=_AS_OF)
     # without size

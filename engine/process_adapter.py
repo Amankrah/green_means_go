@@ -16,13 +16,15 @@ import os
 from datetime import datetime, timezone
 
 try:
-    from .adapter import MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands, _provenance
+    from .adapter import (MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands,
+                          _provenance, is_ef_method)
     from .iso_report import _data_quality_scorecard
     from .refrigerants import refrigerant_co2e
     from .process_iso_report import build_process_iso_report
     from .process_inputs import report_only_metadata
 except ImportError:
-    from adapter import MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands, _provenance
+    from adapter import (MIDPOINT_MAP, _norm_unit, _midpoint, _endpoints, single_score, _bands,
+                         _provenance, is_ef_method)
     from iso_report import _data_quality_scorecard
     from refrigerants import refrigerant_co2e
     from process_iso_report import build_process_iso_report
@@ -32,9 +34,16 @@ _PROC_BANDS_FILE = os.path.join(os.path.dirname(__file__), "process_single_score
 _PROC_BANDS_CACHE: dict | None = None
 
 
-def _process_bands() -> dict:
-    """Calibrated Low/Moderate/High cutoffs for PROCESSED-FOOD single scores. Falls back to
-    the farm-gate bands (flagged as indicative) if the processed-food calibration is absent."""
+def _process_bands(method: str | None = None) -> dict:
+    """Calibrated Low/Moderate/High cutoffs for PROCESSED-FOOD single scores (calibrated on
+    the ReCiPe equal-weighted sum). Falls back to the farm-gate bands (flagged as indicative)
+    if the processed-food calibration is absent. For EF 3.1 the band is unavailable: the
+    ReCiPe calibration does not apply to the EF weighted score."""
+    if is_ef_method(method):
+        return {"low": None, "high": None, "calibrated": False, "unavailable": True,
+                "basis": ("no EF 3.1 processed-food band calibration available; ReCiPe-calibrated "
+                          "cutoffs do not apply to the EF 3.1 weighted score"),
+                "percentiles": None}
     global _PROC_BANDS_CACHE
     if _PROC_BANDS_CACHE is None:
         try:
@@ -95,6 +104,33 @@ def _inventory_results(inventory: dict, total_kg: float, top_n: int = 20) -> dic
             "n_shown": min(top_n, len(rows)), "flows": rows[:top_n]}
 
 
+EFFLUENT_LABEL = "untreated wastewater discharge (on-site)"
+
+
+def _merge_untreated_effluent(result, request: dict, engine) -> list[str]:
+    try:
+        from .process_inputs import untreated_effluent_loads
+        from .farm_flows import _flow_uid, merge_elementary
+    except ImportError:
+        from process_inputs import untreated_effluent_loads
+        from farm_flows import _flow_uid, merge_elementary
+    loads = untreated_effluent_loads(request)
+    conn = getattr(getattr(engine, "q", None), "conn", None)
+    if not loads or conn is None or not hasattr(result, "contribution_flows_by_source"):
+        return []
+    flows, missing = [], []
+    for l in loads:
+        uid = _flow_uid(conn, l["name"], l["compartment"])
+        if uid:
+            flows.append({"uid": uid, "name": l["name"], "unit": "kg", "amount": l["kg"]})
+        else:
+            missing.append(l["name"])
+    if flows:
+        merge_elementary(result, engine, EFFLUENT_LABEL, flows)
+    return ([f"effluent flow(s) not found in the store, not modelled: {', '.join(missing)}"]
+            if missing else [])
+
+
 def to_process_response(result, request: dict, engine, total_kg: float,
                         assessment_id: str, extra_notes=None,
                         run_uncertainty: bool = True,
@@ -102,6 +138,10 @@ def to_process_response(result, request: dict, engine, total_kg: float,
                         uncertainty_seed: int | None = None) -> dict:
     """`result` = whole-facility AssessmentResult (impacts + inventory + input_matches)."""
     total_kg = total_kg or 1.0
+
+    # Untreated wastewater with measured effluent concentrations -> COD / BOD5 / N / P to
+    # surface water, merged as an on-site elementary source and re-characterised.
+    effluent_notes = _merge_untreated_effluent(result, request, engine)
 
     # midpoints: whole-facility -> per kg of output, mapped to frontend names.
     # (unit MUST end in "per kg"; see the note in adapter.to_assessment_response.)
@@ -118,17 +158,20 @@ def to_process_response(result, request: dict, engine, total_kg: float,
     if ep.get("Ecosystem Quality", {}).get("value"):
         midpoints["Biodiversity loss"] = _midpoint(ep["Ecosystem Quality"]["value"], "species.yr per kg")
 
-    # On-site refrigerant (F-gas) leakage -> climate via AR6 GWP100, added before the single
-    # score so it is reflected in it. Method-agnostic (see engine/refrigerants.py).
+    # On-site refrigerant (F-gas) leakage -> climate, added before the single score so it is
+    # reflected in it. The GWP basis follows the LCIA method (ReCiPe 2016 H GWP100 under
+    # ReCiPe, IPCC AR6 under EF 3.1), so it is characterised like the background
+    # (engine/refrigerants.py).
     rm = (request.get("processing_operations") or {}).get("refrigerant_management") or {}
-    ref_co2e, ref_note = refrigerant_co2e(rm.get("refrigerant_type"), rm.get("annual_leakage_kg") or 0.0)
+    ref_co2e, ref_note = refrigerant_co2e(rm.get("refrigerant_type"), rm.get("annual_leakage_kg") or 0.0,
+                                          engine.method)
     ref_per_kg = (ref_co2e / total_kg) if ref_co2e else 0.0
     if ref_per_kg and "Global warming" in midpoints:
         gw = dict(midpoints["Global warming"])
         gw["value"] = (gw.get("value") or 0.0) + ref_per_kg
         midpoints["Global warming"] = gw
 
-    single, single_meta = single_score(midpoints, ep, engine.method, bands=_process_bands())
+    single, single_meta = single_score(midpoints, ep, engine.method, bands=_process_bands(engine.method))
 
     # Pedigree screening Monte Carlo (parity with the farm path): scale category totals by
     # data-class GSD without re-solving the LCI. The on-site refrigerant term is folded into
@@ -206,6 +249,7 @@ def to_process_response(result, request: dict, engine, total_kg: float,
     run_notes = list(extra_notes or [])
     if ref_note:
         run_notes.append(ref_note)
+    run_notes.extend(effluent_notes)
 
     allocation = {"basis": basis_used, "note": alloc_note, "n_products": len(products)}
     iso = build_process_iso_report(

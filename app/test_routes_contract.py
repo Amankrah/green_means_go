@@ -77,6 +77,54 @@ def test_engine_input_is_plain_json():
     assert built["farm_profile"]["farm_type"] == "SmallScale"
 
 
+def test_contract_fields_reach_engine_input():
+    """CONTRACT §1 fields are forwarded with their snake_case names and values."""
+    from test_request_schema import _contract_payload
+    built = _build_farm_rust_input(AssessmentRequest(**_contract_payload()))
+    json.dumps(built)
+    rice = built["foods"][1]
+    assert rice["crops_per_year"] == 2 and rice["growing_period_days"] == 120
+    assert rice["planting_months"] == [4, 9] and rice["harvest_months"] == [8, 12]
+    assert rice["rotation_sequence"] == ["Cowpea", "Maize"]
+    assert rice["water_regime"] == "irrigated_multiple_drainage"
+    assert rice["preseason_water_status"] == "non_flooded_lt_180d"
+    mp = built["management_practices"]
+    sm = mp["soil_management"]
+    assert sm["soil_ph"] == 5.8 and sm["cover_crops"] is True
+    assert sm["practices_adopted_years_ago"] == 6 and sm["compost_crop_ids"] == ["crop_1"]
+    assert sm["lime_applications"] == [
+        {"material": "dolomite", "rate_t_per_ha_per_year": 0.5, "crop_ids": ["crop_2"]}]
+    fa = mp["fertilization"]["fertilizer_applications"][0]
+    assert fa["application_method"] == "broadcast" and fa["brand_name"] == "Yara Sulfan"
+    assert fa["crop_ids"] == ["crop_1"]
+    assert mp["fertilization"]["timing_strategy"] == "Split Application"
+    pest = mp["pest_management"]
+    assert pest["pesticides"][0]["brand_name"] == "Karate"
+    assert pest["pesticides"][0]["crop_ids"] == ["crop_1", "crop_2"]
+    assert pest["uses_economic_thresholds"] is True
+    assert mp["water_management"]["drainage_system"] == "Surface drains"
+    assert built["equipment_energy"]["storage"] == {
+        "facilities": ["Cold Storage", "Metal Silos"], "capacity_tonnes": 20.0,
+        "refrigerant": "R-404A", "refrigerant_charge_kg": 4.0}
+
+
+def test_legacy_rust_lcia_is_never_served(monkeypatch):
+    """USE_LEGACY_RUST_LCIA used to route /assess to the Rust kernel's hardcoded LCIA."""
+    import asyncio
+    import engine.service
+    import production.routes as pr
+    import processing.routes as proc
+    monkeypatch.setenv("USE_LEGACY_RUST_LCIA", "1")
+    calls = []
+    monkeypatch.setattr(engine.service, "run_farm_assessment",
+                        lambda rust_input, **kw: calls.append(kw) or {"served_by": "engine"})
+    assert asyncio.run(pr._run_farm_engine(_full_request())) == {"served_by": "engine"}
+    assert calls and calls[0]["method"] == "EF v3.1"
+    for mod in (pr, proc):
+        assert not hasattr(mod, "call_rust_backend")
+        assert not hasattr(mod, "call_rust_processing_backend")
+
+
 def test_excluded_fields_exist_on_model():
     """The allowlist must not drift: every excluded name is a real request field."""
     unknown = ENGINE_INPUT_EXCLUDED_FIELDS - set(AssessmentRequest.model_fields)

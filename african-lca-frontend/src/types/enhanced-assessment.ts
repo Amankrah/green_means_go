@@ -143,18 +143,104 @@ export interface CropProduction {
   rotationSequence?: string[]; // Crops in rotation cycle
   rotationDuration: number; // years in rotation cycle
   
-  // Yield & Quality
-  averageYieldPerHectare: number; // kg/ha
+  // Yield & Quality. Yield per ha is derived from annualProduction / areaAllocated.
+  averageYieldPerHectare?: number; // kg/ha
   qualityGrades: QualityGrade[];
-  postHarvestLosses: number; // percentage lost after harvest
+  postHarvestLosses?: number; // percentage lost after harvest; blank -> not sent
 
   // Seed / planting material sown (kg/ha). Blank -> FAO default for the crop or category.
   seedRateKgPerHa?: number;
 
+  // Rice only (IPCC 2019 Vol 4 Ch 5 Tables 5.12 / 5.13). Blank -> engine infers and discloses.
+  waterRegime?: RiceWaterRegime | '';
+  preseasonWaterStatus?: RicePreseasonWaterStatus | '';
+
   // Advanced field-model inputs (optional).
   landUseChange?: { previousLandUse?: 'forest' | 'grassland' | 'annual_cropland' | 'perennial_cropland' | ''; yearsSinceConversion?: number };
-  residueManagement?: { fractionRemoved?: number; fractionBurnt?: number };
+  residueManagement?: { fractionRemoved?: number; fractionBurnt?: number; removedResidueUse?: RemovedResidueUse | '' };
   establishment?: { immatureYears?: number; productiveYears?: number; inputShare?: number };
+}
+
+export type RiceWaterRegime =
+  | 'upland'
+  | 'irrigated_continuously_flooded'
+  | 'irrigated_single_drainage'
+  | 'irrigated_multiple_drainage'
+  | 'rainfed_regular'
+  | 'rainfed_drought_prone'
+  | 'deep_water';
+
+export type RemovedResidueUse = 'sold' | 'fed' | 'fed_to_own_livestock' | 'left_on_farm' | 'fuel' | 'other';
+
+// Sold / fed residues make straw a co-product (economic allocation); others keep 100 % on the crop.
+export const REMOVED_RESIDUE_USE_OPTIONS: ReadonlyArray<{ value: RemovedResidueUse; label: string }> = [
+  { value: 'sold', label: 'Sold' },
+  { value: 'fed', label: 'Given or sold as animal feed' },
+  { value: 'fed_to_own_livestock', label: 'Fed to my own livestock' },
+  { value: 'left_on_farm', label: 'Left elsewhere on the farm (heaped, mulch on another field)' },
+  { value: 'fuel', label: 'Used as fuel (cooking, heating)' },
+  { value: 'other', label: 'Other' },
+];
+
+export type RicePreseasonWaterStatus = 'non_flooded_lt_180d' | 'non_flooded_gt_180d' | 'flooded_gt_30d';
+
+export const RICE_WATER_REGIME_OPTIONS: ReadonlyArray<{ value: RiceWaterRegime; label: string }> = [
+  { value: 'irrigated_continuously_flooded', label: 'Irrigated, flooded the whole season' },
+  { value: 'irrigated_single_drainage', label: 'Irrigated, drained once during the season' },
+  { value: 'irrigated_multiple_drainage', label: 'Alternate wetting & drying (AWD), drained several times' },
+  { value: 'rainfed_regular', label: 'Rainfed lowland, regular rainfall' },
+  { value: 'rainfed_drought_prone', label: 'Rainfed lowland, drought-prone' },
+  { value: 'deep_water', label: 'Deep-water rice' },
+  { value: 'upland', label: 'Upland (field never flooded)' },
+];
+
+export const RICE_PRESEASON_OPTIONS: ReadonlyArray<{ value: RicePreseasonWaterStatus; label: string }> = [
+  { value: 'non_flooded_lt_180d', label: 'Not flooded, for less than 6 months before planting' },
+  { value: 'non_flooded_gt_180d', label: 'Not flooded for more than 6 months before planting' },
+  { value: 'flooded_gt_30d', label: 'Flooded for more than 30 days before planting' },
+];
+
+export function isRiceCrop(cropName: string | undefined | null): boolean {
+  return /rice/i.test(cropName ?? '');
+}
+
+// Mirror of engine/perennials.py known_annual (the API refuses establishment years on these).
+const PERENNIAL_TABLE: ReadonlyArray<{ tokens: string[]; exclude?: string[] }> = [
+  { tokens: ['cocoa', 'cacao'] },
+  { tokens: ['oil palm', 'palm oil', 'palm fruit', 'fresh fruit bunch', 'ffb'] },
+  { tokens: ['cashew'] },
+  { tokens: ['coffee'] },
+  { tokens: ['rubber', 'latex', 'hevea'] },
+  { tokens: ['coconut', 'copra'] },
+  { tokens: ['citrus', 'orange', 'tangerine', 'mandarin', 'lemon', 'lime fruit', 'grapefruit'], exclude: ['potato'] },
+  { tokens: ['mango'] },
+  { tokens: ['plantain', 'banana'] },
+];
+const ANNUAL_TOKENS = [
+  'maize', 'corn', 'rice', 'paddy', 'wheat', 'barley', 'oat', 'sorghum', 'millet', 'fonio', 'teff',
+  'groundnut', 'peanut', 'cowpea', 'soy', 'bean', 'pea', 'lentil', 'chickpea', 'bambara', 'sesame',
+  'sunflower', 'cotton', 'tomato', 'pepper', 'chilli', 'chili', 'eggplant', 'aubergine', 'garden egg',
+  'okra', 'cucumber', 'melon', 'watermelon', 'pumpkin', 'onion', 'cabbage', 'lettuce', 'carrot',
+  'cassava', 'yam', 'cocoyam', 'taro', 'potato', 'vegetable',
+];
+const ANNUAL_EXCLUDE = ['locust bean', 'shea', 'kola', 'cola nut', 'tamarind', 'pear', 'black pepper'];
+const ANNUAL_CATEGORIES = new Set(['cereals', 'legumes', 'vegetables', 'roots']);
+
+function isTablePerennial(name: string): boolean {
+  const n = name.toLowerCase();
+  if (!n) return false;
+  if (PERENNIAL_TABLE.some((p) => p.tokens.some((t) => n.includes(t)) && !(p.exclude ?? []).some((x) => n.includes(x)))) return true;
+  return n.trim() === 'palm' || n.trim() === 'palms' || n.startsWith('palm ');
+}
+
+/** True for crops modelled as annual: establishment (perennial) inputs do not apply. */
+export function isKnownAnnualCrop(crop: { cropName?: string; variety?: string; category?: string }): boolean {
+  if (isTablePerennial(crop.cropName ?? '')) return false;
+  // The engine reads name, crop_type and variety; the wizard sends the variety as both.
+  const text = `${crop.cropName ?? ''} ${crop.variety ?? ''}`.toLowerCase();
+  if (ANNUAL_EXCLUDE.some((x) => text.includes(x))) return false;
+  if (ANNUAL_TOKENS.some((t) => text.includes(t))) return true;
+  return ANNUAL_CATEGORIES.has((crop.category ?? '').trim().toLowerCase());
 }
 
 export enum ProductionSystem {
@@ -179,15 +265,17 @@ export enum CroppingPattern {
 export interface SeasonalPattern {
   plantingMonths: number[]; // Month numbers (1-12)
   harvestingMonths: number[]; // Month numbers (1-12)  
-  growingPeriod: number; // days from planting to harvest
-  cropsPerYear: number; // Number of crops per year
-  season: SeasonType[];
+  growingPeriod?: number; // days from planting to harvest (one season); blank -> engine default
+  cropsPerYear: number; // whole harvests per year on this area (1-4)
+  season?: string[]; // display mirror of the derived season (not sent)
+  // Explicit override of the derived season; blank -> engine derives it from planting months.
+  seasonOverride?: SeasonType | '';
 }
 
+// Only the values the API's SeasonalFactor enum accepts.
 export enum SeasonType {
   WET_SEASON = "WetSeason",
   DRY_SEASON = "DrySeason", 
-  HARMATTAN = "Harmattan",
   YEAR_ROUND = "YearRound"
 }
 
@@ -223,14 +311,26 @@ export interface FarmManagementPractices {
 
 export interface SoilManagement {
   soilType: SoilType;
-  soilpH: number;
-  organicMatterContent: number; // percentage
+  soilpH?: number; // blank -> not known (not sent)
+  organicMatterContent?: number; // percentage; blank -> not known
   soilTestingFrequency: TestingFrequency;
   
   // Soil Conservation
   conservationPractices: SoilConservationPractice[];
+  usesCoverCrops?: boolean;
   coverCrops: string[]; // Names of cover crops used
+  // Years since the current tillage / mulching practices were adopted; blank -> unknown.
+  practicesAdoptedYearsAgo?: number;
   compostUse: CompostUsage;
+  limeApplications?: LimeApplication[];
+}
+
+export type LimeMaterial = 'limestone' | 'dolomite';
+
+export interface LimeApplication {
+  material: LimeMaterial;
+  rateTPerHaPerYear: number; // tonnes per hectare per year
+  cropIds?: string[]; // [] = all crops
 }
 
 export enum SoilType {
@@ -268,6 +368,7 @@ export interface CompostUsage {
   compostsource: CompostSource;
   applicationRate?: number; // tons/hectare/year
   applicationTiming: string; // e.g., "Before planting", "Mid-season"
+  cropIds?: string[]; // crops receiving compost; [] = all crops
 }
 
 export enum CompostSource {
@@ -284,9 +385,9 @@ export interface FertilizationPractices {
   usesFertilizers: boolean;
   fertilizerApplications: FertilizerApplication[];
   
-  // Application Methods
-  applicationMethod: ApplicationMethod;
-  timingStrategy: TimingStrategy;
+  // Legacy farm-level method (old snapshots); the method now lives on each application.
+  applicationMethod?: ApplicationMethod;
+  timingStrategy?: TimingStrategy;
   
   // Nutrient Management
   soilTestBased: boolean;
@@ -297,8 +398,10 @@ export interface FertilizerApplication {
   fertilizerType: FertilizerType;
   brandName?: string;
   npkRatio?: string; // e.g., "15-15-15"
-  applicationRate: number; // kg/hectare/season
+  applicationRate: number; // kg of PRODUCT per hectare per application
   applicationsPerSeason: number;
+  applicationMethod?: ApplicationMethod;
+  cropIds?: string[]; // crops (CropProduction.cropId) this is applied to; [] = all crops
   cost: number; // local currency per unit
   currency?: Currency; // Currency for cost
 }
@@ -341,7 +444,7 @@ export interface WaterManagement {
   irrigationWaterM3?: number; // m3 per year for the farm; blank -> estimated from crop water need
   waterUseEfficiency: WaterEfficiencyPractice[];
   drainageSystem: boolean;
-  waterConservationPractices: WaterConservationPractice[];
+  waterConservationPractices: string[]; // WaterConservationPractice values or free text
 }
 
 export enum WaterSource {
@@ -415,9 +518,10 @@ export interface PesticideApplication {
   pesticideType: PesticideType;
   activeIngredient: string;
   activeIngredientContent?: number; // kg (or L) of active ingredient per kg (or L) of product, 0-1
-  brandName: string;
-  applicationRate: number; // liters or kg per hectare
-  applicationsPerSeason: number;
+  brandName?: string;
+  applicationRate: number; // litres or kg of product per hectare per application
+  applicationsPerSeason: number; // 0 = not applied this season
+  cropIds?: string[]; // [] = all crops
   targetPests: string[];
   cost: number; // local currency per application
   currency?: Currency; // Currency for cost
@@ -557,8 +661,11 @@ export interface FarmInfrastructure {
   packagingMaterial?: string;
   packagingKgPerTonne?: number;
   inputTransportKm?: number;
-  storageCapacity: number; // cubic meters or tons
+  storageCapacity?: number; // tonnes; blank -> not known
   storageFacilities: StorageFacilityType[];
+  // Cold storage only: refrigerant designation and the system's charge (kg).
+  refrigerant?: string;
+  refrigerantChargeKg?: number;
   processingFacilities: ProcessingFacilityType[];
   transportAccess: TransportAccess;
 }
@@ -677,13 +784,15 @@ export interface EnhancedAssessmentRequest {
   assessmentParameters: AssessmentParameters;
 }
 
+// Only includeUncertaintyAnalysis reaches the engine (as run_uncertainty). The other keys
+// are kept optional so archived snapshots still load; the wizard no longer offers them.
 export interface AssessmentParameters {
-  functionalUnit: FunctionalUnit;
-  systemBoundary: SystemBoundary;
-  assessmentPeriod: number; // years
   includeUncertaintyAnalysis: boolean;
-  includeSensitivityAnalysis: boolean;
-  benchmarkComparison: boolean;
+  functionalUnit?: FunctionalUnit;
+  systemBoundary?: SystemBoundary;
+  assessmentPeriod?: number;
+  includeSensitivityAnalysis?: boolean;
+  benchmarkComparison?: boolean;
 }
 
 export enum FunctionalUnit {

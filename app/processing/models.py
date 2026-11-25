@@ -38,6 +38,7 @@ MAX_CAPACITY_T_PER_DAY = 1.0e6        # tonnes per day
 MAX_MONTHLY_KWH = 1.0e9               # kWh per month
 MAX_MONTHLY_FUEL = 1.0e8              # litres, kg or m3 per month
 MAX_MONTHLY_WATER_M3 = 1.0e8          # m3 per month
+MAX_EFFLUENT_MG_PER_L = 1.0e6         # physical ceiling (1 kg/L); real effluents are far lower
 MAX_WASTE_KG_PER_DAY = 1.0e7          # kg per day
 MAX_RAW_KG_PER_TONNE = 1.0e6          # kg of raw material per tonne of output
 MAX_PACKAGE_SIZE_KG = 1.0e5           # kg of product per package
@@ -353,6 +354,13 @@ class ProcessingWaterManagement(ProcessingStrictModel):
     # None -> no treatment dataset and an explicit data-gap warning (untreated effluent);
     # any treatment -> average wastewater treatment dataset.
     wastewater_treatment: WastewaterTreatment = WastewaterTreatment.BASIC_SEDIMENTATION
+    # Measured effluent concentrations (mg/L). Read only when wastewater_treatment is "None":
+    # the untreated discharge is emitted to surface water (engine/process_inputs.py
+    # EFFLUENT_FIELDS). Blank -> load not quantified (disclosed), no default is assumed.
+    effluent_cod_mg_per_l: Optional[float] = Field(default=None, ge=0, le=MAX_EFFLUENT_MG_PER_L)
+    effluent_bod5_mg_per_l: Optional[float] = Field(default=None, ge=0, le=MAX_EFFLUENT_MG_PER_L)
+    effluent_total_n_mg_per_l: Optional[float] = Field(default=None, ge=0, le=MAX_EFFLUENT_MG_PER_L)
+    effluent_total_p_mg_per_l: Optional[float] = Field(default=None, ge=0, le=MAX_EFFLUENT_MG_PER_L)
 
     @field_validator("water_source", mode="before")
     @classmethod
@@ -637,3 +645,8 @@ class ProcessingAssessmentResponse(BaseModel):
     contribution_by_source: Optional[Dict[str, Any]] = None
     iso_report: Optional[Dict[str, Any]] = None
     uncertainty: Optional[Dict[str, Any]] = None  # pedigree screening Monte Carlo percentiles
+    region: Optional[str] = None
+    lcia_method: Optional[str] = None
+    provenance: Optional[Dict[str, Any]] = None
+    review_required: Optional[bool] = None
+    review_items: Optional[List[Dict[str, Any]]] = None

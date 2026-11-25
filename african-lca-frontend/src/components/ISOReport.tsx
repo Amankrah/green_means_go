@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from 'recharts';
+import { socRange } from '@/components/results/ResultsExtras';
 
 /**
  * ISOReport — renders the deterministic, data-backed ISO 14040/14044 report block
@@ -80,6 +81,15 @@ interface IsoReport {
       by_source: { source: string; per_kg: number; share: number }[] };
     data_quality_scorecard?: { overall: string;
       indicators: { indicator: string; rating: string; basis: string }[] };
+    soil_carbon_statement?: string | null;
+    soil_carbon_reported_separately?: { value?: number | null; unit?: string; booked?: boolean;
+      value_range?: number[] | null } | null;
+    per_crop_results?: { crop: string; quantity_kg?: number | null; area_ha?: number | null;
+      global_warming_total_kg_co2e?: number | null; global_warming_per_kg?: number | null }[] | null;
+    needs_review?: boolean;
+    method_sensitivity?: { current_method?: string; alternative_method?: string;
+      global_warming_current?: number | null; global_warming_alternative?: number | null;
+      change_pct?: number | null; note?: string } | null;
   };
   critical_review: {
     required: boolean; status: string; trigger: string; reviewer_requirements: string[];
@@ -97,13 +107,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Bullets({ items }: { items: string[] }) {
+function Bullets({ items }: { items?: string[] | null }) {
+  const list = Array.isArray(items) ? items : [];
+  if (list.length === 0) return <p className="text-sm text-gray-500">None recorded.</p>;
   return (
     <ul className="text-sm text-gray-800 space-y-1 list-disc pl-5 leading-relaxed">
-      {items.map((it, i) => <li key={i}>{it}</li>)}
+      {list.map((it, i) => <li key={i}>{it}</li>)}
     </ul>
   );
 }
+
+const arr = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : []);
 
 function fmt(n: number): string {
   if (n === 0) return '0';
@@ -289,10 +303,16 @@ function Phase({ num, title, clause, defaultOpen = false, children }:
 export default function ISOReport({ report }: { report?: IsoReport }) {
   // Guard against a stale/old-shape payload (e.g. an assessment generated before the
   // ISO-conformant report was added): render nothing rather than crash the results page.
-  if (!report || !report.document_control || !report.critical_review || !report.goal) return null;
+  if (!report || !report.document_control || !report.critical_review || !report.goal
+    || !report.scope || !report.inventory_analysis || !report.impact_assessment || !report.interpretation) return null;
   const { document_control: dc, introduction, goal, scope, inventory_analysis: lci,
     impact_assessment: lcia, interpretation, critical_review: cr } = report;
   const pending = cr.required && !cr.statement;
+  const impactCategories = arr(scope.impact_categories);
+  const perCropRows = arr(interpretation.per_crop_results ?? undefined);
+  const ms = interpretation.method_sensitivity;
+  const socIso = interpretation.soil_carbon_reported_separately;
+  const socIsoRange = socIso?.booked ? socRange(socIso.value_range) : null;
 
   return (
     <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white p-6 md:p-8">
@@ -327,8 +347,8 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
           {[['Commissioner', dc.commissioner], ['Practitioner', dc.practitioner],
             ['Date of issue', dc.date_of_issue], ['Report no.', dc.report_number],
             ['Version', dc.version], ['Confidentiality', dc.confidentiality],
-            ['Reference standards', dc.reference_standards.join(', ')],
-            ['Certifications', dc.farm_certifications.length ? dc.farm_certifications.join(', ') : 'None recorded']]
+            ['Reference standards', arr(dc.reference_standards).join(', ')],
+            ['Certifications', arr(dc.farm_certifications).length ? arr(dc.farm_certifications).join(', ') : 'None recorded']]
             .map(([k, v]) => (
               <div key={k as string}>
                 <span className="font-bold text-gray-900">{k}: </span>
@@ -399,9 +419,9 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
           </div>
           <Field label="Cut-off criteria">{scope.cutoff_criteria}</Field>
           <Field label="Allocation procedure">{scope.allocation_procedure}</Field>
-          <Field label={`Impact categories (${scope.impact_categories.length})`}>
+          <Field label={`Impact categories (${impactCategories.length})`}>
             <div className="flex flex-wrap gap-1.5">
-              {scope.impact_categories.map((c, i) => (
+              {impactCategories.map((c, i) => (
                 <span key={i} className="text-xs bg-white border border-gray-200 rounded-full px-2.5 py-1">
                   {c.name} <span className="text-gray-400">({c.unit})</span>
                 </span>
@@ -412,8 +432,8 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
             )}
           </Field>
           <div className="grid md:grid-cols-2 gap-x-6">
-            <Field label="Foreground data">{scope.data_requirements.foreground}</Field>
-            <Field label="Background data">{scope.data_requirements.background}</Field>
+            <Field label="Foreground data">{scope.data_requirements?.foreground}</Field>
+            <Field label="Background data">{scope.data_requirements?.background}</Field>
           </div>
           <Field label="Assumptions & limitations"><Bullets items={scope.assumptions_and_limitations} /></Field>
           <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
@@ -472,7 +492,7 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {lci.reference_flows.map((r, i) => (
+                  {arr(lci.reference_flows).map((r, i) => (
                     <tr key={i} className="odd:bg-white even:bg-gray-50/50">
                       <td className="px-3 py-2 border-b border-gray-100">{r.process}</td>
                       <td className="px-3 py-2 border-b border-gray-100 whitespace-nowrap">{r.amount}</td>
@@ -484,7 +504,7 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
               </table>
             </div>
           </Field>
-          {lci.inventory_results && lci.inventory_results.flows.length > 0 && (
+          {lci.inventory_results && arr(lci.inventory_results.flows).length > 0 && (
             <Field label={`Inventory results: the biggest elementary flows (${lci.inventory_results.n_shown} of ${lci.inventory_results.n_flows_total}, ${lci.inventory_results.basis})`}>
               <DataTable
                 headers={['Elementary flow', 'Amount', 'Unit']}
@@ -505,10 +525,10 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
         <Phase num="5" title="Life Cycle Impact Assessment" clause="How the impacts were worked out">
           <Field label="Method and why it was chosen">{lcia.method}. {lcia.rationale}</Field>
           <Field label="Required steps">
-            <Bullets items={Object.values(lcia.mandatory_elements)} />
+            <Bullets items={Object.values(lcia.mandatory_elements ?? {})} />
           </Field>
           <Field label="Optional steps">
-            <Bullets items={Object.values(lcia.optional_elements)} />
+            <Bullets items={Object.values(lcia.optional_elements ?? {})} />
           </Field>
           {lcia.results_table && lcia.results_table.length > 0 && (
             <Field label="Category indicator results (per kilogram of crop)">
@@ -551,14 +571,46 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
               </div>
             )}
           </div>
-          {interpretation.contribution_analysis && interpretation.contribution_analysis.by_source.length > 0 && (
+          {interpretation.needs_review && (
+            <div className="mb-4 rounded-lg bg-amber-50 border border-amber-300 p-3 text-sm text-amber-900">
+              Some background datasets are flagged for review; this report should not be published until they are confirmed.
+            </div>
+          )}
+          {perCropRows.length > 0 && (
+            <Field label="Results per crop (each crop's own product system)">
+              <DataTable
+                headers={['Crop', 'Harvest (kg)', 'Area (ha)', 'kg CO₂-eq per kg', 'kg CO₂-eq total']}
+                rows={perCropRows.map(r => [
+                  r.crop,
+                  r.quantity_kg != null ? fmt(r.quantity_kg) : 'n/a',
+                  r.area_ha != null ? fmt(r.area_ha) : 'n/a',
+                  r.global_warming_per_kg != null ? fmt(r.global_warming_per_kg) : 'n/a',
+                  r.global_warming_total_kg_co2e != null ? fmt(r.global_warming_total_kg_co2e) : 'n/a',
+                ])}
+              />
+            </Field>
+          )}
+          {interpretation.soil_carbon_statement && (
+            <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+              <div className="text-[13px] font-bold text-emerald-900 mb-1">Soil carbon from management (reported separately)</div>
+              <div className="text-sm text-gray-700 leading-relaxed">{interpretation.soil_carbon_statement}</div>
+              {socIsoRange && (
+                <div className="text-xs text-gray-600 mt-1">
+                  Input-class sensitivity range: {socIsoRange[0] > 0 ? '+' : ''}{fmt(socIsoRange[0])} to{' '}
+                  {socIsoRange[1] > 0 ? '+' : ''}{fmt(socIsoRange[1])}{' '}
+                  {interpretation.soil_carbon_reported_separately?.unit || 'kg CO2/yr'} (alternative IPCC Table 5.5 class where the inputs are ambiguous; not interpolated).
+                </div>
+              )}
+            </div>
+          )}
+          {interpretation.contribution_analysis && arr(interpretation.contribution_analysis.by_source).length > 0 && (
             <Field label={`Contribution analysis: ${interpretation.contribution_analysis.indicator} by source`}>
               <SourceBars data={interpretation.contribution_analysis.by_source} />
             </Field>
           )}
           <Field label="How good is the data">
             <p className="mb-2">{interpretation.data_quality_assessment}</p>
-            {interpretation.data_quality_scorecard && (
+            {interpretation.data_quality_scorecard && arr(interpretation.data_quality_scorecard.indicators).length > 0 && (
               <>
                 <DataQualityRadar indicators={interpretation.data_quality_scorecard.indicators} />
                 <DataTable
@@ -574,7 +626,16 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
           </Field>
           <Field label="Is anything missing">{interpretation.completeness_check}</Field>
           <Field label="Is it internally consistent">{interpretation.consistency_check}</Field>
-          <Field label="How sensitive are the results">{interpretation.sensitivity_and_uncertainty}</Field>
+          <Field label="How sensitive are the results">
+            {interpretation.sensitivity_and_uncertainty}
+            {ms && ms.global_warming_alternative != null && (
+              <p className="mt-2 text-xs text-gray-600">
+                Method check: climate per kg {ms.global_warming_current != null ? fmt(ms.global_warming_current) : 'n/a'} ({ms.current_method})
+                {' '}vs {fmt(ms.global_warming_alternative)} ({ms.alternative_method})
+                {ms.change_pct != null ? `, ${ms.change_pct > 0 ? '+' : ''}${ms.change_pct.toFixed(1)}%` : ''}.
+              </p>
+            )}
+          </Field>
           <Field label="Conclusions"><Bullets items={interpretation.conclusions} /></Field>
           <Field label="Recommendations"><Bullets items={interpretation.recommendations} /></Field>
           <Field label="Limitations"><Bullets items={interpretation.limitations} /></Field>
@@ -594,10 +655,10 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
             </span>
           </div>
           {cr.trigger && <p className="text-sm text-gray-700 mb-3"><span className="font-bold text-gray-900">Why it is needed: </span>{cr.trigger}</p>}
-          {cr.reviewer_requirements.length > 0 && (
+          {arr(cr.reviewer_requirements).length > 0 && (
             <Field label="Who should review it"><Bullets items={cr.reviewer_requirements} /></Field>
           )}
-          {cr.review_scope.length > 0 && (
+          {arr(cr.review_scope).length > 0 && (
             <Field label="What gets reviewed">
               <div className="flex flex-wrap gap-1.5">
                 {cr.review_scope.map((s, i) => (
@@ -606,8 +667,8 @@ export default function ISOReport({ report }: { report?: IsoReport }) {
               </div>
             </Field>
           )}
-          {cr.process.length > 0 && <Field label="How the review works"><Bullets items={cr.process} /></Field>}
-          {cr.panel.length > 0 && (
+          {arr(cr.process).length > 0 && <Field label="How the review works"><Bullets items={cr.process} /></Field>}
+          {arr(cr.panel).length > 0 && (
             <Field label="The review panel">
               <div className="space-y-1">
                 {cr.panel.map((p, i) => (

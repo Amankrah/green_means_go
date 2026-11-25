@@ -112,16 +112,6 @@
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|BF|Foliar Fertilizer fertiliser": {
-   "target": "Foliar Fertilizer fertiliser",
-   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
-   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
-   "location": "Rest of World",
-   "score": 0.5227,
-   "needs_review": true,
-   "identity_basis": "proxy",
-   "fallback_used": null
-  },
   "farm|BF|Groundnuts seed": {
    "target": "market for peanut seed, for sowing",
    "uid": "eb9eaf66-185b-3406-96dc-d45ac295a115",
@@ -183,11 +173,11 @@
    "fallback_used": null
   },
   "farm|BF|Muriate of Potash fertiliser": {
-   "target": "Muriate of Potash fertiliser",
-   "uid": "3622a9c0-2db2-3582-a913-d322c674e058",
-   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.5494,
+   "score": 0.8745,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
@@ -220,26 +210,6 @@
    "score": 0.7088,
    "needs_review": false,
    "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|BF|Neem extract": {
-   "target": "market for pesticide, unspecified",
-   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
-   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.7206,
-   "needs_review": false,
-   "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|BF|None fertiliser": {
-   "target": "None fertiliser",
-   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
-   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.5781,
-   "needs_review": true,
-   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|BF|Organic Fertilizer fertiliser": {
@@ -612,16 +582,6 @@
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|CA|Foliar Fertilizer fertiliser": {
-   "target": "Foliar Fertilizer fertiliser",
-   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
-   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
-   "location": "Rest of World",
-   "score": 0.5227,
-   "needs_review": true,
-   "identity_basis": "proxy",
-   "fallback_used": null
-  },
   "farm|CA|Groundnuts seed": {
    "target": "market for peanut seed, for sowing",
    "uid": "eb9eaf66-185b-3406-96dc-d45ac295a115",
@@ -683,11 +643,11 @@
    "fallback_used": null
   },
   "farm|CA|Muriate of Potash fertiliser": {
-   "target": "Muriate of Potash fertiliser",
-   "uid": "a52975e9-8951-3b12-b1ac-55f6893c7417",
-   "name": "Inorganic potassium fertiliser, as K2O {CA}| market for inorganic potassium fertiliser, as K2O | Cut-off, S - Copied from Ecoinvent U",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "uid": "aa697d96-4b7f-38d5-95a7-64d07ef4c9a6",
+   "name": "market for inorganic potassium fertiliser, as K2O | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Canada",
-   "score": 0.5932,
+   "score": 0.6415,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
@@ -720,26 +680,6 @@
    "score": 0.7088,
    "needs_review": false,
    "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|CA|Neem extract": {
-   "target": "market for pesticide, unspecified",
-   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
-   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.7206,
-   "needs_review": false,
-   "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|CA|None fertiliser": {
-   "target": "None fertiliser",
-   "uid": "9382e510-1ee8-38fb-9746-bccbcc934b0a",
-   "name": "Inorganic nitrogen fertiliser, as N {CA}| market for inorganic nitrogen fertiliser, as N | Cut-off, S - Copied from Ecoinvent U",
-   "location": "Canada",
-   "score": 0.6189,
-   "needs_review": true,
-   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|CA|Organic Fertilizer fertiliser": {
@@ -964,9 +904,9 @@
   },
   "farm|CA|solar PV electricity (on-farm)": {
    "target": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U",
-   "uid": "67474c6d-9b8a-3bc5-bd0b-1992306bcf47",
+   "uid": "a841164d-2f01-3058-960b-86c667540c93",
    "name": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U",
-   "location": "Canada, Ontario",
+   "location": "Canada, Quebec",
    "score": 0.8674,
    "needs_review": false,
    "identity_basis": "concept",
@@ -1112,16 +1052,6 @@
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|GH|Foliar Fertilizer fertiliser": {
-   "target": "Foliar Fertilizer fertiliser",
-   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
-   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
-   "location": "Rest of World",
-   "score": 0.5227,
-   "needs_review": true,
-   "identity_basis": "proxy",
-   "fallback_used": null
-  },
   "farm|GH|Groundnuts seed": {
    "target": "market for peanut seed, for sowing",
    "uid": "eb9eaf66-185b-3406-96dc-d45ac295a115",
@@ -1183,11 +1113,11 @@
    "fallback_used": null
   },
   "farm|GH|Muriate of Potash fertiliser": {
-   "target": "Muriate of Potash fertiliser",
-   "uid": "3622a9c0-2db2-3582-a913-d322c674e058",
-   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.5494,
+   "score": 0.8745,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
@@ -1220,26 +1150,6 @@
    "score": 0.7088,
    "needs_review": false,
    "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|GH|Neem extract": {
-   "target": "market for pesticide, unspecified",
-   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
-   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.7206,
-   "needs_review": false,
-   "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|GH|None fertiliser": {
-   "target": "None fertiliser",
-   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
-   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.5781,
-   "needs_review": true,
-   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|GH|Organic Fertilizer fertiliser": {
@@ -1612,16 +1522,6 @@
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|NG|Foliar Fertilizer fertiliser": {
-   "target": "Foliar Fertilizer fertiliser",
-   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
-   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
-   "location": "Rest of World",
-   "score": 0.5227,
-   "needs_review": true,
-   "identity_basis": "proxy",
-   "fallback_used": null
-  },
   "farm|NG|Groundnuts seed": {
    "target": "market for peanut seed, for sowing",
    "uid": "eb9eaf66-185b-3406-96dc-d45ac295a115",
@@ -1683,11 +1583,11 @@
    "fallback_used": null
   },
   "farm|NG|Muriate of Potash fertiliser": {
-   "target": "Muriate of Potash fertiliser",
-   "uid": "3622a9c0-2db2-3582-a913-d322c674e058",
-   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.5494,
+   "score": 0.8745,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
@@ -1720,26 +1620,6 @@
    "score": 0.7088,
    "needs_review": false,
    "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|NG|Neem extract": {
-   "target": "market for pesticide, unspecified",
-   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
-   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.7206,
-   "needs_review": false,
-   "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|NG|None fertiliser": {
-   "target": "None fertiliser",
-   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
-   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.5781,
-   "needs_review": true,
-   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|NG|Organic Fertilizer fertiliser": {
@@ -2112,16 +1992,6 @@
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|SN|Foliar Fertilizer fertiliser": {
-   "target": "Foliar Fertilizer fertiliser",
-   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
-   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
-   "location": "Rest of World",
-   "score": 0.5227,
-   "needs_review": true,
-   "identity_basis": "proxy",
-   "fallback_used": null
-  },
   "farm|SN|Groundnuts seed": {
    "target": "market for peanut seed, for sowing",
    "uid": "eb9eaf66-185b-3406-96dc-d45ac295a115",
@@ -2183,11 +2053,11 @@
    "fallback_used": null
   },
   "farm|SN|Muriate of Potash fertiliser": {
-   "target": "Muriate of Potash fertiliser",
-   "uid": "3622a9c0-2db2-3582-a913-d322c674e058",
-   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.5494,
+   "score": 0.8745,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
@@ -2220,26 +2090,6 @@
    "score": 0.7088,
    "needs_review": false,
    "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|SN|Neem extract": {
-   "target": "market for pesticide, unspecified",
-   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
-   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.7206,
-   "needs_review": false,
-   "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|SN|None fertiliser": {
-   "target": "None fertiliser",
-   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
-   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.5781,
-   "needs_review": true,
-   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|SN|Organic Fertilizer fertiliser": {
@@ -2612,16 +2462,6 @@
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|ZA|Foliar Fertilizer fertiliser": {
-   "target": "Foliar Fertilizer fertiliser",
-   "uid": "cf14599f-c001-3e63-88b4-c1838ad32bcc",
-   "name": "NPK (15-15-15), as P2O5, at plant {RoW} - Adapted from WFLDB U",
-   "location": "Rest of World",
-   "score": 0.5227,
-   "needs_review": true,
-   "identity_basis": "proxy",
-   "fallback_used": null
-  },
   "farm|ZA|Groundnuts seed": {
    "target": "market for peanut seed, for sowing",
    "uid": "eb9eaf66-185b-3406-96dc-d45ac295a115",
@@ -2683,11 +2523,11 @@
    "fallback_used": null
   },
   "farm|ZA|Muriate of Potash fertiliser": {
-   "target": "Muriate of Potash fertiliser",
-   "uid": "c8a3ff84-2a0f-3356-a3be-bff799637cec",
-   "name": "Inorganic potassium fertiliser, as K2O {ZA}| market for inorganic potassium fertiliser, as K2O | Cut-off, S - Copied from Ecoinvent U",
-   "location": "South Africa",
-   "score": 0.5876,
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8745,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
@@ -2720,26 +2560,6 @@
    "score": 0.7088,
    "needs_review": false,
    "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|ZA|Neem extract": {
-   "target": "market for pesticide, unspecified",
-   "uid": "deb56005-d082-3665-bf68-2fcd3896bc86",
-   "name": "pesticide production, unspecified | pesticide, unspecified | Cutoff, U",
-   "location": "Rest of World",
-   "score": 0.7206,
-   "needs_review": false,
-   "identity_basis": "concept",
-   "fallback_used": null
-  },
-  "farm|ZA|None fertiliser": {
-   "target": "None fertiliser",
-   "uid": "ee0c172a-f93c-3a29-a415-d8dd26c38a4a",
-   "name": "Inorganic nitrogen fertiliser, as N {ZA}| market for inorganic nitrogen fertiliser, as N | Cut-off, S - Copied from Ecoinvent U",
-   "location": "South Africa",
-   "score": 0.6355,
-   "needs_review": true,
-   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|ZA|Organic Fertilizer fertiliser": {
@@ -3664,10 +3484,10 @@
   },
   "processing|CA|hydro": {
    "target": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U",
-   "uid": "97925507-7b5e-3932-a3a1-aca67bd5aa6b",
+   "uid": "4a2c8aca-c85b-3a85-a997-12d65aacc9f3",
    "name": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U",
-   "location": "Canada, Yukon",
-   "score": 0.8707,
+   "location": "Canada, Quebec",
+   "score": 0.8706,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
@@ -3734,9 +3554,9 @@
   },
   "processing|CA|solar PV electricity (on-site)": {
    "target": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U",
-   "uid": "67474c6d-9b8a-3bc5-bd0b-1992306bcf47",
+   "uid": "a841164d-2f01-3058-960b-86c667540c93",
    "name": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U",
-   "location": "Canada, Ontario",
+   "location": "Canada, Quebec",
    "score": 0.8674,
    "needs_review": false,
    "identity_basis": "concept",
@@ -3874,9 +3694,9 @@
   },
   "processing|CA|wind": {
    "target": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U",
-   "uid": "129efa08-6be4-30e9-9c9e-b37a36846e1c",
+   "uid": "23ae8d0d-d7d6-32f7-94a1-e81cb3c1447b",
    "name": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U",
-   "location": "Canada, Saskatchewan",
+   "location": "Canada, Quebec",
    "score": 0.8971,
    "needs_review": false,
    "identity_basis": "concept",

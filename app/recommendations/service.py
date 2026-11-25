@@ -57,34 +57,107 @@ def _farm_context(api: dict) -> dict[str, Any]:
     # production practice axis (conventional/organic/agroforestry) comes off the foods,
     # NOT farm_profile.primary_farming_system (which is market orientation, a different
     # axis the matcher deliberately treats as off-vocabulary).
-    for food in api.get("foods") or []:
+    foods = api.get("foods") or []
+    for food in foods:
         ps = food.get("production_system")
         if ps:
             ctx["system"] = ps
             break
 
+    seasons = _seasons_per_year(foods)
+    if seasons is not None:
+        ctx["seasons_per_year"] = seasons
+
     mp = api.get("management_practices") or {}
     flags: dict[str, bool] = {}
     fert = mp.get("fertilization") or {}
     if fert.get("uses_fertilizers") is not None:
-        flags["uses_fertilizers"] = bool(fert["uses_fertilizers"])
+        rows = fert.get("fertilizer_applications") or []
+        # Rows of type "None" are placeholders the engine skips; with rows present, the
+        # flag holds only if one is a real application.
+        flags["uses_fertilizers"] = bool(fert["uses_fertilizers"]) and (not rows or any(
+            str(a.get("fertilizer_type") or "").strip().lower() != "none"
+            and (a.get("application_rate") or 0) > 0
+            and (a.get("applications_per_season") or 0) > 0
+            for a in rows))
     pest = mp.get("pest_management") or {}
     if pest.get("pesticides"):
         flags["uses_pesticides"] = True
     if pest.get("uses_ipm") is not None:
         flags["uses_ipm"] = bool(pest["uses_ipm"])
-    water = mp.get("water_management") or {}
-    irr = (water.get("irrigation_system") or "").lower()
-    if irr and "none" not in irr and "rainfed" not in irr:
-        # only assert irrigated_rice when a rice crop is present
-        if any("rice" in (f.get("name", "").lower()) for f in (api.get("foods") or [])):
-            flags["irrigated_rice"] = True
+    irrigated_rice = _irrigated_rice(foods, mp.get("water_management") or {})
+    if irrigated_rice is not None:
+        flags["irrigated_rice"] = irrigated_rice
     ee = api.get("equipment_energy") or {}
     if ee.get("fuel_consumption") or ee.get("equipment"):
         flags["uses_machinery"] = True
     if flags:
         ctx["flags"] = flags
+    practices = _adopted_practices(foods, mp)
+    if practices:
+        # The matcher drops measures for these (engine/recommend/matcher.py
+        # ADOPTED_PRACTICE_STEMS): a farm is never told to adopt what it already does.
+        ctx["practices_adopted"] = practices
     return ctx
+
+
+def _is_rice(food: dict) -> bool:
+    return "rice" in (food.get("name") or "").lower()
+
+
+def _seasons_per_year(foods: list[dict]) -> Optional[float]:
+    """Area-weighted crops_per_year (economics multiplies per-ha-per-season opex by it).
+    Falls back to the max when no crop has an area; None when no crop states it (archived
+    requests), so economics keeps its own default."""
+    rows = [(f.get("crops_per_year"), f.get("area_allocated")) for f in foods]
+    rows = [(float(c), a) for c, a in rows if c]
+    if not rows:
+        return None
+    weighted = [(c, float(a)) for c, a in rows if a]
+    total_area = sum(a for _, a in weighted)
+    if total_area > 0:
+        return sum(c * a for c, a in weighted) / total_area
+    return max(c for c, _ in rows)
+
+
+def _irrigated_rice(foods: list[dict], water: dict) -> Optional[bool]:
+    """True/False only with positive evidence. A rice crop's declared water_regime wins
+    over the farm-wide irrigation system."""
+    rice = [f for f in foods if _is_rice(f)]
+    if not rice:
+        return None
+    regimes = [f.get("water_regime") for f in rice if f.get("water_regime")]
+    if regimes:
+        return any(str(r).startswith("irrigated_") for r in regimes)
+    irr = (water.get("irrigation_system") or "").lower()
+    if irr and "none" not in irr and "rainfed" not in irr:
+        return True
+    return None
+
+
+def _adopted_practices(foods: list[dict], mp: dict) -> list[str]:
+    soil = mp.get("soil_management") or {}
+    cons = " ".join(str(p) for p in (soil.get("conservation_practices") or [])).lower()
+    out: list[str] = []
+    if "no-till" in cons or "no till" in cons or "zero till" in cons:
+        out.append("no_till")
+    elif "minimum" in cons or "reduced till" in cons:
+        out.append("reduced_tillage")
+    if "mulch" in cons:
+        out.append("mulching")
+    if soil.get("cover_crops"):
+        out.append("cover_crops")
+    if any(f.get("water_regime") == "irrigated_multiple_drainage" for f in foods if _is_rice(f)):
+        out.append("awd")
+    fert = mp.get("fertilization") or {}
+    methods = {a.get("application_method") for a in (fert.get("fertilizer_applications") or [])}
+    if methods & {"band_placement", "incorporated", "side_dressing"}:
+        out.append("placed_fertiliser")
+    if any((a.get("applications_per_season") or 0) >= 2
+           for a in (fert.get("fertilizer_applications") or [])
+           if str(a.get("fertilizer_type") or "").strip().lower() != "none"):
+        out.append("split_application")
+    return out
 
 
 def _processing_context(api: dict) -> dict[str, Any]:

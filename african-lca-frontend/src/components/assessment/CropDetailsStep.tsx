@@ -17,7 +17,12 @@ import {
 import { 
   ProductionSystem,
   CroppingPattern,
-  SeasonType 
+  SeasonType,
+  RICE_WATER_REGIME_OPTIONS,
+  RICE_PRESEASON_OPTIONS,
+  REMOVED_RESIDUE_USE_OPTIONS,
+  isRiceCrop,
+  isKnownAnnualCrop,
 } from '@/types/enhanced-assessment';
 import { 
   EnhancedAssessmentFormData,
@@ -119,31 +124,59 @@ export default function CropDetailsStep() {
   const addNewCrop = () => {
     if (!canAddCrop) return;
     const leftover = remainingFarmArea(getValues('cropProductions') || [], totalFarmSize);
+    const existing = new Set((getValues('cropProductions') || []).map((c) => c.cropId));
+    let cropId = `crop_${Date.now()}`;
+    while (existing.has(cropId)) cropId = `${cropId}_1`;
     append({
-      cropId: `crop_${Date.now()}`,
+      cropId,
       cropName: '',
       localName: '',
       category: '',
       variety: '',
       // Prefill with what's left so the next crop cannot silently overshoot.
       areaAllocated: leftover > 0 ? leftover : 0,
-      annualProduction: 0,
+      annualProduction: undefined as unknown as number,
       productionSystem: ProductionSystem.RAINFED,
       croppingPattern: CroppingPattern.MONOCULTURE,
       seasonality: {
         plantingMonths: [],
         harvestingMonths: [],
-        growingPeriod: 120,
+        growingPeriod: undefined,
         cropsPerYear: 1,
-        season: [SeasonType.WET_SEASON]
+        season: [],
+        seasonOverride: '',
       },
       isIntercropped: false,
       intercroppingPartners: [],
       intercroppingRatio: {},
       rotationSequence: [],
       rotationDuration: 1,
-      averageYieldPerHectare: 0,
-      postHarvestLosses: 10
+      postHarvestLosses: undefined,
+      waterRegime: '',
+      preseasonWaterStatus: '',
+    });
+  };
+
+  // Removing a crop also unlinks it from fertiliser / pesticide / lime / compost rows, so no
+  // row is left pointing at a crop that no longer exists.
+  const removeCrop = (index: number) => {
+    const removedId = getValues(`cropProductions.${index}.cropId`);
+    remove(index);
+    if (!removedId) return;
+    const prune = (ids?: string[]) => (ids ?? []).filter((id) => id !== removedId);
+    const ferts = getValues('managementPractices.fertilization.fertilizerApplications') || [];
+    ferts.forEach((f, i) => {
+      if (f.cropIds?.includes(removedId)) setValue(`managementPractices.fertilization.fertilizerApplications.${i}.cropIds`, prune(f.cropIds));
+    });
+    const limes = getValues('managementPractices.soilManagement.limeApplications') || [];
+    limes.forEach((l, i) => {
+      if (l.cropIds?.includes(removedId)) setValue(`managementPractices.soilManagement.limeApplications.${i}.cropIds`, prune(l.cropIds));
+    });
+    const compostIds = getValues('managementPractices.soilManagement.compostUse.cropIds');
+    if (compostIds?.includes(removedId)) setValue('managementPractices.soilManagement.compostUse.cropIds', prune(compostIds));
+    const pests = getValues('pestManagement.pesticides') || [];
+    pests.forEach((p, i) => {
+      if (p.cropIds?.includes(removedId)) setValue(`pestManagement.pesticides.${i}.cropIds`, prune(p.cropIds));
     });
   };
 
@@ -159,12 +192,18 @@ export default function CropDetailsStep() {
     }
   };
 
-  const calculateYield = (index: number) => {
+  // Production is the functional-unit denominator: a typical-yield estimate may only fill an
+  // EMPTY field, never replace what the farmer typed. Otherwise it is shown as a hint.
+  const fillProductionIfEmpty = (index: number) => {
     const crop = getValues(`cropProductions.${index}`);
-    if (crop.cropName && crop.areaAllocated) {
-      const estimatedYield = calculateEstimatedYield(crop.cropName, crop.areaAllocated);
-      setValue(`cropProductions.${index}.averageYieldPerHectare`, Math.round(estimatedYield / crop.areaAllocated));
-      setValue(`cropProductions.${index}.annualProduction`, estimatedYield);
+    const current = Number(crop.annualProduction);
+    if (Number.isFinite(current) && current > 0) return;
+    if (crop.cropName?.trim() && crop.areaAllocated > 0) {
+      setValue(
+        `cropProductions.${index}.annualProduction`,
+        Math.round(calculateEstimatedYield(crop.cropName.trim(), crop.areaAllocated)),
+        { shouldDirty: true },
+      );
     }
   };
 
@@ -172,6 +211,15 @@ export default function CropDetailsStep() {
     if (totalFarmSize > 0) {
       const percentage = calculateAreaPercentage(areaAllocated, totalFarmSize);
       setAreaPercentages(prev => ({ ...prev, [index]: percentage }));
+    }
+  };
+
+  // Establishment inputs are hidden for annual crops; drop any values left from an earlier
+  // crop name so a hidden field can neither block validation nor be sent.
+  const clearEstablishmentIfAnnual = (index: number) => {
+    const c = getValues(`cropProductions.${index}`);
+    if (c?.establishment && isKnownAnnualCrop(c)) {
+      setValue(`cropProductions.${index}.establishment`, undefined);
     }
   };
 
@@ -187,7 +235,11 @@ export default function CropDetailsStep() {
                     cropName.includes('Plantain') || cropName.includes('Mango') || cropName.includes('Orange') ? 'Fruits' :
                     cropName.includes('Palm') || cropName.includes('Sunflower') ? 'Oils' : 'Other';
     setValue(`cropProductions.${index}.category`, category);
-    calculateYield(index);
+    clearEstablishmentIfAnnual(index);
+    if (!isRiceCrop(cropName)) {
+      setValue(`cropProductions.${index}.waterRegime`, '');
+      setValue(`cropProductions.${index}.preseasonWaterStatus`, '');
+    }
   };
 
   const getTotalAllocationErrors = (): string[] => {
@@ -229,7 +281,7 @@ export default function CropDetailsStep() {
       if (field === 'plantingMonths') {
         setValue(
           `cropProductions.${index}.seasonality.season`,
-          [deriveSeasonalFactor(country, plantingMonths) as SeasonType],
+          plantingMonths.length ? [deriveSeasonalFactor(country, plantingMonths)] : [],
         );
       }
     }
@@ -363,7 +415,7 @@ export default function CropDetailsStep() {
                 {fields.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => remove(index)}
+                    onClick={() => removeCrop(index)}
                     className="text-red-500 hover:text-red-700 p-2"
                     title="Remove this crop"
                     aria-label="Remove this crop"
@@ -384,7 +436,7 @@ export default function CropDetailsStep() {
                     placeholder="e.g., Maize, Rice, Cassava"
                     className="gmg-input"
                     onChange={(e) => handleCropNameChange(index, e.target.value)}
-                    onBlur={() => calculateYield(index)}
+                    onBlur={() => fillProductionIfEmpty(index)}
                   />
                   {errors.cropProductions?.[index]?.cropName && (
                     <p className="mt-1 text-sm text-red-600">
@@ -409,7 +461,9 @@ export default function CropDetailsStep() {
                     Category *
                   </label>
                   <select
-                    {...register(`cropProductions.${index}.category`)}
+                    {...register(`cropProductions.${index}.category`, {
+                      onChange: () => clearEstablishmentIfAnnual(index),
+                    })}
                     className="gmg-input"
                   >
                     <option value="">Select category</option>
@@ -431,7 +485,9 @@ export default function CropDetailsStep() {
                     Variety/Cultivar *
                   </label>
                   <select
-                    {...register(`cropProductions.${index}.variety`)}
+                    {...register(`cropProductions.${index}.variety`, {
+                      onChange: () => clearEstablishmentIfAnnual(index),
+                    })}
                     className="gmg-input"
                   >
                     <option value="">Select variety</option>
@@ -484,7 +540,7 @@ export default function CropDetailsStep() {
                       });
                       updateAreaPercentage(index, value);
                     }}
-                    onBlur={() => calculateYield(index)}
+                    onBlur={() => fillProductionIfEmpty(index)}
                   />
                   {totalFarmSize > 0 && (
                     <p className="mt-1 text-sm text-moss">
@@ -511,7 +567,10 @@ export default function CropDetailsStep() {
                   )}
                 </div>
 
-                <details className="md:col-span-2 rounded-lg border border-line p-3">
+                <details
+                  className="md:col-span-2 rounded-lg border border-line p-3"
+                  {...((errors.cropProductions?.[index]?.landUseChange || errors.cropProductions?.[index]?.establishment) ? { open: true } : {})}
+                >
                   <summary className="cursor-pointer text-sm font-medium text-ink">Advanced (optional): land-use change, residues, perennial establishment</summary>
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
@@ -525,8 +584,15 @@ export default function CropDetailsStep() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-ink mb-1">Years since conversion</label>
-                      <input type="number" min="0" step="1" {...register(`cropProductions.${index}.landUseChange.yearsSinceConversion`)} className="gmg-input" />
+                      <label className="block text-xs font-medium text-ink mb-1">
+                        Years since conversion{watch(`cropProductions.${index}.landUseChange.previousLandUse`) ? ' *' : ''}
+                      </label>
+                      <input type="number" min="0" step="1" {...register(`cropProductions.${index}.landUseChange.yearsSinceConversion`)} className="gmg-input" placeholder="whole years" />
+                      {errors.cropProductions?.[index]?.landUseChange?.yearsSinceConversion && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {errors.cropProductions[index]?.landUseChange?.yearsSinceConversion?.message}
+                        </p>
+                      )}
                     </div>
                     <div />
                     <div>
@@ -537,19 +603,47 @@ export default function CropDetailsStep() {
                       <label className="block text-xs font-medium text-ink mb-1">Share of residues burnt (0-1)</label>
                       <input type="number" min="0" max="1" step="0.05" {...register(`cropProductions.${index}.residueManagement.fractionBurnt`)} className="gmg-input" />
                     </div>
-                    <div />
-                    <div>
-                      <label className="block text-xs font-medium text-ink mb-1">Perennials: immature years</label>
-                      <input type="number" min="0" step="1" {...register(`cropProductions.${index}.establishment.immatureYears`)} className="gmg-input" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-ink mb-1">Perennials: productive years</label>
-                      <input type="number" min="0" step="1" {...register(`cropProductions.${index}.establishment.productiveYears`)} className="gmg-input" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-ink mb-1">Establishment input share</label>
-                      <input type="number" min="0" step="0.05" {...register(`cropProductions.${index}.establishment.inputShare`)} className="gmg-input" />
-                    </div>
+                    {Number(watch(`cropProductions.${index}.residueManagement.fractionRemoved`)) > 0 ? (
+                      <div>
+                        <label className="block text-xs font-medium text-ink mb-1">What happens to the removed residues?</label>
+                        <select {...register(`cropProductions.${index}.residueManagement.removedResidueUse`)} className="gmg-input">
+                          <option value="">Not sure</option>
+                          {REMOVED_RESIDUE_USE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs text-muted">Sold or fed residues share the farm&apos;s footprint with the crop.</p>
+                      </div>
+                    ) : <div />}
+                    {isKnownAnnualCrop({
+                      cropName: watch(`cropProductions.${index}.cropName`),
+                      variety: watch(`cropProductions.${index}.variety`),
+                      category: watch(`cropProductions.${index}.category`),
+                    }) ? (
+                      <p className="md:col-span-3 text-xs text-muted">
+                        Establishment years apply to tree and other perennial crops only, so they are not asked for this crop.
+                      </p>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-ink mb-1">Perennials: immature years</label>
+                          <input type="number" min="0" step="1" {...register(`cropProductions.${index}.establishment.immatureYears`)} className="gmg-input" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-ink mb-1">Perennials: productive years</label>
+                          <input type="number" min="1" step="1" {...register(`cropProductions.${index}.establishment.productiveYears`)} className="gmg-input" />
+                          {errors.cropProductions?.[index]?.establishment?.productiveYears && (
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.cropProductions[index]?.establishment?.productiveYears?.message}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-ink mb-1">Establishment input share</label>
+                          <input type="number" min="0" step="0.05" {...register(`cropProductions.${index}.establishment.inputShare`)} className="gmg-input" />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </details>
 
@@ -569,7 +663,7 @@ export default function CropDetailsStep() {
 
                 <div>
                   <label className="block text-sm font-medium text-ink mb-2">
-                    Annual Production (kg) *
+                    Annual Production (kg, all harvests in the year) *
                   </label>
                   <input
                     type="number"
@@ -578,12 +672,91 @@ export default function CropDetailsStep() {
                     placeholder="e.g., 2250"
                     className="gmg-input"
                   />
+                  {(() => {
+                    const name = (watch(`cropProductions.${index}.cropName`) || '').trim();
+                    const area = Number(watch(`cropProductions.${index}.areaAllocated`)) || 0;
+                    const prod = Number(watch(`cropProductions.${index}.annualProduction`)) || 0;
+                    if (!name || area <= 0) return null;
+                    const typical = Math.round(calculateEstimatedYield(name, area));
+                    return (
+                      <p className="mt-1 text-xs text-muted">
+                        Typical: {typical.toLocaleString()} kg for {area} ha (rough guide only; enter your actual harvest).
+                        {prod > 0 && <> Your yield: {Math.round(prod / area).toLocaleString()} kg/ha.</>}
+                      </p>
+                    );
+                  })()}
                   {errors.cropProductions?.[index]?.annualProduction && (
                     <p className="mt-1 text-sm text-red-600">
                       {errors.cropProductions[index]?.annualProduction?.message}
                     </p>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-2">
+                    Post-harvest losses (% of harvest, optional)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max="100"
+                    {...register(`cropProductions.${index}.postHarvestLosses`)}
+                    placeholder="blank = not known"
+                    className="gmg-input"
+                  />
+                  {errors.cropProductions?.[index]?.postHarvestLosses && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.cropProductions[index]?.postHarvestLosses?.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-2">
+                    Previous crops on this field (optional)
+                  </label>
+                  <input
+                    key={`${field.id}-rotation`}
+                    defaultValue={(getValues(`cropProductions.${index}.rotationSequence`) || []).join(', ')}
+                    onBlur={(e) => setValue(
+                      `cropProductions.${index}.rotationSequence`,
+                      e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+                      { shouldDirty: true },
+                    )}
+                    placeholder="most recent first, e.g. Cowpea, Maize"
+                    className="gmg-input"
+                  />
+                  <p className="mt-1 text-xs text-muted">Separate crops with commas. Used for the report.</p>
+                </div>
+
+                {isRiceCrop(watch(`cropProductions.${index}.cropName`)) && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-ink mb-2">
+                        How is the rice field watered?
+                      </label>
+                      <select {...register(`cropProductions.${index}.waterRegime`)} className="gmg-input">
+                        <option value="">Not sure (estimate from my irrigation system)</option>
+                        {RICE_WATER_REGIME_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-muted">Flooding drives the methane from rice paddies.</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink mb-2">
+                        Field before planting
+                      </label>
+                      <select {...register(`cropProductions.${index}.preseasonWaterStatus`)} className="gmg-input">
+                        <option value="">Not sure (assume not flooded, under 6 months)</option>
+                        {RICE_PRESEASON_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Production System & Cropping Pattern */}
@@ -738,45 +911,77 @@ export default function CropDetailsStep() {
 
                   <div>
                     <label className="block text-sm font-medium text-ink mb-2">
-                      Growing Period (days) *
+                      Growing period, one season (days)
                     </label>
                     <input
                       type="number"
                       min="30"
                       max="365"
-                      {...register(`cropProductions.${index}.seasonality.growingPeriod`, { valueAsNumber: true })}
-                      placeholder="e.g., 120"
+                      step="1"
+                      {...register(`cropProductions.${index}.seasonality.growingPeriod`)}
+                      placeholder="planting to harvest, e.g. 120"
                       className="gmg-input"
                     />
-                    {watch(`cropProductions.${index}.seasonality.growingPeriod`) && (
-                      <p className="mt-1 text-sm text-moss">
-                        📅 ~{Math.round(watch(`cropProductions.${index}.seasonality.growingPeriod`) / 30 * 10) / 10} months
+                    {(() => {
+                      const days = Number(watch(`cropProductions.${index}.seasonality.growingPeriod`));
+                      return Number.isFinite(days) && days > 0 ? (
+                        <p className="mt-1 text-sm text-moss">
+                          📅 ~{Math.round(days / 30 * 10) / 10} months
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted">Filled from the months you tick; blank uses a typical value.</p>
+                      );
+                    })()}
+                    {errors.cropProductions?.[index]?.seasonality?.growingPeriod && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.cropProductions[index]?.seasonality?.growingPeriod?.message}
                       </p>
                     )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-ink mb-2">
-                      Crops per Year *
+                      Harvests per year on this area *
                     </label>
                     <select
                       {...register(`cropProductions.${index}.seasonality.cropsPerYear`, { valueAsNumber: true })}
                       className="gmg-input"
                     >
-                      <option value={1}>1 crop per year</option>
-                      <option value={2}>2 crops per year</option>
-                      <option value={3}>3 crops per year</option>
+                      <option value={1}>1 harvest per year</option>
+                      <option value={2}>2 harvests per year</option>
+                      <option value={3}>3 harvests per year</option>
+                      <option value={4}>4 harvests per year</option>
                     </select>
+                    <p className="mt-1 text-xs text-muted">
+                      Fertiliser, pesticide and seed amounts you enter are per season and are counted for every harvest.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-2">
+                      Season
+                    </label>
+                    <select
+                      {...register(`cropProductions.${index}.seasonality.seasonOverride`)}
+                      className="gmg-input"
+                    >
+                      <option value="">Work it out from my planting months</option>
+                      <option value={SeasonType.WET_SEASON}>Wet season</option>
+                      <option value={SeasonType.DRY_SEASON}>Dry season</option>
+                      <option value={SeasonType.YEAR_ROUND}>Year round</option>
+                    </select>
+                    {!watch(`cropProductions.${index}.seasonality.seasonOverride`) &&
+                      (watch(`cropProductions.${index}.seasonality.plantingMonths`) || []).length > 0 && (
+                      <p className="mt-1 text-xs text-spruce">
+                        Likely:{' '}
+                        <span className="font-medium">
+                          {seasonalFactorLabel(deriveSeasonalFactor(country, watch(`cropProductions.${index}.seasonality.plantingMonths`)))}
+                        </span>
+                        {' '}(the assessment uses your region&apos;s rainy season)
+                      </p>
+                    )}
                   </div>
                 </div>
-
-                {/* Derived, read-only: sent to the engine as seasonal_factor */}
-                <p className="mt-4 text-xs text-spruce">
-                  Growing season (derived from your planting months and the rainy season in {country || 'your country'}):{' '}
-                  <span className="font-medium">
-                    {seasonalFactorLabel(deriveSeasonalFactor(country, watch(`cropProductions.${index}.seasonality.plantingMonths`)))}
-                  </span>
-                </p>
               </div>
             </motion.div>
             );
@@ -858,6 +1063,10 @@ export default function CropDetailsStep() {
                 if (cropErrors.croppingPattern) errorMessages.push(`Crop ${index + 1}: Please select cropping pattern`);
                 if (cropErrors.seasonality?.plantingMonths) errorMessages.push(`Crop ${index + 1}: Please select planting months`);
                 if (cropErrors.seasonality?.harvestingMonths) errorMessages.push(`Crop ${index + 1}: Please select harvesting months`);
+                if (cropErrors.seasonality?.growingPeriod) errorMessages.push(`Crop ${index + 1}: ${cropErrors.seasonality.growingPeriod.message}`);
+                if (cropErrors.postHarvestLosses) errorMessages.push(`Crop ${index + 1}: ${cropErrors.postHarvestLosses.message}`);
+                if (cropErrors.landUseChange?.yearsSinceConversion) errorMessages.push(`Crop ${index + 1}: ${cropErrors.landUseChange.yearsSinceConversion.message} (Advanced section)`);
+                if (cropErrors.establishment?.productiveYears) errorMessages.push(`Crop ${index + 1}: ${cropErrors.establishment.productiveYears.message} (Advanced section)`);
                 
                 return errorMessages.map((msg, i) => (
                   <li key={`${index}-${i}`}>{msg}</li>

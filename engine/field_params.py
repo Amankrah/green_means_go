@@ -23,6 +23,13 @@ Sources (IPCC 2019 Refinement to the 2006 Guidelines, Vol 4, Ch 11):
   Section 11.2.2.3 text (p 11.25): "for wet climates or in dry climate regions where
       irrigation (other than drip irrigation) is used, the default FracLEACH-(H) is 0.24.
       For dry climates, the default FracLEACH-(H) is zero."
+  Table 11.3 FracGASF disaggregated by fertiliser type (classes per Annex 11A.7): urea 0.15,
+      ammonium-based 0.08, nitrate-based 0.01, ammonium-nitrate-based 0.05. The kernel
+      classifies each fertiliser row (african_lca_backend field.rs n_volatilisation_class)
+      and uses the aggregated FracGASF only when the N form is not identifiable.
+Rice CH4 (IPCC 2019 Refinement Vol 4 Ch 5): Table 5.11 baseline EFc 1.19 kg CH4/ha/day and
+  Table 5.11a cultivation period 113 d; both are the global values, which the tables also
+  give for Africa "due to lack of data".
 """
 from __future__ import annotations
 
@@ -39,6 +46,15 @@ AGGREGATED = {
     "ef4": 0.010,
     "ef5": 0.011,
 }
+# FracGASF by fertiliser N form (Table 11.3 updated, disaggregated; Annex 11A.7 classes).
+FRAC_GASF_BY_TYPE = {
+    "frac_gasf_urea": 0.15,
+    "frac_gasf_ammonium": 0.08,
+    "frac_gasf_nitrate": 0.01,
+    "frac_gasf_ammonium_nitrate": 0.05,
+}
+# Rice CH4 Tier 1 defaults (Vol 4 Ch 5 Table 5.11 / Table 5.11a, global = Africa).
+RICE_CH4 = {"rice_ch4_efc": 1.19, "rice_cultivation_days": 113.0}
 # Climate-disaggregated defaults (Table 11.1 / 11.3).
 WET = {"ef1_synthetic": 0.016, "ef1_other": 0.006, "ef4": 0.014, "frac_leach": 0.24}
 DRY = {"ef1_synthetic": 0.005, "ef1_other": 0.005, "ef4": 0.005, "frac_leach": 0.0}
@@ -108,11 +124,15 @@ def field_parameters(region, assessment: dict | None = None) -> tuple[dict, list
         notes.append("dry climate but irrigated (not drip): FracLEACH-(H) set to 0.24 "
                      "(IPCC 2019 Vol 4 Ch 11 p 11.25)")
 
+    base.update(FRAC_GASF_BY_TYPE)
+    base.update(RICE_CH4)
+
     zone = getattr(region, "climate_zone", "regional")
     notes.append(
         f"field N2O uses IPCC 2019 {cls} parameters for {zone}: EF1 synthetic "
         f"{base['ef1_synthetic']:g}, EF1 other N {base['ef1_other']:g}, FracGASF "
-        f"{base['frac_gasf']:g}, FracGASM {base['frac_gasm']:g}, FracLEACH "
+        f"{base['frac_gasf']:g} (by type: urea 0.15, ammonium 0.08, nitrate 0.01, "
+        f"ammonium nitrate 0.05), FracGASM {base['frac_gasm']:g}, FracLEACH "
         f"{base['frac_leach']:g}, EF4 {base['ef4']:g}, EF5 {base['ef5']:g} "
         f"({SRC_T11_1}; {SRC_T11_3})")
     return base, notes
@@ -123,9 +143,9 @@ def prepare_kernel_assessment(assessment: dict, region) -> tuple[dict, list[str]
     `frac_renew` (perennials) injected for the Rust kernel, plus notes. Idempotent: an
     assessment that already carries field_parameters is left as is."""
     try:
-        from .perennials import perennial_for
+        from .perennials import perennial_for_food
     except ImportError:
-        from perennials import perennial_for
+        from perennials import perennial_for_food
     out = dict(assessment)
     notes: list[str] = []
     if "field_parameters" not in out:
@@ -133,7 +153,7 @@ def prepare_kernel_assessment(assessment: dict, region) -> tuple[dict, list[str]
         out["field_parameters"] = params
     foods = []
     for f in out.get("foods") or []:
-        p = perennial_for(f.get("name"))
+        p = perennial_for_food(f)
         if p is not None:
             f = dict(f)
             rm = dict(f.get("residue_management") or {})

@@ -132,10 +132,66 @@ def test_generator_counted_once_when_duplicated_in_fuel():
     inputs, notes = extract_purchased_inputs(a)
     assert len([i for i in inputs if i.get("fuel") == "diesel" and not i.get("estimated")]) == 1
     assert any("counted once" in n for n in notes)
+    # Different use text, same litres: still one stream (the exact-string dedupe gave +136%).
     a["equipment_energy"]["energy_sources"][0]["primary_use"] = "Lighting"
-    inputs, _ = extract_purchased_inputs(a)
+    inputs, notes = extract_purchased_inputs(a)
+    assert not [i for i in inputs if "generating set" in (i.get("match_as") or "")]
+    assert any("counted once" in n for n in notes)
+    # A clearly different amount for another use is a second stream (36.0 MJ/L diesel).
+    a["equipment_energy"]["energy_sources"][0]["monthly_consumption"] = 100
+    inputs, notes = extract_purchased_inputs(a)
     gen = [i for i in inputs if "generating set" in (i.get("match_as") or "")]
-    assert len(gen) == 1 and gen[0]["amount"] == pytest.approx(220 * 12 * 38.7)
+    assert len(gen) == 1 and gen[0]["amount"] == pytest.approx(100 * 12 * 43.0 * 0.837)
+    assert any("counted in addition" in n for n in notes)
+
+
+def _gen_case(fuel_amt, fuel_unit, gen_amt, gen_unit, fuel_use="Irrigation pumping", gen_use="Lighting"):
+    a = _farm()
+    a["equipment_energy"]["fuel_consumption"] = [
+        {"fuel_type": "Diesel", "monthly_consumption": fuel_amt, "unit": fuel_unit, "primary_use": fuel_use}]
+    a["equipment_energy"]["energy_sources"] = [
+        {"energy_type": "Diesel Generator", "monthly_consumption": gen_amt, "unit": gen_unit,
+         "primary_use": gen_use}]
+    inputs, notes = extract_purchased_inputs(a)
+    diesel = [i for i in inputs if i.get("fuel") == "diesel" and not i.get("estimated")]
+    gen = [i for i in inputs if "generating set" in (i.get("match_as") or "")]
+    return diesel, gen, notes
+
+
+@pytest.mark.parametrize("fuel_amt,fuel_unit,gen_amt,gen_unit", [
+    (220, "L", 220 * 0.837, "kg"),        # generator in kg, fuel row in L (same stream)
+    (220 * 0.837, "kg", 220, "L"),        # fuel row in kg, generator in L
+    (184.0, "kg", 184.0, "kg"),           # both in kg
+    (90, "L", 300, "kWh"),                # kWh at 0.30 L/kWh = 90 L
+])
+def test_generator_twin_matched_across_units(fuel_amt, fuel_unit, gen_amt, gen_unit):
+    diesel, gen, notes = _gen_case(fuel_amt, fuel_unit, gen_amt, gen_unit)
+    assert len(diesel) == 1 and not gen
+    assert any("counted once" in n for n in notes)
+
+
+@pytest.mark.parametrize("fuel_amt,fuel_unit,gen_amt,gen_unit", [
+    (220, "L", 50, "kg"), (100, "kg", 300, "L")])
+def test_generator_and_fuel_rows_of_different_streams_both_counted(fuel_amt, fuel_unit, gen_amt, gen_unit):
+    diesel, gen, notes = _gen_case(fuel_amt, fuel_unit, gen_amt, gen_unit)
+    assert len(diesel) == 2 and len(gen) == 1
+    assert gen[0]["amount"] == pytest.approx(gen_amt * 12 * (43.0 if gen_unit == "kg" else 43.0 * 0.837))
+
+
+def test_generator_metered_in_kwh_uses_genset_consumption_and_fuel_row_named_generator():
+    a = _farm()
+    a["equipment_energy"]["energy_sources"] = [
+        {"energy_type": "Diesel Generator", "monthly_consumption": 100, "unit": "kWh",
+         "primary_use": "Lighting"}]
+    inputs, _ = extract_purchased_inputs(a)
+    gen = next(i for i in inputs if "generating set" in (i.get("match_as") or ""))
+    assert gen["native_amount"] == pytest.approx(100 * 12 * ec.GENSET_L_PER_KWH) and gen["estimated"]
+    # a diesel fuel row whose use is the generator is the same stream whatever the amount
+    a["equipment_energy"]["fuel_consumption"] = [
+        {"fuel_type": "Diesel", "monthly_consumption": 80, "primary_use": "Generator"}]
+    inputs, notes = extract_purchased_inputs(a)
+    assert not [i for i in inputs if "generating set" in (i.get("match_as") or "")]
+    assert any("counted once" in n for n in notes)
 
 
 def test_equipment_power_source_hours_and_efficiency():
@@ -149,7 +205,7 @@ def test_equipment_power_source_hours_and_efficiency():
          "hours_per_year": 100}]
     inputs, _ = extract_purchased_inputs(a)
     petrol = next(i for i in inputs if i.get("fuel") == "petrol")
-    assert petrol["unit"] == "kg" and petrol["amount"] == pytest.approx(150 * 34.2 / 44.3)
+    assert petrol["unit"] == "kg" and petrol["amount"] == pytest.approx(150 * 0.741)   # units.FUELS density
     diesel = next(i for i in inputs if i.get("fuel") == "diesel" and i.get("source_equipment"))
     assert diesel["estimated"] is True                                       # ASABE D497 class estimate
     assert diesel["native_amount"] == pytest.approx(0.223 * 70 * 0.7457 * 100)
@@ -412,3 +468,270 @@ def test_negative_rates_are_clamped_with_a_warning_not_credited():
     assert all(i["amount"] >= 0 for i in inputs)
     assert not [i for i in inputs if i.get("kind") in ("fertiliser", "compost")]
     assert sum(1 for n in notes if n.startswith(pz.WARNING_PREFIX) and "negative" in n) >= 3
+
+
+# ---- fertiliser dataset basis (audit 3.7) ---------------------------------------------------
+
+def _fert(*apps, foods=None):
+    a = _farm()
+    if foods is not None:
+        a["foods"] = foods
+    a["management_practices"]["fertilization"] = {"uses_fertilizers": True,
+                                                  "fertilizer_applications": list(apps)}
+    return a
+
+
+def test_potash_is_kcl_product_and_nutrient_match_converts_to_k2o():
+    from engine.inputs import FertiliserBasisError, to_matched_basis
+    a = _fert({"fertilizer_type": "Muriate of Potash", "application_rate": 100, "applications_per_season": 1})
+    f = _by_kind(extract_purchased_inputs(a)[0], "fertiliser")
+    assert len(f) == 1 and f[0]["amount"] == pytest.approx(200.0)               # kg KCl product
+    assert f[0]["match_as"].startswith("market for potassium chloride")
+    assert f[0]["nutrient_content"]["K2O"] == pytest.approx(0.60)
+    # If the matcher lands on a nutrient-basis dataset the amount becomes kg K2O, not kg KCl
+    amt, note = to_matched_basis(f[0], "nutrient supply from potash salt | inorganic potassium "
+                                       "fertiliser, as K2O | Cutoff, U")
+    assert amt == pytest.approx(120.0) and "K2O" in note
+    # a product dataset passes the amount through; N of a potash product cannot be converted
+    assert to_matched_basis(f[0], "market for potassium chloride | potassium chloride | Cutoff, U")[0] == 200.0
+    with pytest.raises(FertiliserBasisError):
+        to_matched_basis(f[0], "Inorganic nitrogen fertiliser, as N {CA}| market for ...")
+
+
+def test_none_type_and_zero_rate_skipped():
+    a = _fert({"fertilizer_type": "None", "application_rate": 50, "applications_per_season": 1},
+              {"fertilizer_type": "Urea", "application_rate": 0, "applications_per_season": 2})
+    inputs, _ = extract_purchased_inputs(a)
+    assert not _by_kind(inputs, "fertiliser")
+    assert not [i for i in _by_kind(inputs, "transport") if i["name"] == "transport of inputs to farm"
+                and any("fertiliser" in b["name"] for b in i["basis_inputs"])]
+
+
+def test_npk_grade_scales_nutrients_and_unknown_foliar_is_excluded():
+    a = _fert({"fertilizer_type": "NPK Compound", "npk_ratio": "20-10-10", "application_rate": 100,
+               "applications_per_season": 1},
+              {"fertilizer_type": "Foliar Fertilizer", "application_rate": 5, "applications_per_season": 2})
+    inputs, notes = extract_purchased_inputs(a)
+    f = {i["nutrient"]: i for i in _by_kind(inputs, "fertiliser")}
+    assert set(f) == {"N", "P2O5", "K2O"}                              # foliar row excluded
+    assert f["N"]["amount"] == pytest.approx(200 * 0.20) and f["P2O5"]["amount"] == pytest.approx(20.0)
+    assert all("nutrient supply from NPK (15-15-15)" in r["match_as"] for r in f.values())
+    assert sum(r["product_kg"] for r in f.values()) == pytest.approx(200.0)
+    assert any("foliar" in n and n.startswith(pz.WARNING_PREFIX) for n in notes)
+    # graded foliar product: per nutrient on the nutrient supply markets
+    a = _fert({"fertilizer_type": "Foliar Fertilizer", "npk_ratio": "20-20-20", "application_rate": 5,
+               "applications_per_season": 2})
+    f = _by_kind(extract_purchased_inputs(a)[0], "fertiliser")
+    assert len(f) == 3 and all(r["match_as"].startswith("market for inorganic") for r in f)
+    assert sum(r["amount"] for r in f) == pytest.approx(5 * 2 * 2.0 * 0.60)
+
+
+def test_free_text_product_identified_by_its_standard_grade():
+    a = _fert({"fertilizer_type": "white prills, nitrogen", "npk_ratio": "46-0-0", "application_rate": 75,
+               "applications_per_season": 1})
+    f = _by_kind(extract_purchased_inputs(a)[0], "fertiliser")
+    assert len(f) == 1 and f[0]["basis"] == "product" and f[0]["amount"] == pytest.approx(150.0)
+    assert f[0]["match_as"] == "urea fertiliser"
+
+
+def test_npk_15_15_15_and_blank_grade_keep_the_compound_product_dataset():
+    a = _fert({"fertilizer_type": "NPK Compound", "npk_ratio": "15-15-15", "application_rate": 100,
+               "applications_per_season": 1},
+              {"fertilizer_type": "NPK Compound", "application_rate": 100, "applications_per_season": 1})
+    f = _by_kind(extract_purchased_inputs(a)[0], "fertiliser")
+    assert [r["name"] for r in f] == ["NPK Compound 15-15-15 fertiliser", "NPK Compound fertiliser"]
+    assert all(r["basis"] == "product" and r["amount"] == pytest.approx(200.0) for r in f)
+    assert f[1]["estimated"] and not f[0].get("estimated")
+
+
+def test_crops_per_year_and_crop_ids_scale_seasonal_inputs():
+    foods = [{"id": "m", "name": "Maize", "category": "Cereals", "quantity_kg": 8000, "area_allocated": 2.0,
+              "crops_per_year": 2},
+             {"id": "c", "name": "Cowpea", "category": "Legumes", "quantity_kg": 500, "area_allocated": 1.0}]
+    a = _fert({"fertilizer_type": "Urea", "application_rate": 50, "applications_per_season": 2,
+               "crop_ids": ["m"]}, foods=foods)
+    a["management_practices"]["pest_management"] = {"pesticides": [
+        {"pesticide_type": "Herbicide", "active_ingredient": "Glyphosate", "application_rate": 2.0,
+         "applications_per_season": 1, "crop_ids": ["c"]}]}
+    a["management_practices"]["soil_management"] = {
+        "uses_compost": True, "compost_source": "Purchased compost", "compost_application_rate": 3.0,
+        "compost_crop_ids": ["m"]}
+    inputs, _ = extract_purchased_inputs(a)
+    urea = _by_kind(inputs, "fertiliser")[0]
+    assert urea["amount"] == pytest.approx(50 * 2 * 2.0 * 2)            # maize only, x2 seasons
+    pest = _by_kind(inputs, "pesticide")[0]
+    assert pest["amount"] == pytest.approx(2.0 * 1.0 * 0.360)           # cowpea only
+    seed = {i["name"]: i["amount"] for i in _by_kind(inputs, "seed")}
+    assert seed["Maize seed"] == pytest.approx(25.0 * 2.0 * 2)           # sown twice
+    assert _by_kind(inputs, "compost")[0]["amount"] == pytest.approx(3000.0 * 2.0)   # t/ha/YEAR
+    # per-crop sub-assessment of cowpea: the maize-only urea does not appear
+    sub = copy.deepcopy(a)
+    sub["foods"] = [foods[1]]
+    assert not _by_kind(extract_purchased_inputs(sub)[0], "fertiliser")
+
+
+def test_lime_applications_are_purchased_lime():
+    a = _farm()
+    a["management_practices"]["soil_management"]["lime_applications"] = [
+        {"material": "limestone", "rate_t_per_ha_per_year": 1.5, "crop_ids": []},
+        {"material": "dolomite", "rate_t_per_ha_per_year": 0.5, "crop_ids": ["c1"]}]
+    lime = {i["lime_material"]: i for i in _by_kind(extract_purchased_inputs(a)[0], "lime")}
+    assert lime["limestone"]["amount"] == pytest.approx(3000.0)
+    assert "limestone, milled, loose" in lime["limestone"]["match_as"]
+    assert lime["dolomite"]["amount"] == pytest.approx(1000.0)
+
+
+# ---- energy (audit 3.8, sweep findings) -----------------------------------------------------
+
+def test_bucket_irrigation_has_no_pumping_energy():
+    a = _farm()
+    a["management_practices"]["water_management"] = {"water_source": ["Borehole"],
+                                                     "irrigation_system": "Bucket/Manual Irrigation",
+                                                     "irrigation_water_m3": 500.0}
+    inputs, notes = extract_purchased_inputs(a)
+    assert not _by_kind(inputs, "irrigation_energy")
+    assert any("bucket" in n for n in notes)
+
+
+def test_metered_motorbike_petrol_does_not_zero_a_petrol_tractor():
+    a = _farm()
+    a["equipment_energy"]["fuel_consumption"] = [
+        {"fuel_type": "Petrol/Gasoline", "monthly_consumption": 20, "primary_use": "Motorbike transport"}]
+    a["equipment_energy"]["equipment"] = [
+        {"equipment_type": "Small Tractor (<40HP)", "power_source": "Petrol engine", "age": 3,
+         "hours_per_year": 200}]
+    inputs, notes = extract_purchased_inputs(a)
+    tractor = [i for i in inputs if i.get("source_equipment")]
+    assert len(tractor) == 1 and tractor[0]["native_amount"] == pytest.approx(0.305 * 30 * 0.7457 * 200)
+    assert any("not for this equipment" in n for n in notes)
+    # metered petrol for field work does replace the estimate
+    a["equipment_energy"]["fuel_consumption"][0]["primary_use"] = "Land preparation"
+    inputs, notes = extract_purchased_inputs(a)
+    assert not [i for i in inputs if i.get("source_equipment")]
+    assert any("taken from the metered fuel entry" in n for n in notes)
+
+
+def test_diesel_lhv_is_ipcc_ncv_times_density():
+    assert ec.LHV["diesel"]["L"][0] == pytest.approx(43.0 * 0.837)       # ~36.0 MJ/L
+    assert ec.LHV["petrol"]["L"][0] == pytest.approx(44.3 * 0.741)       # ~32.8 MJ/L
+    a = _farm()
+    a["equipment_energy"]["fuel_consumption"] = [
+        {"fuel_type": "Diesel", "monthly_consumption": 10, "primary_use": "Tillage"}]
+    d = next(i for i in extract_purchased_inputs(a)[0] if i.get("fuel") == "diesel")
+    assert d["unit"] == "MJ" and d["amount"] == pytest.approx(120 * 43.0 * 0.837)
+
+
+@pytest.mark.parametrize("etype,unit", [("Grid Electricity", "L"), ("Firewood", "L")])
+def test_unconvertible_energy_unit_is_rejected(etype, unit):
+    a = _farm()
+    a["equipment_energy"]["energy_sources"] = [
+        {"energy_type": etype, "monthly_consumption": 10, "unit": unit, "primary_use": "Storage"}]
+    with pytest.raises(ValueError, match="cannot be expressed"):
+        extract_purchased_inputs(a)
+
+
+# ---- logistics -----------------------------------------------------------------------------
+
+@pytest.mark.parametrize("mode,expected", [
+    ("Pickup truck", "light commercial vehicle"), ("Large truck", "lorry"),
+    ("Motorcycle", "light commercial vehicle"), ("Pickup truck, Large truck", "lorry")])
+def test_market_transport_mode_mapping(mode, expected):
+    a = _farm(logistics={"distance_to_market_km": 10, "market_transport_mode": mode})
+    tr = next(i for i in _by_kind(extract_purchased_inputs(a)[0], "transport")
+              if i["name"] == "transport of harvest to first point of sale")
+    assert expected in tr["match_as"]
+
+
+def test_inbound_transport_counts_pesticide_product_mass_and_flags_default_distance():
+    from engine.inputs import inbound_transport_tkm, is_market_dataset
+    a = _farm()
+    a["management_practices"]["pest_management"] = {"pesticides": [
+        {"pesticide_type": "Herbicide", "active_ingredient": "Glyphosate", "application_rate": 3.0,
+         "applications_per_season": 1}]}
+    inputs, _ = extract_purchased_inputs(a)
+    tr = next(i for i in inputs if i["name"] == "transport of inputs to farm")
+    pest = next(b for b in tr["basis_inputs"] if b["name"] == "Glyphosate")
+    assert pest["kg"] == pytest.approx(6.0)                               # 6 L product, not 2.16 kg AI
+    assert tr["default_distance_production_only"] is True
+    # orchestrator hook: only production-dataset inputs carry the 230 km default
+    assert inbound_transport_tkm(tr, {"Glyphosate"}) == pytest.approx(6.0 / 1000 * 230)
+    assert is_market_dataset("market for maize seed, for sowing | maize seed | Cutoff, U")
+    assert not is_market_dataset("glyphosate production | glyphosate | Cutoff, U")
+
+
+def test_cold_storage_refrigerant_top_up():
+    from engine import refrigerants as rf
+    if not hasattr(rf, "annual_leakage_from_charge"):
+        pytest.skip("refrigerants.annual_leakage_from_charge not available")
+    a = _farm()
+    a["equipment_energy"]["storage"] = {"facilities": ["Cold Storage"], "refrigerant": "R-134a",
+                                        "refrigerant_charge_kg": 10.0}
+    inputs, _ = extract_purchased_inputs(a)
+    top = _by_kind(inputs, "refrigerant")
+    assert len(top) == 1 and top[0]["amount"] == pytest.approx(10.0 * rf.COLD_STORAGE_LEAK_RATE)
+
+
+def test_refrigerant_top_up_equals_booked_leakage_across_crop_systems():
+    """Emission (adapter, whole farm, once) and top-up production (inputs, per crop system)
+    must describe the same leaked kg: sum of per-crop top-ups == farm leakage."""
+    from engine import refrigerants as rf
+    from engine.inputs import refrigerant_leakage
+    if not hasattr(rf, "storage_leakage_co2e"):
+        pytest.skip("refrigerants.storage_leakage_co2e not available")
+    from engine.service import _sub_assessment
+    a = _farm()
+    a["foods"] = [{"id": "m", "name": "Maize", "category": "Cereals", "quantity_kg": 5000, "area_allocated": 3.0},
+                  {"id": "t", "name": "Tomato", "category": "Vegetables", "quantity_kg": 9000, "area_allocated": 1.0}]
+    a["equipment_energy"]["storage"] = {"facilities": ["Cold Storage"], "refrigerant": "R-134a",
+                                        "refrigerant_charge_kg": 8.0}
+    leak = refrigerant_leakage(a, "EF v3.1")
+    assert leak["leaked_kg"] == pytest.approx(8.0 * rf.COLD_STORAGE_LEAK_RATE) and leak["kg_co2e"] > 0
+    whole = sum(i["amount"] for i in _by_kind(extract_purchased_inputs(a)[0], "refrigerant"))
+    per_crop = sum(i["amount"]
+                   for f in a["foods"]
+                   for i in _by_kind(extract_purchased_inputs(
+                       _sub_assessment(a, f, f["area_allocated"] / 4.0))[0], "refrigerant"))
+    assert whole == pytest.approx(leak["leaked_kg"]) and per_crop == pytest.approx(leak["leaked_kg"])
+
+
+# ---- pesticides (audit 2.2, P2 #17, LCIA #5) ------------------------------------------------
+
+def test_pesticide_brand_name_is_second_key_and_type_picks_class_dataset():
+    a = _farm()
+    a["management_practices"]["pest_management"] = {"pesticides": [
+        {"pesticide_type": "Insecticide", "active_ingredient": "unknown", "brand_name": "Karate 2.5 EC",
+         "application_rate": 1.0, "applications_per_season": 1},
+        {"pesticide_type": "Herbicide", "active_ingredient": "Weedkiller X", "application_rate": 1.0,
+         "applications_per_season": 1, "active_ingredient_content": 0.5},
+        {"pesticide_type": "Bio-pesticide", "active_ingredient": "Bacillus thuringiensis",
+         "application_rate": 1.0, "applications_per_season": 1}]}
+    rows, notes = pz.applications(a, 2.0)
+    assert rows[0]["ai_key"] == "lambda-cyhalothrin" and rows[0]["kg_ai"] == pytest.approx(2 * 0.025)
+    assert rows[1]["dataset"] == "Herbicide, unspecified, mix for maize crops, at plant"
+    assert rows[1]["kg_ai"] == pytest.approx(1.0)
+    assert len(rows) == 2 and any("biological" in n for n in notes)       # Bt excluded
+    assert pz.canonical_ai("Acephate 75 SP") == "acephate" and pz.canonical_ai("Propanil") == "propanil"
+    assert pz.PESTICIDE_FLOWS[pz.canonical_ai("Metalaxyl 35 WS")][0] == "Metalaxyl-M"
+
+
+def test_pesticide_emission_split_follows_method():
+    split, src = pz.emission_split("EF v3.1")
+    assert [f for _, f in split] == [0.90, 0.09, 0.01] and "2021/2279" in src
+    split, _ = pz.emission_split("ReCiPe 2016 v1.03, midpoint (H)")
+    assert [f for _, f in split] == [1.0]
+
+
+@pytest.mark.skipif(not DB.exists(), reason="canonical store not available")
+def test_ef_pesticide_split_resolves_soil_air_water_flows():
+    conn = sqlite3.connect(str(DB))
+    try:
+        rows, _ = pz.applications({"management_practices": {"pest_management": {"pesticides": [
+            {"pesticide_type": "Herbicide", "active_ingredient": "Glyphosate",
+             "application_rate": 1.0, "applications_per_season": 1}]}}}, 1.0)
+        flows, notes = pz.field_emission_flows(conn, rows, method="EF v3.1")
+        default, _ = pz.field_emission_flows(conn, rows)
+    finally:
+        conn.close()
+    assert not notes and len(flows) == 3 and len(default) == 1
+    assert sum(f["amount"] for f in flows) == pytest.approx(0.360)
+    assert {f["name"].split("(")[-1] for f in flows} == {"soil, agricultural)", "air)", "water)"}

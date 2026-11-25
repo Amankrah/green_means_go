@@ -78,20 +78,21 @@ export default function FarmProfileStep() {
   };
   const totalFarmSize = watch('farmProfile.totalFarmSize');
 
-  // Auto-select farm type based on size
+  // Suggest a farm type from the size only while the farmer has not chosen one: an explicit
+  // choice (e.g. Cooperative, or one restored from a saved assessment) is never overwritten.
+  const lastSuggestedFarmType = React.useRef<FarmType | null>(null);
   React.useEffect(() => {
-    if (totalFarmSize) {
-      if (totalFarmSize < 2) {
-        setValue('farmProfile.farmType', FarmType.SMALLHOLDER);
-      } else if (totalFarmSize <= 5) {
-        setValue('farmProfile.farmType', FarmType.SMALL_SCALE);
-      } else if (totalFarmSize <= 20) {
-        setValue('farmProfile.farmType', FarmType.MEDIUM_SCALE);
-      } else {
-        setValue('farmProfile.farmType', FarmType.COMMERCIAL);
-      }
+    if (!totalFarmSize || !(totalFarmSize > 0)) return;
+    const suggestion =
+      totalFarmSize < 2 ? FarmType.SMALLHOLDER :
+      totalFarmSize <= 5 ? FarmType.SMALL_SCALE :
+      totalFarmSize <= 20 ? FarmType.MEDIUM_SCALE : FarmType.COMMERCIAL;
+    const current = getValues('farmProfile.farmType') as FarmType | '' | undefined;
+    if (!current || current === lastSuggestedFarmType.current) {
+      setValue('farmProfile.farmType', suggestion);
+      lastSuggestedFarmType.current = suggestion;
     }
-  }, [totalFarmSize, setValue]);
+  }, [totalFarmSize, setValue, getValues]);
 
   const farmTypeOptions = [
     { value: FarmType.SMALLHOLDER, label: '🏠 Smallholder (<2 hectares)', description: 'Family farm for subsistence and local markets' },

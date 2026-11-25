@@ -240,6 +240,133 @@ def test_service_region_resolution_prefers_explicit_region():
     assert _region_of({"country": "Global", "region": "SN"}, "BF") == "BF"
 
 
+# ---------------------------------------------------- admin-region climate (CONTRACT §2)
+@pytest.mark.parametrize("code,admin,zone", [
+    ("GH", "Upper East", "dry"),            # GMet 30-yr regional mean 912 mm
+    ("GH", "Upper East Region", "dry"),     # suffix-tolerant
+    ("GH", "Greater Accra", "dry"),         # 788 mm
+    ("GH", "Ashanti", "wet"),
+    ("GH", "Northern", "wet"),              # 1155 mm: wet under the 1000 mm criterion
+    ("GH", "savannah", "wet"),              # inherits Northern (2018 split)
+    ("NG", "Katsina", "dry"),               # WMO 1991-2020 normal 597.5 mm
+    ("NG", "Sokoto State", "dry"),
+    ("NG", "Borno", "dry"),
+    ("NG", "Kano", "wet"),                  # WMO 1991-2020 normal 1149.2 mm (marginal)
+    ("NG", "Lagos", "wet"),
+    ("SN", "Ziguinchor", "wet"),
+    ("SN", "Kaolack", "dry"),
+    ("SN", "Sédhiou", "wet"),               # bracketed by Ziguinchor and Kolda
+    ("BF", "Sud-Ouest", "wet"),             # Gaoua 1097.5 mm
+    ("BF", "Sahel", "dry"),
+    ("CA", "Saskatchewan", "dry"),          # Rochette et al. 2008: Prairie P/PE < 1
+    ("CA", "Ontario", "wet"),
+])
+def test_climate_zone_for_admin_regions(code, admin, zone):
+    assert R.climate_zone_for(code, admin) == zone
+
+
+@pytest.mark.parametrize("code,admin", [("GH", None), ("GH", "Narnia"), ("NG", "Bayelsa"),
+                                         ("SN", ""), ("ZA", "KwaZulu-Natal"), ("BF", "Centre-Est")])
+def test_climate_zone_falls_back_to_region_default(code, admin):
+    default = "dry" if R.REGIONS[code].ipcc_n2o_ef1 == R.EF1_DRY else "wet"
+    assert R.climate_zone_for(code, admin) == default
+
+
+def test_climate_zone_accepts_country_names():
+    assert R.climate_zone_for("Nigeria", "Katsina") == "dry"
+    assert R.climate_zone_for("Unknownland", "x") == "wet"
+
+
+def test_every_mapped_admin_region_is_cited():
+    for code, table in (("GH", R._GH), ("NG", R._NG), ("SN", R._SN), ("BF", R._BF),
+                        ("ZA", R._ZA), ("CA", R._CA)):
+        for admin in table:
+            rec = R.admin_climate(code, admin)
+            assert rec and rec["source"], (code, admin)
+            if code in ("GH", "NG", "SN", "BF"):
+                assert rec["map_mm"] and rec["wetness"] == (
+                    "wet" if rec["map_mm"] > 1000 else "dry"), (code, admin)
+
+
+def test_frontend_admin_region_spellings_resolve():
+    """The wizard's region pickers (african-lca-frontend/src/lib/regions.ts and
+    enhanced-assessment-schema.ts REGIONS_BY_COUNTRY) must hit the table or be a
+    documented gap (no station inside the admin region)."""
+    picker = {
+        "GH": ["Greater Accra", "Ashanti", "Western", "Central", "Volta", "Eastern", "Northern",
+               "Upper East", "Upper West", "Brong Ahafo", "Western North", "Ahafo", "Bono",
+               "Bono East", "Oti", "Savannah", "North East"],
+        "SN": ["Dakar", "Diourbel", "Fatick", "Kaffrine", "Kaolack", "Kedougou", "Kolda", "Louga",
+               "Matam", "Saint-Louis", "Sedhiou", "Tambacounda", "Thies", "Ziguinchor"],
+        "BF": ["Boucle du Mouhoun", "Cascades", "Centre", "Centre-Sud", "Est", "Hauts-Bassins",
+               "Nord", "Sahel", "Sud-Ouest"],
+    }
+    for code, names in picker.items():
+        for n in names:
+            assert R.admin_climate(code, n) is not None, (code, n)
+    ng_gaps = {"Bayelsa", "Ebonyi"}
+    for n in ["Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno",
+              "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa",
+              "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger",
+              "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe",
+              "Zamfara", "FCT"]:
+        assert (R.admin_climate("NG", n) is None) == (n in ng_gaps), n
+
+
+def test_rainy_season_months():
+    assert R.rainy_season_months("GH", "Upper East") == {5, 6, 7, 8, 9, 10}   # MoFA north
+    assert R.rainy_season_months("GH", "Ashanti") == {3, 4, 5, 6, 7, 9, 10}   # MoFA south
+    assert R.rainy_season_months("NG", "Kano") == {5, 6, 7, 8, 9}
+    assert R.rainy_season_months("SN", "Dakar") == {8, 9}
+    assert R.rainy_season_months("ZA", "Western Cape") == {4, 5, 6, 7, 8, 9}  # winter rain
+    assert 1 in R.rainy_season_months("ZA", "Free State")                     # summer rain
+    assert R.rainy_season_months("SN", "Thies") == R.rainy_season_months("SN", None)
+    assert R.rainy_season_months("CA", "Ontario") == set()
+    for code in ("GH", "NG", "SN", "BF", "ZA"):
+        assert R.rainy_season_months(code, None), code
+
+
+def test_forest_zone_for():
+    assert R.forest_zone_for("NG", "Rivers") == "tropical wet"       # 2 dry months, 2286 mm
+    assert R.forest_zone_for("GH", "Ashanti") == "tropical moist"    # 5 dry months
+    assert R.forest_zone_for("GH", "Upper East") == "tropical dry"   # 6 dry months
+    assert R.forest_zone_for("NG", "Katsina") == "tropical dry"      # 8 dry months
+    assert R.forest_zone_for("SN", "Dakar") is None                  # 10 dry months: shrubland
+    assert R.forest_zone_for("GH", None) is None                     # caller keeps its default
+    assert R.forest_zone_for("ZA", "Free State") is None             # not tropical
+    import land_use_change
+    for code, table in (("GH", R._GH), ("NG", R._NG), ("SN", R._SN), ("BF", R._BF)):
+        for admin in table:
+            fz = R.forest_zone_for(code, admin)
+            assert fz is None or fz in land_use_change.FOREST, (code, admin, fz)
+
+
+def test_climate_disclosure_flags_marginal():
+    assert "MARGINAL" in R.climate_disclosure("NG", "Gombe")        # 1046.8 mm
+    assert "MARGINAL" not in R.climate_disclosure("NG", "Lagos")
+    assert "region default" in R.climate_disclosure("NG", "Bayelsa")
+
+
+def test_location_rank_national_then_listed_subnational():
+    ca = R.REGIONS["CA"]
+    assert R.location_rank(ca, "Canada") < R.location_rank(ca, "Canada, Quebec")
+    assert R.location_rank(ca, "Canada, Quebec") < R.location_rank(ca, "Canada, Ontario")
+    # an unlisted province never ties a listed one (the Yukon drift)
+    assert R.location_rank(ca, "Canada, Ontario") < R.location_rank(ca, "Canada, Yukon")
+    assert R.location_rank(ca, "Canada, Yukon") < R.location_rank(ca, "US")
+
+
+def test_with_admin_locations_prefers_farm_province():
+    ca = R.REGIONS["CA"]
+    sk = R.with_admin_locations(ca, "Saskatchewan")
+    assert R.location_rank(sk, "Canada") < R.location_rank(sk, "Canada, Saskatchewan")
+    assert R.location_rank(sk, "Canada, Saskatchewan") < R.location_rank(sk, "Canada, Quebec")
+    assert R.location_rank(sk, "CA-SK") < R.location_rank(sk, "Canada, Ontario")
+    assert ca.location_prefer[2] == "Canada, Quebec"                 # registry untouched
+    assert R.with_admin_locations(ca, "Yukon") is ca
+    assert R.with_admin_locations(R.REGIONS["GH"], "Ashanti") is R.REGIONS["GH"]
+
+
 def test_starter_measures_per_new_region():
     try:
         from recommend.schema import load_measures

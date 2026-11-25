@@ -357,6 +357,10 @@ fn create_simple_assessment(input: &serde_json::Value) -> Result<Assessment, Box
             intercropping_partners: None,
             post_harvest_losses: None,
             residue_management: None,
+            crops_per_year: None,
+            growing_period_days: None,
+            water_regime: None,
+            preseason_water_status: None,
         };
         foods.push(food);
     }
@@ -476,7 +480,29 @@ fn parse_food_item(food_value: &serde_json::Value, country: &str) -> Result<Food
             .and_then(|v| v.as_f64()),
         residue_management: food_value.get("residue_management")
             .and_then(|v| serde_json::from_value::<ResidueManagement>(v.clone()).ok()),
+        crops_per_year: count(food_value.get("crops_per_year")),
+        growing_period_days: food_value.get("growing_period_days").and_then(|v| v.as_f64()),
+        water_regime: opt_str(food_value.get("water_regime")),
+        preseason_water_status: opt_str(food_value.get("preseason_water_status")),
     })
+}
+
+/// Non-negative integer that may arrive as 2 or 2.0 (JSON numbers from Python).
+fn count(v: Option<&serde_json::Value>) -> Option<u32> {
+    let v = v?;
+    v.as_u64().map(|n| n as u32)
+        .or_else(|| v.as_f64().filter(|f| f.is_finite() && *f >= 0.0).map(|f| f.round() as u32))
+}
+
+fn opt_str(v: Option<&serde_json::Value>) -> Option<String> {
+    v.and_then(|v| v.as_str()).map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+fn str_list(v: Option<&serde_json::Value>) -> Vec<String> {
+    v.and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.trim().to_string())
+             .filter(|s| !s.is_empty()).collect())
+        .unwrap_or_default()
 }
 
 fn parse_production_system(s: &str) -> Result<ProductionSystem, Box<dyn std::error::Error>> {
@@ -515,14 +541,30 @@ fn parse_management_practices(mp: &serde_json::Value) -> Result<ManagementPracti
             soil_type: soil_mgmt.get("soil_type")
                 .and_then(|v| v.as_str())
                 .and_then(|s| parse_soil_type(s).ok()),
-            uses_compost: soil_mgmt.get("compost_use")
-                .and_then(|cu| cu.get("uses_compost"))
+            // Flat keys (app/production/models.py SoilManagement); the nested legacy
+            // `compost_use` object is still accepted.
+            uses_compost: soil_mgmt.get("uses_compost")
+                .or_else(|| soil_mgmt.get("compost_use").and_then(|cu| cu.get("uses_compost")))
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
-            compost_source: soil_mgmt.get("compost_use")
-                .and_then(|cu| cu.get("compost_source"))
+            compost_source: soil_mgmt.get("compost_source")
+                .or_else(|| soil_mgmt.get("compost_use").and_then(|cu| cu.get("compost_source")))
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
+            compost_application_rate: soil_mgmt.get("compost_application_rate")
+                .or_else(|| soil_mgmt.get("compost_use").and_then(|cu| cu.get("application_rate")))
+                .and_then(|v| v.as_f64()),
+            compost_crop_ids: str_list(soil_mgmt.get("compost_crop_ids")),
+            lime_applications: soil_mgmt.get("lime_applications")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|l| {
+                    Some(LimeApplication {
+                        material: l.get("material")?.as_str()?.to_string(),
+                        rate_t_per_ha_per_year: l.get("rate_t_per_ha_per_year")?.as_f64()?,
+                        crop_ids: str_list(l.get("crop_ids")),
+                    })
+                }).collect())
+                .unwrap_or_default(),
             conservation_practices: soil_mgmt.get("conservation_practices")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect())
@@ -542,11 +584,16 @@ fn parse_management_practices(mp: &serde_json::Value) -> Result<ManagementPracti
                         fertilizer_type: app.get("fertilizer_type")?.as_str()?.to_string(),
                         npk_ratio: app.get("npk_ratio").and_then(|v| v.as_str()).map(|s| s.to_string()),
                         application_rate: app.get("application_rate")?.as_f64()?,
-                        applications_per_season: app.get("applications_per_season")?.as_u64()? as u32,
+                        // 0 means 0 (CONTRACT §1); 2.0 is accepted as 2; not stated -> 1
+                        // (same as engine/inputs.py).
+                        applications_per_season: count(app.get("applications_per_season")).unwrap_or(1),
                         cost: app.get("cost").and_then(|v| v.as_f64()),
                         currency: app.get("currency")
                             .and_then(|v| v.as_str())
                             .and_then(|s| parse_currency(s).ok()),
+                        application_method: opt_str(app.get("application_method")),
+                        brand_name: opt_str(app.get("brand_name")),
+                        crop_ids: str_list(app.get("crop_ids")),
                     })
                 }).collect())
                 .unwrap_or_default(),
@@ -585,7 +632,7 @@ fn parse_management_practices(mp: &serde_json::Value) -> Result<ManagementPracti
                         pesticide_type: app.get("pesticide_type")?.as_str()?.to_string(),
                         active_ingredient: app.get("active_ingredient")?.as_str()?.to_string(),
                         application_rate: app.get("application_rate")?.as_f64()?,
-                        applications_per_season: app.get("applications_per_season")?.as_u64()? as u32,
+                        applications_per_season: count(app.get("applications_per_season"))?,
                         target_pests: app.get("target_pests")
                             .and_then(|v| v.as_array())
                             .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect())

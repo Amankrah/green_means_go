@@ -24,7 +24,8 @@ import {
   WaterSource,
   IrrigationSystem
 } from '@/types/enhanced-assessment';
-import { EnhancedAssessmentFormData } from '@/lib/enhanced-assessment-schema';
+import { EnhancedAssessmentFormData, MAX_LIME_T_PER_HA } from '@/lib/enhanced-assessment-schema';
+import CropTargetSelect from './CropTargetSelect';
 
 export default function ManagementPracticesStep() {
   const { 
@@ -38,6 +39,11 @@ export default function ManagementPracticesStep() {
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'managementPractices.fertilization.fertilizerApplications'
+  });
+
+  const { fields: limeFields, append: appendLime, remove: removeLime } = useFieldArray({
+    control,
+    name: 'managementPractices.soilManagement.limeApplications'
   });
 
   const usesFertilizers = watch('managementPractices.fertilization.usesFertilizers');
@@ -199,6 +205,108 @@ export default function ManagementPracticesStep() {
           </div>
         </div>
 
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <label className="flex items-center space-x-2 self-start">
+            <input
+              type="checkbox"
+              {...register('managementPractices.soilManagement.usesCoverCrops')}
+              className="text-moss focus:ring-moss rounded"
+            />
+            <span className="text-sm text-ink">I grow cover crops between main crops</span>
+          </label>
+
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Years since you adopted these practices (optional)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              {...register('managementPractices.soilManagement.practicesAdoptedYearsAgo')}
+              placeholder="e.g., 4"
+              className="gmg-input"
+            />
+            <p className="text-xs text-muted mt-1">
+              How many years ago did you adopt your current tillage/mulching practices? Leave blank if not sure.
+            </p>
+            {errors.managementPractices?.soilManagement?.practicesAdoptedYearsAgo && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.managementPractices.soilManagement.practicesAdoptedYearsAgo.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Liming */}
+        <div className="mt-6 bg-white rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="text-sm font-medium text-ink">Lime (optional)</h4>
+              <p className="text-xs text-muted">Agricultural lime or dolomite spread to correct soil acidity.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => appendLime({
+                material: 'limestone',
+                rateTPerHaPerYear: undefined as unknown as number,
+                cropIds: [],
+              })}
+              className="flex items-center space-x-2 text-moss hover:text-spruce text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add lime</span>
+            </button>
+          </div>
+          <div className="space-y-3">
+            {limeFields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-start border border-line rounded-lg p-3">
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">Material *</label>
+                  <select
+                    {...register(`managementPractices.soilManagement.limeApplications.${index}.material`)}
+                    className="gmg-input"
+                  >
+                    <option value="limestone">Agricultural lime (limestone)</option>
+                    <option value="dolomite">Dolomite</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">Tonnes per hectare per year *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max={MAX_LIME_T_PER_HA}
+                    {...register(`managementPractices.soilManagement.limeApplications.${index}.rateTPerHaPerYear`, { valueAsNumber: true })}
+                    placeholder="e.g., 0.5"
+                    className="gmg-input"
+                  />
+                  {errors.managementPractices?.soilManagement?.limeApplications?.[index]?.rateTPerHaPerYear && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.managementPractices.soilManagement.limeApplications[index]?.rateTPerHaPerYear?.message}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeLime(index)}
+                  className="text-red-500 hover:text-red-700 p-2 mt-6"
+                  aria-label="Remove this lime application"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <CropTargetSelect
+                  name={`managementPractices.soilManagement.limeApplications.${index}.cropIds`}
+                  label="Limed crops"
+                  error={errors.managementPractices?.soilManagement?.limeApplications?.[index]?.cropIds?.message}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Compost Usage */}
         <div className="mt-6 bg-white rounded-lg p-4">
           <div className="flex items-center space-x-2 mb-4">
@@ -209,10 +317,11 @@ export default function ManagementPracticesStep() {
               onChange={(e) => {
                 setValue('managementPractices.soilManagement.compostUse.usesCompost', e.target.checked);
                 // If disabling compost, reset to NONE and clear other fields
-                if (!e.target.checked) {
+                  if (!e.target.checked) {
                   setValue('managementPractices.soilManagement.compostUse.compostsource', CompostSource.NONE);
                   setValue('managementPractices.soilManagement.compostUse.applicationRate', undefined);
                   setValue('managementPractices.soilManagement.compostUse.applicationTiming', 'Before planting');
+                  setValue('managementPractices.soilManagement.compostUse.cropIds', []);
                 }
               }}
             />
@@ -258,7 +367,17 @@ export default function ManagementPracticesStep() {
                   placeholder="e.g., 2.0"
                   className="gmg-input"
                 />
+                {errors.managementPractices?.soilManagement?.compostUse?.applicationRate && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.managementPractices.soilManagement.compostUse.applicationRate.message}
+                  </p>
+                )}
               </div>
+              <CropTargetSelect
+                name="managementPractices.soilManagement.compostUse.cropIds"
+                label="Crops that get compost"
+                error={errors.managementPractices?.soilManagement?.compostUse?.cropIds?.message}
+              />
             </motion.div>
           )}
         </div>
@@ -321,6 +440,8 @@ export default function ManagementPracticesStep() {
                     // Blank, not 0: a zero-rate row used to pass validation and be silently ignored.
                     applicationRate: undefined as unknown as number,
                     applicationsPerSeason: 1,
+                    applicationMethod: undefined,
+                    cropIds: [],
                     cost: undefined
                   })}
                   className="flex items-center space-x-2 text-moss hover:text-spruce"
@@ -357,10 +478,20 @@ export default function ManagementPracticesStep() {
                           {...register(`managementPractices.fertilization.fertilizerApplications.${index}.fertilizerType`)}
                           className="gmg-input"
                         >
-                          {Object.values(FertilizerType).map((type) => (
+                          {Object.values(FertilizerType).filter((type) => type !== FertilizerType.NONE).map((type) => (
                             <option key={type} value={type}>{type}</option>
                           ))}
+                          {/* Kept selectable only so an archived "None" row shows its error. */}
+                          {watch(`managementPractices.fertilization.fertilizerApplications.${index}.fertilizerType`) === FertilizerType.NONE && (
+                            <option value={FertilizerType.NONE}>{FertilizerType.NONE}</option>
+                          )}
                         </select>
+                        {errors.managementPractices?.fertilization?.fertilizerApplications?.[index]?.fertilizerType && (
+                          <p className="mt-1 text-xs text-red-600 flex items-center">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            {errors.managementPractices.fertilization.fertilizerApplications[index]?.fertilizerType?.message}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -387,7 +518,7 @@ export default function ManagementPracticesStep() {
 
                       <div>
                         <label className="block text-sm font-medium text-ink mb-1">
-                          Rate (kg/hectare/season) *
+                          kg of product per hectare per application *
                         </label>
                         <input
                           type="number"
@@ -437,29 +568,34 @@ export default function ManagementPracticesStep() {
                         />
                         <p className="text-xs text-muted mt-1">Price per kilogram of fertilizer</p>
                       </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-ink mb-1">
+                          How is it applied?
+                        </label>
+                        <select
+                          {...register(`managementPractices.fertilization.fertilizerApplications.${index}.applicationMethod`)}
+                          className="gmg-input"
+                        >
+                          <option value="">Not sure</option>
+                          {Object.values(ApplicationMethod).map((method) => (
+                            <option key={method} value={method}>{method}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <CropTargetSelect
+                        name={`managementPractices.fertilization.fertilizerApplications.${index}.cropIds`}
+                        error={errors.managementPractices?.fertilization?.fertilizerApplications?.[index]?.cropIds?.message}
+                      />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Application Method & Timing */}
+            {/* Timing */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-ink mb-2">
-                  Application Method
-                </label>
-                <select
-                  {...register('managementPractices.fertilization.applicationMethod')}
-                  className="gmg-input"
-                >
-                  <option value="">Select method</option>
-                  {Object.values(ApplicationMethod).map((method) => (
-                    <option key={method} value={method}>{method}</option>
-                  ))}
-                </select>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-ink mb-2">
                   Timing Strategy
@@ -672,10 +808,37 @@ export default function ManagementPracticesStep() {
               // Fertilization Errors
               if (errors.managementPractices?.fertilization?.fertilizerApplications && Array.isArray(errors.managementPractices.fertilization.fertilizerApplications)) {
                 errors.managementPractices.fertilization.fertilizerApplications.forEach((fertError, index) => {
-                  if (fertError?.fertilizerType) errorMessages.push(`• Fertilization: Fertilizer ${index + 1} - Please select fertilizer type`);
-                  if (fertError?.applicationRate) errorMessages.push(`• Fertilization: Fertilizer ${index + 1} - Please enter application rate`);
+                  if (fertError?.fertilizerType) errorMessages.push(`• Fertilization: Fertilizer ${index + 1} - ${fertError.fertilizerType.message || 'Please select fertilizer type'}`);
+                  if (fertError?.applicationRate) errorMessages.push(`• Fertilization: Fertilizer ${index + 1} - Please enter kg of product per hectare per application`);
                   if (fertError?.applicationsPerSeason) errorMessages.push(`• Fertilization: Fertilizer ${index + 1} - Please enter applications per season`);
+                  if (fertError?.cropIds) errorMessages.push(`• Fertilization: Fertilizer ${index + 1} - ${fertError.cropIds.message}`);
                 });
+              }
+              const fertListError = errors.managementPractices?.fertilization?.fertilizerApplications;
+              if (fertListError && !Array.isArray(fertListError) && fertListError.message) {
+                errorMessages.push(`• Fertilization: ${fertListError.message}`);
+              }
+              if (errors.managementPractices?.fertilization?.usesFertilizers?.message) {
+                errorMessages.push(`• Fertilization: ${errors.managementPractices.fertilization.usesFertilizers.message}`);
+              }
+              if (errors.managementPractices?.soilManagement?.compostUse?.applicationRate) {
+                errorMessages.push('• Soil Management: Enter the compost application rate (tonnes per hectare)');
+              }
+              if (errors.managementPractices?.soilManagement?.compostUse?.cropIds) {
+                errorMessages.push(`• Compost: ${errors.managementPractices.soilManagement.compostUse.cropIds.message}`);
+              }
+              if (errors.managementPractices?.soilManagement?.practicesAdoptedYearsAgo) {
+                errorMessages.push(`• Soil Management: ${errors.managementPractices.soilManagement.practicesAdoptedYearsAgo.message}`);
+              }
+              const limeErrors = errors.managementPractices?.soilManagement?.limeApplications;
+              if (Array.isArray(limeErrors)) {
+                limeErrors.forEach((limeError, index) => {
+                  if (limeError?.rateTPerHaPerYear) errorMessages.push(`• Lime ${index + 1}: ${limeError.rateTPerHaPerYear.message}`);
+                  if (limeError?.cropIds) errorMessages.push(`• Lime ${index + 1}: ${limeError.cropIds.message}`);
+                });
+              }
+              if (errors.managementPractices?.waterManagement?.irrigationWaterM3) {
+                errorMessages.push(`• Water Management: ${errors.managementPractices.waterManagement.irrigationWaterM3.message}`);
               }
               
               // If no specific errors found, show detailed debug info

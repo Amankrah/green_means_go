@@ -32,6 +32,15 @@ import Layout from '@/components/Layout';
 import ResultsChat from '@/components/ResultsChat';
 import ISOReport from '@/components/ISOReport';
 import RecommendationsPanel from '@/components/RecommendationsPanel';
+import {
+  ReviewBanner,
+  PerCropTable,
+  SocManagementCard,
+  SensitivityCases,
+  PerCropResults,
+  hasUsableBand,
+  isMultiProductHeadline,
+} from '@/components/results/ResultsExtras';
 import { assessmentAPI, getScoreInterpretation, ApiError } from '@/lib/api';
 import { AssessmentResult, SingleScoreResult } from '@/types/assessment';
 
@@ -251,13 +260,29 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
     }
   };
 
+  // A multi-product farm's per-kg figure mixes different crops, so open on the per-ha view.
+  const multiProductHeadline = !!results && isMultiProductHeadline(results);
+  const hasPerHa = !!results?.functional_units?.per_ha?.midpoint_impacts;
+  useEffect(() => {
+    if (multiProductHeadline && hasPerHa) setFuMode('per_ha');
+  }, [multiProductHeadline, hasPerHa]);
+
   const activeMidpoints = (() => {
     if (!results) return {} as AssessmentResult['midpoint_impacts'];
+    let mids = results.midpoint_impacts ?? {};
     if (fuMode === 'per_ha') {
       const ha = results.functional_units?.per_ha?.midpoint_impacts;
-      if (ha && Object.keys(ha).length) return ha as AssessmentResult['midpoint_impacts'];
+      if (ha && Object.keys(ha).length) mids = ha as AssessmentResult['midpoint_impacts'];
     }
-    return results.midpoint_impacts;
+    // Under EF 3.1 "Water consumption" already IS AWARE; older saved results also carried a
+    // separate AWARE row with the same quantity, so drop the duplicate.
+    const isEf = /\bEF\b/.test(results.lcia_method || '') && !/ReCiPe/.test(results.lcia_method || '');
+    if (isEf && 'Water consumption' in mids && 'Water scarcity (AWARE)' in mids) {
+      const rest = { ...mids };
+      delete rest['Water scarcity (AWARE)'];
+      mids = rest;
+    }
+    return mids;
   })();
   const fuUnitLabel = fuMode === 'per_ha' ? 'per ha' : 'per kg';
 
@@ -590,7 +615,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
       if (categoryName === 'Water consumption' || categoryName === 'Water Use') {
         return '0 (Rainfed)';
       }
-      if (categoryName === 'Water scarcity') {
+      if (categoryName === 'Water scarcity' || categoryName === 'Water scarcity (AWARE)') {
         return '0 (No irrigation)';
       }
       // For other categories, show N/A if truly zero
@@ -653,9 +678,27 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
             description: 'Higher normalized footprint per kg — see the recommendations to reduce it.',
             recommendations: ['Reduce synthetic N inputs / split applications', 'Switch to lower-carbon energy sources', 'Review the dominant impact category below'] },
   };
-  const scoreInterpretation = (scoreBand && BAND_MAP[scoreBand]) || getScoreInterpretation(singleScoreValue);
   const scoreUnit = (results.single_score as { unit?: string })?.unit || '';
   const isMicroPoints = scoreUnit.includes('µPt') || scoreUnit.includes('Pt');
+  // No band ("Unavailable": no calibration for this method; "Not banded": a multi-product farm
+  // aggregate) means no gauge and no Low/High verdict.
+  const bandUsable = hasUsableBand(results.single_score);
+  const scoreLabel = results.single_score?.label || 'Environmental Impact Score';
+  const UNBANDED = {
+    category: 'typical',
+    title: scoreBand === 'Not banded' ? 'Not banded' : 'No benchmark band',
+    color: 'text-gray-800 bg-gray-50 border-gray-200',
+    description: results.single_score?.band_basis
+      || 'No benchmark calibration exists for this method, so the score is not rated Low, Moderate or High.',
+    recommendations: [] as string[],
+  };
+  const scoreInterpretation =
+    bandUsable && scoreBand && BAND_MAP[scoreBand]
+      ? BAND_MAP[scoreBand]
+      : (scoreBand || isMicroPoints)
+        ? UNBANDED
+        : getScoreInterpretation(singleScoreValue);
+  const showGauge = bandUsable || !isMicroPoints;
 
   // Drive the gauge off the SAME calibrated band cutoffs the ISO BandStrip uses, so the
   // headline gauge and the report agree on where "High" begins. The High cutoff is the
@@ -735,6 +778,8 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
             </motion.div>
           </motion.div>
 
+          <ReviewBanner results={results} />
+
           {/* Score Overview */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -751,7 +796,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                     transition={{ delay: 0.4 }}
                   >
                     <h3 className="text-3xl font-bold mb-4">
-                      Environmental Impact Score
+                      {scoreLabel}
                     </h3>
                     <div className="mb-6">
                       <span className="text-7xl font-black tracking-tight">
@@ -760,6 +805,11 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                       <span className="text-2xl font-bold ml-2 opacity-80">
                         {isMicroPoints ? 'µPt/kg' : '%'}
                       </span>
+                      {multiProductHeadline && (
+                        <p className="text-sm font-semibold opacity-80 mt-2">
+                          Farm aggregate over several products, not a product footprint. See the per-crop results below.
+                        </p>
+                      )}
                     </div>
                     <div className="inline-flex items-center space-x-3 mb-4">
                       <div className="text-2xl font-bold">
@@ -771,15 +821,21 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                     <p className="text-xl opacity-90 max-w-md leading-relaxed">
                       {scoreInterpretation.description}
                     </p>
-                    {(results.single_score as { band_basis?: string })?.band_basis && (
+                    {bandUsable && results.single_score?.band_basis && (
                       <p className="text-xs opacity-70 max-w-md mt-3 leading-relaxed">
-                        Band is {(results.single_score as { band_basis?: string }).band_basis}.
+                        Band is {results.single_score.band_basis}.
                         A single score compares best across scenarios of the same product.
+                      </p>
+                    )}
+                    {results.single_score?.iso_14044_disclosure && (
+                      <p className="text-xs opacity-70 max-w-md mt-3 leading-relaxed">
+                        {results.single_score.iso_14044_disclosure}
                       </p>
                     )}
                   </motion.div>
                 </div>
                 
+                {showGauge && (
                 <motion.div 
                   className="w-72 h-72 flex-shrink-0"
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -795,8 +851,10 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                     </RadialBarChart>
                   </ResponsiveContainer>
                 </motion.div>
+                )}
               </div>
               
+              {scoreInterpretation.recommendations.length > 0 && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -824,6 +882,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                   ))}
                 </div>
               </motion.div>
+              )}
             </div>
           </motion.div>
 
@@ -879,10 +938,10 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
                 <div className="mt-6 p-4 bg-white bg-opacity-60 rounded-lg border border-blue-200">
                   <p className="text-xs text-gray-900">
                     <strong>Note:</strong> This assessment follows ISO 14040/14044. The single score normalises each category
-                    against a global reference set (as stated above) and combines them with <strong>equal weighting</strong> —
-                    a transparent value choice applied the same way in every region, not a regional preference. Region-specific
-                    adaptation is applied to the <em>inventory</em> (climate-appropriate emission factors and local grid/background
-                    data), not to the normalisation or weighting.
+                    against a global reference set (as stated above) and combines them with{' '}
+                    <strong>{results.single_score.weighting_basis || 'equal weighting'}</strong>, a value choice applied the
+                    same way in every region. Region-specific adaptation is applied to the <em>inventory</em>
+                    (climate-appropriate emission factors and local grid/background data), not to the normalisation or weighting.
                   </p>
                 </div>
               </div>
@@ -937,7 +996,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
               {/* Whole-farm totals: per-kg figures don't change with farm size, so show the
                   total footprint too, which does scale with the farm. */}
               {(() => {
-                const climateRaw = results.midpoint_impacts['Global warming'];
+                const climateRaw = (results.midpoint_impacts ?? {})['Global warming'];
                 const climatePerKg = isAlreadyPerKg(climateRaw)
                   ? extractValue(climateRaw)
                   : calculatePerUnitImpact(extractValue(climateRaw), totalProductionKg);
@@ -1023,6 +1082,12 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
             </div>
           </motion.div>
 
+
+          <PerCropTable results={results} />
+          {!results.functional_units?.per_crop && results.per_crop_results != null && (
+            <PerCropResults data={results.per_crop_results} />
+          )}
+          <SocManagementCard soc={results.soc_management} />
 
           {/* Crop Breakdown */}
           {Object.keys(breakdown).length > 0 && (
@@ -1191,6 +1256,12 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
               </div>
             </motion.div>
           )}
+
+          <SensitivityCases
+            cases={results.sensitivity_analysis?.one_at_a_time}
+            methodSensitivity={results.sensitivity_analysis?.method_sensitivity}
+            note={results.sensitivity_analysis?.note}
+          />
 
           {/* Scenario Analysis (from sensitivity analysis) */}
           {results.sensitivity_analysis?.scenario_analysis && results.sensitivity_analysis.scenario_analysis.length > 0 && (

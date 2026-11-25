@@ -353,11 +353,18 @@ def _recompute(q, method, onfarm_lci, inputs, chosen) -> dict:
                 add(uid, float(f["quantity"]), f["substance"], f.get("unit"))
     finally:
         fmap.close()
+    from engine.inputs import to_matched_basis
     for inp in inputs:
         uid = chosen.get(inp["name"])
         if not uid:
             continue
-        sc = q.cradle_to_gate(uid, amount=float(inp["amount"]))
+        # kg product -> kg nutrient for 'as N / P2O5 / K2O' datasets (audit 3.7), as the
+        # orchestrator does; a row that cannot be expressed on that basis is excluded there.
+        try:
+            amount, _ = to_matched_basis(inp, (q.get_process(uid) or {}).get("name"))
+        except ValueError:
+            continue
+        sc = q.cradle_to_gate(uid, amount=amount)
         for fuid, ef in sc.elementary_flows.items():
             add(fuid, ef["amount"], ef.get("name"), ef.get("unit"))
     return q.characterize_flows(merged, method)

@@ -18,20 +18,34 @@ We never send an amount in one unit against a dataset in another without saying 
 """
 from __future__ import annotations
 
+try:
+    from . import units as _units
+except ImportError:  # script use
+    import units as _units  # type: ignore
+
 # ---- physical properties ---------------------------------------------------------------
-# Lower heating values. Legacy litre values for diesel/petrol/kerosene/biodiesel are kept
-# from engine/inputs.py so existing results do not move; the per-kg values are IPCC 2006
-# Vol. 2 Ch. 1 Table 1.2 default net calorific values (TJ/Gg == MJ/kg).
+# Lower heating values, IPCC 2006 Vol. 2 Ch. 1 Table 1.2 default net calorific values
+# (TJ/Gg == MJ/kg). Litre values = NCV x the density in engine/units.FUELS, so the farm,
+# the unit layer and the petrol L->kg conversion share one number (the old 38.7 MJ/L diesel
+# implied 0.90 kg/L and overstated diesel energy by ~7%).
+_DIESEL_L = _units.FUELS["diesel"]["lhv"] * _units.FUELS["diesel"]["density"]      # 35.99
+_PETROL_L = _units.FUELS["petrol"]["lhv"] * _units.FUELS["petrol"]["density"]      # 32.83
 LHV = {
     # carrier: {unit: (MJ per unit, source)}
-    "diesel": {"L": (38.7, "legacy GMG value (engine/inputs.py), about 43.0 MJ/kg x 0.90 kg/L"),
+    "diesel": {"L": (_DIESEL_L, "IPCC 2006 Vol.2 Ch.1 Table 1.2 gas/diesel oil NCV 43.0 TJ/Gg x "
+                                "0.837 kg/L (FAO EX-ACT v9.4.2 'IPCC' sheet density) = 36.0 MJ/L"),
                "kg": (43.0, "IPCC 2006 Vol.2 Ch.1 Table 1.2, gas/diesel oil NCV 43.0 TJ/Gg")},
-    "petrol": {"L": (34.2, "legacy GMG value (engine/inputs.py), about 44.3 MJ/kg x 0.77 kg/L"),
+    "petrol": {"L": (_PETROL_L, "IPCC 2006 Vol.2 Ch.1 Table 1.2 motor gasoline NCV 44.3 TJ/Gg x "
+                                "0.741 kg/L (FAO EX-ACT v9.4.2 'IPCC' sheet density) = 32.8 MJ/L"),
                "kg": (44.3, "IPCC 2006 Vol.2 Ch.1 Table 1.2, motor gasoline NCV 44.3 TJ/Gg")},
     "kerosene": {"L": (35.0, "IPCC 2006 Vol.2 Ch.1 Table 1.2, other kerosene NCV 43.8 TJ/Gg x 0.80 kg/L"),
                  "kg": (43.8, "IPCC 2006 Vol.2 Ch.1 Table 1.2, other kerosene NCV 43.8 TJ/Gg")},
-    "biodiesel": {"L": (33.0, "legacy GMG value (engine/inputs.py)"),
-                  "kg": (27.0, "IPCC 2006 Vol.2 Ch.1 Table 1.2, biodiesels NCV 27.0 TJ/Gg")},
+    # FAME: the IPCC 'biodiesels' default (27 TJ/Gg, range 13.6-54) is far below FAME's
+    # physical LHV, so the Renewable Energy Directive values are used for both units.
+    "biodiesel": {"L": (33.0, "Directive (EU) 2018/2001 (RED II) Annex III, biodiesel (FAME) "
+                              "33 MJ/L"),
+                  "kg": (37.0, "Directive (EU) 2018/2001 (RED II) Annex III, biodiesel (FAME) "
+                               "37 MJ/kg")},
     "lpg": {"kg": (47.3, "IPCC 2006 Vol.2 Ch.1 Table 1.2, LPG NCV 47.3 TJ/Gg"),
             "L": (47.3 * 0.54, "IPCC 2006 NCV 47.3 MJ/kg x 0.54 kg/L (commercial propane/butane, "
                                "EN 589 density range 0.50 to 0.58 kg/L)")},
@@ -158,11 +172,21 @@ def dataset_for(carrier: str, context: str = "*") -> tuple[str, str]:
     return d.get(context) or d.get("*") or next(iter(d.values()))
 
 
+# carrier -> engine/units.FUELS substance key (for the strict convertibility check)
+_UNITS_SUBSTANCE = {"diesel": "diesel", "petrol": "petrol", "kerosene": "kerosene", "lpg": "lpg",
+                    "natural_gas": "natural gas", "firewood": "firewood", "charcoal": "charcoal",
+                    "biodiesel": "biodiesel"}
+
+
 def carrier_input(carrier: str, amount: float, unit: str | None, *, context: str = "*",
                   name: str | None = None, kind: str | None = None, estimated: bool = False,
-                  basis: str | None = None) -> tuple[dict | None, str | None]:
+                  basis: str | None = None, strict: bool = False) -> tuple[dict | None, str | None]:
     """Build one purchased-input dict for `amount` of `carrier` in `unit` (natural unit when
-    None). Returns (input or None, note or None)."""
+    None). Returns (input or None, note or None).
+
+    strict=True raises ValueError when the amount's unit can never be expressed in the
+    representative dataset's unit (grid electricity in L, firewood in L): the API maps it to
+    a 422 instead of the input being silently excluded at solve time."""
     if amount is None or amount <= 0:
         return None, None
     unit = _norm_unit(unit) or NATURAL_UNIT[carrier]
@@ -174,12 +198,21 @@ def carrier_input(carrier: str, amount: float, unit: str | None, *, context: str
             lhv, _src = LHV[carrier][unit]
             out_amount, out_unit = amount * lhv, "MJ"
         elif ds_unit == "kg" and unit == "L" and carrier in ("kerosene", "petrol"):
-            # density from the ratio of the two LHVs above (kerosene 0.80, petrol 0.772 kg/L)
+            # density = litre LHV / mass LHV (kerosene 0.80, petrol 0.741 kg/L, engine/units.FUELS)
             dens = LHV[carrier]["L"][0] / LHV[carrier]["kg"][0]
             out_amount, out_unit = amount * dens, "kg"
         elif ds_unit == "kg" and unit == "MJ" and "kg" in LHV.get(carrier, {}):
             out_amount, out_unit = amount / LHV[carrier]["kg"][0], "kg"
         else:
+            sub = _UNITS_SUBSTANCE.get(carrier)
+            try:
+                _units.convert(1.0, unit, ds_unit, sub)
+            except _units.UnitMismatchError as e:
+                if strict:
+                    raise ValueError(
+                        f"{carrier.replace('_', ' ')} amount entered in '{unit}' cannot be expressed "
+                        f"in its dataset's unit '{ds_unit}' ({e}); enter it in "
+                        f"{NATURAL_UNIT[carrier]}") from e
             # Carry the true unit; the unit layer (engine/units.py) converts or rejects it.
             note = (f"{carrier} amount kept in {unit}; representative dataset is per {ds_unit} "
                     "(unit conversion left to the unit layer)")

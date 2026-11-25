@@ -1,6 +1,12 @@
 /**
  * Extended LCI Characterization Module
  *
+ * DEPRECATED (legacy Rust LCIA, USE_LEGACY_RUST_LCIA only). The factors below are
+ * unreviewed screening values, NOT the published method CFs (e.g. NOx 0.70 kg SO2-eq/kg
+ * vs ReCiPe 2016 terrestrial acidification 0.36; AWARE Ghana 20 vs 16.84). The served path
+ * characterises the kernel's `lci_inventory` in Python with the ecoinvent EF 3.1 /
+ * ReCiPe 2016 method packs. Do not use these results.
+ *
  * This module implements comprehensive LCIA characterization factors for:
  * - Water scarcity (AWARE methodology)
  * - Biodiversity impacts (MSA - Mean Species Abundance)

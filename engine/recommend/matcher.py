@@ -151,6 +151,38 @@ def _prerequisite_state(flag: str, payload: dict[str, Any], kinds: dict[str, str
     return None  # unknown flag -> don't block, surface as data_gap
 
 
+# --- practices the farm already uses ----------------------------------------------
+
+# context["practices_adopted"] value -> substrings of a measure id's stem (the part between
+# the "meas." prefix and the region suffix, e.g. "n.split_application"). A farm is never told
+# to adopt a practice it already declared. Stems, not titles, so every regional variant
+# (".gh", ".bf", ".za") of a practice is covered by one rule.
+ADOPTED_PRACTICE_STEMS: dict[str, tuple[str, ...]] = {
+    "awd": ("awd", "alternate_wetting"),
+    "no_till": ("conservation_tillage", "conservation_agriculture", "no_till", "zero_till"),
+    "reduced_tillage": ("conservation_tillage", "conservation_agriculture", "minimum_till",
+                        "reduced_till"),
+    "split_application": ("split_application",),
+    "cover_crops": ("cover_crop",),
+    "mulching": ("mulch",),
+    "placed_fertiliser": ("placement", "band_application"),
+}
+
+
+def _measure_stem(measure_id: str) -> str:
+    parts = measure_id.lower().split(".")
+    return ".".join(parts[1:-1]) if len(parts) >= 3 else measure_id.lower()
+
+
+def already_adopted(measure_id: str, practices) -> Optional[str]:
+    """The declared practice that makes this measure redundant, or None."""
+    stem = _measure_stem(measure_id)
+    for p in practices or ():
+        if any(s in stem for s in ADOPTED_PRACTICE_STEMS.get(str(p).lower(), ())):
+            return str(p)
+    return None
+
+
 # --- result -----------------------------------------------------------------------
 
 @dataclass
@@ -188,8 +220,10 @@ def match_measures(payload: dict[str, Any], *, measures: Optional[list[Abatement
 
     context lets a caller that holds the original request (e.g. the /assess route) supply
     farm structure the saved response omits - {"farm_size_ha": float, "system": str,
-    "flags": {name: bool}} - so the scale/system/prerequisite filters become real instead
-    of a recorded data gap. Omit it and those filters pass permissively as before.
+    "flags": {name: bool}, "practices_adopted": [str]} - so the scale/system/prerequisite
+    filters become real instead of a recorded data gap. Omit it and those filters pass
+    permissively as before. Measures for a practice in practices_adopted are dropped
+    (ADOPTED_PRACTICE_STEMS).
     """
     lib = measures if measures is not None else load_measures()
     ctx = context or {}
@@ -204,6 +238,7 @@ def match_measures(payload: dict[str, Any], *, measures: Optional[list[Abatement
     shares = _climate_shares(payload)
     size_ha = ctx.get("farm_size_ha")
     ctx_flags = ctx.get("flags") or {}
+    adopted = ctx.get("practices_adopted") or ()
 
     # The library's `systems` is a production-practice axis (conventional/organic/
     # agroforestry/processing). A caller may hand us a value off a different axis - e.g.
@@ -223,6 +258,8 @@ def match_measures(payload: dict[str, Any], *, measures: Optional[list[Abatement
         if commercial and not is_commercial_ok(m.provenance.source):
             continue
         if not m.is_fresh(as_of):
+            continue
+        if adopted and already_adopted(m.id, adopted):
             continue
 
         # --- HARD region filter ---

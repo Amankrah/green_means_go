@@ -107,10 +107,160 @@ def _data_quality_scorecard(matches: list, unlinked_notes: list, region_name: st
     return overall, [{"indicator": i, "rating": r, "basis": b} for i, r, b in indicators]
 
 
+def _flow_label(r: dict) -> str:
+    return _FLOW_PRETTY.get(r.get("name"), r.get("name") or "flow")
+
+
+_FLOW_PRETTY = {"N2O": "Dinitrogen monoxide (N2O), air", "CO2": "Carbon dioxide, fossil, air (urea / liming)",
+                "CH4_bio": "Methane, biogenic, air", "CH4": "Methane, air",
+                "NO3": "Nitrate, water", "land_occ": "Occupation, annual crop",
+                "water": "Water", "NH3": "Ammonia, air", "NOx": "Nitrogen oxides, air",
+                "PO4": "Phosphate, water", "P": "Phosphorus, water",
+                "CO_bio": "Carbon monoxide, non-fossil, air (residue burning)",
+                "NMVOC": "NMVOC, air (residue burning)", "PM25": "Particulates, < 2.5 um, air (residue burning)"}
+
+
+def ranked_inventory(inv: dict, engine, total_kg: float, top_n: int = 30,
+                     max_flows: int = 4000) -> dict:
+    """Inventory table ranked by each flow's contribution to the method's single score
+    (each flow characterised on its own with the study's method, normalised and weighted
+    exactly like the headline score), not by raw amount across mixed units. Falls back to
+    amount ranking when the engine cannot characterise flows."""
+    try:
+        from .adapter import MIDPOINT_MAP, single_score, _flow_meta
+    except ImportError:
+        from adapter import MIDPOINT_MAP, single_score, _flow_meta
+    per_kg = total_kg or 1.0
+    q = getattr(engine, "q", None)
+    method = getattr(engine, "method", "") or ""
+    scored = []
+    ranked_by = "amount (fallback: flows could not be characterised individually)"
+    if q is not None and hasattr(q, "characterize_flows") and inv:
+        try:
+            cands = sorted(inv.items(), key=lambda kv: -abs(kv[1].get("amount") or 0.0))[:max_flows]
+            dummy = {"low": 0.0, "high": 0.0, "calibrated": False, "basis": ""}
+            for uid, r in cands:
+                if not r.get("amount"):
+                    continue
+                imp = q.characterize_flows({uid: r}, method) or {}
+                mids = {}
+                for c, v in imp.items():
+                    m = MIDPOINT_MAP.get(c)
+                    if m:
+                        mids[m[0]] = {"value": (v.get("value") or 0.0) / per_kg}
+                _, meta = single_score(mids, {}, method, bands=dummy)
+                pe = meta.get("person_equivalents_per_kg") or 0.0
+                gw = (mids.get("Global warming") or {}).get("value")
+                scored.append((uid, r, pe, gw))
+            ranked_by = "contribution to the single score (normalised, method-weighted)"
+        except Exception:
+            scored = []
+    if not scored:
+        scored = [(uid, r, None, None) for uid, r in inv.items()]
+        scored.sort(key=lambda x: -abs(x[1].get("amount") or 0.0))
+    else:
+        scored.sort(key=lambda x: -abs(x[2] or 0.0))
+    tot = sum(abs(x[2] or 0.0) for x in scored) or None
+    rows = scored[:top_n]
+    meta = _flow_meta(engine, [uid for uid, *_ in rows])
+    return {
+        "basis": "per kilogram of crop at the farm gate",
+        "ranked_by": ranked_by,
+        "n_flows_total": len(inv),
+        "n_shown": len(rows),
+        "flows": [{"flow": _flow_label(r), "uid": uid,
+                   "compartment": (meta.get(uid) or {}).get("compartment"),
+                   "amount": (r.get("amount") or 0.0) / per_kg, "unit": r.get("unit"),
+                   "single_score_upt": (pe * 1e6 if pe is not None else None),
+                   "share_of_single_score": ((abs(pe) / tot) if (pe is not None and tot) else None),
+                   "global_warming_kg_co2e": gw}
+                  for uid, r, pe, gw in rows],
+    }
+
+
+def _boundary_from_inputs(matches: list, notes: list) -> tuple[list, list, dict]:
+    """System-boundary text generated from the inputs ACTUALLY in this run's product system
+    (matched input rows by kind / name, and run notes)."""
+    rows = [m for m in matches if m.get("matched")]
+    kinds = {}
+    for m in rows:
+        kinds.setdefault((m.get("kind") or "other").lower(), []).append(m)
+    names = " ".join(str(m.get("input") or "").lower() for m in rows)
+
+    def _has(*keys):
+        return any(k in names for k in keys)
+
+    included, excluded = [], []
+    flags = {
+        "input_transport": any("transport of inputs" in str(m.get("input") or "").lower() for m in rows),
+        "market_transport": any("first point of sale" in str(m.get("input") or "").lower()
+                                or "to market" in str(m.get("input") or "").lower() for m in rows),
+        "seed": "seed" in kinds or _has("seed"),
+        "packaging": "packaging" in kinds or _has("packaging", "sack", "bag"),
+        "diesel": _has("diesel", "machinery", "tractor"),
+        "electricity": "electricity" in kinds or _has("electric", "grid"),
+        "fertiliser": "fertiliser" in kinds,
+        "pesticide": "pesticide" in kinds,
+        "compost": "compost" in kinds,
+        "irrigation": "irrigation_energy" in kinds or "water" in kinds,
+        "lime": _has("lime", "limestone", "dolomite"),
+        "refrigerant_topup": "refrigerant" in kinds,
+        "storage_refrigerant": any("refrigerant" in (n or "").lower() and "leakage" in (n or "").lower()
+                                   for n in notes),
+    }
+    if flags["fertiliser"]:
+        included.append("Production of the mineral fertilisers applied (matched background datasets; "
+                        "market datasets already include average transport to the regional market).")
+    if flags["lime"]:
+        included.append("Production of the agricultural lime (limestone / dolomite) applied.")
+    if flags["pesticide"]:
+        included.append("Production of the pesticide active ingredients applied.")
+    if flags["compost"]:
+        included.append("Production of purchased compost.")
+    if flags["seed"]:
+        included.append("Production of the seed or planting material sown.")
+    if flags["diesel"]:
+        included.append("Diesel burned in field operations, through ecoinvent's 'diesel, burned in "
+                        "agricultural machinery' dataset, which carries the machinery's manufacture, "
+                        "maintenance and shed per unit of fuel. Machinery is included ONLY through this "
+                        "dataset; no separate machinery inventory is added.")
+    else:
+        excluded.append("Farm machinery: no fuel use was declared or estimated, so machinery "
+                        "manufacture and use are not represented.")
+    if flags["electricity"]:
+        included.append("Grid electricity: generation and transmission for the region's grid mix.")
+    if flags["irrigation"]:
+        included.append("Irrigation: water withdrawal and, for pumped systems, pumping energy.")
+    if flags["packaging"]:
+        included.append("Packaging of the harvest leaving the farm.")
+    else:
+        excluded.append("Packaging of the harvest (none declared).")
+    if flags["refrigerant_topup"]:
+        included.append("Production of the refrigerant topped up to replace cold-storage leakage.")
+    if flags["input_transport"]:
+        included.append("Transport of bought-in inputs to the farm (road, tkm; 230 km default unless the "
+                        "farmer gave a distance), applied only to inputs matched to PRODUCTION datasets; "
+                        "inputs matched to 'market for' datasets already carry average transport and get "
+                        "no extra transport.")
+    else:
+        excluded.append("Transport of bought-in inputs from the regional market to this farm (only the "
+                        "transport already inside the background market datasets is counted).")
+    if flags["market_transport"]:
+        included.append("Transport of the harvest to the first point of sale (boundary extended).")
+    if flags["storage_refrigerant"]:
+        included.append("Refrigerant leakage from on-farm cold storage (charge x IPCC 2006 Vol 3 Ch 7 "
+                        "Table 7.9 operating emission factor x GWP100 of the method's basis).")
+    excluded.append("Everything after the farm gate (or after the first point of sale where "
+                    "declared): processing, storage off-farm, distribution, use and disposal.")
+    excluded.append("Buildings and other capital goods beyond what the background datasets embed "
+                    "(ecoinvent cut-off).")
+    return included, excluded, flags
+
+
 def build_iso_report(assessment: dict, result, engine, midpoints: dict,
                      single_meta: dict, total_kg: float, per_crop=None,
                      assessment_id: str | None = None, intended_for_public: bool = True,
-                     uncertainty: dict | None = None) -> dict:
+                     uncertainty: dict | None = None, sensitivity: dict | None = None) -> dict:
     """Assemble an ISO-conformant, review-ready report from the validated assessment.
 
     intended_for_public=True (default): the report is written for external or public use,
@@ -129,15 +279,25 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     is_hierarchist = "(H)" in method
     foods = assessment.get("foods") or []
     multi_crop = bool(per_crop) and len(foods) > 1
+    # different products (not just several plots of one crop): no product per-kg headline
+    multi_product = len({(f.get("name") or "").strip().lower() for f in foods}) > 1
 
     fp = assessment.get("farm_profile") or {}
     farmer = fp.get("farmer_name")
     farm = fp.get("farm_name") or assessment.get("company_name") or "the farm"
     commissioner = f"{farmer}, {farm}" if farmer else farm
     certifications = fp.get("certifications") or []
-    # post-harvest losses reported per crop (affects impact per kg of marketable crop)
-    losses = [f.get("post_harvest_losses") for f in foods if f.get("post_harvest_losses")]
-    avg_loss = (sum(losses) / len(losses)) if losses else 0.0
+    # post-harvest losses, only where the farmer actually reported them (percent, 0-100).
+    # Per kg of MARKETABLE crop the burden rises by 1/(1-L) - 1, not by L.
+    loss_rows = []
+    for f in foods:
+        L = f.get("post_harvest_losses")
+        try:
+            L = float(L) if L is not None else None
+        except (TypeError, ValueError):
+            L = None
+        if L is not None and 0 < L < 100:
+            loss_rows.append((f.get("name", "crop"), L, 100.0 * (1.0 / (1.0 - L / 100.0) - 1.0)))
     _mp = assessment.get("management_practices") or {}
     _sm = _mp.get("soil_management") or {}
     # Report a thing as INCLUDED only when it was actually modelled/matched for this run,
@@ -191,33 +351,32 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     # Inventory results (openLCA "Inventory Results" tab): the dominant elementary flows in
     # the merged cradle-to-gate inventory, expressed per functional unit. On-farm flows are
     # stored under short kernel keys; give them readable names for the table.
-    _flow_pretty = {"N2O": "Dinitrogen monoxide (N2O), air", "CO2": "Carbon dioxide, air",
-                    "CH4_bio": "Methane, biogenic, air", "CH4": "Methane, air",
-                    "NO3": "Nitrate, water", "land_occ": "Occupation, annual crop",
-                    "water": "Water", "NH3": "Ammonia, air", "PO4": "Phosphate, water"}
     inv = getattr(result, "inventory", None) or {}
-    # Which on-farm field flows are ACTUALLY in the inventory (stored under kernel keys), so
-    # the boundary and reference-flow text list only what was modelled. Fuel/grid CO2 is
-    # dropped upstream, so field CO2 normally is not present and should not be claimed.
-    _inv_keys = {(r.get("name") or "") for r in inv.values()}
+    # Which on-farm field flows are ACTUALLY in the field source (kernel / flowmap keys or
+    # store names), so the boundary and reference-flow text list only what was modelled. The
+    # merged inventory also holds background flows (e.g. "Ammonia" from fertiliser
+    # production), which must not be claimed as field emissions.
+    _field_flows = ((getattr(result, "contribution_flows_by_source", None) or {})
+                    .get("Field emissions (on-farm)") or {})
+    _inv_keys = ({(r.get("name") or "") for r in _field_flows.values()} if _field_flows
+                 else {(r.get("name") or "") for r in inv.values()})
+    _low_keys = " | ".join(k.lower() for k in _inv_keys)
     has_field_ch4 = "CH4_bio" in _inv_keys or "CH4" in _inv_keys
-    _field_subs = [label for key, label in [
-        ("N2O", "nitrous oxide"), ("CH4_bio", "methane"), ("CH4", "methane"),
-        ("CO2", "carbon dioxide"), ("NO3", "nitrate lost to water"),
-        ("water", "water used"), ("land_occ", "the land occupied")] if key in _inv_keys]
-    # de-duplicate (CH4/CH4_bio both map to "methane") while keeping order
-    _seen: set = set()
-    _field_subs = [s for s in _field_subs if not (s in _seen or _seen.add(s))]
+    _burning = bool({"CO_bio", "NMVOC", "PM25"} & _inv_keys) or "residue burning" in _low_keys
+    _has_p = "P" in _inv_keys or "PO4" in _inv_keys or "phosphate" in _low_keys
+    _field_subs = [label for present, label in [
+        ("N2O" in _inv_keys, "nitrous oxide"),
+        (has_field_ch4, "methane"),
+        ("NH3" in _inv_keys or "ammonia" in _low_keys, "ammonia"),
+        ("NOx" in _inv_keys, "nitrogen oxides"),
+        ("CO2" in _inv_keys, "fossil CO2 from urea hydrolysis and liming"),
+        ("NO3" in _inv_keys, "nitrate lost to water"),
+        (_has_p, "phosphorus lost to water"),
+        (_burning, "residue-burning pollutants"),
+        ("water" in _inv_keys or "water, well" in _low_keys or "water, river" in _low_keys, "water used"),
+        ("land_occ" in _inv_keys, "the land occupied")] if present]
     field_emissions_text = ", ".join(_field_subs) if _field_subs else "field emissions"
-    top_flows = sorted(inv.values(), key=lambda r: -abs(r.get("amount") or 0.0))[:30]
-    inventory_results = {
-        "basis": "per kilogram of crop at the farm gate",
-        "n_flows_total": len(inv),
-        "n_shown": len(top_flows),
-        "flows": [{"flow": _flow_pretty.get(r.get("name"), r.get("name")),
-                   "amount": (r.get("amount") or 0.0) / total_kg_safe, "unit": r.get("unit")}
-                  for r in top_flows],
-    }
+    inventory_results = ranked_inventory(inv, engine, total_kg_safe)
 
     # LCIA results table: every reported midpoint category, per functional unit.
     results_table = [{"category": name, "result": (m.get("value") or 0.0),
@@ -347,32 +506,100 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "This is an attributional study. There is a single product, so nothing needs to be split "
             "between farm products. Any co-products further up the supply chain are handled the way the "
             "background database (ecoinvent) handles them." + _eol_note)
+    _alloc = single_meta.get("allocation") or {}
+    _alloc_applied = [a for a in _alloc.values() if a.get("applied")]
+    if _alloc_applied:
+        allocation += (" Where removed crop residues are sold or fed (a co-product), the crop's burden "
+                       "is split between grain and straw by economic allocation (ISO 14044 §4.3.4.2): "
+                       + " ".join(a["note"] for a in _alloc_applied))
+    _alloc_not = [a["note"] for a in _alloc.values() if not a.get("applied") and a.get("note")]
+    if _alloc_not:
+        allocation += " " + " ".join(_alloc_not)
+    _bnd_in, _bnd_out, _bnd_flags = _boundary_from_inputs(matches, result.notes or [])
+
+    # Soil organic carbon from management (engine/soil_carbon.py, owner E): reported
+    # SEPARATELY (ISO 14067), never folded into the headline climate result.
+    soc = getattr(result, "soc_management", None)
+    if soc is None and isinstance(assessment.get("_engine_meta"), dict):
+        soc = assessment["_engine_meta"].get("soc_management")
+    if isinstance(soc, dict) and soc.get("booked") and soc.get("value") is not None:
+        soc_text = (
+            f"Soil carbon from management, reported separately (ISO 14067), not included in the "
+            f"headline: {soc['value']:+.0f} {soc.get('unit', 'kg CO2/yr')} "
+            f"({soc.get('sign_convention') or '+ = emission, - = removal'}; "
+            f"{soc.get('method') or 'IPCC 2019 Tier 1 stock-change'}"
+            + (f"; {soc['years_remaining_in_transition']:.0f} years remain in the 20-year transition"
+               if isinstance(soc.get("years_remaining_in_transition"), (int, float)) else "") + ").")
+    elif isinstance(soc, dict):
+        _why = (soc.get("assumptions") or ["inputs for the stock-change calculation were incomplete"])[0]
+        soc_text = (f"Soil carbon from management, reported separately (ISO 14067), is not booked for "
+                    f"this farm ({_why}); it would not be included in the headline in any case.")
+    else:
+        soc_text = ("Change in soil organic carbon from tillage, residues and cover cropping is not "
+                    "included in the headline; it is reported separately when the inputs for the IPCC "
+                    "Tier 1 stock-change method are available.")
+
+    # Climate zone actually used for the IPCC wet/dry factors (D2: classification text in
+    # region.field_sources["climate_zone"]).
+    _zone = getattr(region, "climate_zone", None) or getattr(result, "climate_zone_used", None)
+    _admin = (assessment.get("study_meta") or {}).get("admin_region")
+    _zone_src = (getattr(region, "field_sources", None) or {}).get("climate_zone")
+    climate_text = ((f"IPCC climate zone used for the field factors: {_zone}"
+                     + (f" (from the farm's admin region '{_admin}')" if _admin else
+                        " (national default; no admin region given)") + "."
+                     + (f" Classification: {_zone_src}" if isinstance(_zone_src, str) and _zone_src else ""))
+                    if _zone else None)
+
+    # Publication gate: background datasets flagged for review (incl. excluded rows).
+    _nr = [m for m in matches if m.get("needs_review")]
+    _nr_flag = bool(getattr(result, "needs_review", False)) or bool(_nr)
+    needs_review_text = (
+        (f"{len(_nr)} input(s) were matched to background datasets that are flagged for review"
+         + (f" ({', '.join(str(m.get('input')) for m in _nr[:5])})" if _nr else "")
+         + "; the report stays a draft and should not be published until those choices are confirmed.")
+        if _nr_flag else None)
+
+    # Per-crop results (true per-crop product systems), when provided.
+    per_crop_results = []
+    for label, res_c in (per_crop or {}).items():
+        imp = getattr(res_c, "impacts", None) or {}
+        gw = next((v.get("value") for k, v in imp.items() if k == "Climate change"), None)
+        f_match = next((f for f in foods if label.startswith(f"{f.get('name', 'crop')} (")), {})
+        kg = f_match.get("quantity_kg")
+        per_crop_results.append({
+            "crop": label, "quantity_kg": kg, "area_ha": f_match.get("area_allocated"),
+            "global_warming_total_kg_co2e": gw,
+            "global_warming_per_kg": (gw / kg) if (gw is not None and kg) else None,
+        })
+
+    _fu_crops = ", ".join(f.get("name", "crop") for f in foods) or "the crop"
     scope = {
         "approach": "Attributional",
         "product_system": f"The {crop_names} grown at {farm} in {region_name}.",
-        "functional_unit": "One kilogram of crop, measured at the farm gate.",
+        "functional_unit": (
+            "One kilogram of harvested crop at the farm gate, as weighed by the farmer (fresh "
+            "mass as harvested; no moisture standardisation applied)."
+            if not multi_product else
+            "1 ha of farm area per year, with per-crop results per kg (each crop's fresh mass as "
+            "harvested at the farm gate; no moisture standardisation)."),
         "functional_unit_basis": (
-            "The functional unit is the reference that every impact figure is measured against. Here it "
-            "is one kilogram of harvested crop leaving the farm, and all the inputs and emissions are "
-            "scaled to that one kilogram."),
+            "Every impact figure is scaled to this reference. Moisture basis: the reference flow is "
+            "the farmer-reported harvested mass at its as-harvested moisture; it is not converted to a "
+            "standard moisture (e.g. 14 % for cereal grain), so comparisons with datasets on a "
+            "standardised or dry-matter basis need that conversion first."
+            + (f" With several crops ({_fu_crops}) a single per-kilogram figure across different crops "
+               "has no meaning, so per-kilogram results are given per crop and the farm as a whole is "
+               "reported per hectare; any farm-total per-kilogram figure in the data is a farm "
+               "aggregate, not a product footprint." if multi_product else "")),
         "system_boundary": (
             "The study runs from the inputs used in the field through to the point the crop leaves the "
-            "farm (cradle to gate). What sits inside and outside the boundary is set out below."),
+            "farm (cradle to gate). The lists below are generated from the inputs actually included in "
+            "this run."),
         "boundary_included": [
             f"The field emissions ({field_emissions_text}), from the IPCC 2019 method and the on-farm inventory.",
-            "The production of the inputs the farm buys in: mineral fertiliser, diesel and grid electricity "
-            "(and any pesticides or purchased compost).",
-            "The generation and grid transmission of the electricity used.",
-            "Farm machinery and other capital goods, as they are already built into the background datasets "
-            "(the fuel they burn is counted through the diesel above).",
+            *_bnd_in,
         ],
-        "boundary_excluded": [
-            "Transport of the bought-in inputs to this particular farm is not added on top. The background "
-            "datasets are taken at the plant or market, so the on-road delivery to the farm gate is not "
-            "separately modelled (a screening simplification).",
-            "Everything after the farm gate: processing, packaging, storage, distribution, the use of the "
-            "crop, and its disposal.",
-        ],
+        "boundary_excluded": _bnd_out,
         "boundary_type": "cradle to gate",
         "cutoff_criteria": (
             "The study uses ecoinvent's standard cut-off approach. The making of buildings and "
@@ -389,8 +616,13 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "so that no major environmental issue is left out. The ones that matter most for growing crops, "
             "such as climate change, land use, eutrophication and fossil resource use, are among them."),
         "normalization_reference": (
-            "ReCiPe 2016, using the world-average, hierarchist reference for the single score."
-            if "ReCiPe" in method else "The method's own reference set."),
+            "ReCiPe 2016 v1.1 normalisation, World 2010, Hierarchist (10 categories in the "
+            "equal-weighted sum; toxicity, ozone depletion, ionising radiation and terrestrial ozone "
+            "normalised for display only)."
+            if "ReCiPe" in method else
+            "EF 3.1 global normalisation factors per person (Andreasson et al. 2024, JRC130796, "
+            "Table 2) and the EF 3.1 weighting set (Sala et al. 2018, JRC109878), all 16 categories."),
+        "weighting_disclosure": single_meta.get("iso_14044_disclosure"),
         "data_requirements": {
             "foreground": ("Information the farm provided about its own activity: the crops and "
                            "areas grown, the type and amount of fertiliser used, and fuel and "
@@ -415,13 +647,22 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
              if compost_n_modelled else
              ("Purchased compost is bought in; its production burden is included through a representative compost dataset."
               if purchased_compost else None)),
-            "Change in soil organic carbon from tillage and cover cropping is deliberately excluded. It can be significant, but it is highly uncertain and strongly time-dependent, and common practice (IPCC, PAS 2050) is to exclude it or report it separately rather than fold an unreliable figure into the result.",
-            (f"Post-harvest losses average about {avg_loss:.0f}%. Figures here are per kilogram at the farm gate; per kilogram of marketable crop they would be roughly {avg_loss:.0f}% higher."
-             if avg_loss else None),
+            soc_text,
+            *[(f"Post-harvest losses reported for {n}: {L:g}%. Figures here are per kilogram harvested at "
+               f"the farm gate; per kilogram of marketable {n} they would be {inc:.1f}% higher "
+               f"(1/(1 - {L/100:g}) - 1).") for n, L, inc in loss_rows],
+            climate_text,
+            needs_review_text,
             "If a crop grown on the farm is not in the background database, a close stand-in is used, or the farm's own field data on its own, and this is noted.",
         ] if f],
         "value_choices": [
-            "The single score adds up the categories with equal weight. That is a judgement call, and the score is not used to make public claims of being better than another product.",
+            ("The single score applies the official EF 3.1 normalisation and weighting factors (e.g. "
+             "climate change 21.06 %, particulate matter 8.96 %, water use 8.51 %). Weighting is a value "
+             "choice. " if "EF" in method and "ReCiPe" not in method else
+             "The single score is an equal-weighted sum of ReCiPe-normalised midpoints; ReCiPe 2016 "
+             "publishes no weighting, so this is not an official ReCiPe single score. Equal weighting is "
+             "a value choice. ")
+            + "Per ISO 14044 §4.4.5, weighting is not used for comparative assertions disclosed to the public.",
             ("Results use the hierarchist time perspective." if is_hierarchist else "Results use the method's default time perspective."),
             ("Shared farm inputs are split between crops by area, a screening simplification." if multi_crop else None),
         ],
@@ -449,10 +690,34 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         "A further, indirect share of nitrous oxide from the nitrogen that escapes as gas and later "
         "settles back onto the land, and from the nitrogen washed out by leaching and run-off "
         "(using the IPCC 2019 fractions with the EF4 and EF5 factors).",
-        "Nitrate washed into water by leaching.",
     ]
+    if "NO3" in _inv_keys:
+        on_farm_flows.append("Nitrate washed into water by leaching and run-off (IPCC 2019 FracLEACH), "
+                             "from synthetic and organic nitrogen.")
+    if "NH3" in _inv_keys or "ammonia" in _low_keys:
+        on_farm_flows.append("Ammonia volatilised from fertiliser, compost and manure nitrogen: IPCC 2019 "
+                             "Table 11.3 FracGASF by fertiliser type (urea 0.15, ammonium-based 0.08, "
+                             "nitrate-based 0.01, ammonium-nitrate-based 0.05, unknown 0.11) and FracGASM "
+                             "0.21 for organic N, x 17/14. Application method (incorporation / placement) "
+                             "is recorded but not modelled.")
+    if "NOx" in _inv_keys:
+        on_farm_flows.append("Nitrogen oxides from soil (0.21 x N2O, Nemecek & Schnetzer 2011) and, where "
+                             "residues are burnt, from burning (2.5 g/kg d.m., IPCC 2006 Vol 4 Ch 2 Table 2.5).")
+    if "CO2" in _inv_keys:
+        on_farm_flows.append("Fossil CO2 from urea hydrolysis (IPCC Eq 11.13, 0.20 t C per t urea) and liming "
+                             "(Eq 11.12, 0.12 limestone / 0.13 dolomite t C per t), where applied.")
+    if _has_p:
+        on_farm_flows.append("Phosphorus lost to ground and surface water (SALCA-P, Prasuhn 2006); erosion P "
+                             "only where soil-loss inputs exist.")
+    if "composting" in _low_keys:
+        on_farm_flows.append("Methane and nitrous oxide from composting on the farm (IPCC 2006 Vol 5 Ch 4 Table 4.1).")
+    if _burning:
+        on_farm_flows.append("Pollutants from burning crop residues: CO 92 g/kg d.m. (IPCC 2006 Vol 4 Ch 2 "
+                             "Table 2.5), PM2.5 5.4 and NMVOC 0.5 g/kg d.m. (EMEP/EEA 2019 3.F Table 3-1 Tier 1).")
     if has_field_ch4:
-        on_farm_flows.append("Methane from the flooded rice paddy.")
+        on_farm_flows.append("Methane from the rice paddy (IPCC 2019 Vol 4 Ch 5 Eq 5.1-5.3: EFc 1.19 kg CH4/ha/day "
+                             "x cultivation days (default 113, Table 5.11a) x water-regime SFw (Table 5.12), "
+                             "pre-season SFp (Table 5.13) and organic-amendment SFo (Table 5.14); upland rice = 0).")
     on_farm_flows.append("The land the crop occupies while it grows.")
 
     on_farm_adjustments = []
@@ -466,9 +731,8 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             f"We use the nitrous-oxide factor for the local climate ({ef1}) rather than the global default of 0.01.")
     if has_legume:
         on_farm_adjustments.append(
-            "Where a legume is grown alongside the crop, we take 20% off the nitrous oxide from synthetic "
-            "fertiliser, because the legume fixes some of its own nitrogen and less bought-in nitrogen is needed. "
-            "This is a screening assumption and is flagged as such.")
+            "Legume intercrops/rotations are recorded but give no N2O credit: IPCC 2019 Eq 11.1 counts the "
+            "nitrogen actually applied.")
     if compost_n_modelled:
         on_farm_adjustments.append(
             "The nitrogen in the compost or manure applied is counted towards the field nitrous oxide, using a "
@@ -542,11 +806,20 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "characterization": f"Each category's result is the sum of every flow multiplied by its characterisation factor, using {method}.",
         },
         "optional_elements": {
-            "normalization": ("Results are put on a common scale against a world reference to build the single score."
-                              if "ReCiPe" in method else "Results are put on a common scale using the method's own reference set."),
-            "weighting": "The categories are combined with equal weight to give the single score, which is a judgement call.",
+            "normalization": ("Results are normalised against the ReCiPe 2016 World 2010 (Hierarchist) per-person reference."
+                              if "ReCiPe" in method else
+                              "Results are normalised against the EF 3.1 global per-person reference (Andreasson et al. 2024)."),
+            "weighting": (
+                ("The 16 EF 3.1 categories are weighted with the official EF 3.1 weighting factors "
+                 "(Sala et al. 2018) to give the EF single score."
+                 if "EF" in method and "ReCiPe" not in method else
+                 "Ten normalised ReCiPe midpoints are summed with equal weight. ReCiPe 2016 has no official "
+                 "weighting, so this is a screening aggregate, not an official ReCiPe single score.")
+                + " " + (single_meta.get("iso_14044_disclosure") or "")),
             "grouping": "Not used.",
         },
+        "normalised_results": single_meta.get("normalised_midpoints"),
+        "categories_not_mapped": single_meta.get("unmapped_categories") or [],
         "results_are_relative_expressions": RELATIVE_EXPRESSION,
         "n_categories_reported": len(categories),
         "results_table": results_table,
@@ -580,7 +853,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
         " New assessments attach a per-source pedigree-matrix Monte Carlo by default; "
         "this draft has no Monte Carlo block, so re-run to refresh the ranges.")
     if _src:
-        sensitivity = (
+        sensitivity_text = (
             "Because the calculation is linear in the amounts used, each source's share of a result is "
             "also how sensitive the result is to it: change a source by one percent and the total moves "
             "by about its share. On that basis the climate result is driven mainly by "
@@ -588,12 +861,23 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             + ", so those are the figures worth getting right first."
             + _mc_basis)
     else:
-        sensitivity = (
+        sensitivity_text = (
             (f"Each category result carries p5-p95 ranges from a per-source pedigree-matrix "
              f"screening Monte Carlo (N={_mc_n})."
              if uncertainty else
              "New assessments run a per-source pedigree-matrix Monte Carlo by default and report "
              "p5-p95 ranges; this draft has no Monte Carlo block, so re-run to refresh uncertainty."))
+    _oat_cases = (sensitivity or {}).get("cases") or []
+    _oat_text = ""
+    if _oat_cases:
+        _parts = [f"{c['case']}: {c['global_warming_change_pct']:+.0f}%"
+                  for c in _oat_cases if c.get("global_warming_change_pct") is not None]
+        _oat_text = (" One-at-a-time sensitivity on climate change per kg (IPCC 2019 bounds for EF1 "
+                     "and FracLEACH, yield ±20 %): " + "; ".join(_parts) + ".")
+        _ms = (sensitivity or {}).get("method_sensitivity")
+        if _ms and _ms.get("change_pct") is not None:
+            _oat_text += (f" Re-characterising the same inventory with {_ms['alternative_method']} "
+                          f"changes climate change per kg by {_ms['change_pct']:+.0f}%.")
 
     # Recommendations driven by the actual hotspots (the top climate contributors), not a
     # fixed list, so the advice points at what is really moving this farm's result.
@@ -628,8 +912,14 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
     results_interpretation = (
         f"The study set out to measure the cradle-to-gate footprint of the {crop_names} for each kilogram "
         "of crop and to find where that footprint comes from. Against that goal, the overall single score "
-        f"works out at about {_micro:.0f} micro-points per kilogram, a {_band or 'mid-range'} result next to "
-        f"the benchmark crops. It is driven most by {_topcat}, and on the climate side mainly by {_topsrc}. "
+        f"({single_meta.get('label') or 'single score'}) works out at about {_micro:.0f} micro-points per "
+        "kilogram"
+        + (f", a {_band} result next to the benchmark crops. "
+           if _band and _band not in ("unavailable", "not banded") else
+           "; it is a farm aggregate over several products, not a product footprint, so it is not banded. "
+           if _band == "not banded" else
+           "; no calibrated benchmark band exists for this method, so it is not banded. ")
+        + f"It is driven most by {_topcat}, and on the climate side mainly by {_topsrc}. "
         "So the goal is met on both counts: the footprint is quantified per kilogram at the farm gate, and "
         "the activities that matter most, which are the ones the farm can act on, are clearly identified.")
 
@@ -681,7 +971,13 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             + ") were applied throughout the supply chain, and the field emissions use the IPCC 2019 "
             "method throughout. Everything is expressed on the same basis of one kilogram of crop at "
             "the farm gate."),
-        "sensitivity_and_uncertainty": sensitivity,
+        "sensitivity_and_uncertainty": sensitivity_text + _oat_text,
+        "one_at_a_time_sensitivity": (sensitivity or {}).get("cases"),
+        "method_sensitivity": (sensitivity or {}).get("method_sensitivity"),
+        "soil_carbon_reported_separately": soc if isinstance(soc, dict) else None,
+        "soil_carbon_statement": soc_text,
+        "per_crop_results": per_crop_results or None,
+        "needs_review": _nr_flag,
         "conclusions": [
             (f"Measured per kilogram of crop, the biggest single contributor is {top_cats[0][0]}."
              + (
@@ -706,7 +1002,20 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
              "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
              "A per-source pedigree-matrix Monte Carlo is the default for new assessments; this draft has "
              "no Monte Carlo block, so re-run to attach p5-p95 ranges."),
-            "The single score uses equal weighting, which is a judgement call, and it works best for comparing scenarios of the same crop rather than as an absolute verdict.",
+            ("The single score uses the EF 3.1 weighting factors" if "EF" in method and "ReCiPe" not in method
+             else "The single score uses equal weighting (not an official ReCiPe score)")
+            + "; weighting is a value choice, best used to compare scenarios of the same crop, and per "
+            "ISO 14044 §4.4.5 it is not used for comparative assertions disclosed to the public.",
+            (single_meta.get("band_basis") if single_meta.get("band") != "Unavailable" else
+             "No calibrated band is available for this method's single score, so none is shown."),
+            ("Phosphorus lost through soil erosion is modelled only where soil-loss inputs exist; "
+             "otherwise only runoff and leaching P are counted." if _has_p else
+             "Field phosphorus losses are not represented in this run."),
+            "Heavy metals (e.g. cadmium) from fertilisers reaching soil (SALCA-SM) are not modelled.",
+            ("Where the land-use history is unknown, no land-use change is assumed; the PAS 2050-1 "
+             "statistical dLUC default is not applied."
+             if not any(f.get("land_use_change") for f in foods) else None),
+            needs_review_text,
         ],
         "public_disclosure": (
             "This report is written so it can be shared outside the farm. Before it is published, "
@@ -716,6 +1025,7 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             if intended_for_public else
             "This report is for the farm's own use and is not meant to be shared publicly."),
     }
+    interpretation["limitations"] = [x for x in interpretation["limitations"] if x]
 
     # ---- Critical review ----
     if intended_for_public:
@@ -778,6 +1088,11 @@ def build_iso_report(assessment: dict, result, engine, midpoints: dict,
             "This is a finished, ISO-based draft. It still needs an independent critical review "
             "before it can be shared publicly." if intended_for_public else
             "This is an ISO-based report for internal use, and no critical review is required."),
+        # Publication gate (audit rec 27): while any background choice needs review the report
+        # stays a draft (adapter keeps review_status "draft") and must not be published.
+        "review_required": _nr_flag,
+        "review_statement": (needs_review_text if _nr_flag else
+                             "No background dataset choice is flagged for review."),
         "document_control": document_control,
         "introduction": introduction,
         "goal": goal,

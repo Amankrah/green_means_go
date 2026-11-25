@@ -36,6 +36,12 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
     from datetime import datetime, timezone
     total_kg_safe = total_kg or 1.0
     method = engine.method
+    # Refrigerant GWP basis follows the method (engine/refrigerants.py gwp_basis_for).
+    _w_text = ("The single score applies the official EF 3.1 normalisation and weighting factors (16 categories); weighting is a value choice"
+               if ("EF" in (method or "") and "ReCiPe" not in (method or "")) else
+               "The single score is an equal-weighted sum of ReCiPe-normalised midpoints (ReCiPe 2016 has no official weighting, so this is not an official ReCiPe single score); equal weighting is a value choice")
+    _w_text += ". Per ISO 14044 \u00a74.4.5, weighting is not used for comparative assertions disclosed to the public."
+    _ref_gwp = ("ReCiPe 2016 Hierarchist GWP100" if "ReCiPe" in (method or "") else "IPCC AR6 GWP100")
     region = getattr(engine, "region", None)
     region_name = getattr(region, "name", result.region or "the region")
 
@@ -114,7 +120,7 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
         reference_flows.append({
             "process": f"On-site refrigerant leakage ({rm.get('refrigerant_type')})",
             "amount": f"{rm.get('annual_leakage_kg'):.4g} kg per year",
-            "source": "IPCC AR6 (2021) GWP100", "adaptation": "direct emission"})
+            "source": _ref_gwp, "adaptation": "direct emission"})
 
     # ---- data quality ----
     dq_overall, dq_indicators = _data_quality_scorecard(matches, unlinked_notes, region_name)
@@ -240,7 +246,7 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
         "Inbound transport of the raw materials to the facility.",
     ]
     if has_refrigerant:
-        boundary_included.append(f"On-site refrigerant leakage ({rm.get('refrigerant_type')}), counted at its AR6 GWP100.")
+        boundary_included.append(f"On-site refrigerant leakage ({rm.get('refrigerant_type')}), counted at its {_ref_gwp}.")
     boundary_excluded = [
         "Everything after the factory gate: distribution, retail, the use of the product, and its disposal.",
         "Employee commuting and general facility overheads not tied to production.",
@@ -287,12 +293,12 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
         "assumptions_and_limitations": [
             "Purchased utilities and materials are matched to representative background datasets with assisted search, and the top candidates are kept on record so the choice can be checked.",
             "Where a facility meter is not available, energy and water are estimated from the per-step intensities the operator provided.",
-            ("On-site refrigerant leakage is counted at its AR6 GWP100 as a direct climate emission."
+            (f"On-site refrigerant leakage is counted at its {_ref_gwp} as a direct climate emission."
              if has_refrigerant else
              "Refrigerant leakage was not reported, so no on-site F-gas emission is counted; if the facility uses cold storage this may understate climate impact."),
         ],
         "value_choices": [
-            "The single score adds up the categories with equal weight. That is a judgement call, and the score is not used to make public claims of being better than another product.",
+            _w_text,
             f"Co-products are allocated by {basis_word}, which is a value choice disclosed above." if multi_product else "Results use the method's default time perspective.",
         ],
     }
@@ -301,19 +307,19 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
         "data_sources": [s for s in [
             "ecoinvent 3.11, for the supply chain of energy, materials and packaging",
             "Agribalyse 3.2, for some food-processing background datasets" if uses_agribalyse else None,
-            "IPCC AR6 (2021), for refrigerant global warming potentials" if has_refrigerant else None,
+            (f"{_ref_gwp}, for refrigerant global warming potentials" if has_refrigerant else None),
         ] if s],
         "foreground_data": "Activity data reported by the facility for the products, energy, water, packaging, waste and transport listed, used as supplied by the operator.",
         "background_data": "Unit-process datasets from ecoinvent and Agribalyse, adjusted to the region where a regional version exists. Any stand-in datasets are noted.",
         "on_farm_lci": (  # kept key name for frontend compatibility; content is the on-site section
-            "The only direct on-site emission modelled is refrigerant leakage, counted at its AR6 GWP100 "
+            f"The only direct on-site emission modelled is refrigerant leakage, counted at its {_ref_gwp} "
             f"({rm.get('refrigerant_type')}, {rm.get('annual_leakage_kg')} kg per year). Everything else comes "
             "from the purchased energy, materials, packaging, waste treatment and transport listed below."
             if has_refrigerant else
             "No direct on-site emissions are modelled beyond the purchased inputs, since no refrigerant leakage was "
             "reported. The footprint is made up of the purchased raw materials, energy, packaging, waste treatment "
             "and transport listed below."),
-        "on_farm_flows": ([f"Refrigerant leakage: {rm.get('refrigerant_type')} at AR6 GWP100"] if has_refrigerant else []),
+        "on_farm_flows": ([f"Refrigerant leakage: {rm.get('refrigerant_type')} at {_ref_gwp}"] if has_refrigerant else []),
         "on_farm_adjustments": [],
         "calculation_procedure": ("The supply chain is solved as a set of linked equations rather than traced step by "
                                  "step by hand, so it handles the loops real supply chains contain. Energy is tracked in "
@@ -350,7 +356,7 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
         },
         "optional_elements": {
             "normalization": "Results are put on a common scale using the method's own reference set.",
-            "weighting": "The categories are combined with equal weight to give the single score, which is a judgement call.",
+            "weighting": _w_text,
         },
         "results_are_relative_expressions": ("These impact figures are relative indicators, not absolute measurements. As "
                                             "the ISO standards require us to state, they do not predict actual harm to human "
@@ -402,7 +408,7 @@ def build_process_iso_report(request: dict, result, engine, midpoints: dict, sin
              "Data quality is assessed at the study level using the five-indicator pedigree scorecard above. "
              "Pedigree screening Monte Carlo is the default for new assessments; this draft has no "
              "Monte Carlo block — re-run to attach p5–p95 ranges."),
-            "The single score uses equal weighting, which is a judgement call, and it works best for comparing scenarios of the same product rather than as an absolute verdict.",
+            _w_text + " It works best for comparing scenarios of the same product.",
         ],
         "public_disclosure": (
             "This report is written so it can be shared outside the business. Before it is published, the results need to "

@@ -4,13 +4,11 @@ import React from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { Zap, Truck, Info, AlertCircle, BarChart3, Plus, Trash2, Settings, Battery } from 'lucide-react';
-import { EnhancedAssessmentFormData, FARM_FUEL_UNITS, FARM_FUEL_DEFAULT_UNIT } from '@/lib/enhanced-assessment-schema';
+import { EnhancedAssessmentFormData, FARM_FUEL_UNITS, FARM_FUEL_DEFAULT_UNIT, REFRIGERANTS } from '@/lib/enhanced-assessment-schema';
 import { 
   StorageFacilityType, 
   RoadAccessType, 
   TransportMode, 
-  FunctionalUnit, 
-  SystemBoundary,
   EquipmentType,
   PowerSource,
   EnergyType,
@@ -55,18 +53,7 @@ export default function EquipmentEnergyStep() {
     }
   }, [setValue, watch]);
 
-  // Set default values for assessment parameters if they're not already set
-  React.useEffect(() => {
-    if (!watch('assessmentParameters.functionalUnit')) {
-      setValue('assessmentParameters.functionalUnit', FunctionalUnit.PER_KG_PRODUCT);
-    }
-    if (!watch('assessmentParameters.systemBoundary')) {
-      setValue('assessmentParameters.systemBoundary', SystemBoundary.CRADLE_TO_GATE);
-    }
-    if (!watch('assessmentParameters.assessmentPeriod')) {
-      setValue('assessmentParameters.assessmentPeriod', 1);
-    }
-  }, [setValue, watch]);
+  const hasColdStorage = currentStorageFacilities.includes(StorageFacilityType.COLD_STORAGE);
 
   // Handle storage facility selection with mutual exclusivity
   const handleStorageFacilityChange = (facility: StorageFacilityType, isChecked: boolean) => {
@@ -524,13 +511,14 @@ export default function EquipmentEnergyStep() {
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-ink mb-2">
-              Storage Capacity (cubic meters or tons) *
+              Storage capacity (tonnes, optional)
             </label>
             <input
               type="number"
-              step="0.1"
-              {...register('equipmentEnergy.infrastructure.storageCapacity', { valueAsNumber: true })}
-              placeholder="e.g., 50"
+              step="any"
+              min="0"
+              {...register('equipmentEnergy.infrastructure.storageCapacity')}
+              placeholder="blank = not known"
               className="gmg-input"
             />
             {errors.equipmentEnergy?.infrastructure?.storageCapacity && (
@@ -583,6 +571,52 @@ export default function EquipmentEnergyStep() {
               })}
             </div>
           </div>
+
+          {hasColdStorage && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white rounded-lg p-4 border border-line">
+              <div>
+                <label className="block text-sm font-medium text-ink mb-2">
+                  Cold store refrigerant gas
+                </label>
+                <select
+                  {...register('equipmentEnergy.infrastructure.refrigerant')}
+                  className="gmg-input"
+                >
+                  <option value="">Not known</option>
+                  {REFRIGERANTS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted mt-1">On the unit&apos;s nameplate, e.g. R-134a or R-404A.</p>
+                {errors.equipmentEnergy?.infrastructure?.refrigerant && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.equipmentEnergy.infrastructure.refrigerant.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink mb-2">
+                  Refrigerant charge (kg)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  {...register('equipmentEnergy.infrastructure.refrigerantChargeKg')}
+                  placeholder="e.g., 5"
+                  className="gmg-input"
+                />
+                <p className="text-xs text-muted mt-1">
+                  Leakage is estimated from the charge. Enter the cold store&apos;s electricity under Energy Sources above.
+                </p>
+                {errors.equipmentEnergy?.infrastructure?.refrigerantChargeKg && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.equipmentEnergy.infrastructure.refrigerantChargeKg.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </motion.section>
 
@@ -668,6 +702,9 @@ export default function EquipmentEnergyStep() {
               </label>
             ))}
           </div>
+          <p className="text-xs text-muted mt-2">
+            If you tick several, the most motorised one is used for the trip to market.
+          </p>
         </div>
 
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -752,7 +789,13 @@ export default function EquipmentEnergyStep() {
               
               // Equipment & Energy Errors
               if (errors.equipmentEnergy?.infrastructure?.storageCapacity) {
-                errorMessages.push('• Equipment: Please enter storage capacity (use 0 if no storage)');
+                errorMessages.push(`• Storage: ${errors.equipmentEnergy.infrastructure.storageCapacity.message}`);
+              }
+              if (errors.equipmentEnergy?.infrastructure?.refrigerant) {
+                errorMessages.push(`• Cold storage: ${errors.equipmentEnergy.infrastructure.refrigerant.message}`);
+              }
+              if (errors.equipmentEnergy?.infrastructure?.refrigerantChargeKg) {
+                errorMessages.push(`• Cold storage: ${errors.equipmentEnergy.infrastructure.refrigerantChargeKg.message}`);
               }
               if (errors.equipmentEnergy?.infrastructure?.transportAccess?.roadAccess) {
                 errorMessages.push('• Transport: Please select road access type');
@@ -791,17 +834,6 @@ export default function EquipmentEnergyStep() {
                 });
               }
               
-              // Assessment Parameters Errors
-              if (errors.assessmentParameters?.functionalUnit) {
-                errorMessages.push('• Assessment: Please select assessment focus');
-              }
-              if (errors.assessmentParameters?.systemBoundary) {
-                errorMessages.push('• Assessment: Please select assessment scope');
-              }
-              if (errors.assessmentParameters?.assessmentPeriod) {
-                errorMessages.push('• Assessment: Please enter assessment period');
-              }
-              
               // If no specific errors found, show debug info
               if (errorMessages.length === 0) {
                 if (Object.keys(errors.equipmentEnergy || {}).length > 0) {
@@ -835,117 +867,23 @@ export default function EquipmentEnergyStep() {
         transition={{ delay: 0.4 }}
         className="bg-moss/10 border border-line rounded-xl p-6"
       >
-        <div className="flex items-center space-x-3 mb-6">
+        <div className="flex items-center space-x-3 mb-4">
           <BarChart3 className="w-6 h-6 text-moss" />
-          <h3 className="text-lg font-semibold text-ink">Assessment Configuration</h3>
+          <h3 className="text-lg font-semibold text-ink">Assessment Options</h3>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-ink mb-3">
-              Assessment Focus *
-            </label>
-            <select
-              {...register('assessmentParameters.functionalUnit')}
-              className="gmg-input"
-            >
-              {Object.entries(FunctionalUnit).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {value}{key === 'PER_KG_PRODUCT' ? ' (recommended)' : ''}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-muted mt-1">
-              How should we measure environmental impact?
-            </p>
-            {errors.assessmentParameters?.functionalUnit && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <AlertCircle className="w-4 h-4 mr-1" />
-                {errors.assessmentParameters.functionalUnit.message}
-              </p>
-            )}
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-ink mb-3">
-              Assessment Scope *
-            </label>
-            <select
-              {...register('assessmentParameters.systemBoundary')}
-              className="gmg-input"
-            >
-              {Object.entries(SystemBoundary).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {value}{key === 'CRADLE_TO_GATE' ? ' (recommended)' : ''}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-muted mt-1">
-              What stages should we include in the assessment?
-            </p>
-            {errors.assessmentParameters?.systemBoundary && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <AlertCircle className="w-4 h-4 mr-1" />
-                {errors.assessmentParameters.systemBoundary.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink mb-3">
-              Assessment Period (years) *
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="5"
-              {...register('assessmentParameters.assessmentPeriod', { valueAsNumber: true })}
-              className="gmg-input"
-            />
-            <p className="text-xs text-muted mt-1">
-              Typical farming cycle period to assess
-            </p>
-            {errors.assessmentParameters?.assessmentPeriod && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <AlertCircle className="w-4 h-4 mr-1" />
-                {errors.assessmentParameters.assessmentPeriod.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-ink">
-              Advanced Analysis Options
-            </label>
-            
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                {...register('assessmentParameters.includeUncertaintyAnalysis')}
-                className="text-moss focus:ring-moss rounded"
-              />
-              <span className="text-sm text-ink">Include uncertainty analysis</span>
-            </label>
-            
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                {...register('assessmentParameters.includeSensitivityAnalysis')}
-                className="text-moss focus:ring-moss rounded"
-              />
-              <span className="text-sm text-ink">Include sensitivity analysis</span>
-            </label>
-            
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                {...register('assessmentParameters.benchmarkComparison')}
-                className="text-moss focus:ring-moss rounded"
-              />
-              <span className="text-sm text-ink">Compare with regional benchmarks</span>
-            </label>
-          </div>
-        </div>
+        <label className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            {...register('assessmentParameters.includeUncertaintyAnalysis')}
+            className="text-moss focus:ring-moss rounded"
+          />
+          <span className="text-sm text-ink">Include uncertainty ranges (recommended)</span>
+        </label>
+        <p className="text-xs text-muted mt-2">
+          Results are always reported per kg of product and per hectare, from the production of your
+          inputs to the farm gate (or the first point of sale when you give a distance to market), for one year.
+        </p>
       </motion.section>
 
       <motion.div

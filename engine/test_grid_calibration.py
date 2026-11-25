@@ -28,51 +28,89 @@ def _store() -> str | None:
     return hits[0] if hits else None
 
 
-def test_calibration_is_climate_only() -> int:
+def _climate(d):
+    return next(v["value"] for c, v in d.items() if c.lower().startswith("climate change")
+                and ":" not in c)
+
+
+def _gh_setup():
     db = _store()
     if not db:
-        print("[skip] canonical store not present")
-        return 0
+        return None
     q = CanonicalQuery(db)
     gh = get_region("GH")
-    method = gh.default_method
     uid = sqlite3.connect(db).cursor().execute(
         "select uid from processes where name like 'Electricity, low voltage {GH}%' limit 1"
     ).fetchone()[0]
+    return q, gh, gh.default_method, uid
 
+
+def test_calibration_co2_only_mode_is_climate_only(monkeypatch=None) -> int:
+    s = _gh_setup()
+    if not s:
+        print("[skip] canonical store not present")
+        return 0
+    q, gh, method, uid = s
+    import os
+    old = os.environ.get("GRID_CALIBRATION_MODE")
+    os.environ["GRID_CALIBRATION_MODE"] = "co2_only"
+    try:
+        sc = q.cradle_to_gate(uid, amount=1.0)
+        before = q.characterize_flows(sc.elementary_flows, method)
+        info = grid_calibration.apply(q, {"kind": "electricity", "amount": 1.0},
+                                      sc.elementary_flows, gh, method)
+        after = q.characterize_flows(sc.elementary_flows, method)
+    finally:
+        if old is None:
+            os.environ.pop("GRID_CALIBRATION_MODE", None)
+        else:
+            os.environ["GRID_CALIBRATION_MODE"] = old
+    assert info is not None and info["mode"] == "co2_only"
+    assert abs(_climate(after) - 0.35) < 1e-6
+    moved = [c for c, vb in before.items() if "climate" not in c.lower()
+             and abs((after.get(c, {}).get("value") or 0.0) - vb["value"]) > 1e-9]
+    assert not moved, f"co2_only calibration moved non-climate categories: {moved}"
+    return 0
+
+
+def test_calibration_thermal_topup_moves_copollutants() -> int:
+    s = _gh_setup()
+    if not s:
+        print("[skip] canonical store not present")
+        return 0
+    q, gh, method, uid = s
     sc = q.cradle_to_gate(uid, amount=1.0)
     before = q.characterize_flows(sc.elementary_flows, method)
     info = grid_calibration.apply(q, {"kind": "electricity", "amount": 1.0},
                                   sc.elementary_flows, gh, method)
     after = q.characterize_flows(sc.elementary_flows, method)
-
-    def climate(d):
-        return next(v["value"] for c, v in d.items() if "climate" in c.lower())
-
     assert info is not None, "calibration did not fire for GH grid electricity"
-    assert abs(climate(after) - 0.35) < 1e-6, f"climate landed at {climate(after)}, not 0.35"
-    assert climate(before) < 0.35, "expected ecoinvent GH to understate before calibration"
+    assert _climate(before) < 0.35, "expected ecoinvent GH to understate before calibration"
+    assert abs(_climate(after) - 0.35) < 1e-6, f"climate landed at {_climate(after)}, not 0.35"
+    if info.get("mode") == "thermal_topup":
+        # gas generation brings NOx (photochemical ozone, acidification) and fossil resource use
+        for key in ("Photochemical oxidant formation: human health", "Energy resources: non-renewable, fossil"):
+            if key in before:
+                assert after[key]["value"] > before[key]["value"], key
+    return 0
 
-    # every non-climate category is byte-identical
-    moved = []
-    for cat, vb in before.items():
-        if "climate" in cat.lower():
-            continue
-        va = after.get(cat, {}).get("value")
-        if va is None or abs(va - vb["value"]) > 1e-9:
-            moved.append(cat)
-    assert not moved, f"calibration moved non-climate categories: {moved}"
+
+def test_calibration_region_without_factor_untouched() -> int:
+    s = _gh_setup()
+    if not s:
+        print("[skip] canonical store not present")
+        return 0
+    q, gh, method, uid = s
 
     # a region with no official EF (Canada) is left untouched
     sc2 = q.cradle_to_gate(uid, amount=1.0)
     none_info = grid_calibration.apply(q, {"kind": "electricity", "amount": 1.0},
                                        sc2.elementary_flows, get_region("CA"), method)
     assert none_info is None, "calibration fired for a region with no official EF"
-
-    print(f"[ok] GH grid electricity climate {climate(before):.4f} -> {climate(after):.4f} "
-          f"(official 0.35); {len(before)-1} other categories unchanged; CA untouched")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(test_calibration_is_climate_only())
+    test_calibration_co2_only_mode_is_climate_only()
+    test_calibration_thermal_topup_moves_copollutants()
+    sys.exit(test_calibration_region_without_factor_untouched())

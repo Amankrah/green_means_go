@@ -31,16 +31,74 @@ pub struct FertiliserN {
 const SRC_FAO_IFA: &str = "FAO & IFA (2000) Fertilizers and their use, 4th ed., Rome, \
     nutrient content of straight N fertilisers";
 
-/// Parse the N share of a declared "N-P-K" grade (e.g. "15-15-15" -> 0.15).
-pub fn n_from_ratio(npk_ratio: &Option<String>) -> Option<f64> {
-    let r = npk_ratio.as_ref()?;
-    let first = r.split(|c| c == '-' || c == ':' || c == '/').next()?;
-    let v = first.trim().parse::<f64>().ok()?;
-    if (0.0..=100.0).contains(&v) {
-        Some(v / 100.0)
-    } else {
-        None
+/// Parse a declared N-P2O5-K2O grade ("15-15-15", "20:10:10", "23 10 5") into percent.
+/// Same rule as engine/inputs.py `_parse_grade`: three numbers separated by - : / or
+/// space, each <= 100, 0 < sum <= 100; anything else is not a grade (None).
+pub fn parse_grade(npk_ratio: &Option<String>) -> Option<(f64, f64, f64)> {
+    let r = npk_ratio.as_ref()?.trim();
+    let mut parts = r.split(|c: char| c == '-' || c == ':' || c == '/' || c.is_whitespace())
+        .filter(|s| !s.is_empty());
+    let mut g = [0.0f64; 3];
+    for slot in g.iter_mut() {
+        *slot = parts.next()?.parse::<f64>().ok()?;
     }
+    if g.iter().any(|v| !v.is_finite() || *v < 0.0 || *v > 100.0) {
+        return None;
+    }
+    let sum: f64 = g.iter().sum();
+    if !(sum > 0.0 && sum <= 100.0) {
+        return None;
+    }
+    Some((g[0], g[1], g[2]))
+}
+
+/// N share of a declared grade (e.g. "15-15-15" -> 0.15); None when not a valid grade.
+pub fn n_from_ratio(npk_ratio: &Option<String>) -> Option<f64> {
+    parse_grade(npk_ratio).map(|g| g.0 / 100.0)
+}
+
+/// Placeholder rows that carry no fertiliser (engine/inputs.py `is_none_fertiliser`).
+pub fn is_none_fertiliser(fertilizer_type: &str) -> bool {
+    matches!(fertilizer_type.trim().to_lowercase().as_str(),
+             "" | "none" | "no fertilizer" | "no fertiliser" | "not used")
+}
+
+/// Straight products identified from their standard grade alone when the declared name is
+/// free text ("white prills" 46-0-0 is urea), mirroring engine/inputs.py
+/// `_fertiliser_product` / FERTILISER_PRODUCTS (FAO & IFA 2000 grades).
+const STRAIGHT_GRADES: [((f64, f64, f64), &str); 7] = [
+    ((27.0, 0.0, 0.0), "calcium ammonium nitrate"),
+    ((30.0, 0.0, 0.0), "urea ammonium nitrate"),
+    ((21.0, 0.0, 0.0), "ammonium sulphate"),
+    ((33.5, 0.0, 0.0), "ammonium nitrate"),
+    ((18.0, 46.0, 0.0), "diammonium phosphate"),
+    ((11.0, 52.0, 0.0), "monoammonium phosphate"),
+    ((46.0, 0.0, 0.0), "urea"),
+];
+
+fn is_organic_type(t: &str) -> bool {
+    t.contains("organic") || t.contains("manure") || t.contains("compost")
+        || t.contains("poultry") || t.contains("dung") || t.contains("guano") || t.contains("vermi")
+}
+
+/// The product whose N form decides FracGASF and urea CO2: the declared type when it names
+/// a product; for an otherwise unrecognised free-text name, the straight product its grade
+/// identifies (not for NPK / compound, foliar or organic rows).
+pub fn n_form_type(fertilizer_type: &str, npk_ratio: &Option<String>) -> String {
+    let t = fertilizer_type.trim().to_lowercase();
+    if n_volatilisation_class(&t) != NVolClass::Unclassified
+        || t.contains("npk") || t.contains("compound") || t.contains("foliar") || is_organic_type(&t)
+    {
+        return fertilizer_type.to_string();
+    }
+    if let Some(g) = parse_grade(npk_ratio) {
+        for (grade, name) in STRAIGHT_GRADES {
+            if (g.0 - grade.0).abs() < 1e-9 && (g.1 - grade.1).abs() < 1e-9 && (g.2 - grade.2).abs() < 1e-9 {
+                return name.to_string();
+            }
+        }
+    }
+    fertilizer_type.to_string()
 }
 
 fn has_word(hay: &str, word: &str) -> bool {
@@ -54,9 +112,7 @@ pub fn fertiliser_n(fertilizer_type: &str, npk_ratio: &Option<String>) -> Fertil
     let t = fertilizer_type.trim().to_lowercase();
     let declared = n_from_ratio(npk_ratio);
 
-    let organic = t.contains("organic") || t.contains("manure") || t.contains("compost")
-        || t.contains("poultry") || t.contains("dung");
-    if organic {
+    if is_organic_type(&t) {
         return match declared {
             Some(n) => FertiliserN {
                 n_fraction: n,
@@ -92,8 +148,12 @@ pub fn fertiliser_n(fertilizer_type: &str, npk_ratio: &Option<String>) -> Fertil
     let syn = |n: f64, source: &'static str| FertiliserN {
         n_fraction: n, form: NForm::Synthetic, source, warning: None,
     };
-    // Order matters: "calcium ammonium nitrate" before "ammonium nitrate"; phosphates
-    // before the generic "phosphate" no-N family.
+    // Order matters: UAN before urea, "calcium ammonium nitrate" before "ammonium nitrate";
+    // phosphates before the generic "phosphate" no-N family.
+    if has_word(&t, "uan") || t.contains("urea ammonium nitrate") || t.contains("urea-ammonium nitrate") {
+        // Same default as engine/inputs.py FERTILISER_PRODUCTS ("UAN", 30-0-0).
+        return syn(0.30, "UAN 30% N, default grade of engine/inputs.py FERTILISER_PRODUCTS; declare the grade (28-32% N)");
+    }
     if t.contains("urea") {
         return syn(0.46, SRC_FAO_IFA);
     }
@@ -138,7 +198,7 @@ pub fn fertiliser_n(fertilizer_type: &str, npk_ratio: &Option<String>) -> Fertil
         || t.contains("potassium sulfate") || has_word(&t, "mop") || has_word(&t, "sop")
         || t.contains("lime") || t.contains("dolomite") || t.contains("gypsum")
         || t.contains("bio-fert") || t.contains("biofert") || t.contains("inoculant")
-        || t == "none" || t.is_empty();
+        || is_none_fertiliser(&t);
     if no_n {
         return syn(0.0, "straight P/K source, liming material, microbial inoculant or none: \
                          no fertiliser N (FAO & IFA 2000)");
@@ -333,6 +393,9 @@ pub struct ResidueN {
     pub n_below: f64,
     /// residue dry matter burnt in the field (kg d.m., whole area): M_B x C_f
     pub dm_burnt: f64,
+    /// above-ground residue d.m. left on the field (kg d.m., whole area):
+    /// AGR x (1 - Frac_Remove - Frac_Burnt x C_f)
+    pub ag_dm_retained: f64,
 }
 
 impl ResidueN {
@@ -348,8 +411,10 @@ fn clamp01(x: f64) -> f64 {
 /// IPCC 2019 Eq 11.6 (updated) + Eq 11.7 for one crop.
 ///   Crop      = Yield_fresh x DRY                                   (Eq 11.7)
 ///   AG_DM     = Crop x R_AG
-///   AGR       = AG_DM x Area
+///   AGR       = AG_DM x Area x Frac_Renew
 ///   BGR       = (Crop + AG_DM) x RS x Area x Frac_Renew
+/// Frac_Renew multiplies BOTH the above- and below-ground terms in Eq 11.6 (1 for annual
+/// crops; 1/X for stands renewed every X years).
 ///   F_CR      = AGR x N_AG x (1 - Frac_Remove - Frac_Burnt x C_f) + BGR x N_BG
 /// `fresh_yield_kg_ha` is the harvested product as reported (fresh weight).
 pub fn residue_n(crop_name: &str, fresh_yield_kg_ha: f64, area_ha: f64,
@@ -362,7 +427,7 @@ pub fn residue_n(crop_name: &str, fresh_yield_kg_ha: f64, area_ha: f64,
     let frac_burnt = clamp01(frac_burnt);
     let frac_renew = clamp01(frac_renew);
     let ag_left = (1.0 - frac_remove - frac_burnt * p.cf).max(0.0);
-    let agr = ag_dm * area;
+    let agr = ag_dm * area * frac_renew;
     let bgr = (crop_dm + ag_dm) * p.rs * area * frac_renew;
     ResidueN {
         crop_dm_per_ha: crop_dm,
@@ -370,6 +435,7 @@ pub fn residue_n(crop_name: &str, fresh_yield_kg_ha: f64, area_ha: f64,
         n_above: agr * p.n_ag * ag_left,
         n_below: bgr * p.n_bg,
         dm_burnt: agr * frac_burnt * p.cf,
+        ag_dm_retained: agr * ag_left,
         params: p,
     }
 }
@@ -379,6 +445,129 @@ pub fn residue_n(crop_name: &str, fresh_yield_kg_ha: f64, area_ha: f64,
 /// burning residues is biogenic and not counted (regrows within the year).
 pub const BURN_CH4_G_PER_KG_DM: f64 = 2.7;
 pub const BURN_N2O_G_PER_KG_DM: f64 = 0.07;
+/// Same table and row: CO 92 (+/- 84) and NOx 2.5 (+/- 1.0) g/kg d.m. burnt. CO from
+/// residue burning is biogenic carbon.
+pub const BURN_CO_G_PER_KG_DM: f64 = 92.0;
+pub const BURN_NOX_G_PER_KG_DM: f64 = 2.5;
+/// EMEP/EEA air pollutant emission inventory guidebook 2019, 3.F Field burning of
+/// agricultural residues, Table 3-1 Tier 1 default EFs (Jenkins et al. 1996a):
+/// PM2.5 0.0054 kg/kg d.m. (0.0042-0.0067), NMVOC 0.0005 kg/kg d.m. (0.0002-0.0008).
+pub const BURN_PM25_G_PER_KG_DM: f64 = 5.4;
+pub const BURN_NMVOC_G_PER_KG_DM: f64 = 0.5;
+
+// ----------------------------------------------------------------------------------------
+// NH3 + NOx volatilisation class of synthetic N (IPCC 2019 Refinement Vol 4 Ch 11
+// Table 11.3 (updated) FracGASF disaggregation; class membership per Annex 11A.7:
+// "urea, ammonium-based (ammonia-direct application, AS, and AP), nitrate-based (N K
+// compound N) and ammonium-nitrate-based (AN, CAN, Nitrogen solutions, Other N straight,
+// Other NP-N and N P K compound-N)").
+// ----------------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NVolClass {
+    Urea,
+    AmmoniumBased,
+    NitrateBased,
+    AmmoniumNitrateBased,
+    /// N form not identifiable from the type (e.g. NPK of undeclared composition): the
+    /// aggregated FracGASF 0.11 applies. Annex 11A.7 Table 7A.2 assumes NPK N = AN/CAN only
+    /// to weight the global aggregate; that is not guidance for an unknown compound, so the
+    /// Table 11.3 aggregated default is used.
+    Unclassified,
+}
+
+/// Classify a synthetic fertiliser by its N form. UAN / nitrogen solutions are
+/// ammonium-nitrate-based per Annex 11A.7 even though they contain urea.
+pub fn n_volatilisation_class(fertilizer_type: &str) -> NVolClass {
+    let t = fertilizer_type.trim().to_lowercase();
+    if has_word(&t, "uan") || t.contains("urea ammonium nitrate") || t.contains("urea-ammonium nitrate")
+        || t.contains("nitrogen solution")
+    {
+        return NVolClass::AmmoniumNitrateBased;
+    }
+    if t.contains("urea") {
+        return NVolClass::Urea;
+    }
+    if t.contains("ammonium nitrate") || has_word(&t, "can") || has_word(&t, "an") {
+        return NVolClass::AmmoniumNitrateBased;
+    }
+    if t.contains("ammonium sulphate") || t.contains("ammonium sulfate")
+        || t.contains("sulphate of ammonia") || t.contains("sulfate of ammonia")
+        || has_word(&t, "as") || has_word(&t, "sa")
+        || t.contains("ammonium phosphate") || has_word(&t, "dap") || has_word(&t, "map")
+        || t.contains("anhydrous ammonia")
+    {
+        return NVolClass::AmmoniumBased;
+    }
+    if t.contains("nitrate") {
+        return NVolClass::NitrateBased;
+    }
+    NVolClass::Unclassified
+}
+
+/// Urea as a straight product (IPCC 2006 Vol 4 Ch 11 Eq 11.13 applies to its mass). UAN
+/// solutions are excluded: their urea share is not known from the type.
+pub fn is_straight_urea(fertilizer_type: &str) -> bool {
+    n_volatilisation_class(fertilizer_type) == NVolClass::Urea
+}
+
+/// IPCC 2006 Guidelines Vol 4 Ch 11 Section 11.4.1, Eq 11.13 (unchanged in the 2019
+/// Refinement): CO2-C = M_urea x 0.20 t C / t urea (carbon content of CO(NH2)2).
+pub const UREA_EF_C_PER_T: f64 = 0.20;
+/// IPCC 2006 Vol 4 Ch 11 Section 11.3.1, Eq 11.12: EF 0.12 t C / t limestone (CaCO3) and
+/// 0.13 t C / t dolomite (CaMg(CO3)2).
+pub const LIMESTONE_EF_C_PER_T: f64 = 0.12;
+pub const DOLOMITE_EF_C_PER_T: f64 = 0.13;
+pub const CO2_PER_C: f64 = 44.0 / 12.0;
+
+// ----------------------------------------------------------------------------------------
+// Rice CH4 (IPCC 2019 Refinement Vol 4 Ch 5 Section 5.5, Eq 5.1-5.3, Tier 1)
+//   CH4 = EFc x SFw x SFp x SFo x t x Area   (per season; x crops per year)
+// ----------------------------------------------------------------------------------------
+
+/// Table 5.12 (updated), disaggregated case SFw.
+pub fn rice_sfw(regime: &str) -> Option<f64> {
+    Some(match regime {
+        "upland" => 0.0,
+        "irrigated_continuously_flooded" => 1.00,
+        "irrigated_single_drainage" => 0.71,
+        "irrigated_multiple_drainage" => 0.55, // includes AWD (Table 5.12 note b)
+        "rainfed_regular" => 0.54,
+        "rainfed_drought_prone" => 0.16,
+        "deep_water" => 0.06,
+        _ => return None,
+    })
+}
+
+/// Table 5.13 (updated), disaggregated case SFp.
+pub fn rice_sfp(status: &str) -> Option<f64> {
+    Some(match status {
+        "non_flooded_lt_180d" => 1.00,
+        "non_flooded_gt_180d" => 0.89,
+        "flooded_gt_30d" => 2.41,
+        "non_flooded_gt_365d" => 0.59,
+        _ => return None,
+    })
+}
+
+/// Table 5.14 (updated) conversion factors CFOA. ROA is t DRY weight/ha for straw and
+/// t FRESH weight/ha for the other amendments (Eq 5.3 definitions).
+pub const CFOA_STRAW_SHORT: f64 = 1.00; // straw incorporated < 30 d before cultivation
+pub const CFOA_STRAW_LONG: f64 = 0.19;  // straw incorporated > 30 d before cultivation
+pub const CFOA_COMPOST: f64 = 0.17;
+pub const CFOA_FYM: f64 = 0.21;          // farmyard manure
+pub const CFOA_GREEN_MANURE: f64 = 0.45;
+
+/// Eq 5.3: SFo = (1 + sum_i ROA_i x CFOA_i)^0.59.
+pub fn rice_sfo(sum_roa_cfoa: f64) -> f64 {
+    (1.0 + sum_roa_cfoa.max(0.0)).powf(0.59)
+}
+
+/// Rice crop (paddy) by name.
+pub fn is_rice(name: &str) -> bool {
+    let n = name.to_lowercase();
+    n.contains("rice") || n.contains("paddy")
+}
 
 #[cfg(test)]
 mod tests {
@@ -473,10 +662,48 @@ mod tests {
     }
 
     #[test]
-    fn perennial_below_ground_scales_with_frac_renew() {
+    fn frac_renew_scales_above_and_below_ground() {
+        // IPCC 2019 Eq 11.6: AGR and BGR both carry Frac_Renew.
         let annual = residue_n("Cocoa", 450.0, 1.0, 0.0, 0.0, 1.0);
         let perennial = residue_n("Cocoa", 450.0, 1.0, 0.0, 0.0, 1.0 / 25.0);
         assert!((perennial.n_below - annual.n_below / 25.0).abs() < 1e-12);
-        assert_eq!(perennial.n_above, annual.n_above);
+        assert!((perennial.n_above - annual.n_above / 25.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn volatilisation_classes_follow_annex_11a7() {
+        assert_eq!(n_volatilisation_class("Urea"), NVolClass::Urea);
+        assert_eq!(n_volatilisation_class("UAN 32"), NVolClass::AmmoniumNitrateBased);
+        assert_eq!(n_volatilisation_class("Calcium Ammonium Nitrate"), NVolClass::AmmoniumNitrateBased);
+        assert_eq!(n_volatilisation_class("Ammonium Sulphate"), NVolClass::AmmoniumBased);
+        assert_eq!(n_volatilisation_class("DAP"), NVolClass::AmmoniumBased);
+        assert_eq!(n_volatilisation_class("Calcium nitrate"), NVolClass::NitrateBased);
+        assert_eq!(n_volatilisation_class("NPK 15-15-15"), NVolClass::Unclassified);
+        assert!(!is_straight_urea("UAN"));
+    }
+
+    #[test]
+    fn grade_parsing_and_product_from_grade_match_inputs_py() {
+        assert_eq!(parse_grade(&Some("23 10 5".into())), Some((23.0, 10.0, 5.0)));
+        assert_eq!(parse_grade(&Some("20:10:10".into())), Some((20.0, 10.0, 10.0)));
+        assert_eq!(parse_grade(&Some("46".into())), None);
+        assert_eq!(parse_grade(&Some("0-0-0".into())), None);
+        assert_eq!(parse_grade(&Some("60-60-0".into())), None);
+        assert_eq!(n_form_type("White prills", &Some("46-0-0".into())), "urea");
+        assert_eq!(n_form_type("Blend X", &Some("18-46-0".into())), "diammonium phosphate");
+        assert_eq!(n_form_type("NPK", &Some("46-0-0".into())), "NPK");
+        assert_eq!(n_form_type("Foliar feed", &Some("46-0-0".into())), "Foliar feed");
+        assert_eq!(fertiliser_n("UAN", &None).n_fraction, 0.30);
+        assert!(is_none_fertiliser("Not used") && is_none_fertiliser(" NONE "));
+        assert_eq!(fertiliser_n("Guano", &None).form, NForm::Organic);
+    }
+
+    #[test]
+    fn rice_scaling_factors() {
+        assert_eq!(rice_sfw("upland"), Some(0.0));
+        assert_eq!(rice_sfw("irrigated_multiple_drainage"), Some(0.55));
+        assert_eq!(rice_sfp("flooded_gt_30d"), Some(2.41));
+        assert!((rice_sfo(0.0) - 1.0).abs() < 1e-12);
+        assert!((rice_sfo(2.0 * CFOA_STRAW_SHORT) - 3f64.powf(0.59)).abs() < 1e-12);
     }
 }

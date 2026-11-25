@@ -22,8 +22,9 @@ _BASIS = {
     "EF": ("IPCC AR6 GWP100 (Forster et al. 2021, IPCC AR6 WG1 Ch.7 Table 7.15), as published "
            "in EF 3.1"),
 }
-_REFRIGERANT_NOTE = ("On-site refrigerant leakage, where modelled, uses IPCC AR6 GWP100 "
-                     "(engine/refrigerants.py) regardless of the method.")
+_REFRIGERANT_NOTE = ("On-site refrigerant leakage, where modelled, uses the GWP100 basis of the "
+                     "selected method (ReCiPe 2016 Hierarchist GWP100 under ReCiPe, IPCC AR6 GWP100 "
+                     "otherwise; engine/refrigerants.py).")
 
 _CACHE: dict = {}
 

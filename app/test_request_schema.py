@@ -193,7 +193,8 @@ def test_ws1_advanced_food_fields_accepted_and_validated():
     d = json.loads(json.dumps(FRONTEND_FARM_PAYLOAD))
     d["foods"][0]["land_use_change"] = {"previous_land_use": "forest", "years_since_conversion": 5}
     d["foods"][0]["residue_management"] = {"fraction_removed": 0.3, "fraction_burnt": 0.1}
-    d["foods"][0]["establishment"] = {"immature_years": 3, "productive_years": 25, "input_share": 0.1}
+    # Tomato is annual: establishment years are a 422 (test_establishment_*), blanks are fine.
+    d["foods"][0]["establishment"] = {"immature_years": None, "productive_years": None}
     r = AssessmentRequest(**d)
     assert r.foods[0].land_use_change.previous_land_use == "forest"
     d["foods"][0]["residue_management"]["fraction_burnt"] = 1.5
@@ -340,3 +341,213 @@ def test_crop_areas_cannot_exceed_farm_size():
 def test_bad_region_is_a_validation_error_not_a_500():
     _rejects(_farm(region="Mars"), "unknown region")
     assert AssessmentRequest(**_farm(region="ghana")).region == "GH"
+
+
+# ---------------------------------------------------------------------------------------
+# Fields added by the LCA-audit remediation (.fix_team/CONTRACT.md §1).
+# ---------------------------------------------------------------------------------------
+def _contract_payload():
+    d = _farm()
+    d["foods"].append({
+        "id": "crop_2", "name": "Lowland Rice", "quantity_kg": 4000, "category": "Cereals",
+        "area_allocated": 1.0, "crops_per_year": 2, "growing_period_days": 120,
+        "planting_months": [4, 9, 4], "harvest_months": [8, 12],
+        "rotation_sequence": ["Cowpea", "Maize"],
+        "water_regime": "irrigated_multiple_drainage",
+        "preseason_water_status": "non_flooded_lt_180d",
+    })
+    sm = d["management_practices"]["soil_management"]
+    sm.update(soil_ph=5.8, organic_matter_pct=1.9, cover_crops=True,
+              practices_adopted_years_ago=6, compost_crop_ids=["crop_1"],
+              lime_applications=[{"material": "dolomite", "rate_t_per_ha_per_year": 0.5,
+                                  "crop_ids": ["crop_2"]}],
+              conservation_practices=["No-till", "Mulching"])
+    fert = d["management_practices"]["fertilization"]
+    fert["timing_strategy"] = "Split Application"
+    fert["fertilizer_applications"][0].update(
+        application_method="Broadcasting", brand_name="Yara Sulfan", crop_ids=["crop_1"])
+    pm = d["management_practices"]["pest_management"]
+    pm["pesticides"][0].update(brand_name="Karate", crop_ids=["crop_1", "crop_2"])
+    pm.update(primary_pests=["Fall armyworm"], primary_diseases=["Blast"],
+              ipm_practices=["Scouting"], biological_controls=["Neem"],
+              uses_economic_thresholds=True)
+    d["management_practices"]["water_management"]["drainage_system"] = "Surface drains"
+    d["equipment_energy"]["storage"] = {"facilities": ["Cold Storage", "Metal Silos"],
+                                        "capacity_tonnes": 20, "refrigerant": "R-404A",
+                                        "refrigerant_charge_kg": 4.0}
+    d["farm_profile"]["total_farm_size"] = 3.0
+    return d
+
+
+def test_contract_fields_validate_and_normalise():
+    r = AssessmentRequest(**_contract_payload())
+    rice = r.foods[1]
+    assert rice.crops_per_year == 2 and rice.growing_period_days == 120
+    assert rice.planting_months == [4, 9]          # deduplicated, order kept
+    assert rice.water_regime == "irrigated_multiple_drainage"
+    assert r.foods[0].crops_per_year == 1          # default
+    mp = r.management_practices
+    fa = mp.fertilization.fertilizer_applications[0]
+    assert fa.application_method == "broadcast" and fa.crop_ids == ["crop_1"]
+    assert mp.fertilization.timing_strategy == "Split Application"
+    assert mp.soil_management.lime_applications[0].material == "dolomite"
+    assert mp.pest_management.pesticides[0].brand_name == "Karate"
+    assert r.equipment_energy.storage.refrigerant_charge_kg == 4.0
+
+
+@pytest.mark.parametrize("label,expected", [
+    ("Broadcasting", "broadcast"), ("Band Placement", "band_placement"),
+    ("Side Dressing", "side_dressing"), ("Foliar Spray", "foliar"),
+    ("Fertigation", "fertigation"), ("Precision Application", "band_placement"),
+    ("incorporated", "incorporated"), ("side_dressing", "side_dressing"), ("", None),
+])
+def test_application_method_accepts_wizard_labels(label, expected):
+    d = _farm(**{"management_practices.fertilization.fertilizer_applications.0.application_method": label})
+    fa = AssessmentRequest(**d).management_practices.fertilization.fertilizer_applications[0]
+    assert fa.application_method == expected
+
+
+def test_unknown_application_method_rejected():
+    _rejects(_farm(**{"management_practices.fertilization.fertilizer_applications.0.application_method":
+                      "Aerial drone"}), "application_method")
+
+
+@pytest.mark.parametrize("where", ["fert", "pest", "lime", "compost"])
+def test_crop_ids_must_reference_foods(where):
+    d = _contract_payload()
+    mp = d["management_practices"]
+    if where == "fert":
+        mp["fertilization"]["fertilizer_applications"][0]["crop_ids"] = ["crop_9"]
+    elif where == "pest":
+        mp["pest_management"]["pesticides"][0]["crop_ids"] = ["crop_1", "ghost"]
+    elif where == "lime":
+        mp["soil_management"]["lime_applications"][0]["crop_ids"] = ["nope"]
+    else:
+        mp["soil_management"]["compost_crop_ids"] = ["nope"]
+    _rejects(d, "crop_ids must reference foods[].id")
+
+
+def test_bad_crop_ids_return_422_from_the_route():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+
+    @app.post("/validate")
+    def _v(req: AssessmentRequest):
+        return {"ok": True}
+
+    d = _contract_payload()
+    d["management_practices"]["fertilization"]["fertilizer_applications"][0]["crop_ids"] = ["crop_9"]
+    resp = TestClient(app).post("/validate", json=d)
+    assert resp.status_code == 422
+    assert "crop_9" in resp.text
+
+
+@pytest.mark.parametrize("field,value", [
+    ("planting_months", [0]), ("planting_months", [13]), ("harvest_months", [5, 14]),
+    ("crops_per_year", 5), ("crops_per_year", 0), ("growing_period_days", 10),
+    ("water_regime", "hydroponic"), ("preseason_water_status", "sometimes"),
+])
+def test_seasonality_bounds_rejected(field, value):
+    _rejects(_farm(**{f"foods.0.{field}": value}))
+
+
+@pytest.mark.parametrize("path,value", [
+    ("management_practices.soil_management.soil_ph", 1.0),
+    ("management_practices.soil_management.organic_matter_pct", 120),
+    ("management_practices.soil_management.practices_adopted_years_ago", -1),
+    ("management_practices.soil_management.lime_applications",
+     [{"material": "limestone", "rate_t_per_ha_per_year": 50}]),
+    ("management_practices.soil_management.lime_applications",
+     [{"material": "gypsum", "rate_t_per_ha_per_year": 1}]),
+    ("equipment_energy.storage", {"facilities": [], "refrigerant_charge_kg": -1}),
+    ("equipment_energy.storage", {"facilities": [], "bogus": 1}),
+])
+def test_new_management_fields_bounded(path, value):
+    _rejects(_farm(**{path: value}))
+
+
+def test_water_regime_keyword_aliases():
+    for text, expected in [("AWD", "irrigated_multiple_drainage"), ("Upland", "upland"),
+                           ("rainfed regular", "rainfed_regular"),
+                           ("Continuously flooded", "irrigated_continuously_flooded")]:
+        r = AssessmentRequest(**_farm(**{"foods.0.water_regime": text}))
+        assert r.foods[0].water_regime == expected, text
+
+
+def test_none_type_fertiliser_rows_are_ignored_by_flag_check():
+    """A "None" row with a positive rate is a wizard placeholder the engine skips: it must
+    neither trip uses_fertilizers=false nor satisfy uses_fertilizers=true."""
+    none_row = {"fertilizer_type": "none", "application_rate": 80, "applications_per_season": 1}
+    d = _farm(**{"management_practices.fertilization.uses_fertilizers": False,
+                 "management_practices.fertilization.fertilizer_applications": [none_row]})
+    AssessmentRequest(**d)
+    d = _farm(**{"management_practices.fertilization.fertilizer_applications": [none_row]})
+    _rejects(d, "other than 'None'")
+
+
+def test_legacy_payload_without_new_fields_still_validates():
+    r = AssessmentRequest(**FRONTEND_FARM_PAYLOAD)
+    f = r.foods[0]
+    assert f.crops_per_year == 1 and f.planting_months == [] and f.water_regime is None
+    sm = r.management_practices.soil_management
+    assert sm.lime_applications == [] and sm.compost_crop_ids == [] and sm.cover_crops is False
+    assert r.management_practices.fertilization.fertilizer_applications[0].crop_ids == []
+    assert r.equipment_energy.storage is None
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("sold", "sold"), ("fed", "fed"), ("Fed to own livestock", "fed_to_own_livestock"),
+    ("left_on_farm", "left_on_farm"), ("fuel", "fuel"), ("other", "other"), (None, None),
+])
+def test_removed_residue_use_vocabulary(text, expected):
+    d = _farm(**{"foods.0.residue_management": {"fraction_removed": 0.5,
+                                                 "removed_residue_use": text}})
+    assert AssessmentRequest(**d).foods[0].residue_management.removed_residue_use == expected
+
+
+def test_unknown_removed_residue_use_rejected():
+    _rejects(_farm(**{"foods.0.residue_management": {"fraction_removed": 0.5,
+                                                      "removed_residue_use": "teleported"}}),
+             "removed_residue_use")
+
+
+def test_processing_effluent_concentrations():
+    from engine.process_inputs import EFFLUENT_FIELDS
+    d = json.loads(json.dumps(FRONTEND_PROCESSING_PAYLOAD))
+    conc = {k: 100.0 for k in EFFLUENT_FIELDS}
+    d["processing_operations"]["water_management"].update(conc)
+    r = ProcessingAssessmentRequest(**d)
+    dumped = r.model_dump(mode="json")["processing_operations"]["water_management"]
+    assert {k: dumped[k] for k in EFFLUENT_FIELDS} == conc      # names match the engine's keys
+    d["processing_operations"]["water_management"]["effluent_cod_mg_per_l"] = -1
+    with pytest.raises(ValidationError):
+        ProcessingAssessmentRequest(**d)
+    legacy = ProcessingAssessmentRequest(**FRONTEND_PROCESSING_PAYLOAD)
+    assert legacy.processing_operations.water_management.effluent_cod_mg_per_l is None
+
+
+@pytest.mark.parametrize("est", [{"immature_years": 3}, {"productive_years": 25},
+                                 {"immature_years": 0, "productive_years": 20}])
+def test_establishment_years_on_annual_crop_rejected(est):
+    _rejects(_farm(**{"foods.0.establishment": est}), "perennial crops only")
+
+
+@pytest.mark.parametrize("est", [{}, {"immature_years": None, "productive_years": None},
+                                 {"input_share": 0.2}])
+def test_empty_establishment_on_annual_crop_validates(est):
+    AssessmentRequest(**_farm(**{"foods.0.establishment": est}))
+
+
+@pytest.mark.parametrize("name,category", [("Cocoa", "Other"), ("Oil palm", "Oils"),
+                                           ("Shea", "Nuts")])
+def test_establishment_years_on_perennial_accepted(name, category):
+    d = _farm(**{"foods.0.name": name, "foods.0.category": category,
+                 "foods.0.crop_type": None, "foods.0.variety": None,
+                 "foods.0.establishment": {"immature_years": 3, "productive_years": 25}})
+    r = AssessmentRequest(**d)
+    assert r.foods[0].establishment.productive_years == 25
+
+
+def test_null_crops_per_year_defaults_to_one():
+    assert AssessmentRequest(**_farm(**{"foods.0.crops_per_year": None})).foods[0].crops_per_year == 1

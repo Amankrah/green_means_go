@@ -98,18 +98,33 @@ def test_recharacterize_from_payload_uses_stored_inventory():
             {"id": "1", "name": "Maize", "quantity_kg": 1000, "category": "Cereals", "area_allocated": 1.0},
         ],
     }
+    flows = {uid: {"name": r.get("name"), "unit": r.get("unit"), "amount": r.get("amount")}
+             for uid, r in inv.items()}
+    # Deliberate behaviour (engine/service.py): without per-source flows the contribution
+    # split and MC cannot be rebuilt for the new method, so it returns None (full re-solve).
+    assert recharacterize_from_payload({"id": "saved-0", "engine_inventory": flows},
+                                       assessment, EF, region="GH") is None
     payload = {
         "id": "saved-1",
-        "engine_inventory": {
-            uid: {"name": r.get("name"), "unit": r.get("unit"), "amount": r.get("amount")}
-            for uid, r in inv.items()
-        },
+        "engine_inventory": flows,
+        "engine_inventory_by_source": {"urea fertiliser": flows},
+        "input_matches": [{"input": "urea fertiliser", "matched": "urea", "estimated": False}],
     }
     out = recharacterize_from_payload(payload, assessment, EF, region="GH")
     assert out is not None
     gwp = out["midpoint_impacts"]["Global warming"]["value"]
     assert math.isfinite(gwp) and gwp > 0
     assert out["lcia_method"] == EF
+    # EF 3.1: all 16 categories reach the official weighted single score.
+    assert out["single_score"]["label"].startswith("EF 3.1")
+    from engine import adapter
+    assert abs(sum(adapter.EF_WEIGHTS.values()) - 1.0) < 1e-9 and len(adapter.EF_WEIGHTS) == 16
+    used = out["single_score"]["weighting_factors"]
+    assert used and all(abs(adapter.EF_WEIGHTS[c] - w) < 1e-12 for c, w in used.items())
+    assert "Terrestrial eutrophication" in out["midpoint_impacts"]
+    if "Water consumption" in out["midpoint_impacts"]:
+        assert "Water scarcity (AWARE)" not in out["midpoint_impacts"]   # EF water use IS AWARE
+    assert "§4.4.5" in out["single_score"]["iso_14044_disclosure"]
 
 
 def test_run_farm_assessment_respects_method_override():

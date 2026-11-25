@@ -17,7 +17,9 @@ Conversions:
 Sources:
   IPCC 2006 Guidelines Vol 2 (Energy) Ch 1 Table 1.2: default net calorific values (TJ/Gg =
       MJ/kg): gas/diesel oil 43.0, motor gasoline 44.3, other kerosene 43.8, LPG 47.3,
-      natural gas 48.0, wood/wood waste 15.6, charcoal 29.5, biodiesels 27.0.
+      natural gas 48.0, wood/wood waste 15.6, charcoal 29.5.
+  Biodiesel (FAME) 37 MJ/kg: Directive (EU) 2018/2001 (RED II) Annex III. The IPCC
+      'biodiesels' default (27.0, range 13.6-54.0) is well below FAME's physical LHV.
   Densities (kg/L): diesel 0.837, gasoline 0.741, LPG 0.533 as tabulated with the IPCC
       factors in FAO EX-ACT v9.4.2 ('IPCC' sheet, fuel table rows 1727-1735); kerosene
       0.80 and biodiesel 0.88 are typical product densities (UK DESNZ GHG Conversion
@@ -28,6 +30,7 @@ from __future__ import annotations
 SRC_NCV = "IPCC 2006 Vol 2 Ch 1 Table 1.2 (default NCV)"
 SRC_DENS = "FAO EX-ACT v9.4.2 'IPCC' sheet fuel densities"
 SRC_DENS_DESNZ = "UK DESNZ GHG Conversion Factors, fuel properties (typical density)"
+SRC_RED2 = "Directive (EU) 2018/2001 (RED II) Annex III, biodiesel (FAME) 37 MJ/kg"
 
 # substance -> {lhv MJ/kg, density kg/L, sources}
 FUELS: dict[str, dict] = {
@@ -38,7 +41,7 @@ FUELS: dict[str, dict] = {
     "natural gas": {"lhv": 48.0, "density": None, "src": SRC_NCV},
     "firewood":    {"lhv": 15.6, "density": None, "src": SRC_NCV},
     "charcoal":    {"lhv": 29.5, "density": None, "src": SRC_NCV},
-    "biodiesel":   {"lhv": 27.0, "density": 0.88, "src": f"{SRC_NCV}; {SRC_DENS_DESNZ}"},
+    "biodiesel":   {"lhv": 37.0, "density": 0.88, "src": f"{SRC_RED2}; {SRC_DENS_DESNZ}"},
     "water":       {"lhv": None, "density": 1.0, "src": "water density 1 kg/L"},
 }
 

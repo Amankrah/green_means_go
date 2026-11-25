@@ -29,6 +29,27 @@ pub struct FoodItem {
     // (no removal, no burning, annual renewal).
     #[serde(default)]
     pub residue_management: Option<ResidueManagement>,
+
+    // Seasonality (fix-team CONTRACT §1). quantity_kg is the ANNUAL total over
+    // crops_per_year harvests on area_allocated; per-season inputs and rice CH4 scale by it.
+    #[serde(default)]
+    pub crops_per_year: Option<u32>,
+    /// One season, planting to harvest (rice CH4 cultivation period t, IPCC 2019 Eq 5.1).
+    #[serde(default)]
+    pub growing_period_days: Option<f64>,
+    /// Rice only: IPCC 2019 Vol 4 Ch 5 Table 5.12 water regime (contract vocabulary).
+    #[serde(default)]
+    pub water_regime: Option<String>,
+    /// Rice only: IPCC 2019 Vol 4 Ch 5 Table 5.13 pre-season water status.
+    #[serde(default)]
+    pub preseason_water_status: Option<String>,
+}
+
+impl FoodItem {
+    /// Harvests per year on area_allocated (>= 1; blank -> 1).
+    pub fn crops_per_year(&self) -> f64 {
+        self.crops_per_year.unwrap_or(1).max(1) as f64
+    }
 }
 
 /// Per-crop residue management (IPCC 2019 Vol 4 Ch 11 Eq 11.6). All fractions 0..1.
@@ -123,7 +144,9 @@ pub struct Assessment {
 /// IPCC 2019 Refinement Vol 4 Ch 11 soil-N2O parameters used by the LCI kernel.
 /// Defaults are the AGGREGATED Tier 1 values (Table 11.1 and Table 11.3, 2019 Refinement);
 /// the Python engine overrides them with the region's disaggregated (wet/dry) values.
+/// Missing keys take the default (serde(default)), so a partial object still parses.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct FieldParameters {
     /// EF1 for synthetic fertiliser N (Table 11.1: aggregated 0.010, wet 0.016, dry 0.005).
     pub ef1_synthetic: f64,
@@ -140,6 +163,20 @@ pub struct FieldParameters {
     pub ef4: f64,
     /// EF5 (Table 11.3: 0.011).
     pub ef5: f64,
+    /// FracGASF disaggregated by fertiliser type (Table 11.3 updated; categories per
+    /// Annex 11A.7): urea 0.15, ammonium-based 0.08, nitrate-based 0.01,
+    /// ammonium-nitrate-based 0.05. Unclassified types (NPK of unknown N form) use frac_gasf.
+    pub frac_gasf_urea: f64,
+    pub frac_gasf_ammonium: f64,
+    pub frac_gasf_nitrate: f64,
+    pub frac_gasf_ammonium_nitrate: f64,
+    /// Rice CH4 baseline daily EF, continuously flooded, no organic amendment, non-flooded
+    /// pre-season < 180 d: IPCC 2019 Vol 4 Ch 5 Table 5.11 (updated) 1.19 kg CH4/ha/day
+    /// (0.80-1.76); Africa uses the global value "due to lack of data".
+    pub rice_ch4_efc: f64,
+    /// Default rice cultivation period when growing_period_days is blank: IPCC 2019 Vol 4
+    /// Ch 5 Table 5.11a (new) 113 days (74-152), the global value also given for Africa.
+    pub rice_cultivation_days: f64,
 }
 
 impl Default for FieldParameters {
@@ -152,6 +189,12 @@ impl Default for FieldParameters {
             frac_leach: 0.24,
             ef4: 0.010,
             ef5: 0.011,
+            frac_gasf_urea: 0.15,
+            frac_gasf_ammonium: 0.08,
+            frac_gasf_nitrate: 0.01,
+            frac_gasf_ammonium_nitrate: 0.05,
+            rice_ch4_efc: 1.19,
+            rice_cultivation_days: 113.0,
         }
     }
 }
@@ -204,6 +247,26 @@ pub struct SoilManagement {
     pub compost_source: Option<String>,
     pub conservation_practices: Vec<String>,
     pub soil_testing_frequency: Option<String>,
+    /// t fresh compost/manure per ha per year (compost N2O is modelled in Python; the
+    /// kernel reads it only for the rice CH4 organic-amendment factor SFo).
+    #[serde(default)]
+    pub compost_application_rate: Option<f64>,
+    /// foods[].id receiving compost; empty = all crops.
+    #[serde(default)]
+    pub compost_crop_ids: Vec<String>,
+    #[serde(default)]
+    pub lime_applications: Vec<LimeApplication>,
+}
+
+/// Agricultural liming (IPCC 2006 Vol 4 Ch 11 Eq 11.12).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LimeApplication {
+    /// "limestone" (CaCO3) or "dolomite" (CaMg(CO3)2).
+    pub material: String,
+    pub rate_t_per_ha_per_year: f64,
+    /// foods[].id receiving the lime; empty = all crops.
+    #[serde(default)]
+    pub crop_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -230,10 +293,19 @@ pub struct FertilizationPractices {
 pub struct FertilizerApplication {
     pub fertilizer_type: String,
     pub npk_ratio: Option<String>, // e.g., "15-15-15"
-    pub application_rate: f64, // kg/hectare/season
+    pub application_rate: f64, // kg product per hectare PER APPLICATION
     pub applications_per_season: u32,
     pub cost: Option<f64>,
     pub currency: Option<Currency>,
+    /// "broadcast" | "incorporated" | "band_placement" | "side_dressing" | "foliar" |
+    /// "fertigation" (disclosure only: no cited Tier 1 NH3 reduction is applied).
+    #[serde(default)]
+    pub application_method: Option<String>,
+    #[serde(default)]
+    pub brand_name: Option<String>,
+    /// foods[].id this row applies to; empty = all crops.
+    #[serde(default)]
+    pub crop_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -441,6 +513,11 @@ pub struct LciFlow {
     pub unit: String,
     pub compartment: String,   // "air" | "water" | "soil" | "resource"
     pub source: String,        // which input caused this emission
+    /// "field" (direct on-farm emission or resource use), "upstream" (production of
+    /// purchased inputs), "energy" (on-farm fuel/electricity combustion) or "aggregated"
+    /// (pre-characterised CO2-eq). Python keeps "field" only; never parse `source`.
+    #[serde(default)]
+    pub category: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -466,6 +543,11 @@ pub struct LCAResults {
     // type that was given zero N). Surfaced by the Python engine in the assessment output.
     #[serde(default)]
     pub lci_warnings: Vec<String>,
+
+    // Modelling disclosures (inferred rice water regime, default cultivation period,
+    // methods declared but not modelled, ...). Reported as notes, not warnings.
+    #[serde(default)]
+    pub lci_notes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -786,15 +868,20 @@ pub struct ResourceScarcityFactors {
     pub nutrient_scarcity_africa: f64,
 }
 
+/// DEPRECATED legacy Rust LCIA (USE_LEGACY_RUST_LCIA). The served path characterises the
+/// kernel's `lci_inventory` in Python with the ecoinvent EF 3.1 / ReCiPe 2016 method packs.
+/// The GWP100 values are kept on ONE basis, IPCC AR6 WG1 Ch 7 Table 7.15 (CH4 fossil 29.8,
+/// CH4 non-fossil 27.0, N2O 273); rice CH4 is non-fossil. The other factors below are
+/// unreviewed legacy screening values.
 impl Default for CharacterizationFactors {
     fn default() -> Self {
         Self {
             global_warming: GlobalWarmingFactors {
                 co2: 1.0,
-                ch4_fossil: 30.0,
-                ch4_biogenic: 28.0,
+                ch4_fossil: 29.8,
+                ch4_biogenic: 27.0,
                 n2o: 273.0,
-                ch4_rice: 28.0,
+                ch4_rice: 27.0,
             },
             water_scarcity: WaterScarcityFactors {
                 ghana_aware: 20.0,

@@ -15,6 +15,21 @@ def test_perfect_pedigree_and_basic_is_unity():
     assert gsd_from_pedigree(scores, 1.0) == 1.0
 
 
+def test_pedigree_terms_are_weidema_2013_variances_not_double_squared():
+    """ecoinvent v3: sigma^2 = sigma_b^2 + sum sigma_i^2 with Weidema 2013 Table 10.5 variances,
+    which equal (ln U / 2)^2 of the v2 factors U (factors on GSD^2, the 95 % interval)."""
+    import math
+    from engine.pedigree import PEDIGREE_VARIANCE
+    assert PEDIGREE_VARIANCE["reliability"] == [0.0, 0.0006, 0.002, 0.008, 0.04]
+    assert PEDIGREE_VARIANCE["technological"][4] == 0.12
+    assert abs((math.log(1.5) / 2) ** 2 - 0.04) < 0.002          # v2 U=1.5 <-> v3 0.04
+    worst = {k: 5 for k in PEDIGREE_VARIANCE}
+    expected = math.exp(math.sqrt(sum(v[4] for v in PEDIGREE_VARIANCE.values())))
+    assert abs(gsd_from_pedigree(worst, 1.0) - expected) < 1e-12
+    # basic GSD enters as a true 1-sigma term
+    assert abs(gsd_from_pedigree({k: 1 for k in PEDIGREE_VARIANCE}, 1.2) - 1.2) < 1e-12
+
+
 def test_worse_scores_increase_gsd():
     best = {k: 1 for k in ("reliability", "completeness", "temporal", "geographical", "technological")}
     worst = {k: 5 for k in best}

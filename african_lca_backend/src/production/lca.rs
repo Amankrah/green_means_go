@@ -1,3 +1,7 @@
+//! Legacy Rust LCA engine. Only `lci_inventory` / `lci_warnings` / `lci_notes` (the field
+//! LCI kernel output) are used by the served Python path; every midpoint, endpoint and
+//! single-score value computed here is DEPRECATED legacy LCIA (unreviewed factors).
+
 use crate::models::*;
 use crate::production::lci::{LCICalculator, InventoryItem, EnvironmentalCompartment};
 use crate::production::lci_extended::LCIExtendedCharacterization;
@@ -19,6 +23,7 @@ fn inventory_to_flows(inv: &HashMap<String, InventoryItem>) -> Vec<LciFlow> {
             EnvironmentalCompartment::Resource => "resource",
         }.to_string(),
         source: it.source.clone(),
+        category: it.category.as_str().to_string(),
     }).collect()
 }
 
@@ -152,6 +157,7 @@ impl AfricanLCAEngine {
             recommendations: None, // TODO: Implement recommendations
             lci_inventory: Some(inventory_to_flows(&inventory)),
             lci_warnings: self.lci_calculator.warnings().to_vec(),
+            lci_notes: self.lci_calculator.notes().to_vec(),
         });
 
         info!("Comprehensive assessment completed for {}", assessment.company_name);
@@ -229,6 +235,7 @@ impl AfricanLCAEngine {
             recommendations: None, // TODO: Implement recommendations
             lci_inventory: Some(inventory_to_flows(&inventory)),
             lci_warnings: self.lci_calculator.warnings().to_vec(),
+            lci_notes: self.lci_calculator.notes().to_vec(),
         });
 
         info!("Enhanced assessment completed for {}", assessment.company_name);

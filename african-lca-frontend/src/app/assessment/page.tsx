@@ -36,12 +36,11 @@ import {
   getPreviousStep,
   validateTotalAllocation,
   blankFarmAssessmentForm,
+  restoreFormSnapshot,
 } from '@/lib/enhanced-assessment-schema';
 import {
   FormStep,
   EnhancedAssessmentRequest,
-  ApplicationMethod,
-  TimingStrategy,
   TillageSystem,
   HarvestingMethod,
   MechanizationLevel,
@@ -117,7 +116,7 @@ function ComprehensiveAssessmentPage({
           return;
         }
         setRerunId(archive.id);
-        const form = archive.form as EnhancedAssessmentFormData;
+        const form = restoreFormSnapshot(archive.form);
         methods.reset(form);
         if (form.farmProfile?.farmName) {
           setLinkedFarmName(form.farmProfile.farmName);
@@ -317,33 +316,30 @@ function ComprehensiveAssessmentPage({
         intercroppingRatio: crop.intercroppingRatio,
         rotationSequence: crop.rotationSequence,
         rotationDuration: crop.rotationDuration,
-        averageYieldPerHectare: crop.averageYieldPerHectare,
+        averageYieldPerHectare: crop.areaAllocated > 0 ? crop.annualProduction / crop.areaAllocated : undefined,
         postHarvestLosses: crop.postHarvestLosses,
         seedRateKgPerHa: crop.seedRateKgPerHa,
+        waterRegime: crop.waterRegime,
+        preseasonWaterStatus: crop.preseasonWaterStatus,
         landUseChange: crop.landUseChange,
         residueManagement: crop.residueManagement,
         establishment: crop.establishment,
         qualityGrades: [] // Default to empty array, can be enhanced later
       })),
       managementPractices: {
-        soilManagement: {
-          ...data.managementPractices.soilManagement,
-          soilpH: data.managementPractices.soilManagement.soilpH || 6.5, // Default pH if not provided
-          organicMatterContent: data.managementPractices.soilManagement.organicMatterContent || 2.0 // Default organic matter
-        },
+        // Unknown soil pH / organic matter stay blank: they are sent to the engine now, so a
+        // default here would be reported as the farmer's measurement.
+        soilManagement: data.managementPractices.soilManagement,
         fertilization: {
           ...data.managementPractices.fertilization,
           fertilizerApplications: data.managementPractices.fertilization.fertilizerApplications?.map(fert => ({
             ...fert,
             cost: fert.cost || 0 // Provide default cost
           })) || [],
-          applicationMethod: data.managementPractices.fertilization.applicationMethod || ApplicationMethod.BROADCAST,
-          timingStrategy: data.managementPractices.fertilization.timingStrategy || TimingStrategy.AT_PLANTING
         },
         waterManagement: {
           ...data.managementPractices.waterManagement,
           waterUseEfficiency: [], // Default to empty, can be enhanced later
-          waterConservationPractices: [] // Default to empty enum array, can be enhanced later
         },
         pestManagement: {
           primaryPests: data.pestManagement?.primaryPests || [],

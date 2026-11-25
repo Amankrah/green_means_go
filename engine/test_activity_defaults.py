@@ -104,6 +104,50 @@ def test_non_ghana_skips_table() -> None:
     print("[ok] non-Ghana assessments skip the Ghana table")
 
 
+def test_no_default_diesel_when_tractor_declared() -> None:
+    """Diesel estimated from a declared tractor class covers field operations: the regional
+    default diesel must not be added on top (audit 3.8)."""
+    a = _base(equipment=[{
+        "equipment_type": "Medium Tractor (40-100HP)", "power_source": "Diesel engine",
+        "age": 5, "hours_per_year": 100,
+    }])
+    inputs, notes = extract_purchased_inputs(a)
+    fuel = [i for i in inputs if i.get("kind") == "fuel"]
+    assert len(fuel) == 1 and fuel[0].get("source_equipment")
+    assert not any((i.get("estimate_meta") or {}).get("activity") == "diesel_l" for i in inputs)
+    assert not any("estimated diesel" in n for n in notes)
+
+
+def test_lpg_for_cooking_does_not_suppress_field_diesel_default() -> None:
+    a = _base(production_system="Irrigated", irrigation_system="Bucket/Manual Irrigation",
+              equipment=[{"equipment_type": "Medium Tractor (40-100HP)", "power_source": "Diesel engine",
+                          "age": 5, "hours_per_year": 0, "fuel_efficiency": 8.0},
+                         {"equipment_type": "Planter/Seeder", "power_source": "Diesel engine",
+                          "age": 5, "hours_per_year": 0, "fuel_efficiency": 3.0}],
+              fuel_consumption=[{"fuel_type": "Liquefied Petroleum Gas (LPG)", "monthly_consumption": 6,
+                                 "unit": "kg", "primary_use": "Cooking"}])
+    inputs, notes = extract_purchased_inputs(a)
+    assert any((i.get("estimate_meta") or {}).get("activity") == "diesel_l" for i in inputs)
+
+
+def test_pumped_default_does_not_stack_on_pumping_estimate() -> None:
+    """Drip irrigation without a declared pump gets the ecoinvent per-m3 pumping energy; the
+    activity default then uses the rainfed row (the irrigated rows include pump energy)."""
+    a = _base(production_system="Irrigated", irrigation_system="Drip Irrigation",
+              equipment=[{"equipment_type": "Tractor", "power_source": "Diesel", "age": 5,
+                          "hours_per_year": 100},
+                         {"equipment_type": "Sprayer", "power_source": "Diesel", "age": 5,
+                          "hours_per_year": 50}])
+    inputs, notes = extract_purchased_inputs(a)
+    assert [i for i in inputs if i.get("kind") == "irrigation_energy"]
+    default = [i for i in inputs if (i.get("estimate_meta") or {}).get("activity") == "diesel_l"]
+    assert len(default) == 1 and default[0]["estimate_meta"]["row_id"] == "rainfed_full"
+    assert not any((i.get("estimate_meta") or {}).get("activity") == "electricity_kwh" for i in inputs)
+    assert any("pumping is already accounted for" in n for n in notes)
+    r = resolve_energy_defaults(a)
+    assert r["row_id"] == "irrigated_full"        # without the flag the irrigated row applies
+
+
 def test_rust_estimated_co2_dropped() -> None:
     simulated = {"results": {"lci_inventory": [
         {"substance": "Carbon dioxide (CO2)", "quantity": 400.0, "unit": "kg",

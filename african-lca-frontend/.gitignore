@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Agent coordination scratch (never commit)
+.fix_team/
+.scratch_sensitivity/

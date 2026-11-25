@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import ClassVar, List, Literal, Optional, Dict, Union, Any
+from typing import Annotated, ClassVar, List, Literal, Optional, Dict, Union, Any, get_args
 from datetime import datetime
 from enum import Enum
 
@@ -250,6 +250,103 @@ MAX_IRRIGATION_M3 = 1e9
 MAX_MONTHLY_CONSUMPTION = 1e6
 MAX_QUANTITY_KG = 1e9
 MAX_TEXT = 120
+MAX_LIME_RATE_T_HA = 20.0
+MAX_REFRIGERANT_CHARGE_KG = 10_000.0
+MAX_STORAGE_TONNES = 1e7
+
+Month = Annotated[int, Field(ge=1, le=12)]
+ShortText = Annotated[str, Field(max_length=MAX_TEXT)]
+
+# Snake_case on the wire (.fix_team/CONTRACT.md §1). Rice only: IPCC 2019 Vol 4 Ch 5
+# Table 5.12 (SFw) and Table 5.13 (SFp); the engine infers a blank value and discloses it.
+WaterRegime = Literal[
+    "upland", "irrigated_continuously_flooded", "irrigated_single_drainage",
+    "irrigated_multiple_drainage", "rainfed_regular", "rainfed_drought_prone", "deep_water",
+]
+PreseasonWaterStatus = Literal["non_flooded_lt_180d", "non_flooded_gt_180d", "flooded_gt_30d"]
+ApplicationMethod = Literal[
+    "broadcast", "incorporated", "band_placement", "side_dressing", "foliar", "fertigation",
+]
+LimeMaterial = Literal["limestone", "dolomite"]
+ResidueUse = Literal["sold", "fed", "fed_to_own_livestock", "left_on_farm", "fuel", "other"]
+_RESIDUE_USE_RULES = [
+    (("own livestock", "own animals"), "fed_to_own_livestock"),
+    (("sold", "sell", "sale"), "sold"),
+    (("fed", "feed", "fodder", "livestock"), "fed"),
+    (("left", "mulch", "retained", "on farm"), "left_on_farm"),
+    (("fuel", "burned for", "cooking", "firewood"), "fuel"),
+]
+
+# Wizard labels (enhanced-assessment.ts ApplicationMethod) -> contract values. Order
+# matters: "Precision Application" and "Deep placement" are placements, not broadcasts.
+_APPLICATION_METHOD_RULES = [
+    (("fertigat",), "fertigation"),
+    (("foliar", "leaf spray"), "foliar"),
+    (("side dress", "sidedress", "side dressing", "top dress"), "side_dressing"),
+    (("band", "placement", "precision"), "band_placement"),
+    (("incorporat", "plough in", "plow in", "buried", "worked in"), "incorporated"),
+    (("broadcast", "surface", "spread", "scatter"), "broadcast"),
+]
+_WATER_REGIME_RULES = [
+    (("upland", "dryland"), "upland"),
+    (("awd", "alternate wetting", "multiple drainage", "intermittent"), "irrigated_multiple_drainage"),
+    (("single drainage",), "irrigated_single_drainage"),
+    (("continuous", "flooded", "flood"), "irrigated_continuously_flooded"),
+    (("drought",), "rainfed_drought_prone"),
+    (("rainfed", "rain fed", "lowland rainfed"), "rainfed_regular"),
+    (("deep water", "deepwater", "floating"), "deep_water"),
+]
+_LIME_RULES = [
+    (("dolomit", "magnesian"), "dolomite"),
+    (("limestone", "calcitic", "calcium carbonate", "caco3", "agricultural lime", "ag lime",
+      "aglime", "lime"), "limestone"),
+]
+
+
+def _resolve_literal(field: str, value, literal_type, rules=()):
+    """Literal counterpart of _resolve_vocab: exact (case/space/underscore-insensitive)
+    match on the contract value, then keyword rules. Unknown -> ValueError (422)."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    allowed = get_args(literal_type)
+    low = _norm_text(text)
+    for a in allowed:
+        if _norm_text(a) == low:
+            return a
+    for keywords, canonical in rules:
+        if any(k in low for k in keywords):
+            return canonical
+    raise ValueError(f"{field} '{text}' is not recognised. Use one of: {', '.join(allowed)}")
+
+
+def _dedup_months(v: List[int]) -> List[int]:
+    out: List[int] = []
+    for m in v:
+        if m not in out:
+            out.append(m)
+    return out
+
+
+def _clean_text_list(v) -> List[str]:
+    if v is None:
+        return []
+    if isinstance(v, str):
+        v = [v]
+    out: List[str] = []
+    for item in v:
+        s = str(item).strip() if item is not None else ""
+        if s and s not in out:
+            out.append(s)
+    return out
+
+
+def is_none_fertiliser(fertilizer_type: Optional[str]) -> bool:
+    """A fertiliser row whose type is "None" is a wizard placeholder; the engine skips it
+    entirely (CONTRACT §1), so it never counts as a real application here either."""
+    return str(fertilizer_type or "").strip().lower() == "none"
 
 
 # Enhanced models for comprehensive assessments
@@ -263,19 +360,51 @@ class FarmProfile(StrictModel):
     certifications: List[str] = []
     participates_in_programs: List[str] = []
 
+class LimeApplication(StrictModel):
+    """Agricultural liming: IPCC 2019 Vol 4 Ch 11 Eq 11.12 CO2 + purchased lime dataset."""
+    material: LimeMaterial
+    rate_t_per_ha_per_year: float = Field(ge=0, le=MAX_LIME_RATE_T_HA)
+    crop_ids: List[str] = []    # foods[].id receiving the lime; [] = all crops
+
+    @field_validator("material", mode="before")
+    @classmethod
+    def _material_vocab(cls, v):
+        return _resolve_literal("lime material", v, LimeMaterial, _LIME_RULES)
+
+    @field_validator("crop_ids", mode="before")
+    @classmethod
+    def _crop_ids(cls, v):
+        return _clean_text_list(v)
+
+
 class SoilManagement(StrictModel):
     soil_type: Optional[SoilType] = None
     uses_compost: bool = False
     compost_source: Optional[CompostSource] = None
     # tonnes/ha/year (organic N -> field N2O). Read only when uses_compost is true.
     compost_application_rate: Optional[float] = Field(default=None, ge=0, le=MAX_COMPOST_RATE_T_HA)
+    # foods[].id receiving compost; [] = all crops.
+    compost_crop_ids: List[str] = []
+    # Keyword-matched by the engine (no-till, minimum tillage, mulch, terrac, contour, bund).
     conservation_practices: List[str] = []
     soil_testing_frequency: Optional[str] = Field(default=None, max_length=MAX_TEXT)
+    soil_ph: Optional[float] = Field(default=None, ge=3, le=10)               # EMEP NH3 pH class
+    organic_matter_pct: Optional[float] = Field(default=None, ge=0, le=100)   # disclosure
+    cover_crops: bool = False
+    # Years since the current tillage/input practices were adopted. SOC change is booked
+    # only inside the IPCC 20-year transition (2019 Vol 4 Ch 2 Eq 2.25); blank -> not booked.
+    practices_adopted_years_ago: Optional[int] = Field(default=None, ge=0, le=100)
+    lime_applications: List[LimeApplication] = []
 
     @field_validator("compost_source", mode="before")
     @classmethod
     def _compost_source_vocab(cls, v):
         return _resolve_vocab("compost_source", v, _COMPOST_SOURCE_RULES, CompostSource)
+
+    @field_validator("compost_crop_ids", "conservation_practices", mode="before")
+    @classmethod
+    def _text_lists(cls, v):
+        return _clean_text_list(v)
 
     @model_validator(mode="after")
     def _compost_consistency(self):
@@ -291,25 +420,47 @@ class FertilizerApplication(StrictModel):
     # Free text by design: trade names are classified by the intelligence layer.
     fertilizer_type: str = Field(min_length=1, max_length=MAX_TEXT)
     npk_ratio: Optional[str] = Field(default=None, max_length=20)  # e.g., "15-15-15"
-    application_rate: float = Field(ge=0, le=MAX_FERTILISER_RATE_KG_HA)  # kg/hectare/season
+    # kg product/ha per application; seasonal = rate x applications_per_season, annual =
+    # seasonal x foods[].crops_per_year. A type of "None" is skipped by the engine.
+    application_rate: float = Field(ge=0, le=MAX_FERTILISER_RATE_KG_HA)
     applications_per_season: int = Field(ge=0, le=MAX_APPLICATIONS_PER_SEASON)
     cost: Optional[float] = Field(default=None, ge=0)
+    application_method: Optional[ApplicationMethod] = None   # EMEP/EEA Tier 2 NH3
+    brand_name: Optional[str] = Field(default=None, max_length=MAX_TEXT)
+    crop_ids: List[str] = []    # foods[].id this row applies to; [] = all crops
 
-    @field_validator("fertilizer_type", "npk_ratio", mode="before")
+    @field_validator("fertilizer_type", "npk_ratio", "brand_name", mode="before")
     @classmethod
     def _strip(cls, v):
         return v.strip() if isinstance(v, str) else v
+
+    @field_validator("application_method", mode="before")
+    @classmethod
+    def _method_vocab(cls, v):
+        return _resolve_literal("application_method", v, ApplicationMethod,
+                                _APPLICATION_METHOD_RULES)
+
+    @field_validator("crop_ids", mode="before")
+    @classmethod
+    def _crop_ids(cls, v):
+        return _clean_text_list(v)
+
+    @property
+    def is_real_application(self) -> bool:
+        return (not is_none_fertiliser(self.fertilizer_type)
+                and self.application_rate > 0 and self.applications_per_season > 0)
 
 class FertilizationPractices(StrictModel):
     uses_fertilizers: bool = False
     fertilizer_applications: List[FertilizerApplication] = []
     soil_test_based: bool = False
     follows_nutrient_plan: bool = False
+    timing_strategy: Optional[str] = Field(default=None, max_length=MAX_TEXT)   # report-only
 
     @model_validator(mode="after")
     def _flag_matches_rows(self):
-        real = [a for a in self.fertilizer_applications
-                if a.application_rate > 0 and a.applications_per_season > 0]
+        # Rows of type "None" are placeholders the engine skips, so they never count.
+        real = [a for a in self.fertilizer_applications if a.is_real_application]
         if not self.uses_fertilizers and real:
             # The Python extractor counted these while the kernel skipped their field N2O:
             # two layers disagreed. Make the caller say which it is.
@@ -318,7 +469,8 @@ class FertilizationPractices(StrictModel):
                              "uses_fertilizers to true or remove the rows")
         if self.uses_fertilizers and not real:
             raise ValueError("uses_fertilizers is true but no fertilizer application has a "
-                             "positive rate and at least one application per season")
+                             "fertilizer type other than 'None', a positive rate and at least "
+                             "one application per season")
         return self
 
 class WaterManagement(StrictModel):
@@ -332,6 +484,7 @@ class WaterManagement(StrictModel):
     irrigation_water_m3: Optional[float] = Field(default=None, ge=0, le=MAX_IRRIGATION_M3)
     # Report-only metadata (echoed in the ISO report; does not change the numbers).
     water_conservation_practices: List[str] = []
+    drainage_system: Optional[str] = Field(default=None, max_length=MAX_TEXT)
 
     @field_validator("water_source", mode="before")
     @classmethod
@@ -361,16 +514,24 @@ class PesticideApplication(StrictModel):
     # for the AI (engine/pesticides.py) or, if unknown, 1.0 (conservative upper bound).
     active_ingredient_content: Optional[float] = Field(default=None, gt=0, le=1.0)
     target_pests: List[str] = []     # report-only metadata
+    # Second key for the active-ingredient synonym lookup (engine/pesticides.py).
+    brand_name: Optional[str] = Field(default=None, max_length=MAX_TEXT)
+    crop_ids: List[str] = []    # foods[].id this product is applied to; [] = all crops
 
     @field_validator("pesticide_type", mode="before")
     @classmethod
     def _pesticide_type_vocab(cls, v):
         return _resolve_vocab("pesticide_type", v, _PESTICIDE_TYPE_RULES, PesticideType)
 
-    @field_validator("active_ingredient", mode="before")
+    @field_validator("active_ingredient", "brand_name", mode="before")
     @classmethod
     def _strip_ai(cls, v):
         return v.strip() if isinstance(v, str) else v
+
+    @field_validator("crop_ids", mode="before")
+    @classmethod
+    def _crop_ids(cls, v):
+        return _clean_text_list(v)
 
 class PestManagement(StrictModel):
     # The wizard historically posted `pesticides_used` / `monitoring_frequency` (the Rust
@@ -384,6 +545,12 @@ class PestManagement(StrictModel):
     uses_ipm: bool = False
     pesticides: List[PesticideApplication] = []
     pest_monitoring_frequency: Optional[str] = None
+    # Report-only metadata (ISO report / recommendations; no inventory effect).
+    primary_pests: List[ShortText] = []
+    primary_diseases: List[ShortText] = []
+    ipm_practices: List[ShortText] = []
+    biological_controls: List[ShortText] = []
+    uses_economic_thresholds: bool = False
 
 class ManagementPractices(StrictModel):
     soil_management: SoilManagement
@@ -465,10 +632,31 @@ class FuelUsage(StrictModel):
     def _unit(cls, v):
         return _normalise_unit(v, ("L", "kg"), "fuel")
 
+class StorageInfo(StrictModel):
+    """On-farm storage. Facilities use the wizard's StorageFacilityType labels. With
+    "Cold Storage" plus refrigerant and charge, the engine books annual refrigerant leakage
+    (engine/refrigerants.py); cold-store electricity must be entered in energy_sources."""
+    facilities: List[ShortText] = []
+    capacity_tonnes: Optional[float] = Field(default=None, ge=0, le=MAX_STORAGE_TONNES)
+    refrigerant: Optional[str] = Field(default=None, max_length=MAX_TEXT)
+    refrigerant_charge_kg: Optional[float] = Field(default=None, ge=0, le=MAX_REFRIGERANT_CHARGE_KG)
+
+    @field_validator("facilities", mode="before")
+    @classmethod
+    def _facilities(cls, v):
+        return _clean_text_list(v)
+
+    @field_validator("refrigerant", mode="before")
+    @classmethod
+    def _strip(cls, v):
+        return v.strip() if isinstance(v, str) else v
+
+
 class EquipmentEnergy(StrictModel):
     equipment: List[FarmEquipment] = []
     energy_sources: List[EnergyUsage] = []
     fuel_consumption: List[FuelUsage] = []
+    storage: Optional[StorageInfo] = None
 
 
 class FarmLogistics(StrictModel):
@@ -494,6 +682,15 @@ class ResidueManagement(StrictModel):
     """Read by WS1's field model: crop-residue N2O and burning."""
     fraction_removed: float = Field(default=0.0, ge=0.0, le=1.0)
     fraction_burnt: float = Field(default=0.0, ge=0.0, le=1.0)
+    # Fate of the removed residues. "sold" / "fed" / "fed_to_own_livestock" make straw a
+    # co-product (economic allocation, engine/adapter.py, ISO 14044 §4.3.4.2); otherwise
+    # 100% of the burden stays with the main product.
+    removed_residue_use: Optional[ResidueUse] = None
+
+    @field_validator("removed_residue_use", mode="before")
+    @classmethod
+    def _residue_use_vocab(cls, v):
+        return _resolve_literal("removed_residue_use", v, ResidueUse, _RESIDUE_USE_RULES)
 
 
 class Establishment(StrictModel):
@@ -501,6 +698,20 @@ class Establishment(StrictModel):
     immature_years: Optional[float] = Field(default=None, ge=0)
     productive_years: Optional[float] = Field(default=None, gt=0)
     input_share: Optional[float] = Field(default=None, ge=0)
+
+
+def _known_annual(food: dict) -> bool:
+    """engine.perennials.known_annual (single source of truth for annual vs perennial)."""
+    try:
+        from engine.perennials import known_annual
+    except ImportError:  # app/ imported without the repo root on sys.path
+        import sys
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2]
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from engine.perennials import known_annual
+    return known_annual(food)
 
 
 class FoodItem(StrictModel):
@@ -530,6 +741,18 @@ class FoodItem(StrictModel):
     residue_management: Optional[ResidueManagement] = None
     establishment: Optional[Establishment] = None
 
+    # Seasonality (CONTRACT §1). quantity_kg is the ANNUAL total over crops_per_year
+    # harvests on area_allocated; per-season inputs are multiplied by crops_per_year.
+    crops_per_year: int = Field(default=1, ge=1, le=4)
+    growing_period_days: Optional[int] = Field(default=None, ge=30, le=400)  # one season
+    planting_months: List[Month] = []
+    harvest_months: List[Month] = []
+    # Previous crops, most recent first: disclosure + legume residue-N context, no credit.
+    rotation_sequence: List[ShortText] = []
+    # Rice only (IPCC 2019 Vol 4 Ch 5 Tables 5.12 / 5.13); blank -> inferred by the engine.
+    water_regime: Optional[WaterRegime] = None
+    preseason_water_status: Optional[PreseasonWaterStatus] = None
+
     # The wizard used to nest a copy of farm_profile / management_practices inside every
     # food; they were never read. Discard them so cached clients keep working.
     _legacy: ClassVar[frozenset] = frozenset({"farm_profile", "management_practices"})
@@ -538,6 +761,50 @@ class FoodItem(StrictModel):
     @classmethod
     def _strip_name(cls, v):
         return v.strip() if isinstance(v, str) else v
+
+    @field_validator("crops_per_year", mode="before")
+    @classmethod
+    def _crops_per_year_default(cls, v):
+        return 1 if v is None or v == "" else v
+
+    @field_validator("planting_months", "harvest_months", mode="before")
+    @classmethod
+    def _months_or_empty(cls, v):
+        return [] if v is None else v
+
+    @field_validator("planting_months", "harvest_months")
+    @classmethod
+    def _months_dedup(cls, v):
+        return _dedup_months(v)
+
+    @field_validator("rotation_sequence", mode="before")
+    @classmethod
+    def _rotation(cls, v):
+        return _clean_text_list(v)
+
+    @field_validator("water_regime", mode="before")
+    @classmethod
+    def _water_regime_vocab(cls, v):
+        return _resolve_literal("water_regime", v, WaterRegime, _WATER_REGIME_RULES)
+
+    @field_validator("preseason_water_status", mode="before")
+    @classmethod
+    def _preseason_vocab(cls, v):
+        return _resolve_literal("preseason_water_status", v, PreseasonWaterStatus)
+
+    @model_validator(mode="after")
+    def _establishment_perennials_only(self):
+        """Establishment years on a known annual crop are a 422. An all-blank block (the
+        wizard's empty Advanced section) and unlisted tree crops still validate."""
+        est = self.establishment
+        if est is None or (est.immature_years is None and est.productive_years is None):
+            return self
+        if _known_annual({"name": self.name, "crop_type": self.crop_type,
+                          "variety": self.variety, "category": self.category}):
+            raise ValueError(
+                f"establishment applies to perennial crops only; '{self.name}' is an annual "
+                "crop, so remove immature_years / productive_years")
+        return self
 
     @field_validator('category')
     @classmethod
@@ -640,15 +907,57 @@ class AssessmentRequest(StrictModel):
             return []
         declared = []
         fert = mp.fertilization
-        if fert.uses_fertilizers or any(a.application_rate > 0 and a.applications_per_season > 0
-                                        for a in fert.fertilizer_applications):
+        if fert.uses_fertilizers or any(a.is_real_application for a in fert.fertilizer_applications):
             declared.append("fertiliser")
         if any(p.application_rate > 0 and p.applications_per_season > 0
                for p in mp.pest_management.pesticides):
             declared.append("pesticide")
         if mp.soil_management.uses_compost:
             declared.append("compost")
+        if any(l.rate_t_per_ha_per_year > 0 for l in mp.soil_management.lime_applications):
+            declared.append("lime")
         return declared
+
+    @model_validator(mode="after")
+    def _crop_ids_reference_foods(self):
+        """Every crop_ids / compost_crop_ids entry must name a foods[].id, otherwise the
+        engine's per-crop attribution would silently drop that input."""
+        mp = self.management_practices
+        if mp is None:
+            return self
+        known = {f.id for f in self.foods}
+        refs: List[tuple[str, List[str]]] = []
+        for i, a in enumerate(mp.fertilization.fertilizer_applications):
+            refs.append((f"fertilizer_applications[{i}].crop_ids", a.crop_ids))
+        for i, p in enumerate(mp.pest_management.pesticides):
+            refs.append((f"pesticides[{i}].crop_ids", p.crop_ids))
+        for i, l in enumerate(mp.soil_management.lime_applications):
+            refs.append((f"lime_applications[{i}].crop_ids", l.crop_ids))
+        refs.append(("soil_management.compost_crop_ids", mp.soil_management.compost_crop_ids))
+        bad = [f"{where}: {', '.join(sorted(set(ids) - known))}"
+               for where, ids in refs if set(ids) - known]
+        if bad:
+            raise ValueError(
+                "crop_ids must reference foods[].id (known ids: "
+                f"{', '.join(sorted(known))}); unknown ids in {'; '.join(bad)}")
+        return self
+
+    @model_validator(mode="after")
+    def _food_ids_unique(self):
+        ids = [f.id for f in self.foods]
+        dup = sorted({i for i in ids if ids.count(i) > 1})
+        if dup and self.management_practices is not None and self._uses_crop_ids():
+            raise ValueError(f"foods[].id must be unique when crop_ids are used; duplicated: "
+                             f"{', '.join(dup)}")
+        return self
+
+    def _uses_crop_ids(self) -> bool:
+        mp = self.management_practices
+        return bool(
+            mp.soil_management.compost_crop_ids
+            or any(a.crop_ids for a in mp.fertilization.fertilizer_applications)
+            or any(p.crop_ids for p in mp.pest_management.pesticides)
+            or any(l.crop_ids for l in mp.soil_management.lime_applications))
 
     @model_validator(mode="after")
     def _area_required_for_inputs(self):
@@ -705,22 +1014,28 @@ class ReviewStatusBody(StrictModel):
     review_status: str
 
 
-# Enhanced result models to match Rust backend output
-class MidpointResult(BaseModel):
+# Result models. extra="allow": a key the engine adds to a nested result block must reach
+# the client; response_model filtering otherwise drops it silently (the single-score label
+# and band cutoffs were lost when the engine's dict was coerced into SingleScoreResult).
+class ResultModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class MidpointResult(ResultModel):
     value: float
     unit: str
     uncertainty_range: Optional[List[float]] = None  # [min, max]
     data_quality_score: Optional[float] = None
     contributing_sources: Optional[List[str]] = None
 
-class EndpointResult(BaseModel):
+class EndpointResult(ResultModel):
     value: float
     unit: str
     uncertainty_range: Optional[List[float]] = None  # [min, max]
     normalization_factor: Optional[float] = None
     regional_adaptation_factor: Optional[float] = None
 
-class SingleScoreResult(BaseModel):
+class SingleScoreResult(ResultModel):
     value: float
     unit: str
     band: Optional[str] = None  # qualitative band: Low | Moderate | High
@@ -729,8 +1044,13 @@ class SingleScoreResult(BaseModel):
     weighting_factors: Optional[Dict[str, float]] = None
     contributions: Optional[Dict[str, float]] = None  # each category's share of the single score
     methodology: Optional[str] = None
+    label: Optional[str] = None            # method-specific name of the score
+    band_cutoffs: Optional[Dict[str, Any]] = None
+    weighting_basis: Optional[str] = None
+    normalised_midpoints: Optional[Dict[str, Any]] = None
+    iso_14044_disclosure: Optional[str] = None
 
-class DataQuality(BaseModel):
+class DataQuality(ResultModel):
     overall_confidence: str
     data_source_mix: List[Dict[str, Any]] = []
     regional_adaptation: bool
@@ -807,3 +1127,15 @@ class AssessmentResponse(BaseModel):
     review_status: Optional[str] = None
     regional_benchmark: Optional[Dict[str, Any]] = None
     contribution_sankey: Optional[Dict[str, Any]] = None
+    provenance: Optional[Dict[str, Any]] = None
+    coproduct_allocation: Optional[Any] = None
+    engine_inventory_by_source: Optional[Dict[str, Any]] = None
+
+    # Publication gate (engine/service.py): background matches that still need review.
+    review_required: Optional[bool] = None
+    review_items: Optional[List[Dict[str, Any]]] = None
+    needs_review: Optional[bool] = None
+    # Soil-carbon change from management, reported SEPARATELY (never in the headline).
+    soc_management: Optional[Dict[str, Any]] = None
+    climate_zone_used: Optional[str] = None
+    per_crop_results: Optional[Any] = None

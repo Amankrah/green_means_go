@@ -109,6 +109,33 @@ def _emit(cb, stage: str, detail: str = "", index=None, total=None) -> None:
         pass
 
 
+def _inputs_hooks():
+    """(to_matched_basis, inbound_transport_tkm, is_market_dataset, INPUT_MASS_KINDS) from
+    engine/inputs.py (D1), each None when that version of inputs.py lacks it."""
+    try:
+        from . import inputs as mod
+    except ImportError:
+        import inputs as mod  # type: ignore
+    return (getattr(mod, "to_matched_basis", None), getattr(mod, "inbound_transport_tkm", None),
+            getattr(mod, "is_market_dataset", None),
+            tuple(getattr(mod, "INPUT_MASS_KINDS", ("fertiliser", "pesticide", "seed",
+                                                     "compost", "lime"))))
+
+
+def review_items(input_matches: list[dict]) -> list[dict]:
+    """Background matches the identity gate could not confirm (needs_review), or inputs
+    excluded for a basis problem. Any item blocks publication: the caller sets
+    review_required on the result (audit 3.17; openLCA practice: a product system is a
+    frozen, reviewed choice, never an unreviewed top embedding hit)."""
+    out = []
+    for m in input_matches or []:
+        if isinstance(m, dict) and m.get("needs_review"):
+            out.append({"input": m.get("input") or m.get("name"), "matched": m.get("matched"),
+                        "uid": m.get("uid"), "reason": m.get("review_reason"),
+                        "excluded": m.get("excluded")})
+    return out
+
+
 def _add(inv: dict, uid: str, amount: float, name: str = None, unit: str = None) -> None:
     rec = inv.get(uid)
     if rec:
@@ -131,6 +158,12 @@ class AssessmentResult:
     input_matches: list = field(default_factory=list)
     notes: list = field(default_factory=list)
     inventory: dict = field(default_factory=dict)          # merged {flow_uid: {name,unit,amount}}
+
+    @property
+    def review_required(self) -> bool:
+        """True when any background match needs review: the result must not be published
+        until a reviewer confirms or replaces those datasets."""
+        return bool(review_items(self.input_matches))
 
 
 def _irrigation_override(on_farm_lci: list[dict], assessment: dict) -> tuple[list[dict], list[str]]:
@@ -495,8 +528,32 @@ class FarmLCA:
         # 2) supply chain: match + solve each purchased input
         _emit(on_progress, "match", "Matching inputs to background datasets")
         supply: dict = {}
+        basis_fn, transport_fn, market_fn, mass_kinds = _inputs_hooks()
+        # Default-distance inbound transport depends on which inputs matched production
+        # (not 'market for') datasets, so it is solved after every other input.
+        deferred = [i for i in purchased_inputs if i.get("default_distance_production_only")]
+        purchased_inputs = [i for i in purchased_inputs
+                            if not i.get("default_distance_production_only")] + deferred
+        production_names: set[str] = set()
         _n_inputs = len(purchased_inputs)
         for _i, inp in enumerate(purchased_inputs):
+            if inp.get("default_distance_production_only") and transport_fn is not None:
+                tkm = transport_fn(inp, production_names)
+                if tkm <= 0:
+                    res.notes.append(f"'{inp['name']}': default {inp.get('km', 230):g} km not "
+                                     f"applied, every input matched a 'market for' dataset that "
+                                     f"already carries average transport")
+                    res.input_matches.append({"input": inp["name"], "amount": 0.0,
+                                              "amount_unit": inp.get("unit"), "matched": None,
+                                              "kind": inp.get("kind"),
+                                              "excluded": "market datasets carry transport"})
+                    continue
+                if abs(tkm - float(inp["amount"])) > 1e-9:
+                    res.notes.append(f"'{inp['name']}': default distance applied only to inputs "
+                                     f"matched to production datasets ({tkm:.4g} of "
+                                     f"{float(inp['amount']):.4g} tkm); 'market for' datasets "
+                                     f"already include average transport")
+                inp = {**inp, "amount": tkm}
             _emit(on_progress, "solve", detail=inp.get("name", ""), index=_i + 1, total=_n_inputs)
             # match_as: match against a representative dataset name but keep inp["name"]
             # as the display label (used for pesticides -> generic agrochemical).
@@ -535,10 +592,33 @@ class FarmLCA:
                 continue
             proc = self.q.get_process(m["uid"]) or {}
             ref_unit = proc.get("ref_unit")
+            # Fertiliser product -> nutrient basis when the dataset is per kg N / P2O5 / K2O
+            # (engine/inputs.to_matched_basis, D1); a row that cannot be expressed on the
+            # dataset's basis is excluded with a warning rather than solved on the wrong basis.
+            basis_inp = inp
+            if basis_fn is not None and inp.get("kind") == "fertiliser":
+                try:
+                    amt, basis_note = basis_fn(inp, m.get("name"), m.get("reference_product"))
+                except ValueError as e:
+                    res.notes.append(f"validation warning: {e}")
+                    res.input_matches.append({"input": inp["name"], "amount": inp["amount"],
+                                              "amount_unit": inp.get("unit"), "matched": m["name"],
+                                              "ref_unit": ref_unit, "kind": inp.get("kind"),
+                                              "excluded": "fertiliser nutrient basis",
+                                              "score": m["score"], "uid": m["uid"],
+                                              "needs_review": True,
+                                              "review_reason": str(e)})
+                    continue
+                if basis_note:
+                    res.notes.append(basis_note)
+                basis_inp = {**inp, "amount": amt}
+            if (market_fn is not None and inp.get("kind") in mass_kinds
+                    and not market_fn(m.get("name"))):
+                production_names.add(inp["name"])
             # The amount MUST be in the matched dataset's reference unit: convert it
             # (engine/units.py, cited LHV/density) or exclude the input, never pass through.
             try:
-                solve_amount, unit_note = units.to_ref_unit(inp, ref_unit)
+                solve_amount, unit_note = units.to_ref_unit(basis_inp, ref_unit)
             except units.UnitMismatchError as e:
                 res.notes.append(f"validation warning: {e}")
                 res.input_matches.append({"input": inp["name"], "amount": inp["amount"],
@@ -558,7 +638,9 @@ class FarmLCA:
                     res.notes.append(
                         f"grid electricity climate calibrated to the official "
                         f"{cal['ef']} kg CO2e/kWh national factor "
-                        f"({cal['climate_before']} -> {cal['climate_after']} kg CO2e)")
+                        f"({cal['climate_before']} -> {cal['climate_after']} kg CO2e)"
+                        + (f"; mode {cal['mode']}" if cal.get("mode") else "")
+                        + (f"; {cal['note']}" if cal.get("note") else ""))
                 for uid, ef in sc.elementary_flows.items():
                     _add(supply, uid, ef["amount"], ef.get("name"), ef.get("unit"))
                 # per-source contribution: characterize THIS input's flows on their own so

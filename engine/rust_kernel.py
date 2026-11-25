@@ -4,11 +4,16 @@ rust_kernel.py — invoke the Rust LCI kernel and extract its on-farm field emis
 for the Python characterization path (Option A).
 
 The Rust engine computes the full on-farm inventory. We take from it ONLY the DIRECT
-field emissions (N2O, indirect N2O/nitrate leaching, on-farm fuel-combustion CO2, rice
-CH4, irrigation water, land occupation). We deliberately DROP the upstream production
-burdens it also computes (fertiliser production CO2, phosphate rock, potash, pesticide
-production) — those come from the supply-chain solver, so keeping both would double-
-count. The pre-aggregated "CO2 equivalent" is also dropped (already characterized).
+field emissions (N2O, NH3, NOx, nitrate leaching, urea and liming CO2, rice CH4, residue
+burning pollutants, irrigation water, land occupation). We deliberately DROP the upstream
+production burdens it also computes (fertiliser production CO2, phosphate rock, potash,
+pesticide production) and its on-farm fuel/electricity combustion CO2; those come from
+the supply-chain solver, so keeping both would double-count. The pre-aggregated "CO2
+equivalent" is also dropped (already characterized).
+
+Each kernel flow carries a `category` ("field" | "upstream" | "energy" | "aggregated");
+only "field" flows are kept. The free-text `source` is parsed only for flows from an
+older binary that predates `category`.
 """
 from __future__ import annotations
 
@@ -33,12 +38,25 @@ SUBSTANCE_MAP = {
     "Dinitrogen monoxide (N2O) - organic fertiliser": "N2O",
     "Dinitrogen monoxide (N2O) - residue burning": "N2O",
     "Nitrate (NO3-)": "NO3",
-    "Carbon dioxide (CO2)": "CO2",           # kept only when source is direct (see below)
+    "Ammonia (NH3)": "NH3",                  # IPCC 2019 Table 11.3 FracGASF/FracGASM
+    "Nitrogen oxides (NOx)": "NOx",          # soil NOx = 0.21 x N2O (ecoinvent)
+    "Carbon dioxide (CO2)": "CO2",           # field category only (legacy binaries: see below)
+    # Mineral carbon released at the field (IPCC 2006 Vol 4 Ch 11 Eq 11.13 / 11.12): fossil.
+    "Carbon dioxide (CO2) - urea hydrolysis": "CO2",
+    "Carbon dioxide (CO2) - liming": "CO2",
     "Methane (CH4)": "CH4_bio",              # rice paddy CH4 is biogenic
     "Methane (CH4) - residue burning": "CH4_bio",
+    "Carbon monoxide - residue burning": "CO_bio",   # residue carbon is biogenic
+    "NOx - residue burning": "NOx",
+    "Particulates, < 2.5 um - residue burning": "PM25",
+    "NMVOC - residue burning": "NMVOC",
     "Water": "water",
     "Land occupation, annual crop": "land_occ",
 }
+
+# Field CO2 flows that must never be filtered as upstream or combustion, whatever their
+# source text says.
+_FIELD_CO2 = ("Carbon dioxide (CO2) - urea hydrolysis", "Carbon dioxide (CO2) - liming")
 
 # Where each N2O flow comes from, so engine/field_model.py applies the legume intercrop
 # credit to synthetic-fertiliser N2O only (never to residue, organic or burning N2O).
@@ -96,22 +114,37 @@ def run_kernel(assessment: dict, timeout: int = 120) -> dict:
         os.remove(tmp)
 
 
+def _legacy_category(sub: str, src: str) -> str:
+    """Category of a flow from a binary that predates `category`, from its source text."""
+    if "equivalent" in sub.lower():
+        return "aggregated"
+    if sub in ORIGIN_MAP or sub in _FIELD_CO2:
+        return "field"
+    if any(mk in src for mk in _UPSTREAM_MARKERS):
+        return "upstream"
+    if sub == "Carbon dioxide (CO2)" and any(mk in src for mk in _ENERGY_COMBUSTION_MARKERS):
+        return "energy"
+    return "field"
+
+
 def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
     """From a Rust result, return (on_farm_lci, notes). Keeps direct field emissions,
-    drops upstream production and pre-aggregated CO2-eq."""
-    inv = (result.get("results") or {}).get("lci_inventory") or result.get("lci_inventory") or []
+    drops upstream production, on-farm combustion and pre-aggregated CO2-eq."""
+    res = result.get("results") or {}
+    inv = res.get("lci_inventory") or result.get("lci_inventory") or []
     onfarm, notes, dropped, dropped_energy = [], [], 0, 0
     for item in inv:
         sub = item.get("substance", "")
         src = (item.get("source") or "").lower()
-        if "equivalent" in sub.lower():
+        cat = (item.get("category") or "").strip().lower() or _legacy_category(sub, src)
+        if cat == "aggregated":
             continue                                    # pre-aggregated, already CO2-eq
-        if sub not in ORIGIN_MAP and any(mk in src for mk in _UPSTREAM_MARKERS):
+        if cat == "upstream":
             dropped += 1                                # upstream -> supply-chain solver
             continue
-        # Drop on-farm fuel/electricity combustion CO2 — the supply-chain solver's ecoinvent
-        # diesel-burning and electricity processes already include these emissions.
-        if sub == "Carbon dioxide (CO2)" and any(mk in src for mk in _ENERGY_COMBUSTION_MARKERS):
+        if cat == "energy":
+            # On-farm fuel/electricity combustion: the supply-chain solver's ecoinvent
+            # diesel-burning and electricity processes already include these emissions.
             dropped_energy += 1
             continue
         key = SUBSTANCE_MAP.get(sub)
@@ -123,9 +156,10 @@ def extract_onfarm_lci(result: dict) -> tuple[list[dict], list[str]]:
         if sub in ORIGIN_MAP:
             flow["origin"] = ORIGIN_MAP[sub]
         onfarm.append(flow)
-    res = result.get("results") or {}
     for w in res.get("lci_warnings") or result.get("lci_warnings") or []:
         notes.append(WARNING_PREFIX + str(w))
+    for n in res.get("lci_notes") or result.get("lci_notes") or []:
+        notes.append("field model: " + str(n))
     if dropped:
         notes.append(f"dropped {dropped} upstream-production flow(s) (covered by supply-chain solver)")
     if dropped_energy:

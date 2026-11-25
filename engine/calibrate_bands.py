@@ -20,7 +20,11 @@ Output: engine/single_score_bands.json — the basket, each product's µPt/kg sc
 the derived cutoffs, with full provenance so the thresholds are auditable and regenerate
 if the basket or pipeline changes. adapter.single_score() loads this file.
 
-Run:  python -m engine.calibrate_bands       (from repo root)
+Run:  python -m engine.calibrate_bands            (ReCiPe -> single_score_bands.json)
+      python -m engine.calibrate_bands --ef       (EF 3.1 -> single_score_bands_ef.json)
+
+Each method gets its OWN band file because the scores are different quantities (ReCiPe
+equal-weighted normalised sum vs the EF 3.1 weighted single score).
 """
 from __future__ import annotations
 
@@ -35,10 +39,13 @@ if str(_ROOT) not in sys.path:
 
 from ingestion.canonical_store import DEFAULT_DB           # noqa: E402
 from ingestion.query import CanonicalQuery                  # noqa: E402
-from engine.adapter import MIDPOINT_MAP, RECIPE_NF, single_score  # noqa: E402
+from engine.adapter import MIDPOINT_MAP, RECIPE_NF, single_score, BASKET_CONSISTENCY_NOTE  # noqa: E402
 
 METHOD = "ReCiPe 2016 v1.03, midpoint (H)"
 BANDS_FILE = Path(__file__).resolve().parent / "single_score_bands.json"
+EF_METHOD = "EF v3.1"
+EF_BANDS_FILE = Path(__file__).resolve().parent / "single_score_bands_ef.json"
+_DUMMY_BANDS = {"low": 0.0, "high": 0.0, "calibrated": False, "basis": ""}
 
 # crop label -> (name substring to search, token the reference product must contain)
 # The reference-product token screens out straw/seed co-products sharing a process name.
@@ -97,15 +104,15 @@ def _pick(conn: sqlite3.Connection, name_like: str, ref_token: str):
     return cands[0]
 
 
-def _score_product(q: CanonicalQuery, uid: str) -> tuple[float, dict]:
-    """cradle-to-gate (per kg) -> ReCiPe midpoints -> single score µPt/kg."""
-    res = q.cradle_to_gate(uid, METHOD, amount=1.0)   # amount=1.0 => per kg
+def _score_product(q: CanonicalQuery, uid: str, method: str = METHOD) -> tuple[float, dict]:
+    """cradle-to-gate (per kg) -> method midpoints -> that method's single score µPt/kg."""
+    res = q.cradle_to_gate(uid, method, amount=1.0)   # amount=1.0 => per kg
     midpoints: dict = {}
     for cat, v in res.impacts.items():
         m = MIDPOINT_MAP.get(cat)
         if m:
             midpoints[m[0]] = {"value": v["value"]}
-    micro, meta = single_score(midpoints, {})
+    micro, meta = single_score(midpoints, {}, method, bands=_DUMMY_BANDS)
     return micro, meta.get("contributions", {})
 
 
@@ -122,7 +129,8 @@ def _percentile(sorted_vals: list[float], p: float) -> float:
     return sorted_vals[lo] * (1 - frac) + sorted_vals[hi] * frac
 
 
-def calibrate(write: bool = True) -> dict:
+def calibrate(write: bool = True, method: str = METHOD) -> dict:
+    out_file = EF_BANDS_FILE if method == EF_METHOD else BANDS_FILE
     conn = sqlite3.connect(str(DEFAULT_DB))
     conn.row_factory = sqlite3.Row
     q = CanonicalQuery(DEFAULT_DB)
@@ -133,7 +141,7 @@ def calibrate(write: bool = True) -> dict:
             print(f"  MISS  {label:22s} (no ecoinvent kg farm-gate match)")
             continue
         try:
-            micro, _ = _score_product(q, p["uid"])
+            micro, _ = _score_product(q, p["uid"], method)
         except Exception as e:
             print(f"  FAIL  {label:22s} {type(e).__name__}: {e}")
             continue
@@ -148,14 +156,18 @@ def calibrate(write: bool = True) -> dict:
     # round to 2 significant-ish figures for a clean, human-readable threshold
     low_cut = round(t33, -1)
     high_cut = round(t67, -1)
+    score_desc = ("EF 3.1 normalisation x official EF 3.1 weighting (16 categories)"
+                  if method == EF_METHOD else
+                  "ReCiPe 2016 World 2010 H normalisation, equal-weighted sum (10 categories)")
     out = {
         "methodology": (
             "Empirical band calibration: single score computed for a benchmark basket of "
             "ecoinvent 3.11 farm-gate crop products (1 kg, Cutoff) through the identical "
-            "pipeline (cradle-to-gate solve -> ReCiPe 2016 v1.03 midpoint (H) -> "
-            "normalization). Bands are the basket's tertiles: Low = below the 33rd "
-            "percentile, Moderate = 33rd-67th, High = above the 67th percentile."),
-        "method": METHOD,
+            f"pipeline (cradle-to-gate solve -> {method} -> {score_desc}). Bands are the "
+            "basket's tertiles: Low = below the 33rd percentile, Moderate = 33rd-67th, High = "
+            "above the 67th percentile."),
+        "basket_consistency": BASKET_CONSISTENCY_NOTE,
+        "method": method,
         "n_products": len(basket),
         "low_cut_upt_per_kg": low_cut,
         "high_cut_upt_per_kg": high_cut,
@@ -165,8 +177,8 @@ def calibrate(write: bool = True) -> dict:
         "basket": sorted(basket, key=lambda b: b["single_score_upt_per_kg"]),
     }
     if write:
-        BANDS_FILE.write_text(json.dumps(out, indent=2))
-        print(f"\nwrote {BANDS_FILE}")
+        out_file.write_text(json.dumps(out, indent=2))
+        print(f"\nwrote {out_file}")
     print(f"\nn={out['n_products']}  Low<{low_cut}  Moderate<{high_cut}  High>={high_cut}  (µPt/kg)")
     print(f"distribution: min={vals[0]:.0f}  p33={t33:.0f}  median={_percentile(vals,0.5):.0f}  "
           f"p67={t67:.0f}  max={vals[-1]:.0f}")
@@ -174,4 +186,4 @@ def calibrate(write: bool = True) -> dict:
 
 
 if __name__ == "__main__":
-    calibrate()
+    calibrate(method=EF_METHOD if "--ef" in sys.argv else METHOD)

@@ -84,19 +84,65 @@ SRC_FOREST = (f"IPCC 2019 Refinement Vol 4 Ch 4 Table 4.7 (AGB, Africa), Table 4
 # land use before it. Tropical rows of EX-ACT 'IPCC' sheet rows 1588-1636: annual cropland
 # 4.7 (IPCC 2019 Vol 4 Ch 5 Table 5.9 updated); grassland 7.567 wet/moist, 4.089 dry (IPCC
 # 2006 Vol 4 Ch 6 Table 6.4); shaded perennial 24.0 (Ch 5 Table 5.1 updated); oil palm 30.0
-# (Ch 5 Table 5.3 updated).
+# (Ch 5 Table 5.3 updated); rubber 40.1 (Ch 5 Table 5.3 updated, tropical rows, EX-ACT
+# 'IPCC' sheet column "Rubber", rows 1585-1648).
 BIOMASS_C = {
     "annual cropland": {"tropical wet": 4.7, "tropical moist": 4.7, "tropical dry": 4.7, "default": 4.7},
     "grassland": {"tropical wet": 7.567, "tropical moist": 7.567, "tropical dry": 4.089, "default": 6.345},
     "Shaded Perennial": {"default": 24.0},
     "Oil palm": {"default": 30.0},
+    "Rubber": {"tropical wet": 40.1, "tropical moist": 40.1, "tropical dry": 40.1,
+               "tropical montane": 40.1},
 }
+# Perennials whose engine/perennials.py entry has biomass_class None but which have their own
+# Table 5.3 row. Other perennials (cashew, coffee, coconut, citrus, mango, plantain/banana,
+# farmer-declared) have no tropical Table 5.1/5.3 row (orchard/olive/vine rows are temperate
+# only in EX-ACT), so their biomass after conversion is not credited (see _after_biomass).
+BIOMASS_CLASS_BY_CROP = {"rubber": "Rubber"}
+
+
+def _after_biomass(p: dict, clim: str) -> tuple[float, str | None]:
+    """(time-averaged biomass C of the perennial, t C/ha; disclosure or None)."""
+    cls = p.get("biomass_class") or BIOMASS_CLASS_BY_CROP.get(str(p.get("crop") or ""))
+    table = BIOMASS_C.get(cls) if cls else None
+    if table:
+        val = table.get(clim, table.get("default"))
+        if val is not None:
+            return val, None
+    return 0.0, (f"no IPCC 2019 Vol 4 Ch 5 Table 5.1/5.3 biomass value for perennial "
+                 f"'{p.get('crop')}' in a {clim} climate: its biomass after conversion is not "
+                 "credited (conservative: the full pre-conversion biomass loss is booked)")
 SRC_BIOMASS = (f"IPCC 2019 Refinement Vol 4 Ch 5 Tables 5.1, 5.3, 5.9 (updated) and IPCC 2006 "
                f"Vol 4 Ch 6 Table 6.4, via {EXACT}")
 
 # Region -> forest ecological zone override (FAO Global Ecological Zones 2010: the cocoa and
-# oil-palm belts of southern Ghana and Nigeria are tropical moist deciduous forest).
+# oil-palm belts of southern Ghana and Nigeria are tropical moist deciduous forest). Country-
+# level FALLBACK only: the admin-region zone from regions.forest_zone_for() wins when known.
 FOREST_ZONE_OVERRIDE = {"GH": "tropical moist", "NG": "tropical moist"}
+
+
+def forest_zone(region, assessment: dict, clim: str) -> tuple[str, str]:
+    """(forest zone key in FOREST, basis). Order: admin region (regions.forest_zone_for,
+    CONTRACT §2), country override, climate zone."""
+    code = str(getattr(region, "code", "") or "")
+    admin = ((assessment.get("study_meta") or {}).get("admin_region")) or None
+    try:
+        try:
+            from .regions import forest_zone_for
+        except ImportError:
+            from regions import forest_zone_for
+    except ImportError:
+        forest_zone_for = None
+    if forest_zone_for is not None:
+        try:
+            z = forest_zone_for(code, admin)
+        except Exception:
+            z = None
+        if z in FOREST:
+            return z, f"admin region '{admin}'" if admin else "region default"
+    if code in FOREST_ZONE_OVERRIDE:
+        return FOREST_ZONE_OVERRIDE[code], f"country-level zone for {code} (admin region not resolved)"
+    return clim, "climate zone"
 
 
 def ipcc_climate(region) -> tuple[str, bool]:
@@ -163,9 +209,11 @@ def dluc_flows(assessment: dict, region, ef1_other: float, frac_leach: float,
     """On-farm flows (CO2 from stock change, N2O from F_SOM) for declared recent land
     conversion. Returns ([], [note]) when no conversion within 20 years is declared."""
     try:
-        from .perennials import perennial_for
+        from . import perennials as _per
     except ImportError:
-        from perennials import perennial_for
+        import perennials as _per
+    perennial_of = getattr(_per, "perennial_for_food", None) or (
+        lambda f: _per.perennial_for(f.get("name")))
     foods = assessment.get("foods") or []
     flows: list[dict] = []
     notes: list[str] = []
@@ -195,17 +243,17 @@ def dluc_flows(assessment: dict, region, ef1_other: float, frac_leach: float,
         soil = _soil_class(assessment)
         soc_ref = SOC_REF.get(clim, SOC_REF["tropical moist"])[soil]
         prev = str(luc.get("previous_land_use")).strip().lower()
-        p = perennial_for(name)
+        p = perennial_of(food)
 
         # --- before ---
         dom_before = 0.0
         if "forest" in prev:
-            fz = FOREST_ZONE_OVERRIDE.get(getattr(region, "code", ""), clim)
+            fz, fz_basis = forest_zone(region, assessment, clim)
             forest = FOREST.get(fz) or FOREST["tropical moist"]
             bio_before = forest["agb"] * (1.0 + forest["r"]) * CARBON_FRACTION_TROPICAL
             dom_before = forest["litter"] + forest["deadwood"]
             flu_before = 1.0
-            before_label = f"{forest['type']} ({SRC_FOREST})"
+            before_label = f"{forest['type']} (zone from {fz_basis}; {SRC_FOREST})"
         elif "grass" in prev or "savanna" in prev or "pasture" in prev:
             b = BIOMASS_C["grassland"]
             bio_before = b.get(clim, b["default"])
@@ -228,7 +276,9 @@ def dluc_flows(assessment: dict, region, ef1_other: float, frac_leach: float,
 
         # --- after ---
         if p is not None:
-            bio_after = BIOMASS_C[p["biomass_class"]]["default"]
+            bio_after, bio_note = _after_biomass(p, clim)
+            if bio_note:
+                notes.append(f"{name}: {bio_note}")
             flu_after = factors.get("FLU_perennial_tree_crop", 1.0)
         else:
             b = BIOMASS_C["annual cropland"]
@@ -264,5 +314,7 @@ def dluc_flows(assessment: dict, region, ef1_other: float, frac_leach: float,
     if not declared_any and foods:
         notes.append("no land conversion within the last 20 years assumed (default): dLUC = 0. "
                      "Declare foods[].land_use_change = {previous_land_use, "
-                     "years_since_conversion} to include it")
+                     "years_since_conversion} to include it. When the land-use history is "
+                     "unknown, PAS 2050-1:2012 (and PAS 2050:2011 5.6) prescribe a statistical "
+                     "country/crop dLUC estimate; that statistical dLUC was NOT applied")
     return flows, notes

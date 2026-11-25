@@ -14,6 +14,18 @@
    "Particulate matter formation": 25.569594920658865,
    "Photochemical oxidation": 20.567456694737732
   },
+  "factors_reported_not_in_score": {
+   "Ozone depletion": 0.06001000496224004,
+   "Ionising radiation": 479.91735010391716,
+   "Photochemical oxidation, terrestrial ecosystems": 17.74932822136718,
+   "Human toxicity, cancer": 10.298306455189207,
+   "Human toxicity, non-cancer": 31251.84225773112,
+   "Terrestrial ecotoxicity": 15200.310658799526,
+   "Freshwater ecotoxicity": 25.174703491092206,
+   "Marine ecotoxicity": 43.44284202537615
+  },
+  "factors_reported_not_in_score_note": "Same workbook and column (World 2010, Hierarchist), rows 'Stratospheric ozone depletion', 'Ionzing Radiation', 'Photochemical ozone formation - Terrestrial ecosystems', 'Toxicity - Human health (cancer)', 'Toxicity - Human health (non-cancer)', 'Toxicity - Terrestrial ecosystems', 'Toxicity - Freshwater ecosystems', 'Toxicity - Marine ecosystems'. Used only to report normalised results for these categories; they are NOT in the equal-weighted sum, whose 10-category set is fixed so the calibrated bands (engine/single_score_bands.json) stay valid.",
+  "score_label": "Equal-weighted normalised midpoint sum (10 categories, ReCiPe 2016 World 2010 H normalisation). ReCiPe 2016 defines no official weighting or single score; this is a screening aggregate, not an official ReCiPe single score.",
   "source": "ReCiPe 2016 v1.1 normalisation, World 2010, Hierarchist, midpoint; data/ReCipe2016/Normalization scores ReCiPe2016v1.1_20190514.xlsx, sheet 'Final normalization scores', column D (Hierarchist).",
   "file": "data/ReCipe2016/Normalization scores ReCiPe2016v1.1_20190514.xlsx",
   "sha256": "2c1cf542f987e55889a09b1236935901df92684282bf89b44a1f6c48c8d5bc71",
@@ -28,17 +40,44 @@
  "ef_3_1": {
   "factors": {
    "Global warming": 7550.0,
+   "Ozone depletion": 0.0536,
+   "Human toxicity, cancer": 1.73e-05,
+   "Human toxicity, non-cancer": 0.000129,
+   "Particulate matter formation": 0.000595,
+   "Ionising radiation": 4220.0,
+   "Photochemical oxidation": 40.9,
    "Terrestrial acidification": 55.6,
+   "Terrestrial eutrophication": 177.0,
    "Freshwater eutrophication": 1.61,
    "Marine eutrophication": 19.5,
+   "Freshwater ecotoxicity": 56700.0,
    "Land use": 819000.0,
-   "Mineral depletion": 0.0636,
-   "Particulate matter formation": 0.000595,
-   "Photochemical oxidation": 40.9,
    "Water consumption": 11500.0,
-   "Fossil depletion": 65000.0
+   "Fossil depletion": 65000.0,
+   "Mineral depletion": 0.0636
   },
-  "source": "Andreasson J, Sala S et al. (2024) Updated characterisation and normalisation factors for the Environmental Footprint 3.1 method, JRC130796, EUR 31474 EN, Table 2 (global NF). Not present in data/EVvinronmental_Footprint_EF3.1, which holds characterisation factors only."
+  "weighting_pct": {
+   "Global warming": 21.06,
+   "Ozone depletion": 6.31,
+   "Human toxicity, cancer": 2.13,
+   "Human toxicity, non-cancer": 1.84,
+   "Particulate matter formation": 8.96,
+   "Ionising radiation": 5.01,
+   "Photochemical oxidation": 4.78,
+   "Terrestrial acidification": 6.2,
+   "Terrestrial eutrophication": 3.71,
+   "Freshwater eutrophication": 2.8,
+   "Marine eutrophication": 2.96,
+   "Freshwater ecotoxicity": 1.92,
+   "Land use": 7.94,
+   "Water consumption": 8.51,
+   "Fossil depletion": 8.32,
+   "Mineral depletion": 7.55
+  },
+  "category_names_note": "Keys are the engine's display names. EF 3.1 names: Climate change; Ozone depletion; Human toxicity, cancer; Human toxicity, non-cancer; Particulate matter; Ionising radiation, human health; Photochemical ozone formation, human health; Acidification (terrestrial + freshwater accumulated exceedance, displayed as 'Terrestrial acidification'); Eutrophication, terrestrial; Eutrophication, freshwater; Eutrophication, marine; Ecotoxicity, freshwater; Land use; Water use (AWARE); Resource use, fossils; Resource use, minerals and metals.",
+  "source": "Normalisation: Andreasson J, Sala S et al. (2024) Updated characterisation and normalisation factors for the Environmental Footprint 3.1 method, JRC130796, EUR 31474 EN, Table 2 (global NF per person). Weighting: EF 3.0/3.1 weighting set including robustness, toxicity categories included (Sala S, Cerutti AK, Pant R (2018) Development of a weighting approach for the Environmental Footprint, JRC109878, EUR 28562 EN; carried unchanged into the EF 3.1 reference package). Not present in data/EVvinronmental_Footprint_EF3.1, which holds characterisation factors only.",
+  "verification": "Verified 2026-11-25 against data/AGRIBALYSE3.2/AGRIBALYSE3.2_partie agriculture_conv_PublieNOV25.xlsx (AGRIBALYSE 3.2, EF 3.1 adapted for SimaPro): for all 217 products, 1000 x sum(midpoint / NF x weight) reproduces the published 'Score unique EF3.1' (mPt/kg) with median relative error 0.01 % (max 4.5 %, rounding of published midpoints); an unconstrained least-squares fit of the 16 coefficients (weight/NF) agrees with these values to within 1 % for every category.",
+  "score_label": "EF 3.1 single score: sum over the 16 EF 3.1 categories of (midpoint / global NF) x official weight, in micro-points (1 Pt = 1 person-year, weighted)."
  },
- "built": "2026-11-12"
+ "built": "2026-11-25"
 }

@@ -37,8 +37,108 @@ export interface FoodItem {
   post_harvest_losses?: number;
   seed_rate_kg_per_ha?: number;
   land_use_change?: { previous_land_use: string; years_since_conversion: number };
-  residue_management?: { fraction_removed: number; fraction_burnt: number };
+  residue_management?: {
+    fraction_removed: number;
+    fraction_burnt: number;
+    removed_residue_use?: 'sold' | 'fed' | 'fed_to_own_livestock' | 'left_on_farm' | 'fuel' | 'other';
+  };
   establishment?: { immature_years?: number; productive_years?: number; input_share?: number };
+  /** Harvests per year on area_allocated (1-4); quantity_kg is the annual total. */
+  crops_per_year?: number;
+  /** Days from planting to harvest of one season (30-400). */
+  growing_period_days?: number;
+  planting_months?: number[];
+  harvest_months?: number[];
+  /** Previous crops in the rotation, most recent first. */
+  rotation_sequence?: string[];
+  water_regime?:
+    | 'upland'
+    | 'irrigated_continuously_flooded'
+    | 'irrigated_single_drainage'
+    | 'irrigated_multiple_drainage'
+    | 'rainfed_regular'
+    | 'rainfed_drought_prone'
+    | 'deep_water';
+  preseason_water_status?: 'non_flooded_lt_180d' | 'non_flooded_gt_180d' | 'flooded_gt_30d';
+}
+
+export type FertilizerApplicationMethodPayload =
+  | 'broadcast'
+  | 'incorporated'
+  | 'band_placement'
+  | 'side_dressing'
+  | 'foliar'
+  | 'fertigation';
+
+export interface SoilManagementPayload {
+  soil_type?: string;
+  uses_compost: boolean;
+  compost_source?: string;
+  compost_application_rate?: number;
+  conservation_practices: string[];
+  soil_testing_frequency?: string;
+  soil_ph?: number;
+  organic_matter_pct?: number;
+  cover_crops?: boolean;
+  practices_adopted_years_ago?: number;
+  lime_applications?: Array<{
+    material: 'limestone' | 'dolomite';
+    rate_t_per_ha_per_year: number;
+    crop_ids: string[];
+  }>;
+  compost_crop_ids?: string[];
+}
+
+export interface FertilizerApplicationPayload {
+  fertilizer_type: string;
+  npk_ratio?: string;
+  /** kg of PRODUCT per ha per application. */
+  application_rate: number;
+  applications_per_season: number;
+  application_method?: FertilizerApplicationMethodPayload;
+  brand_name?: string;
+  crop_ids: string[];
+  cost?: number;
+}
+
+export interface PesticideApplicationPayload {
+  pesticide_type: string;
+  active_ingredient: string;
+  application_rate: number;
+  applications_per_season: number;
+  active_ingredient_content?: number;
+  target_pests: string[];
+  brand_name?: string;
+  crop_ids: string[];
+}
+
+export interface ManagementPracticesPayload {
+  soil_management: SoilManagementPayload;
+  fertilization: {
+    uses_fertilizers: boolean;
+    fertilizer_applications: FertilizerApplicationPayload[];
+    soil_test_based: boolean;
+    follows_nutrient_plan: boolean;
+    timing_strategy?: string;
+  };
+  water_management: {
+    water_source: string[];
+    irrigation_system?: string;
+    irrigation_water_m3?: number;
+    water_conservation_practices: string[];
+    drainage_system?: string;
+  };
+  pest_management: {
+    management_approach?: string;
+    uses_ipm: boolean;
+    pesticides: PesticideApplicationPayload[];
+    pest_monitoring_frequency?: string;
+    primary_pests?: string[];
+    primary_diseases?: string[];
+    ipm_practices?: string[];
+    biological_controls?: string[];
+    uses_economic_thresholds?: boolean;
+  };
 }
 
 export interface AssessmentRequest {
@@ -52,8 +152,11 @@ export interface AssessmentRequest {
   form_snapshot?: unknown;
   /** Optional LCIA method override (region default when omitted). */
   lcia_method?: string;
+  /** Pedigree Monte Carlo uncertainty (API default true). */
+  run_uncertainty?: boolean;
+  study_meta?: { crop_year?: number; season?: string; admin_region?: string };
   farm_profile?: Record<string, unknown>; // Enhanced farm profile data
-  management_practices?: Record<string, unknown>; // Enhanced management practices data
+  management_practices?: ManagementPracticesPayload;
   equipment_energy?: {
     equipment: Array<{
       equipment_type: string;
@@ -76,6 +179,12 @@ export interface AssessmentRequest {
       primary_use: string;
       cost: number;
     }>;
+    storage?: {
+      facilities: string[];
+      capacity_tonnes?: number;
+      refrigerant?: string;
+      refrigerant_charge_kg?: number;
+    };
   };
   logistics?: {
     packaging_material?: string;
@@ -116,10 +225,21 @@ export interface AssessmentResult {
   contribution_by_source?: Record<string, Record<string, { value: number; unit?: string }>>;
   /** Dual FU block from the engine (per kg + per ha). */
   functional_units?: {
-    per_kg?: { midpoint_impacts?: Record<string, MidpointResult>; total_kg?: number; note?: string };
-    per_ha?: { midpoint_impacts?: Record<string, MidpointResult>; total_ha?: number; note?: string };
+    per_kg?: { midpoint_impacts?: Record<string, MidpointResult>; total_kg?: number; note?: string; mixed_products?: boolean };
+    per_ha?: { midpoint_impacts?: Record<string, MidpointResult> | null; total_ha?: number; kg_per_ha?: number | null; note?: string };
     land_intensity_note?: string;
+    /** "per_ha" for farms with several different products (the farm per-kg is not a product footprint). */
+    headline?: 'per_ha' | 'per_kg';
+    per_crop?: Record<string, PerCropFunctionalUnit>;
   };
+  /** Publication gate: background matches that need review before the result is published. */
+  review_required?: boolean;
+  review_items?: ReviewItem[];
+  needs_review?: boolean;
+  climate_zone_used?: string;
+  /** Soil carbon change from management: reported separately, never in the headline. */
+  soc_management?: SocManagement;
+  per_crop_results?: unknown;
   baseline_assessment_id?: string;
   lcia_method?: string;
   provenance?: {
@@ -199,19 +319,89 @@ export interface EndpointResult {
 export interface SingleScoreResult {
   value: number;
   unit: string;
+  /** Method-specific name of the score (EF 3.1 weighted / ReCiPe equal-weighted sum). */
+  label?: string;
+  /** "Low" | "Moderate" | "High", or "Unavailable" / "Not banded" (cutoffs null). */
   band?: string;
   band_basis?: string;
   band_cutoffs?: {
-    low: number;
-    high: number;
+    low: number | null;
+    high: number | null;
     calibrated?: boolean;
     benchmark_min?: number | null;
     benchmark_max?: number | null;
   };
   uncertainty_range: [number, number];
   weighting_factors: Record<string, number>;
+  weighting_basis?: string;
   contributions?: Record<string, number>;
+  normalised_midpoints?: Record<string, number>;
   methodology: string;
+  iso_14044_disclosure?: string;
+}
+
+export interface PerCropFunctionalUnit {
+  crop_id?: string;
+  name?: string;
+  quantity_kg?: number;
+  area_ha?: number;
+  midpoint_impacts_per_kg?: Record<string, { value: number; unit?: string }> | null;
+  midpoint_impacts_per_ha?: Record<string, { value: number; unit?: string }> | null;
+}
+
+export interface ReviewItem {
+  input?: string;
+  matched?: string;
+  uid?: string;
+  reason?: string;
+  excluded?: string | boolean | null;
+}
+
+export interface SocManagement {
+  value?: number | null;
+  unit?: string;
+  booked?: boolean;
+  reported_separately?: boolean;
+  included_in_headline?: boolean;
+  method?: string;
+  sign_convention?: string;
+  years_remaining_in_transition?: number | null;
+  /** [low, high] kg CO2/yr when the IPCC input class is ambiguous (alternative class, not interpolated). */
+  value_range?: [number, number] | number[] | null;
+  climate?: string;
+  soil_class?: string;
+  per_crop?: Array<{
+    crop?: string;
+    area_ha?: number;
+    value?: number | null;
+    value_range?: [number, number] | number[] | null;
+    delta_soc_t_c_per_ha_yr?: number | null;
+    tillage?: string;
+    input?: string;
+    input_reason?: string;
+    input_definition?: string;
+    input_alternatives?: Array<{ input?: string; f_i?: number; value?: number; why?: string }>;
+    note?: string;
+  }>;
+  assumptions?: string[];
+}
+
+export interface OneAtATimeCase {
+  case: string;
+  parameter?: string;
+  value?: number;
+  source?: string;
+  global_warming_change_pct?: number | null;
+  changes_pct?: Record<string, number>;
+}
+
+export interface MethodSensitivity {
+  current_method?: string;
+  alternative_method?: string;
+  global_warming_current?: number | null;
+  global_warming_alternative?: number | null;
+  change_pct?: number | null;
+  note?: string;
 }
 
 export interface DataQuality {
@@ -240,9 +430,13 @@ export type DataSource =
 
 // Additional analysis types
 export interface SensitivityAnalysis {
-  most_influential_parameters: InfluentialParameter[];
-  uncertainty_contributions: Record<string, number>;
-  scenario_analysis: ScenarioResult[];
+  most_influential_parameters?: InfluentialParameter[];
+  uncertainty_contributions?: Record<string, number>;
+  scenario_analysis?: ScenarioResult[];
+  /** EF1 / FracLEACH at IPCC bounds and yield ±20 % (linear rescaling, no re-solve). */
+  one_at_a_time?: OneAtATimeCase[];
+  method_sensitivity?: MethodSensitivity | null;
+  note?: string;
 }
 
 export interface InfluentialParameter {

@@ -283,16 +283,67 @@ def parse_recipe_nf() -> dict:
 # Report JRC130796, EUR 31474 EN, Table 2 (global normalisation factors, EF 3.1).
 EF31_NF_JRC = {
     "Global warming": 7550.0,                  # kg CO2-eq
+    "Ozone depletion": 0.0536,                 # kg CFC-11-eq
+    "Human toxicity, cancer": 1.73e-05,        # CTUh
+    "Human toxicity, non-cancer": 0.000129,    # CTUh
+    "Particulate matter formation": 0.000595,  # disease incidence
+    "Ionising radiation": 4220.0,              # kBq U235-eq
+    "Photochemical oxidation": 40.9,           # kg NMVOC-eq
     "Terrestrial acidification": 55.6,         # mol H+-eq (EF "Acidification")
+    "Terrestrial eutrophication": 177.0,       # mol N-eq
     "Freshwater eutrophication": 1.61,         # kg P-eq
     "Marine eutrophication": 19.5,             # kg N-eq
+    "Freshwater ecotoxicity": 56700.0,         # CTUe
     "Land use": 819000.0,                      # Pt (soil quality index)
-    "Mineral depletion": 0.0636,               # kg Sb-eq
-    "Particulate matter formation": 5.95e-4,   # disease incidence
-    "Photochemical oxidation": 40.9,           # kg NMVOC-eq
     "Water consumption": 11500.0,              # m3 world-eq deprived
     "Fossil depletion": 65000.0,               # MJ
+    "Mineral depletion": 0.0636,               # kg Sb-eq
 }
+# EF 3.0/3.1 weighting set incl. robustness, with toxicity (Sala, Cerutti & Pant 2018,
+# JRC109878, EUR 28562 EN; unchanged in the EF 3.1 reference package), percent.
+EF31_WEIGHTING_PCT = {
+    "Global warming": 21.06, "Ozone depletion": 6.31, "Human toxicity, cancer": 2.13,
+    "Human toxicity, non-cancer": 1.84, "Particulate matter formation": 8.96,
+    "Ionising radiation": 5.01, "Photochemical oxidation": 4.78,
+    "Terrestrial acidification": 6.2, "Terrestrial eutrophication": 3.71,
+    "Freshwater eutrophication": 2.8, "Marine eutrophication": 2.96,
+    "Freshwater ecotoxicity": 1.92, "Land use": 7.94, "Water consumption": 8.51,
+    "Fossil depletion": 8.32, "Mineral depletion": 7.55,
+}
+EF31_SOURCE = (
+    "Normalisation: Andreasson J, Sala S et al. (2024) Updated characterisation and normalisation "
+    "factors for the Environmental Footprint 3.1 method, JRC130796, EUR 31474 EN, Table 2 (global NF "
+    "per person). Weighting: EF 3.0/3.1 weighting set including robustness, toxicity categories "
+    "included (Sala S, Cerutti AK, Pant R (2018) Development of a weighting approach for the "
+    "Environmental Footprint, JRC109878, EUR 28562 EN; carried unchanged into the EF 3.1 reference "
+    "package). Not present in data/EVvinronmental_Footprint_EF3.1, which holds characterisation "
+    "factors only.")
+EF31_VERIFICATION = (
+    "Verified 2026-11-25 against data/AGRIBALYSE3.2/AGRIBALYSE3.2_partie agriculture_conv_PublieNOV25.xlsx "
+    "(AGRIBALYSE 3.2, EF 3.1 adapted for SimaPro): for all 217 products, 1000 x sum(midpoint / NF x "
+    "weight) reproduces the published 'Score unique EF3.1' (mPt/kg) with median relative error 0.01 % "
+    "(max 4.5 %, rounding of published midpoints); an unconstrained least-squares fit of the 16 "
+    "coefficients (weight/NF) agrees with these values to within 1 % for every category.")
+
+
+def parse_recipe_nf_reported() -> dict:
+    """ReCiPe 2016 NFs for categories REPORTED but not in the 10-category equal-weighted sum
+    (same workbook, column D Hierarchist)."""
+    wb = _wb(RECIPE_NF_FILE)
+    rows = list(wb["Final normalization scores"].iter_rows(values_only=True))
+    wb.close()
+    by_label = {str(r[0]).strip(): r for r in rows if r and r[0]}
+    labels = {
+        "Ozone depletion": "Stratospheric ozone depletion - Human health",
+        "Ionising radiation": "Ionzing Radiation - Human health",
+        "Photochemical oxidation, terrestrial ecosystems": "Photochemical ozone formation - Terrestrial ecosystems",
+        "Human toxicity, cancer": "Toxicity - Human health (cancer)",
+        "Human toxicity, non-cancer": "Toxicity - Human health (non-cancer)",
+        "Terrestrial ecotoxicity": "Toxicity - Terrestrial ecosystems",
+        "Freshwater ecotoxicity": "Toxicity - Freshwater ecosystems",
+        "Marine ecotoxicity": "Toxicity - Marine ecosystems",
+    }
+    return {k: _num(by_label[v][3]) for k, v in labels.items()}
 
 
 # ------------------------------------------------------------------ GWP basis
@@ -462,13 +513,24 @@ def build(out_dir: Path = OUT) -> dict:
                        "spreadsheet. The natural gas row reads 0.40 kg oil-eq/person/yr in the published "
                        "file, which looks like a unit slip (crude oil reads 570); it is carried as "
                        "published and flagged for review."),
+            "factors_reported_not_in_score": parse_recipe_nf_reported(),
+            "factors_reported_not_in_score_note": (
+                "Same workbook and column (World 2010, Hierarchist). Used only to report normalised "
+                "results for these categories; they are NOT in the equal-weighted sum, whose "
+                "10-category set is fixed so the calibrated bands (engine/single_score_bands.json) "
+                "stay valid."),
+            "score_label": ("Equal-weighted normalised midpoint sum (10 categories, ReCiPe 2016 World "
+                            "2010 H normalisation). ReCiPe 2016 defines no official weighting or single "
+                            "score; this is a screening aggregate, not an official ReCiPe single score."),
         },
         "ef_3_1": {
             "factors": EF31_NF_JRC,
-            "source": ("Andreasson J, Sala S et al. (2024) Updated characterisation and normalisation "
-                       "factors for the Environmental Footprint 3.1 method, JRC130796, EUR 31474 EN, "
-                       "Table 2 (global NF). Not present in data/EVvinronmental_Footprint_EF3.1, which "
-                       "holds characterisation factors only."),
+            "weighting_pct": EF31_WEIGHTING_PCT,
+            "source": EF31_SOURCE,
+            "verification": EF31_VERIFICATION,
+            "score_label": ("EF 3.1 single score: sum over the 16 EF 3.1 categories of (midpoint / "
+                            "global NF) x official weight, in micro-points (1 Pt = 1 person-year, "
+                            "weighted)."),
         },
         "built": now,
     }

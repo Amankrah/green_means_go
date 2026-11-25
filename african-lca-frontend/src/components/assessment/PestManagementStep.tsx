@@ -5,6 +5,7 @@ import { useFormContext, useFieldArray } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { Shield, Info, AlertCircle, Plus, Trash2, Bug, Leaf } from 'lucide-react';
 import { EnhancedAssessmentFormData } from '@/lib/enhanced-assessment-schema';
+import CropTargetSelect from './CropTargetSelect';
 import { 
   PestManagementApproach, 
   MonitoringFrequency, 
@@ -13,7 +14,7 @@ import {
 } from '@/types/enhanced-assessment';
 
 export default function PestManagementStep() {
-  const { register, formState: { errors }, control, setValue } = useFormContext<EnhancedAssessmentFormData>();
+  const { register, formState: { errors }, control, setValue, getValues } = useFormContext<EnhancedAssessmentFormData>();
 
   // Dynamic arrays
   const { fields: pesticideFields, append: appendPesticide, remove: removePesticide } = useFieldArray({
@@ -21,10 +22,11 @@ export default function PestManagementStep() {
     name: 'pestManagement.pesticides'
   });
 
-  const [primaryPests, setPrimaryPests] = React.useState<string[]>([]);
-  const [primaryDiseases, setPrimaryDiseases] = React.useState<string[]>([]);
-  const [biologicalControls, setBiologicalControls] = React.useState<string[]>([]);
-  const [selectedIPMPractices, setSelectedIPMPractices] = React.useState<IPMPractice[]>([]);
+  // Seeded from the form so a restored snapshot or loaded example is not wiped on mount.
+  const [primaryPests, setPrimaryPests] = React.useState<string[]>(() => getValues('pestManagement.primaryPests') ?? []);
+  const [primaryDiseases, setPrimaryDiseases] = React.useState<string[]>(() => getValues('pestManagement.primaryDiseases') ?? []);
+  const [biologicalControls, setBiologicalControls] = React.useState<string[]>(() => getValues('pestManagement.biologicalControls') ?? []);
+  const [selectedIPMPractices, setSelectedIPMPractices] = React.useState<IPMPractice[]>(() => getValues('pestManagement.ipmPractices') ?? []);
 
   // Update form values when arrays change
   React.useEffect(() => {
@@ -234,6 +236,7 @@ export default function PestManagementStep() {
               // Blank, not 0: a zero-rate row used to pass validation and be silently ignored.
               applicationRate: undefined as unknown as number,
               applicationsPerSeason: 1,
+              cropIds: [],
               targetPests: [],
               cost: undefined,
               safetyPrecautions: []
@@ -297,7 +300,7 @@ export default function PestManagementStep() {
 
                   <div>
                     <label className="block text-sm font-medium text-ink mb-2">
-                      Brand Name *
+                      Brand Name (optional)
                     </label>
                     <input
                       type="text"
@@ -351,7 +354,7 @@ export default function PestManagementStep() {
 
                   <div>
                     <label className="block text-sm font-medium text-ink mb-2">
-                      Application Rate (L or kg/ha) *
+                      L or kg of product per hectare per application *
                     </label>
                     <input
                       type="number"
@@ -377,11 +380,15 @@ export default function PestManagementStep() {
                     <input
                       type="number"
                       min="0"
-                      max="20"
+                      max="12"
+                      step="1"
                       {...register(`pestManagement.pesticides.${index}.applicationsPerSeason`, { valueAsNumber: true })}
                       placeholder="e.g., 3"
                       className="gmg-input"
                     />
+                    <p className="text-xs text-muted mt-1">
+                      0 means it was not applied this season (it then adds no impact).
+                    </p>
                     {errors.pestManagement?.pesticides?.[index]?.applicationsPerSeason && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
                         <AlertCircle className="w-4 h-4 mr-1" />
@@ -406,6 +413,11 @@ export default function PestManagementStep() {
                       Total cost per hectare for one application (local currency)
                     </p>
                   </div>
+
+                  <CropTargetSelect
+                    name={`pestManagement.pesticides.${index}.cropIds`}
+                    error={errors.pestManagement?.pesticides?.[index]?.cropIds?.message}
+                  />
                 </div>
               </motion.div>
             ))}
@@ -520,6 +532,12 @@ export default function PestManagementStep() {
             {errors.pestManagement?.pestMonitoringFrequency && (
               <li>• Please select monitoring frequency</li>
             )}
+            {errors.pestManagement?.pesticides && !Array.isArray(errors.pestManagement.pesticides) && errors.pestManagement.pesticides.message && (
+              <li>• {errors.pestManagement.pesticides.message}</li>
+            )}
+            {Array.isArray(errors.pestManagement?.pesticides) && errors.pestManagement.pesticides.map((pe, i) => pe && (
+              <li key={i}>• Pesticide {i + 1}: {pe.applicationRate?.message || pe.applicationsPerSeason?.message || pe.activeIngredient?.message || pe.cropIds?.message || pe.pesticideType?.message || 'please check this row'}</li>
+            ))}
           </ul>
         </motion.div>
       )}

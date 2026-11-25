@@ -37,8 +37,15 @@ function ghs(n: number | null | undefined): string {
 }
 
 /** One measure card: what to do, what it targets, what it costs/saves, and its source. */
-function MeasureCard({ m }: { m: RecommendationMeasure }) {
-  const saving = m.economics.annual_saving_ghs;
+function MeasureCard({ m: raw }: { m: RecommendationMeasure }) {
+  // Older saved plans can lack sub-objects; never let one card crash the panel.
+  const m = {
+    ...raw,
+    economics: raw.economics ?? ({ cost_tier: 'Unknown', annual_saving_ghs: null, payback_months: null } as unknown as RecommendationMeasure['economics']),
+    effect: raw.effect ?? ({ value: 0, basis: 'modelled' } as unknown as RecommendationMeasure['effect']),
+    provenance: raw.provenance ?? ({ citation: '' } as unknown as RecommendationMeasure['provenance']),
+  };
+  const saving = m.economics.annual_saving_ghs ?? null;
   const savingLabel =
     saving === null
       ? null
@@ -47,7 +54,7 @@ function MeasureCard({ m }: { m: RecommendationMeasure }) {
         : saving < 0
           ? `Costs ~${ghs(-saving)}/yr`
           : 'Cost-neutral';
-  const effectPct = Math.round(Math.abs(m.effect.value) * 100);
+  const effectPct = Math.round(Math.abs(m.effect.value || 0) * 100);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -66,7 +73,9 @@ function MeasureCard({ m }: { m: RecommendationMeasure }) {
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="text-gray-700">
           Targets <span className="font-medium">{m.targets_source}</span>{' '}
-          <span className="text-gray-400">({Math.round(m.targets_share * 100)}% of climate impact)</span>
+          {typeof m.targets_share === 'number' && (
+            <span className="text-gray-400">({Math.round(m.targets_share * 100)}% of climate impact)</span>
+          )}
         </span>
       </div>
 
@@ -88,7 +97,7 @@ function MeasureCard({ m }: { m: RecommendationMeasure }) {
         <span className="rounded-full bg-gray-100 px-2 py-1 font-medium text-gray-700">
           {COST_TIER_LABEL[m.economics.cost_tier] ?? m.economics.cost_tier}
         </span>
-        {m.economics.payback_months !== null && (
+        {m.economics.payback_months != null && (
           <span className="rounded-full bg-gray-100 px-2 py-1 font-medium text-gray-700">
             Pays back in ~{Math.round(m.economics.payback_months)} mo
           </span>
@@ -116,7 +125,7 @@ function Phase({ phase }: { phase: ActionPhase }) {
         <h4 className="text-lg font-semibold text-gray-900">{phase.label}</h4>
       </div>
       <div className="space-y-3">
-        {phase.measures.map((m) => (
+        {(phase.measures ?? []).map((m) => (
           <MeasureCard key={m.id} m={m} />
         ))}
       </div>
@@ -171,7 +180,7 @@ export default function RecommendationsPanel({ assessmentId, isProcessing = fals
       </div>
     );
   }
-  if (!data || data.measures.length === 0) {
+  if (!data || !Array.isArray(data.measures) || data.measures.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500">
         No specific measures matched this assessment yet.
@@ -192,7 +201,7 @@ export default function RecommendationsPanel({ assessmentId, isProcessing = fals
           Actions matched to what drives your footprint, ordered by when to act, with a
           rough sense of cost and payback.
         </p>
-        {rev.total_ghs !== null && (
+        {rev && rev.total_ghs != null && (
           <p className="mt-2 text-sm text-gray-500">
             Estimated annual revenue used for affordability:{' '}
             <span className="font-medium text-gray-700">{ghs(rev.total_ghs)}</span>
@@ -208,7 +217,7 @@ export default function RecommendationsPanel({ assessmentId, isProcessing = fals
         </div>
       )}
 
-      {data.plan.phases.map((phase) => (
+      {(data.plan?.phases ?? []).map((phase) => (
         <Phase key={phase.key} phase={phase} />
       ))}
     </div>

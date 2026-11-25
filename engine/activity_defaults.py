@@ -20,7 +20,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 
-_DIESEL_MJ_PER_L = 38.7  # keep in sync with engine/inputs.FUEL_MJ_PER_L["diesel"]
+try:
+    from . import energy_carriers as _ec
+except ImportError:  # script use
+    import energy_carriers as _ec  # type: ignore
+
+# Same litre LHV as every other diesel input (IPCC 2006 NCV x density, energy_carriers.LHV),
+# because the WFLDB "Diesel, burned in agricultural machinery" dataset is per MJ.
+_DIESEL_MJ_PER_L = _ec.LHV["diesel"]["L"][0]
+_MACHINERY_CARRIERS = ("diesel", "petrol", "biodiesel")
+# Metered-fuel use classes (engine/inputs.use_class) that cover field operations.
+_FIELD_USE_CLASSES = ("field", "pump", "general")
 
 _REF_DIR = Path(__file__).resolve().parent / "recommend" / "reference"
 _REPO = Path(__file__).resolve().parent.parent
@@ -199,8 +209,14 @@ def _lookup_row(mechanization: str, irrigated: bool, irrigation_mode: str,
     return candidates[0]
 
 
-def resolve_energy_defaults(assessment: dict) -> Optional[dict[str, Any]]:
-    """Return a resolved defaults dict, or None if the assessment's region has no table."""
+def resolve_energy_defaults(assessment: dict, pumping_accounted: bool = False) -> Optional[dict[str, Any]]:
+    """Return a resolved defaults dict, or None if the assessment's region has no table.
+
+    pumping_accounted: irrigation pumping energy is already in the inventory (per-m3 pumping
+    estimate, declared pump / pumping fuel) or not motorised (bucket). The irrigated rows of
+    every regional table bundle pumping with field operations (their provenance: field ops +
+    pump diesel / electric pumping), so the RAINFED row of the same mechanisation level is
+    used for the field operations instead, and the pumping share is not added twice."""
     region = region_of(assessment)
     path = table_path_for(region)
     if path is None:
@@ -209,7 +225,11 @@ def resolve_energy_defaults(assessment: dict) -> Optional[dict[str, Any]]:
     mech = _mechanization(assessment)
     irrigated = _is_irrigated(assessment)
     mode = _irrigation_mode(assessment) if irrigated else "none"
-    row = _lookup_row(mech, irrigated, mode, table)
+    pumping_excluded = irrigated and pumping_accounted
+    if pumping_excluded:
+        row = _lookup_row(mech, False, "none", table)
+    else:
+        row = _lookup_row(mech, irrigated, mode, table)
     prov = dict(row.get("provenance") or {})
     return {
         "region": getattr(region, "code", None),
@@ -220,6 +240,7 @@ def resolve_energy_defaults(assessment: dict) -> Optional[dict[str, Any]]:
         "mechanization": mech,
         "irrigated": irrigated,
         "irrigation_mode": mode,
+        "pumping_excluded": pumping_excluded,
         "diesel_l_per_ha": float(row.get("diesel_l_per_ha") or 0),
         "electricity_kwh_per_ha": float(row.get("electricity_kwh_per_ha") or 0),
         "yield_guides_kg_per_ha": row.get("yield_guides_kg_per_ha") or {},
@@ -228,16 +249,43 @@ def resolve_energy_defaults(assessment: dict) -> Optional[dict[str, Any]]:
     }
 
 
-def has_measured_fuel(assessment: dict, existing_inputs: list[dict]) -> bool:
-    if any(i.get("kind") == "fuel" and not i.get("estimated") for i in existing_inputs):
+def _covers_field_operations(inp: dict) -> bool:
+    """A fuel input that already represents the farm's field-operation fuel: machinery
+    carrier, metered for field work / pumping / unstated use, or ESTIMATED from declared
+    equipment (ASABE class or hours x L/h). Generator, transport and heat fuel do not."""
+    if inp.get("kind") != "fuel" or inp.get("fuel") not in _MACHINERY_CARRIERS:
+        return False
+    if (inp.get("estimate_meta") or {}).get("activity"):
+        return False                       # an activity default itself
+    if inp.get("source_equipment"):
         return True
+    if inp.get("estimated"):
+        return False
+    return inp.get("use_class", "general") in _FIELD_USE_CLASSES
+
+
+def has_measured_fuel(assessment: dict, existing_inputs: list[dict]) -> bool:
+    """Is the field-operation fuel already in the inventory (metered or derived from the
+    declared equipment)? Then no regional default diesel is added on top."""
+    if any(_covers_field_operations(i) for i in existing_inputs):
+        return True
+    try:
+        from .inputs import use_class
+    except ImportError:
+        from inputs import use_class  # type: ignore
     ee = assessment.get("equipment_energy") or {}
     for fu in ee.get("fuel_consumption") or []:
-        if (fu.get("monthly_consumption") or 0) > 0:
+        if (fu.get("monthly_consumption") or 0) <= 0:
+            continue
+        carrier = _ec.carrier_of(fu.get("fuel_type")) or "diesel"
+        if carrier in _MACHINERY_CARRIERS and use_class(fu.get("primary_use")) in _FIELD_USE_CLASSES:
             return True
     for eq in ee.get("equipment") or []:
         eff = eq.get("fuel_efficiency") or eq.get("fuelEfficiency")
         hrs = eq.get("hours_per_year") or eq.get("hoursPerYear")
+        ps = str(eq.get("power_source") or eq.get("powerSource") or "").lower()
+        if any(w in ps for w in ("manual", "human", "animal", "solar", "electric")):
+            continue
         if eff and hrs and float(eff) * float(hrs) > 0:
             return True
     return False
@@ -260,7 +308,12 @@ def apply_activity_defaults(
     notes: list[str],
 ) -> list[dict]:
     """Append estimated fuel/electricity purchased inputs when measured data is absent."""
-    resolved = resolve_energy_defaults(assessment)
+    try:
+        from .inputs import irrigation_pumping_accounted
+    except ImportError:
+        from inputs import irrigation_pumping_accounted  # type: ignore
+    resolved = resolve_energy_defaults(
+        assessment, pumping_accounted=irrigation_pumping_accounted(assessment, inputs))
     if not resolved:
         region = region_of(assessment)
         if region is not None and (not has_measured_fuel(assessment, inputs)
@@ -285,6 +338,12 @@ def apply_activity_defaults(
     elec_kwh = resolved["electricity_kwh_per_ha"] * area if need_elec else 0.0
     uf = resolved["uncertainty_factor"]
     injected_nonzero = False
+    if resolved.get("pumping_excluded"):
+        notes.append(
+            f"activity defaults: irrigation pumping is already accounted for (per-m3 pumping "
+            f"estimate, declared pump / pumping fuel, or bucket irrigation), so the rainfed "
+            f"{resolved['mechanization']} row {resolved['row_id']} is used for field operations "
+            "(the irrigated rows include pump energy)")
 
     if need_fuel and diesel_l > 0:
         mj = diesel_l * _DIESEL_MJ_PER_L

@@ -26,8 +26,8 @@ function ghs(n: number | null | undefined): string {
 }
 
 function savingPill(m: RecommendationMeasure): { text: string; variant: "default" | "secondary" | "destructive" | "outline" } | null {
-  const s = m.economics.annual_saving_ghs;
-  if (s === null) return null;
+  const s = m.economics?.annual_saving_ghs;
+  if (s === null || s === undefined) return null;
   if (s > 0) return { text: `Saves ~${ghs(s)}/yr`, variant: 'default' }; // green
   if (s < 0) return { text: `Costs ~${ghs(-s)}/yr`, variant: 'destructive' }; // orange/red
   return { text: 'Cost-neutral', variant: 'secondary' }; // gray
@@ -67,10 +67,11 @@ export default function DashboardRecommendations({ assessment, limit = 3 }: Prop
 
   // Nothing to show, or a failure in a secondary widget: render nothing.
   if (!id || failed) return null;
-  if (!loading && (!data || data.measures.length === 0)) return null;
+  const measures = Array.isArray(data?.measures) ? data!.measures : [];
+  if (!loading && measures.length === 0) return null;
 
   const resultsHref = `/results?id=${id}${isProcessing ? '&type=processing' : ''}`;
-  const top = data?.measures.slice(0, limit) ?? [];
+  const top = measures.slice(0, limit);
 
   return (
     <Card className="rounded-2xl border-gray-200 overflow-hidden">
@@ -104,7 +105,8 @@ export default function DashboardRecommendations({ assessment, limit = 3 }: Prop
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-gray-900">{m.title}</p>
                     <p className="truncate text-xs text-gray-500 mt-0.5">
-                      {m.targets_source} · {Math.round(m.targets_share * 100)}% of impact
+                      {m.targets_source}
+                      {typeof m.targets_share === 'number' ? ` · ${Math.round(m.targets_share * 100)}% of impact` : ''}
                     </p>
                   </div>
                   {pill && (
@@ -119,13 +121,13 @@ export default function DashboardRecommendations({ assessment, limit = 3 }: Prop
         )}
       </CardContent>
 
-      {!loading && data && data.measures.length > top.length && (
+      {!loading && measures.length > top.length && (
         <CardFooter className="pt-0">
           <Link
             href={resultsHref}
             className="inline-flex items-center gap-1 text-sm font-medium text-moss hover:text-spruce focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-moss/80 rounded-sm"
           >
-            See all {data.measures.length} steps <ArrowRight className="h-3.5 w-3.5" />
+            See all {measures.length} steps <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </CardFooter>
       )}

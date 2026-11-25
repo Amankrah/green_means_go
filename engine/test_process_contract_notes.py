@@ -58,7 +58,8 @@ def test_unknown_refrigerant_is_an_error_not_a_default():
     with pytest.raises(ValueError):
         refrigerant_co2e("Freon-X", 10.0)
     co2e, note = refrigerant_co2e("R-404A", 2.0)
-    assert co2e == 2.0 * 3728.0 and "AR6" in note
+    # AR6: 0.44*3740 + 0.52*5810 + 0.04*1526 = 4727.8 (the old 3728 was a typo).
+    assert co2e == pytest.approx(2.0 * 4727.8) and "AR6" in note
     assert refrigerant_co2e("Freon-X", 0.0) == (0.0, "")     # no leak, nothing to characterise
 
 

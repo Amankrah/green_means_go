@@ -118,6 +118,28 @@ export default function UtilitiesStep() {
             {WASTEWATER_TREATMENTS.map((t) => <option key={t}>{t}</option>)}
           </select>
         </Field>
+        {watch('utilities.wastewaterTreatment') === 'None' && (
+          <div className="sm:col-span-2 rounded-lg border border-line p-3">
+            <p className="text-sm font-medium text-ink">Measured effluent (optional, mg per litre)</p>
+            <p className="text-xs text-muted mb-3">
+              From a lab test of the untreated discharge. Entered values are counted as releases to surface water; leave blank if not measured.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Field label="COD" error={e?.effluentCodMgPerL?.message}>
+                <input type="number" min="0" step="any" {...register('utilities.effluentCodMgPerL')} className={inputClass} />
+              </Field>
+              <Field label="BOD5" error={e?.effluentBod5MgPerL?.message}>
+                <input type="number" min="0" step="any" {...register('utilities.effluentBod5MgPerL')} className={inputClass} />
+              </Field>
+              <Field label="Total nitrogen" error={e?.effluentTotalNMgPerL?.message}>
+                <input type="number" min="0" step="any" {...register('utilities.effluentTotalNMgPerL')} className={inputClass} />
+              </Field>
+              <Field label="Total phosphorus" error={e?.effluentTotalPMgPerL?.message}>
+                <input type="number" min="0" step="any" {...register('utilities.effluentTotalPMgPerL')} className={inputClass} />
+              </Field>
+            </div>
+          </div>
+        )}
         <Field label="Solid waste (kg / day)" error={e?.solidWasteKgDay?.message}>
           <input type="number" min="0" step="any" {...register('utilities.solidWasteKgDay')} className={inputClass} />
         </Field>

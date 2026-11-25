@@ -96,7 +96,20 @@ def _seed(email, client):
                 },
             },
             "data_quality": {"notes": ["screening defaults used"]},
+            "functional_units": {"per_kg": {"total_kg": 1000.0}},
+            "lcia_method": "ReCiPe 2016 v1.03, midpoint (H)",
+            "engine_inventory": {
+                "n2o-uid": {"name": "Dinitrogen monoxide", "unit": "kg", "amount": 2.0,
+                            "compartment": "Emission to air/unspecified", "cas": "10024-97-2"},
+                "co2-uid": {"name": "Carbon dioxide, fossil", "unit": "kg", "amount": 300.0,
+                            "compartment": "Emission to air/low population density", "cas": "124-38-9"},
+            },
+            "engine_inventory_by_source": {
+                "Field emissions (on-farm)": {"n2o-uid": {"name": "N2O", "unit": "kg", "amount": 2.0}},
+                "Urea": {"co2-uid": {"name": "Carbon dioxide, fossil", "unit": "kg", "amount": 300.0}},
+            },
         }
+        payload["input_matches"][0].update({"uid": "urea-proc-uid", "ref_unit": "kg", "solve_amount": 46.0})
         a = save_assessment(
             db,
             user_id=user.id,
@@ -171,6 +184,42 @@ def test_export_csv_sections(client):
         f"/me/assessments/{aid}/export.csv?section=nope", headers=_auth(token)
     )
     assert bad.status_code == 422
+
+
+def test_export_full_inventory_per_fu_and_brightway(client):
+    token, aid = _seed("inv@example.com", client)
+    body = client.get(f"/me/assessments/{aid}/export.json", headers=_auth(token)).json()
+    inv = body["inventory_per_fu"]
+    assert inv["total_kg"] == 1000.0 and inv["n_flows"] == 2
+    n2o = next(f for f in inv["flows"] if f["uuid"] == "n2o-uid")
+    assert n2o["compartment"] == "Emission to air/unspecified" and n2o["cas"] == "10024-97-2"
+    assert n2o["amount_per_fu"] == pytest.approx(0.002)
+
+    bw = body["brightway"]
+    act = bw["data"][0]
+    assert act["database"] == f"gmg_{aid}" and act["code"] == aid
+    types = [e["type"] for e in act["exchanges"]]
+    assert types.count("production") == 1
+    bio = [e for e in act["exchanges"] if e["type"] == "biosphere"]
+    # only the on-site (field) source is a foreground biosphere exchange; the matched input's
+    # background flows are represented by the technosphere link, not duplicated.
+    assert [e["input"] for e in bio] == [["biosphere3", "n2o-uid"]]
+    assert bio[0]["categories"] == ["air", "unspecified"] and bio[0]["amount"] == pytest.approx(0.002)
+    tech = [e for e in act["exchanges"] if e["type"] == "technosphere"]
+    assert tech[0]["input"] == ["ecoinvent-3.11-cutoff", "urea-proc-uid"]
+    assert tech[0]["amount"] == pytest.approx(0.046)
+
+
+def test_export_csv_inventory_and_brightway_sections(client):
+    token, aid = _seed("inv2@example.com", client)
+    inv = client.get(f"/me/assessments/{aid}/export.csv?section=inventory", headers=_auth(token))
+    assert inv.status_code == 200
+    assert inv.text.splitlines()[0] == "uuid,name,compartment,cas,unit,amount_per_fu,amount_total"
+    assert "124-38-9" in inv.text
+    bw = client.get(f"/me/assessments/{aid}/export.csv?section=brightway", headers=_auth(token))
+    assert bw.status_code == 200
+    assert "biosphere,Dinitrogen monoxide,air::unspecified" in bw.text
+    assert "urea-proc-uid" in bw.text
 
 
 def test_export_json_has_provenance_and_method(client):

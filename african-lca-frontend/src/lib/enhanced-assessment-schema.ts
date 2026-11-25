@@ -38,8 +38,13 @@ import {
   FunctionalUnit,
   SystemBoundary,
   FormStep,
-  Currency
+  Currency,
+  type RiceWaterRegime,
+  type RicePreseasonWaterStatus,
+  type RemovedResidueUse,
+  isKnownAnnualCrop,
 } from '@/types/enhanced-assessment';
+import { REFRIGERANTS } from './processing-assessment-schema';
 
 // ======================================================================
 // FORM STEP CONFIGURATION - Progressive Disclosure Approach
@@ -111,6 +116,35 @@ export const FARM_FUEL_DEFAULT_UNIT: Record<FuelType, FarmFuelUnit> = {
   [FuelType.KEROSENE]: 'L',
   [FuelType.LPG]: 'kg',
 };
+
+export const RICE_WATER_REGIMES = [
+  'upland', 'irrigated_continuously_flooded', 'irrigated_single_drainage',
+  'irrigated_multiple_drainage', 'rainfed_regular', 'rainfed_drought_prone', 'deep_water',
+] as const satisfies readonly RiceWaterRegime[];
+export const RICE_PRESEASON_STATUSES = [
+  'non_flooded_lt_180d', 'non_flooded_gt_180d', 'flooded_gt_30d',
+] as const satisfies readonly RicePreseasonWaterStatus[];
+
+export const REMOVED_RESIDUE_USES = [
+  'sold', 'fed', 'fed_to_own_livestock', 'left_on_farm', 'fuel', 'other',
+] as const satisfies readonly RemovedResidueUse[];
+
+export const LIME_MATERIALS = ['limestone', 'dolomite'] as const;
+export const MAX_LIME_T_PER_HA = 20;
+export const MAX_STORAGE_TONNES = 1_000_000;
+
+// Refrigerants the API accepts (shared with the processing wizard).
+export { REFRIGERANTS };
+
+/** Blank / NaN input -> undefined, otherwise a number validated by `inner`. */
+function optionalNumber<T extends z.ZodTypeAny>(inner: T) {
+  return z.preprocess(
+    (val) => val === "" || val === null || val === undefined || Number.isNaN(Number(val)) ? undefined : Number(val),
+    inner.optional()
+  );
+}
+
+const cropIdList = z.array(z.string()).default([]);
 
 // Step 1: Farm Profile Schema
 export const farmProfileSchema = z.object({
@@ -194,37 +228,45 @@ export const cropProductionSchema = z.array(z.object({
     
     // Seasonal Information
     seasonality: z.object({
-      plantingMonths: z.array(z.coerce.number().min(1).max(12))
+      plantingMonths: z.array(z.coerce.number().int().min(1).max(12))
         .min(1, "Please select at least one planting month"),
-      harvestingMonths: z.array(z.coerce.number().min(1).max(12))
+      harvestingMonths: z.array(z.coerce.number().int().min(1).max(12))
         .min(1, "Please select at least one harvesting month"),
-      growingPeriod: z.number()
-        .min(30, "Growing period must be at least 30 days")
-        .max(365, "Growing period cannot exceed 365 days"),
-      cropsPerYear: z.number()
-        .min(0.5, "Must be at least 0.5 crops per year")
-        .max(4, "Cannot exceed 4 crops per year"),
-      // Derived from the planting months and the country's rainy season (see
-      // lib/seasonal-factor.ts); kept in the form so saved snapshots stay self-describing.
-      season: z.array(z.nativeEnum(SeasonType)).default([SeasonType.WET_SEASON])
+      // Days for ONE season (rice CH4 cultivation period). Blank -> engine default.
+      growingPeriod: optionalNumber(
+        z.number()
+          .int("Growing period must be a whole number of days")
+          .min(30, "Growing period must be at least 30 days")
+          .max(365, "Growing period cannot exceed 365 days")
+      ),
+      cropsPerYear: z.coerce.number({ message: "Select the number of harvests per year" })
+        .int("Harvests per year must be a whole number")
+        .min(1, "At least 1 harvest per year")
+        .max(4, "Cannot exceed 4 harvests per year")
+        .default(1),
+      // Display mirror of the derived season (lib/seasonal-factor.ts); never sent.
+      season: z.array(z.string()).optional(),
+      // Explicit override; blank -> the engine derives wet/dry from the planting months.
+      seasonOverride: z.union([z.literal(''), z.nativeEnum(SeasonType)]).optional(),
     }),
     
     // Intercropping & Rotation
     isIntercropped: z.boolean().default(false),
     intercroppingPartners: z.array(z.string()).optional(),
     intercroppingRatio: z.record(z.string(), z.number()).optional(),
+    // Previous crops in the rotation, most recent first.
     rotationSequence: z.array(z.string()).default([]),
     rotationDuration: z.number().min(1).max(10).default(1),
     
-    // Yield & Quality
-    averageYieldPerHectare: z.number()
-      .min(1, "Yield per hectare must be at least 1 kg")
-      .max(50000, "Please verify yield per hectare"),
+    // Derived from annualProduction / areaAllocated; never a blocking input.
+    averageYieldPerHectare: optionalNumber(z.number().min(0)),
     
-    postHarvestLosses: z.number()
-      .min(0, "Losses cannot be negative")
-      .max(100, "Losses cannot exceed 100%")
-      .default(10),
+    // Blank -> not sent (it used to default to a hidden 10% that was printed in the report).
+    postHarvestLosses: optionalNumber(
+      z.number()
+        .min(0, "Losses cannot be negative")
+        .max(100, "Losses cannot exceed 100%")
+    ),
 
     // Seed sown (kg/ha); blank -> FAO default for the crop / category.
     seedRateKgPerHa: z.preprocess(
@@ -232,13 +274,25 @@ export const cropProductionSchema = z.array(z.object({
       z.number().min(0, "Seed rate cannot be negative").max(500, "Please verify seed rate").optional()
     ),
 
+    // Rice only (IPCC 2019 Vol 4 Ch 5 Tables 5.12 / 5.13); blank -> engine inference.
+    waterRegime: z.union([z.literal(''), z.enum(RICE_WATER_REGIMES)]).optional(),
+    preseasonWaterStatus: z.union([z.literal(''), z.enum(RICE_PRESEASON_STATUSES)]).optional(),
+
     // Advanced (optional): land-use change, residue management, perennial establishment.
     landUseChange: z.object({
       previousLandUse: z.enum(['', 'forest', 'grassland', 'annual_cropland', 'perennial_cropland']).optional(),
-      yearsSinceConversion: z.preprocess(
-      (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
-      z.number().min(0).optional()
-    ),
+      yearsSinceConversion: optionalNumber(
+        z.number().int("Enter whole years").min(0, "Years cannot be negative").max(200, "Please verify the years")
+      ),
+    }).superRefine((luc, ctx) => {
+      // A blank years value used to be sent as 0, which books the full carbon loss this year.
+      if (luc.previousLandUse && luc.yearsSinceConversion === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter how many years ago the land was converted",
+          path: ["yearsSinceConversion"],
+        });
+      }
     }).optional(),
     residueManagement: z.object({
       fractionRemoved: z.preprocess(
@@ -249,6 +303,7 @@ export const cropProductionSchema = z.array(z.object({
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
       z.number().min(0).max(1).optional()
     ),
+      removedResidueUse: z.union([z.literal(''), z.enum(REMOVED_RESIDUE_USES)]).optional(),
     }).optional(),
     establishment: z.object({
       immatureYears: z.preprocess(
@@ -257,7 +312,7 @@ export const cropProductionSchema = z.array(z.object({
     ),
       productiveYears: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
-      z.number().min(0).optional()
+      z.number().gt(0, "Productive years must be greater than zero").optional()
     ),
       inputShare: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
@@ -287,7 +342,19 @@ export const managementPracticesSchema = z.object({
     ),
     soilTestingFrequency: z.nativeEnum(TestingFrequency),
     conservationPractices: z.array(z.nativeEnum(SoilConservationPractice)).default([]),
+    usesCoverCrops: z.boolean().default(false),
     coverCrops: z.array(z.string()).default([]),
+    // Blank -> SOC change from management is not booked (the engine discloses it).
+    practicesAdoptedYearsAgo: optionalNumber(
+      z.number().int("Enter whole years").min(0, "Years cannot be negative").max(100, "Maximum 100 years")
+    ),
+    limeApplications: z.array(z.object({
+      material: z.enum(LIME_MATERIALS, { message: "Select limestone or dolomite" }),
+      rateTPerHaPerYear: z.number({ message: "Enter the lime rate in tonnes per hectare per year" })
+        .gt(0, "Lime rate must be greater than zero")
+        .max(MAX_LIME_T_PER_HA, `Please verify the lime rate (maximum ${MAX_LIME_T_PER_HA} t/ha/year)`),
+      cropIds: cropIdList,
+    })).default([]),
     compostUse: z.object({
       usesCompost: z.boolean(),
       compostsource: z.nativeEnum(CompostSource).default(CompostSource.NONE),
@@ -295,7 +362,8 @@ export const managementPracticesSchema = z.object({
         (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
         z.number().min(0).max(100).optional()
       ),
-      applicationTiming: z.string().default("Before planting")
+      applicationTiming: z.string().default("Before planting"),
+      cropIds: cropIdList,
     }).superRefine((data, ctx) => {
       // If user doesn't use compost, validation passes
       if (!data.usesCompost) return;
@@ -322,26 +390,42 @@ export const managementPracticesSchema = z.object({
   fertilization: z.object({
     usesFertilizers: z.boolean(),
     fertilizerApplications: z.array(z.object({
-      fertilizerType: z.nativeEnum(FertilizerType),
-      brandName: z.string().optional(),
+      // "None" is not a fertiliser: untick "uses fertilizers" instead (the API skips such rows).
+      fertilizerType: z.nativeEnum(FertilizerType).refine(
+        (t): boolean => t !== FertilizerType.NONE,
+        "Remove this row (or untick 'uses fertilizers') instead of choosing None",
+      ),
+      brandName: z.string().max(120, "Brand name must be under 120 characters").optional(),
       npkRatio: z.string().optional(),
-      // A fertiliser row the user adds must describe a real application: zero rows used to
-      // pass every layer and be silently skipped by the engine.
-      applicationRate: z.number({ message: "Enter the application rate in kg per hectare" })
+      // kg of PRODUCT per ha for ONE application (seasonal = rate x applications). A row the
+      // user adds must describe a real application: zero rows used to be silently skipped.
+      applicationRate: z.number({ message: "Enter kg of product per hectare per application" })
         .gt(0, "Application rate must be greater than zero")
         .max(MAX_RATE_KG_PER_HA, "Please verify application rate (maximum 5000 kg/ha)"),
       applicationsPerSeason: z.number({ message: "Enter the number of applications per season" })
         .int("Applications per season must be a whole number")
         .min(1, "At least one application per season")
         .max(MAX_APPLICATIONS_PER_SEASON, "Maximum 12 applications per season"),
+      applicationMethod: z.preprocess(
+        (val) => (val === "" || val === null ? undefined : val),
+        z.nativeEnum(ApplicationMethod).optional()
+      ),
+      cropIds: cropIdList,
       cost: z.preprocess(
         (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
         z.number().min(0, "Cost cannot be negative").optional()
       ),
       currency: z.nativeEnum(Currency).optional()
     })).default([]),
-    applicationMethod: z.nativeEnum(ApplicationMethod).optional(),
-    timingStrategy: z.nativeEnum(TimingStrategy).optional(),
+    // Legacy farm-level method (archived snapshots); copied onto rows that have none.
+    applicationMethod: z.preprocess(
+      (val) => (val === "" || val === null ? undefined : val),
+      z.nativeEnum(ApplicationMethod).optional()
+    ),
+    timingStrategy: z.preprocess(
+      (val) => (val === "" || val === null ? undefined : val),
+      z.nativeEnum(TimingStrategy).optional()
+    ),
     soilTestBased: z.boolean().default(false),
     followsNutrientPlan: z.boolean().default(false)
   }).superRefine((data, ctx) => {
@@ -408,15 +492,18 @@ export const pestManagementSchema = z.object({
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
       z.number().gt(0, "Must be above 0").max(1, "Enter a fraction, e.g. 0.36 for 360 g/L").optional()
     ),
-    brandName: z.string().min(1, "Brand name is required"),
+    // Optional: the engine uses it as a second key for active-ingredient synonym lookup.
+    brandName: z.string().max(120, "Brand name must be under 120 characters").optional(),
     applicationRate: z.number({ message: "Enter the application rate (product per hectare)" })
       .gt(0, "Application rate must be greater than zero")
       .max(100, "Please verify application rate"),
+    // 0 is allowed and means "not applied this season" (no burden), never "once".
     applicationsPerSeason: z.number({ message: "Enter the number of applications per season" })
       .int("Applications per season must be a whole number")
-      .min(1, "At least one application per season")
+      .min(0, "Applications cannot be negative")
       .max(MAX_APPLICATIONS_PER_SEASON, "Maximum 12 applications per season"),
-    targetPests: z.array(z.string()),
+    cropIds: cropIdList,
+    targetPests: z.array(z.string()).default([]),
     cost: z.number().min(0).optional(),
     currency: z.nativeEnum(Currency).optional(),
     safetyPrecautions: z.array(z.string()).optional().default([])
@@ -495,10 +582,21 @@ export const equipmentEnergySchema = z.object({
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
       z.number().min(0, "Distance cannot be negative").optional()
     ),
-    storageCapacity: z.number()
-      .min(0, "Storage capacity cannot be negative")
-      .max(50000, "Please verify storage capacity (max 50 tonnes)"),
+    // Optional, in tonnes (report-only).
+    storageCapacity: optionalNumber(
+      z.number()
+        .min(0, "Storage capacity cannot be negative")
+        .max(MAX_STORAGE_TONNES, "Please verify storage capacity")
+    ),
     storageFacilities: z.array(z.nativeEnum(StorageFacilityType)).default([]),
+    // Cold storage only: leakage = charge x default annual leak rate (engine/refrigerants.py).
+    refrigerant: z.preprocess(
+      (val) => (val === "" || val === null || val === "None" ? undefined : val),
+      z.enum(REFRIGERANTS, { message: "Select a refrigerant from the list" }).optional()
+    ),
+    refrigerantChargeKg: optionalNumber(
+      z.number().gt(0, "Charge must be greater than zero").max(10000, "Please verify the refrigerant charge")
+    ),
     transportAccess: z.object({
       roadAccess: z.nativeEnum(RoadAccessType),
       distanceToMarket: z.number()
@@ -511,24 +609,27 @@ export const equipmentEnergySchema = z.object({
         z.number().min(0, "Transport cost cannot be negative").optional()
       )
     })
+  }).superRefine((infra, ctx) => {
+    const cold = (infra.storageFacilities ?? []).includes(StorageFacilityType.COLD_STORAGE);
+    if (cold && infra.refrigerantChargeKg !== undefined && !infra.refrigerant) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select the refrigerant gas for the charge entered",
+        path: ["refrigerant"],
+      });
+    }
   })
 });
 
-// Step 6: Assessment Parameters Schema
+// Step 6: Assessment Parameters Schema. Only the uncertainty toggle reaches the engine
+// (run_uncertainty). The other keys are optional so archived snapshots still validate.
 export const assessmentParametersSchema = z.object({
-  functionalUnit: z.nativeEnum(FunctionalUnit, {
-    message: "Please select functional unit"
-  }),
-  systemBoundary: z.nativeEnum(SystemBoundary, {
-    message: "Please select system boundary"
-  }),
-  assessmentPeriod: z.number()
-    .min(1, "Assessment period must be at least 1 year")
-    .max(5, "Maximum assessment period is 5 years")
-    .default(1),
   includeUncertaintyAnalysis: z.boolean().default(true),
-  includeSensitivityAnalysis: z.boolean().default(true),
-  benchmarkComparison: z.boolean().default(true)
+  functionalUnit: z.nativeEnum(FunctionalUnit).optional(),
+  systemBoundary: z.nativeEnum(SystemBoundary).optional(),
+  assessmentPeriod: z.number().optional(),
+  includeSensitivityAnalysis: z.boolean().optional(),
+  benchmarkComparison: z.boolean().optional(),
 });
 
 // ======================================================================
@@ -553,6 +654,26 @@ export const enhancedAssessmentSchema = z.object({
       message: `Total allocated area (${totalAllocated.toFixed(2)} ha) exceeds farm size (${totalFarmSize} ha). ${Math.max(0, totalFarmSize - totalAllocated).toFixed(2)} ha would need to be freed.`,
     });
   }
+}).superRefine((data, ctx) => {
+  // A crop target pointing at a removed crop would silently fall back to "all crops".
+  const known = new Set((data.cropProductions ?? []).map((c) => c.cropId));
+  const check = (ids: string[] | undefined, path: (string | number)[]) => {
+    if ((ids ?? []).some((id) => !known.has(id))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "This row is linked to a crop that was removed; reselect the crops it applies to",
+        path,
+      });
+    }
+  };
+  const mp = data.managementPractices;
+  mp?.fertilization?.fertilizerApplications?.forEach((a, i) =>
+    check(a.cropIds, ['managementPractices', 'fertilization', 'fertilizerApplications', i, 'cropIds']));
+  mp?.soilManagement?.limeApplications?.forEach((l, i) =>
+    check(l.cropIds, ['managementPractices', 'soilManagement', 'limeApplications', i, 'cropIds']));
+  check(mp?.soilManagement?.compostUse?.cropIds, ['managementPractices', 'soilManagement', 'compostUse', 'cropIds']);
+  data.pestManagement?.pesticides?.forEach((p, i) =>
+    check(p.cropIds, ['pestManagement', 'pesticides', i, 'cropIds']));
 });
 
 export type EnhancedAssessmentFormData = z.infer<typeof enhancedAssessmentSchema>;
@@ -586,12 +707,16 @@ export function blankFarmAssessmentForm(): DefaultValues<EnhancedAssessmentFormI
         organicMatterContent: undefined,
         soilTestingFrequency: undefined,
         conservationPractices: [],
+        usesCoverCrops: false,
         coverCrops: [],
+        practicesAdoptedYearsAgo: undefined,
+        limeApplications: [],
         compostUse: {
           usesCompost: false,
           compostsource: CompostSource.NONE,
           applicationRate: undefined,
           applicationTiming: 'Before planting',
+          cropIds: [],
         },
       },
       fertilization: {
@@ -631,6 +756,8 @@ export function blankFarmAssessmentForm(): DefaultValues<EnhancedAssessmentFormI
         inputTransportKm: undefined,
         storageCapacity: undefined,
         storageFacilities: [],
+        refrigerant: undefined,
+        refrigerantChargeKg: undefined,
         transportAccess: {
           roadAccess: undefined,
           distanceToMarket: undefined,
@@ -640,14 +767,61 @@ export function blankFarmAssessmentForm(): DefaultValues<EnhancedAssessmentFormI
       },
     },
     assessmentParameters: {
-      functionalUnit: FunctionalUnit.PER_KG_PRODUCT,
-      systemBoundary: SystemBoundary.CRADLE_TO_GATE,
-      assessmentPeriod: 1,
       includeUncertaintyAnalysis: true,
-      includeSensitivityAnalysis: true,
-      benchmarkComparison: true,
     },
   };
+}
+
+type Loose = Record<string, unknown>;
+const isObj = (v: unknown): v is Loose => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** Recursively fill keys missing from `target` with values from `defaults` (objects only). */
+function fillDefaults(target: Loose, defaults: Loose): Loose {
+  const out: Loose = { ...target };
+  for (const [k, dv] of Object.entries(defaults)) {
+    const tv = out[k];
+    if (tv === undefined) out[k] = dv;
+    else if (isObj(tv) && isObj(dv)) out[k] = fillDefaults(tv, dv);
+  }
+  return out;
+}
+
+/**
+ * Prepare an archived wizard snapshot for `reset()` on edit / re-run. Snapshots saved before
+ * a field existed lack it; fill those gaps with the blank-form defaults, give every row the
+ * list fields it now needs, and move the legacy farm-level fertiliser method onto the rows.
+ */
+export function restoreFormSnapshot(snapshot: unknown): EnhancedAssessmentFormInput {
+  const base = fillDefaults(isObj(snapshot) ? snapshot : {}, blankFarmAssessmentForm() as Loose);
+  const form = JSON.parse(JSON.stringify(base)) as Loose;
+  const crops = Array.isArray(form.cropProductions) ? (form.cropProductions as Loose[]) : [];
+  crops.forEach((c, i) => {
+    if (!c.cropId) c.cropId = `crop_${i + 1}`;
+    if (!Array.isArray(c.rotationSequence)) c.rotationSequence = [];
+    const s = isObj(c.seasonality) ? c.seasonality : (c.seasonality = {} as Loose);
+    if (s.cropsPerYear === undefined || s.cropsPerYear === null) s.cropsPerYear = 1;
+    // Establishment is hidden (and refused by the API) for annual crops.
+    if (c.establishment && isKnownAnnualCrop(c as { cropName?: string; variety?: string; category?: string })) {
+      delete c.establishment;
+    }
+  });
+  const mp = form.managementPractices as Loose;
+  const fert = mp.fertilization as Loose;
+  const legacyMethod = fert.applicationMethod;
+  ((fert.fertilizerApplications as Loose[]) ?? []).forEach((a) => {
+    if (!Array.isArray(a.cropIds)) a.cropIds = [];
+    if (!a.applicationMethod && legacyMethod) a.applicationMethod = legacyMethod;
+  });
+  const soil = mp.soilManagement as Loose;
+  ((soil.limeApplications as Loose[]) ?? []).forEach((l) => {
+    if (!Array.isArray(l.cropIds)) l.cropIds = [];
+  });
+  const pest = form.pestManagement as Loose;
+  ((pest.pesticides as Loose[]) ?? []).forEach((p) => {
+    if (!Array.isArray(p.cropIds)) p.cropIds = [];
+    if (!Array.isArray(p.targetPests)) p.targetPests = [];
+  });
+  return form as EnhancedAssessmentFormInput;
 }
 
 // ======================================================================

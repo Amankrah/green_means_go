@@ -34,8 +34,11 @@ except ImportError:  # script use
     from conversion_ratios import default_raw_input  # type: ignore
 
 # Lower heating values (MJ per litre) for common facility fuels.
-FUEL_MJ_PER_L = {"diesel": 38.7, "petrol": 34.2, "gasoline": 34.2, "kerosene": 37.0,
-                 "lpg": 25.8, "biodiesel": 33.0}
+# Lower heating values per litre, single source of truth engine/energy_carriers.LHV (cited
+# there: IPCC 2006 Vol 2 Ch 1 Table 1.2 NCV x density; RED II for biodiesel).
+FUEL_MJ_PER_L = {"diesel": ec.LHV["diesel"]["L"][0], "petrol": ec.LHV["petrol"]["L"][0],
+                 "gasoline": ec.LHV["petrol"]["L"][0], "kerosene": ec.LHV["kerosene"]["L"][0],
+                 "lpg": ec.LHV["lpg"]["L"][0], "biodiesel": ec.LHV["biodiesel"]["L"][0]}
 
 # Packaging material -> representative ecoinvent dataset to match against.
 PACKAGING_MATCH = {
@@ -239,6 +242,41 @@ NONLOCAL_KM_SOURCE = ("EC (2018) PEFCR Guidance v6.3, s.7.14 default supplier-to
 # default retained from the previous engine version.
 WASTEWATER_SHARE = 0.8
 WASTEWATER_DATASET = "treatment of wastewater, average, wastewater treatment"
+
+# Untreated discharge: operator-measured effluent concentrations (mg/L) -> kg to surface
+# water (1 mg/L = 1 g/m3, so kg = mg/L x m3 / 1000). Optional request fields under
+# processing_operations.water_management (requested from B-api); read defensively. No
+# literature default concentration is used: food-processing effluent varies by orders of
+# magnitude by sector, so without measurements the load is disclosed as a data gap.
+EFFLUENT_FIELDS = {
+    "effluent_cod_mg_per_l": "COD, Chemical Oxygen Demand",
+    "effluent_bod5_mg_per_l": "BOD5, Biological Oxygen Demand",
+    "effluent_total_n_mg_per_l": "Nitrogen",
+    "effluent_total_p_mg_per_l": "Phosphorus",
+}
+EFFLUENT_COMPARTMENT = "Elementary flows/Emission to water/surface water"
+
+
+def untreated_effluent_loads(request: dict) -> list[dict]:
+    """[{name, compartment, kg}] for untreated wastewater with measured concentrations;
+    [] when treatment is used, no water is declared, or no concentration was given."""
+    ops = request.get("processing_operations") or {}
+    wm = ops.get("water_management") or {}
+    if (wm.get("wastewater_treatment") or "BasicSedimentation") != "None":
+        return []
+    m3 = _water_m3(request) * WASTEWATER_SHARE
+    if m3 <= 0:
+        return []
+    out = []
+    for key, flow in EFFLUENT_FIELDS.items():
+        try:
+            conc = float(wm.get(key)) if wm.get(key) is not None else None
+        except (TypeError, ValueError):
+            conc = None
+        if conc is not None and conc > 0:
+            out.append({"name": flow, "compartment": EFFLUENT_COMPARTMENT, "kg": conc * m3 / 1000.0,
+                        "concentration_mg_per_l": conc, "m3": m3})
+    return out
 
 # On-site treatment of intake water -> treated-water dataset (it includes its own sourcing,
 # so no separate withdrawal is added for that water).
@@ -491,9 +529,16 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
     if water_m3 > 0:
         ww_m3 = water_m3 * WASTEWATER_SHARE
         if (wm.get("wastewater_treatment") or "BasicSedimentation") == "None":
-            notes.append(f"wastewater ({ww_m3:.0f} m3) discharged untreated: no treatment burden, and its "
-                         "pollutant load (COD, N, P) is NOT quantified. Data gap: measure effluent "
-                         "COD/BOD to model it")
+            loads = untreated_effluent_loads(request)
+            if loads:
+                notes.append(f"wastewater ({ww_m3:.0f} m3) discharged untreated: pollutant load from the "
+                             "operator's measured effluent concentrations emitted to surface water ("
+                             + ", ".join(f"{l['name']} {l['kg']:.3g} kg" for l in loads) + ")")
+            else:
+                notes.append(f"wastewater ({ww_m3:.0f} m3) discharged untreated: no treatment burden, and its "
+                             "pollutant load (COD, BOD5, N, P) is NOT quantified because no effluent "
+                             "concentrations were given; no literature default is assumed. Data gap: "
+                             "measure effluent COD/BOD5/total N/total P (mg/L) to model it")
         else:
             inputs.append({"name": "wastewater treatment", "match_as": WASTEWATER_DATASET,
                            "amount": ww_m3, "unit": "m3", "kind": "wastewater"})

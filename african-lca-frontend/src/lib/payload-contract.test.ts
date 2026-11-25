@@ -26,8 +26,10 @@ import {
   FUEL_UNITS,
   WATER_SOURCES,
 } from './processing-assessment-schema';
-import { COUNTRY_TO_REGION, GHANA_EXAMPLE } from './country-examples';
+import { COUNTRY_TO_REGION, GHANA_EXAMPLE, NIGERIA_EXAMPLE } from './country-examples';
 import { deriveSeasonalFactor } from './seasonal-factor';
+import { pickMarketMode } from './api';
+import { restoreFormSnapshot } from './enhanced-assessment-schema';
 import {
   EnhancedAssessmentRequest,
   FuelType,
@@ -39,7 +41,18 @@ import {
   WaterSource,
   FertilizerType,
   MonitoringFrequency,
+  SeasonType,
+  ApplicationMethod,
+  StorageFacilityType,
+  isKnownAnnualCrop,
 } from '@/types/enhanced-assessment';
+
+// The Nigeria case study has no measured irrigation volume, which the wizard requires.
+function NIGERIA_EXAMPLE_WITH_WATER() {
+  const ng = JSON.parse(JSON.stringify(NIGERIA_EXAMPLE));
+  ng.managementPractices.waterManagement.irrigationWaterM3 = 150000;
+  return ng;
+}
 
 /** Sorted list of every key path in an object tree; arrays contribute their first element. */
 function keyPaths(value: unknown, prefix = ''): string[] {
@@ -98,6 +111,8 @@ describe('farm payload contract (transformEnhancedAssessmentToBackend)', () => {
       'equipment_energy.fuel_consumption[].monthly_consumption',
       'equipment_energy.fuel_consumption[].primary_use',
       'equipment_energy.fuel_consumption[].unit',
+      'equipment_energy.storage.capacity_tonnes',
+      'equipment_energy.storage.facilities[]',
       'farm_profile.certifications',
       'farm_profile.farm_name',
       'farm_profile.farm_type',
@@ -110,45 +125,68 @@ describe('farm payload contract (transformEnhancedAssessmentToBackend)', () => {
       'foods[].category',
       'foods[].crop_type',
       'foods[].cropping_pattern',
+      'foods[].crops_per_year',
+      'foods[].growing_period_days',
+      'foods[].harvest_months[]',
       'foods[].id',
       'foods[].intercropping_partners[]',
       'foods[].name',
       'foods[].origin_country',
+      'foods[].planting_months[]',
       'foods[].post_harvest_losses',
       'foods[].production_system',
       'foods[].quantity_kg',
-      'foods[].seasonal_factor',
+      'foods[].rotation_sequence[]',
       'foods[].variety',
       'logistics.distance_to_market_km',
       'logistics.input_transport_km',
       'logistics.market_transport_mode',
       'logistics.packaging_material',
+      'management_practices.fertilization.fertilizer_applications[].application_method',
       'management_practices.fertilization.fertilizer_applications[].application_rate',
       'management_practices.fertilization.fertilizer_applications[].applications_per_season',
+      'management_practices.fertilization.fertilizer_applications[].brand_name',
       'management_practices.fertilization.fertilizer_applications[].cost',
+      'management_practices.fertilization.fertilizer_applications[].crop_ids[]',
       'management_practices.fertilization.fertilizer_applications[].fertilizer_type',
       'management_practices.fertilization.fertilizer_applications[].npk_ratio',
       'management_practices.fertilization.follows_nutrient_plan',
       'management_practices.fertilization.soil_test_based',
+      'management_practices.fertilization.timing_strategy',
       'management_practices.fertilization.uses_fertilizers',
+      'management_practices.pest_management.biological_controls[]',
+      'management_practices.pest_management.ipm_practices[]',
       'management_practices.pest_management.management_approach',
       'management_practices.pest_management.pest_monitoring_frequency',
       'management_practices.pest_management.pesticides[].active_ingredient',
       'management_practices.pest_management.pesticides[].application_rate',
       'management_practices.pest_management.pesticides[].applications_per_season',
+      'management_practices.pest_management.pesticides[].brand_name',
+      'management_practices.pest_management.pesticides[].crop_ids[]',
       'management_practices.pest_management.pesticides[].pesticide_type',
       'management_practices.pest_management.pesticides[].target_pests[]',
+      'management_practices.pest_management.primary_diseases[]',
+      'management_practices.pest_management.primary_pests[]',
+      'management_practices.pest_management.uses_economic_thresholds',
       'management_practices.pest_management.uses_ipm',
       'management_practices.soil_management.compost_application_rate',
+      'management_practices.soil_management.compost_crop_ids',
       'management_practices.soil_management.compost_source',
       'management_practices.soil_management.conservation_practices[]',
+      'management_practices.soil_management.cover_crops',
+      'management_practices.soil_management.lime_applications',
+      'management_practices.soil_management.organic_matter_pct',
+      'management_practices.soil_management.soil_ph',
       'management_practices.soil_management.soil_testing_frequency',
       'management_practices.soil_management.soil_type',
       'management_practices.soil_management.uses_compost',
+      'management_practices.water_management.drainage_system',
       'management_practices.water_management.irrigation_system',
       'management_practices.water_management.water_conservation_practices',
       'management_practices.water_management.water_source[]',
       'region',
+      'run_uncertainty',
+      'study_meta.admin_region',
     ]);
   });
 
@@ -171,15 +209,182 @@ describe('farm payload contract (transformEnhancedAssessmentToBackend)', () => {
     expect(payload.region).toBe('GH');
   });
 
-  it('derives seasonal_factor from planting months and never emits Harmattan', () => {
+  it('sends seasonal_factor only as an explicit override (engine derives it otherwise)', () => {
     const fx = farmRequestFixture();
-    fx.farmProfile.country = 'Senegal';
     fx.cropProductions[0].seasonality.plantingMonths = [2, 3];
-    const dry = transformEnhancedAssessmentToBackend(fx);
-    expect(dry.foods[0].seasonal_factor).toBe('DrySeason');
-    fx.cropProductions[0].seasonality.plantingMonths = [3, 8];
-    expect(transformEnhancedAssessmentToBackend(fx).foods[0].seasonal_factor).toBe('YearRound');
-    expect(['WetSeason', 'DrySeason', 'YearRound']).toContain(payload.foods[0].seasonal_factor);
+    const auto = transformEnhancedAssessmentToBackend(fx);
+    expect(auto.foods[0].seasonal_factor).toBeUndefined();
+    expect(auto.foods[0].planting_months).toEqual([2, 3]);
+    fx.cropProductions[0].seasonality.seasonOverride = SeasonType.DRY_SEASON;
+    expect(transformEnhancedAssessmentToBackend(fx).foods[0].seasonal_factor).toBe('DrySeason');
+    expect(Object.values(SeasonType)).toEqual(['WetSeason', 'DrySeason', 'YearRound']);
+  });
+
+  it('sends admin region, uncertainty flag and stable crop ids', () => {
+    expect(payload.study_meta).toEqual({ admin_region: 'Northern' });
+    expect(payload.run_uncertainty).toBe(true);
+    expect(payload.foods.map((f) => f.id)).toEqual(['crop_maize_001', 'crop_cowpea_001']);
+    const fx = farmRequestFixture();
+    fx.assessmentParameters.includeUncertaintyAnalysis = false;
+    expect(transformEnhancedAssessmentToBackend(fx).run_uncertainty).toBe(false);
+  });
+
+  it('targets fertiliser and pesticide rows at crops by foods[].id and maps the method', () => {
+    const fert = payload.management_practices!.fertilization.fertilizer_applications;
+    expect(fert.map((f) => [f.crop_ids, f.application_method, f.brand_name])).toEqual([
+      [['crop_maize_001'], 'band_placement', 'Yara NPK 15-15-15'],
+      [['crop_maize_001'], 'side_dressing', 'Wienco Urea'],
+    ]);
+    expect(payload.management_practices!.pest_management.pesticides[0].crop_ids).toEqual(['crop_maize_001']);
+    expect(payload.management_practices!.soil_management.compost_crop_ids).toEqual([]);
+  });
+
+  it('copies a legacy farm-level application method onto rows and maps Precision to band placement', () => {
+    const fx = farmRequestFixture();
+    fx.managementPractices.fertilization.fertilizerApplications.forEach((a) => { delete a.applicationMethod; });
+    fx.managementPractices.fertilization.applicationMethod = ApplicationMethod.PRECISION_APPLICATION;
+    const rows = transformEnhancedAssessmentToBackend(fx).management_practices!.fertilization.fertilizer_applications;
+    expect(rows.map((r) => r.application_method)).toEqual(['band_placement', 'band_placement']);
+  });
+
+  it('never sends fertiliser rows of type None or with no rate', () => {
+    const fx = farmRequestFixture();
+    fx.managementPractices.fertilization.fertilizerApplications.push(
+      { fertilizerType: FertilizerType.NONE, applicationRate: 50, applicationsPerSeason: 1, cost: 0 },
+      { fertilizerType: FertilizerType.UREA, applicationRate: 0, applicationsPerSeason: 1, cost: 0 },
+    );
+    const fert = transformEnhancedAssessmentToBackend(fx).management_practices!.fertilization;
+    expect(fert.fertilizer_applications).toHaveLength(2);
+    expect(fert.uses_fertilizers).toBe(true);
+  });
+
+  it('sends soil pH / organic matter only when known (no injected defaults)', () => {
+    expect(payload.management_practices!.soil_management).toMatchObject({ soil_ph: 5.9, organic_matter_pct: 2.4, cover_crops: true });
+    const fx = farmRequestFixture();
+    fx.managementPractices.soilManagement.soilpH = undefined;
+    fx.managementPractices.soilManagement.organicMatterContent = undefined;
+    const soil = transformEnhancedAssessmentToBackend(fx).management_practices!.soil_management;
+    expect(soil.soil_ph).toBeUndefined();
+    expect(soil.organic_matter_pct).toBeUndefined();
+  });
+
+  it('sends lime rows with crop ids', () => {
+    const fx = farmRequestFixture();
+    fx.managementPractices.soilManagement.limeApplications = [
+      { material: 'dolomite', rateTPerHaPerYear: 0.5, cropIds: ['crop_cowpea_001'] },
+    ];
+    expect(transformEnhancedAssessmentToBackend(fx).management_practices!.soil_management.lime_applications)
+      .toEqual([{ material: 'dolomite', rate_t_per_ha_per_year: 0.5, crop_ids: ['crop_cowpea_001'] }]);
+  });
+
+  it('sends land-use change only with explicit years and never null establishment keys', () => {
+    const fx = farmRequestFixture();
+    fx.cropProductions[0].landUseChange = { previousLandUse: 'forest', yearsSinceConversion: 7 };
+    // Establishment is perennial-only: use a tree crop (maize would drop it).
+    Object.assign(fx.cropProductions[0], { cropName: 'Cocoa', variety: 'Amazonia', category: 'Other' });
+    fx.cropProductions[0].establishment = { productiveYears: 25 };
+    const food = transformEnhancedAssessmentToBackend(fx).foods[0];
+    expect(food.land_use_change).toEqual({ previous_land_use: 'forest', years_since_conversion: 7 });
+    expect(food.establishment).toEqual({ productive_years: 25 });
+    fx.cropProductions[0].landUseChange = { previousLandUse: 'forest' };
+    fx.cropProductions[0].establishment = {};
+    const blank = transformEnhancedAssessmentToBackend(fx).foods[0];
+    expect(blank.land_use_change).toBeUndefined();
+    expect(blank.establishment).toBeUndefined();
+  });
+
+  it('sends the cold-store refrigerant only when Cold Storage is ticked', () => {
+    const fx = farmRequestFixture();
+    fx.equipmentEnergy.infrastructure.refrigerant = 'R-134a';
+    fx.equipmentEnergy.infrastructure.refrigerantChargeKg = 4;
+    expect(transformEnhancedAssessmentToBackend(fx).equipment_energy!.storage).toEqual({
+      facilities: ['Traditional Granary'], capacity_tonnes: 5, refrigerant: undefined, refrigerant_charge_kg: undefined,
+    });
+    fx.equipmentEnergy.infrastructure.storageFacilities = [StorageFacilityType.COLD_STORAGE];
+    expect(transformEnhancedAssessmentToBackend(fx).equipment_energy!.storage).toMatchObject({
+      facilities: ['Cold Storage'], refrigerant: 'R-134a', refrigerant_charge_kg: 4,
+    });
+  });
+
+  it('maps market transport modes to the engine keywords (pickup is not a lorry)', () => {
+    expect(pickMarketMode(['Pickup truck', 'Motorcycle'])).toBe('Pickup');
+    expect(pickMarketMode(['Large truck', 'Pickup truck'])).toBe('Large truck');
+    expect(pickMarketMode(['On foot/Head carrying'])).toBe('On foot');
+    expect(pickMarketMode([])).toBeUndefined();
+  });
+
+  it('sends the Nigeria rice example with two seasons and a flooded water regime', () => {
+    const food = transformEnhancedAssessmentToBackend(NIGERIA_EXAMPLE as unknown as EnhancedAssessmentRequest).foods[0];
+    expect(food).toMatchObject({
+      crops_per_year: 2,
+      growing_period_days: 120,
+      water_regime: 'irrigated_continuously_flooded',
+      preseason_water_status: 'non_flooded_lt_180d',
+      planting_months: [1, 2, 6, 7],
+      harvest_months: [4, 5, 10, 11],
+    });
+  });
+
+  it('sends removed_residue_use only when some residue is removed', () => {
+    const fx = farmRequestFixture();
+    fx.cropProductions[0].residueManagement = { fractionRemoved: 0.5, fractionBurnt: 0, removedResidueUse: 'fed_to_own_livestock' };
+    expect(transformEnhancedAssessmentToBackend(fx).foods[0].residue_management).toEqual({
+      fraction_removed: 0.5, fraction_burnt: 0, removed_residue_use: 'fed_to_own_livestock',
+    });
+    fx.cropProductions[0].residueManagement = { fractionRemoved: 0, fractionBurnt: 0.2, removedResidueUse: 'sold' };
+    expect(transformEnhancedAssessmentToBackend(fx).foods[0].residue_management?.removed_residue_use).toBeUndefined();
+  });
+
+  it('never sends establishment for annual crops (mirror of engine known_annual)', () => {
+    const fx = farmRequestFixture();
+    fx.cropProductions[0].establishment = { immatureYears: 1, productiveYears: 3 };
+    expect(transformEnhancedAssessmentToBackend(fx).foods[0].establishment).toBeUndefined();
+    expect(isKnownAnnualCrop({ cropName: 'Maize', category: 'Cereals' })).toBe(true);
+    expect(isKnownAnnualCrop({ cropName: 'Cassava', category: 'Roots' })).toBe(true);
+    expect(isKnownAnnualCrop({ cropName: 'Mystery crop', category: 'Vegetables' })).toBe(true);
+    expect(isKnownAnnualCrop({ cropName: 'Cocoa', category: 'Other' })).toBe(false);
+    expect(isKnownAnnualCrop({ cropName: 'Palm', category: 'Oils' })).toBe(false);
+    expect(isKnownAnnualCrop({ cropName: 'African locust bean', category: 'Legumes' })).toBe(false);
+    expect(isKnownAnnualCrop({ cropName: 'Shea', category: 'Nuts' })).toBe(false);
+    expect(isKnownAnnualCrop({ cropName: 'Orange-fleshed sweet potato', category: 'Roots' })).toBe(true);
+  });
+
+  it('never sends a rice water regime for a non-rice crop', () => {
+    const fx = farmRequestFixture();
+    fx.cropProductions[0].waterRegime = 'upland';
+    expect(transformEnhancedAssessmentToBackend(fx).foods[0].water_regime).toBeUndefined();
+  });
+});
+
+describe('farm wizard snapshot restore', () => {
+  it('fills fields added since a snapshot was saved and moves the legacy method onto rows', () => {
+    const legacy = JSON.parse(JSON.stringify(GHANA_EXAMPLE));
+    legacy.managementPractices.fertilization.fertilizerApplications.forEach((a: Record<string, unknown>) => {
+      delete a.applicationMethod; delete a.cropIds;
+    });
+    legacy.managementPractices.fertilization.applicationMethod = ApplicationMethod.BROADCAST;
+    delete legacy.managementPractices.soilManagement.limeApplications;
+    delete legacy.pestManagement.pesticides[0].cropIds;
+    legacy.assessmentParameters = { functionalUnit: 'Per kg of product', systemBoundary: 'Cradle-to-gate (production only)', assessmentPeriod: 1, includeUncertaintyAnalysis: true, includeSensitivityAnalysis: true, benchmarkComparison: true };
+    const restored = restoreFormSnapshot(legacy);
+    const fert = restored.managementPractices!.fertilization!.fertilizerApplications!;
+    expect(fert.map((a) => [a!.applicationMethod, a!.cropIds])).toEqual([
+      [ApplicationMethod.BROADCAST, []], [ApplicationMethod.BROADCAST, []],
+    ]);
+    expect(restored.managementPractices!.soilManagement!.limeApplications).toEqual([]);
+    const parsed = enhancedAssessmentSchema.safeParse(restored);
+    expect(parsed.success, JSON.stringify(parsed.success ? null : parsed.error.issues)).toBe(true);
+  });
+
+  it('round-trips the new fields through the parsed form (form_snapshot)', () => {
+    const parsed = enhancedAssessmentSchema.parse(NIGERIA_EXAMPLE_WITH_WATER());
+    const again = enhancedAssessmentSchema.parse(restoreFormSnapshot(JSON.parse(JSON.stringify(parsed))));
+    expect(again.cropProductions[0]).toMatchObject({
+      waterRegime: 'irrigated_continuously_flooded',
+      seasonality: { cropsPerYear: 2, growingPeriod: 120 },
+      rotationSequence: ['Rice'],
+    });
+    expect(again.managementPractices.fertilization.fertilizerApplications[0].applicationMethod).toBe(ApplicationMethod.BROADCAST);
   });
 });
 
@@ -264,6 +469,65 @@ describe('farm wizard validation', () => {
     expect(pestManagementSchema.safeParse({ ...pest, managementApproach: PestManagementApproach.INTEGRATED_IPM }).success).toBe(true);
   });
 
+  it('requires whole years since conversion once a previous land use is chosen', () => {
+    const g = () => JSON.parse(JSON.stringify(GHANA_EXAMPLE));
+    const blankYears = g();
+    blankYears.cropProductions[0].landUseChange = { previousLandUse: 'forest', yearsSinceConversion: '' };
+    expect(enhancedAssessmentSchema.safeParse(blankYears).success).toBe(false);
+    const fractional = g();
+    fractional.cropProductions[0].landUseChange = { previousLandUse: 'forest', yearsSinceConversion: 2.5 };
+    expect(enhancedAssessmentSchema.safeParse(fractional).success).toBe(false);
+    const ok = g();
+    ok.cropProductions[0].landUseChange = { previousLandUse: 'forest', yearsSinceConversion: '6' };
+    expect(enhancedAssessmentSchema.safeParse(ok).success).toBe(true);
+    const none = g();
+    none.cropProductions[0].landUseChange = { previousLandUse: '', yearsSinceConversion: '' };
+    expect(enhancedAssessmentSchema.safeParse(none).success).toBe(true);
+  });
+
+  it('refuses zero productive years for a perennial and needs no yield per hectare', () => {
+    const g = JSON.parse(JSON.stringify(GHANA_EXAMPLE));
+    g.cropProductions[0].establishment = { productiveYears: 0 };
+    expect(enhancedAssessmentSchema.safeParse(g).success).toBe(false);
+    const noYield = JSON.parse(JSON.stringify(GHANA_EXAMPLE));
+    delete noYield.cropProductions[0].averageYieldPerHectare;
+    delete noYield.cropProductions[0].postHarvestLosses;
+    const r = enhancedAssessmentSchema.safeParse(noYield);
+    expect(r.success).toBe(true);
+    expect(r.success && r.data.cropProductions[0].postHarvestLosses).toBeUndefined();
+  });
+
+  it('refuses a fertiliser row of type None', () => {
+    const m = mgmt();
+    m.fertilization.fertilizerApplications[0].fertilizerType = FertilizerType.NONE;
+    expect(managementPracticesSchema.safeParse(m).success).toBe(false);
+  });
+
+  it('allows a pesticide row with 0 applications (not applied) but not a missing count', () => {
+    const pest = (n: unknown) => ({
+      managementApproach: PestManagementApproach.INTEGRATED_IPM,
+      pestMonitoringFrequency: Object.values(MonitoringFrequency)[0],
+      pesticides: [{ pesticideType: 'Herbicide', activeIngredient: 'Glyphosate', applicationRate: 2, applicationsPerSeason: n, targetPests: [] }],
+    });
+    expect(pestManagementSchema.safeParse(pest(0)).success).toBe(true);
+    expect(pestManagementSchema.safeParse(pest(undefined)).success).toBe(false);
+  });
+
+  it('refuses rows linked to a crop that is not in the crop list', () => {
+    const g = JSON.parse(JSON.stringify(GHANA_EXAMPLE));
+    g.managementPractices.fertilization.fertilizerApplications[0].cropIds = ['crop_gone'];
+    expect(enhancedAssessmentSchema.safeParse(g).success).toBe(false);
+  });
+
+  it('makes storage capacity optional and needs a gas for a cold-store charge', () => {
+    const infra = { ...GHANA_EXAMPLE.equipmentEnergy.infrastructure, storageCapacity: '' };
+    const base = { equipment: [], energySources: [], fuelConsumption: [], infrastructure: infra };
+    expect(equipmentEnergySchema.safeParse(base).success).toBe(true);
+    const cold = { ...base, infrastructure: { ...infra, storageFacilities: [StorageFacilityType.COLD_STORAGE], refrigerantChargeKg: 3 } };
+    expect(equipmentEnergySchema.safeParse(cold).success).toBe(false);
+    expect(equipmentEnergySchema.safeParse({ ...cold, infrastructure: { ...cold.infrastructure, refrigerant: 'R-404A' } }).success).toBe(true);
+  });
+
   it('refuses zero-hour equipment and zero-consumption energy or fuel rows', () => {
     const infra = GHANA_EXAMPLE.equipmentEnergy.infrastructure;
     const base = { equipment: [], energySources: [], fuelConsumption: [], infrastructure: infra };
@@ -336,6 +600,20 @@ describe('processing payload contract (buildProcessingPayload)', () => {
       'region',
       'title',
     ]);
+  });
+
+  it('sends measured effluent only for untreated wastewater', () => {
+    const f = defaultProcessingForm();
+    f.facility.facilityName = 'Plant';
+    f.utilities.effluentCodMgPerL = 1200;
+    f.utilities.effluentTotalPMgPerL = 8;
+    const wm = (form: typeof f) =>
+      (buildProcessingPayload(form, COUNTRY_TO_REGION).processing_operations as { water_management: Record<string, unknown> }).water_management;
+    expect(wm(f).effluent_cod_mg_per_l).toBeUndefined();
+    f.utilities.wastewaterTreatment = 'None';
+    expect(wm(f)).toMatchObject({ effluent_cod_mg_per_l: 1200, effluent_total_p_mg_per_l: 8 });
+    expect(wm(f).effluent_bod5_mg_per_l).toBeUndefined();
+    expect(utilitiesSchema.safeParse({ ...f.utilities, elecKwhMonth: 1, effluentCodMgPerL: -1 }).success).toBe(false);
   });
 
   it('treats a 0 km transport distance as "use the default" and carries the form snapshot', () => {

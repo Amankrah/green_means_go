@@ -74,12 +74,45 @@ EFFICIENCY_SOURCE = ("Brouwer C., Prins K., Heibloem M. (1989) Irrigation Water 
                      "(surface 60%, sprinkler 75%, drip 90%)")
 APPLICATION_EFFICIENCY = {"surface": 0.60, "sprinkler": 0.75, "drip": 0.90}
 
-# Share of the crop water need supplied by irrigation. Dry-season / year-round irrigated
-# crops get all of it; wet-season irrigation is supplementary. GMG screening assumption,
-# flagged as estimated: a measured volume always replaces it.
+# Share of the crop water need supplied by irrigation. UNSOURCED TEAM ASSUMPTION (no
+# published value): dry-season / year-round crops get the full need (rain contributes
+# nothing, an upper bound); wet-season irrigation is taken as supplementary at one half. The
+# cited method would be the irrigation requirement net of effective rainfall per month (FAO
+# CROPWAT; Brouwer & Heibloem 1986, Manual No. 3, effective rainfall), which needs monthly rainfall and
+# crop coefficients per farm that the engine does not have. Flagged as estimated; a measured
+# volume always replaces it.
 IRRIGATION_SHARE = {"DrySeason": 1.0, "YearRound": 1.0, "WetSeason": 0.5}
-IRRIGATION_SHARE_NOTE = ("GMG screening assumption: full crop water need irrigated in the dry "
-                         "season / year round, half in the wet season (rain supplies the rest)")
+IRRIGATION_SHARE_NOTE = ("UNSOURCED GMG screening assumption (not a published factor): full crop "
+                         "water need irrigated in the dry season / year round, half in the wet "
+                         "season; FAO CROPWAT effective-rainfall accounting not implemented")
+# Season unknown (no seasonal_factor and no planting months): the full crop water need is
+# used, the upper bound of the two cases above, instead of silently assuming a wet season.
+UNKNOWN_SEASON_SHARE = 1.0
+
+
+def derive_seasonal_factor(planting_months, rainy_months) -> tuple[str | None, str]:
+    """Season of a crop from its planting months and the region's rainy-season months
+    (engine/regions.rainy_season_months). Every planting month in the rainy season ->
+    WetSeason; none -> DrySeason; both -> YearRound. Returns (factor or None, note)."""
+    months = []
+    for m in planting_months or []:
+        try:
+            m = int(m)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= m <= 12:
+            months.append(m)
+    rainy = set(rainy_months or ())
+    if not months:
+        return None, ("season not derived (no planting months); irrigation estimate uses the "
+                      "full crop water need")
+    if not rainy:
+        return None, ("season not derived (no rainy-season months for the region); irrigation "
+                      "estimate uses the full crop water need")
+    wet = sum(1 for m in months if m in rainy)
+    factor = "WetSeason" if wet == len(months) else "DrySeason" if wet == 0 else "YearRound"
+    return factor, (f"seasonal_factor {factor} derived from planting months {sorted(set(months))} "
+                    f"vs rainy-season months {sorted(rainy)} (engine/regions.py)")
 
 _ALIASES = [
     ("oil palm", "oil palm"), ("palm", "palm"), ("maize", "maize"), ("corn", "maize"),
@@ -150,12 +183,19 @@ def irrigation_default_m3(food: dict, irrigation_system: str | None) -> dict | N
     key = crop_key(food)
     basis = key if key in CROP_WATER_NEED_MM else CATEGORY_WATER.get(food.get("category") or "", "maize")
     mm, rng = CROP_WATER_NEED_MM[basis]
-    share = IRRIGATION_SHARE.get(food.get("seasonal_factor") or "", 0.5)
+    season = food.get("seasonal_factor") or ""
+    share = IRRIGATION_SHARE.get(season, UNKNOWN_SEASON_SHARE)
+    season_txt = season or "season unknown: full crop water need"
     eff = APPLICATION_EFFICIENCY[sys_key]
-    m3 = mm * 10.0 * area * share / eff          # 1 mm over 1 ha = 10 m3
+    try:
+        seasons = max(1, int(food.get("crops_per_year") or 1))   # CONTRACT §1: per-season need
+    except (TypeError, ValueError):
+        seasons = 1
+    m3 = mm * 10.0 * area * share / eff * seasons     # 1 mm over 1 ha = 10 m3
     return {"m3": m3, "system": sys_key, "estimated": True,
-            "source": (f"{WATER_NEED_SOURCE}: {basis} {rng} mm; {EFFICIENCY_SOURCE}; "
-                       f"{IRRIGATION_SHARE_NOTE} (share {share:g})")}
+            "source": (f"{WATER_NEED_SOURCE}: {basis} {rng} mm per season x {seasons} season(s); "
+                       f"{EFFICIENCY_SOURCE}; {IRRIGATION_SHARE_NOTE} ({season_txt}, "
+                       f"share {share:g})")}
 
 
 def irrigation_system_key(irrigation_system: str | None) -> str | None:

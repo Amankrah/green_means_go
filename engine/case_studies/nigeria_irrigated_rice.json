@@ -2,6 +2,9 @@
   "company_name": "Fatima Bello - Kano Rice Estates",
   "country": "Nigeria",
   "region": "NG",
+  "study_meta": {
+    "admin_region": "Kano"
+  },
   "farm_profile": {
     "farmer_name": "Fatima Bello",
     "farm_name": "Kano Rice Estates",
@@ -51,10 +54,8 @@
         "Borehole",
         "Dam/Reservoir"
       ],
-      "irrigation_system": "Sprinkler",
-      "water_conservation_practices": [
-        "Alternate wetting and drying"
-      ]
+      "irrigation_system": "Flood Irrigation",
+      "water_conservation_practices": []
     },
     "pest_management": {
       "management_approach": "Chemical pesticides only",
@@ -106,15 +107,7 @@
         "fuel_efficiency": 4.5
       }
     ],
-    "energy_sources": [
-      {
-        "energy_type": "Diesel Generator",
-        "monthly_consumption": 220,
-        "primary_use": "Irrigation pumping",
-        "cost": 1850,
-        "currency": "NGN"
-      }
-    ],
+    "energy_sources": [],
     "fuel_consumption": [
       {
         "fuel_type": "Diesel",
@@ -136,6 +129,9 @@
       "seasonal_factor": "DrySeason",
       "variety": "FARO 44",
       "area_allocated": 12.0,
+      "crops_per_year": 1,
+      "growing_period_days": 115,
+      "water_regime": "irrigated_continuously_flooded",
       "cropping_pattern": "Monoculture",
       "intercropping_partners": [],
       "post_harvest_losses": 10

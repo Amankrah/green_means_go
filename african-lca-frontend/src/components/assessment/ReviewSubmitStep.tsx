@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 
 import { EnhancedAssessmentFormData } from '@/lib/enhanced-assessment-schema';
-import { deriveSeasonalFactor, seasonalFactorLabel } from '@/lib/seasonal-factor';
+import { deriveSeasonalFactor, seasonalFactorLabel, type SeasonalFactor } from '@/lib/seasonal-factor';
+import { RICE_WATER_REGIME_OPTIONS, isRiceCrop } from '@/types/enhanced-assessment';
 import type { AssessmentProgressEvent } from '@/lib/api';
 import AssessmentProgress from '@/components/AssessmentProgress';
 
@@ -31,6 +32,12 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
   const { watch, formState: { errors } } = useFormContext<EnhancedAssessmentFormData>();
   
   const formData = watch();
+
+  const cropNames = (ids?: string[]) => {
+    if (!ids || ids.length === 0) return (formData.cropProductions?.length ?? 0) > 1 ? ' (all crops)' : '';
+    const byId = new Map((formData.cropProductions ?? []).map((c) => [c.cropId, c.cropName]));
+    return ` (${ids.map((id) => byId.get(id) || 'removed crop').join(', ')})`;
+  };
 
   const renderFarmProfileSummary = () => (
     <div className="bg-moss/10 rounded-lg p-4">
@@ -64,8 +71,20 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
             </p>
             <p className="text-moss">{crop.croppingPattern}</p>
             <p className="text-xs text-spruce">
-              Growing season: {seasonalFactorLabel(deriveSeasonalFactor(formData.farmProfile?.country, crop.seasonality?.plantingMonths))}
+              {crop.seasonality?.cropsPerYear || 1} harvest(s)/year
+              {crop.seasonality?.growingPeriod ? ` • ${crop.seasonality.growingPeriod} days per season` : ''}
+              {' • '}Season: {crop.seasonality?.seasonOverride
+                ? seasonalFactorLabel(crop.seasonality.seasonOverride as SeasonalFactor)
+                : `from planting months (likely ${seasonalFactorLabel(deriveSeasonalFactor(formData.farmProfile?.country, crop.seasonality?.plantingMonths))})`}
             </p>
+            {isRiceCrop(crop.cropName) && (
+              <p className="text-xs text-spruce">
+                Water: {RICE_WATER_REGIME_OPTIONS.find((o) => o.value === crop.waterRegime)?.label || 'estimated from the irrigation system'}
+              </p>
+            )}
+            {(crop.rotationSequence?.length ?? 0) > 0 && (
+              <p className="text-xs text-spruce">Previous crops: {crop.rotationSequence!.join(', ')}</p>
+            )}
           </div>
         )) || <p className="text-sm text-spruce">No crops added</p>}
       </div>
@@ -92,6 +111,10 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
             {formData.managementPractices?.soilManagement?.compostUse?.usesCompost && (
               <p>• Compost Source: {formData.managementPractices?.soilManagement?.compostUse?.compostsource || 'Not specified'}</p>
             )}
+            <p>• Cover Crops: {formData.managementPractices?.soilManagement?.usesCoverCrops ? 'Yes' : 'No'}</p>
+            {(formData.managementPractices?.soilManagement?.limeApplications ?? []).map((l, i) => (
+              <p key={i}>• Lime: {l.material}, {l.rateTPerHaPerYear} t/ha/year{cropNames(l.cropIds)}</p>
+            ))}
           </div>
         </div>
 
@@ -108,7 +131,8 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
                 <div className="ml-4 space-y-1">
                   {formData.managementPractices.fertilization.fertilizerApplications.map((fert, index) => (
                     <p key={index} className="text-xs">
-                      - {fert.fertilizerType}: {fert.applicationRate} kg/ha, {fert.applicationsPerSeason} times/season
+                      - {fert.fertilizerType}: {fert.applicationRate} kg product/ha per application, {fert.applicationsPerSeason} times/season
+                      {fert.applicationMethod ? `, ${fert.applicationMethod}` : ''}{cropNames(fert.cropIds)}
                     </p>
                   ))}
                 </div>
@@ -160,7 +184,7 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
             <div className="ml-4 space-y-1">
               {formData.pestManagement.pesticides.map((pest, index) => (
                 <p key={index}>
-                  • {pest.pesticideType}: {pest.brandName} ({pest.activeIngredient}) - {pest.applicationsPerSeason} applications/season
+                  • {pest.pesticideType}: {pest.brandName ? `${pest.brandName} ` : ''}({pest.activeIngredient}) - {pest.applicationsPerSeason} applications/season{cropNames(pest.cropIds)}
                 </p>
               ))}
             </div>
@@ -219,7 +243,8 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
         <div>
           <strong>Infrastructure:</strong>
           <div className="ml-4 space-y-1">
-            <p>• Storage: {formData.equipmentEnergy?.infrastructure?.storageCapacity || 0} cubic meters</p>
+            <p>• Storage: {formData.equipmentEnergy?.infrastructure?.storageFacilities?.join(', ') || 'Not specified'}
+              {formData.equipmentEnergy?.infrastructure?.storageCapacity != null ? ` (${formData.equipmentEnergy.infrastructure.storageCapacity} t)` : ''}</p>
             <p>• Road Access: {formData.equipmentEnergy?.infrastructure?.transportAccess?.roadAccess || 'Not specified'}</p>
             <p>• Distance to Market: {formData.equipmentEnergy?.infrastructure?.transportAccess?.distanceToMarket || 0} km</p>
             <p>• Transport Mode: {formData.equipmentEnergy?.infrastructure?.transportAccess?.transportMode?.join(', ') || 'Not specified'}</p>
@@ -233,15 +258,10 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
     <div className="bg-moss/10 rounded-lg p-4">
       <div className="flex items-center space-x-2 mb-3">
         <BarChart3 className="w-5 h-5 text-moss" />
-        <h4 className="font-semibold text-ink">Assessment Parameters</h4>
+        <h4 className="font-semibold text-ink">Assessment Options</h4>
       </div>
       <div className="space-y-2 text-sm text-spruce">
-        <p><strong>Functional Unit:</strong> {formData.assessmentParameters?.functionalUnit || 'Not specified'}</p>
-        <p><strong>System Boundary:</strong> {formData.assessmentParameters?.systemBoundary || 'Not specified'}</p>
-        <p><strong>Assessment Period:</strong> {formData.assessmentParameters?.assessmentPeriod || 1} year(s)</p>
-        <p><strong>Uncertainty Analysis:</strong> {formData.assessmentParameters?.includeUncertaintyAnalysis ? 'Yes' : 'No'}</p>
-        <p><strong>Sensitivity Analysis:</strong> {formData.assessmentParameters?.includeSensitivityAnalysis ? 'Yes' : 'No'}</p>
-        <p><strong>Benchmark Comparison:</strong> {formData.assessmentParameters?.benchmarkComparison ? 'Yes' : 'No'}</p>
+        <p><strong>Uncertainty ranges:</strong> {formData.assessmentParameters?.includeUncertaintyAnalysis === false ? 'No' : 'Yes'}</p>
       </div>
     </div>
   );

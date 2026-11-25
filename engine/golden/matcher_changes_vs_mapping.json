@@ -1,1 +1,142 @@
-[]
+[
+ {
+  "row": "farm|GH|Muriate of Potash fertiliser",
+  "before": {
+   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World"
+  },
+  "after": {
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "location": "Rest of World",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U"
+  }
+ },
+ {
+  "row": "farm|NG|Muriate of Potash fertiliser",
+  "before": {
+   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World"
+  },
+  "after": {
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "location": "Rest of World",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U"
+  }
+ },
+ {
+  "row": "farm|SN|Muriate of Potash fertiliser",
+  "before": {
+   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World"
+  },
+  "after": {
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "location": "Rest of World",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U"
+  }
+ },
+ {
+  "row": "farm|BF|Muriate of Potash fertiliser",
+  "before": {
+   "name": "nutrient supply from potash salt | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World"
+  },
+  "after": {
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "location": "Rest of World",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U"
+  }
+ },
+ {
+  "row": "farm|ZA|Muriate of Potash fertiliser",
+  "before": {
+   "name": "Inorganic potassium fertiliser, as K2O {ZA}| market for inorganic potassium fertiliser, as K2O | Cut-off, S - Copied from Ecoinvent U",
+   "location": "South Africa"
+  },
+  "after": {
+   "name": "market for potassium chloride | potassium chloride | Cutoff, U",
+   "location": "Rest of World",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U"
+  }
+ },
+ {
+  "row": "farm|CA|Muriate of Potash fertiliser",
+  "before": {
+   "name": "Inorganic potassium fertiliser, as K2O {CA}| market for inorganic potassium fertiliser, as K2O | Cut-off, S - Copied from Ecoinvent U",
+   "location": "Canada"
+  },
+  "after": {
+   "name": "market for inorganic potassium fertiliser, as K2O | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Canada",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "market for potassium chloride | potassium chloride | Cutoff, U"
+  }
+ },
+ {
+  "row": "farm|CA|solar PV electricity (on-farm)",
+  "before": {
+   "name": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U",
+   "location": "Canada, Ontario"
+  },
+  "after": {
+   "name": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U",
+   "location": "Canada, Quebec",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U"
+  }
+ },
+ {
+  "row": "processing|CA|solar PV electricity (on-site)",
+  "before": {
+   "name": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U",
+   "location": "Canada, Ontario"
+  },
+  "after": {
+   "name": "electricity production, photovoltaic, 3kWp slanted-roof installation, multi-Si, panel, mounted | electricity, low voltage | Cutoff, U",
+   "location": "Canada, Quebec",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "electricity production, photovoltaic, 3kWp flat-roof installation, multi-Si | electricity, low voltage | Cutoff, U"
+  }
+ },
+ {
+  "row": "processing|CA|hydro",
+  "before": {
+   "name": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U",
+   "location": "Canada, Yukon"
+  },
+  "after": {
+   "name": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U",
+   "location": "Canada, Quebec",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U"
+  }
+ },
+ {
+  "row": "processing|CA|wind",
+  "before": {
+   "name": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U",
+   "location": "Canada, Saskatchewan"
+  },
+  "after": {
+   "name": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U",
+   "location": "Canada, Quebec",
+   "needs_review": false,
+   "identity_basis": "concept",
+   "target": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U"
+  }
+ }
+]

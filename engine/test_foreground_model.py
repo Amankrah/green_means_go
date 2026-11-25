@@ -16,7 +16,8 @@ import pytest
 import field_params
 import perennials
 import land_use_change as luc
-from field_model import adjust_field_emissions, LEGUME_N2O_CREDIT
+import field_model
+from field_model import adjust_field_emissions
 from commodities import (reject_unsupported_farm_commodities, UnsupportedCommodityError,
                          flag_processing_raw_materials)
 import rust_kernel
@@ -69,15 +70,80 @@ def _flows():
             {"substance": "NO3", "quantity": 1.0}]
 
 
-def test_legume_credit_only_on_synthetic_n2o():
+def test_legume_intercrop_is_disclosed_but_never_credited():
+    """Audit 3.6: the old 20% credit double counted (IPCC 2019 Eq 11.1 counts applied N)."""
+    assert not hasattr(field_model, "LEGUME_N2O_CREDIT")
     a = {"field_parameters": {"ef1_synthetic": 0.016},
          "foods": [{"name": "Maize", "cropping_pattern": "Intercropping",
-                    "intercropping_partners": ["Cowpea"], "area_allocated": 1}]}
+                    "intercropping_partners": ["Cowpea"], "area_allocated": 1,
+                    "rotation_sequence": ["Groundnut"]}]}
     out, notes = adjust_field_emissions(_flows(), a, GH)
     syn = [f for f in out if f.get("origin") == "synthetic_fertiliser"][0]
     res = [f for f in out if f.get("origin") == "crop_residues"][0]
-    assert syn["quantity"] == pytest.approx(1 - LEGUME_N2O_CREDIT)
-    assert res["quantity"] == pytest.approx(1.0)       # residue N2O never credited
+    assert syn["quantity"] == pytest.approx(1.0)
+    assert res["quantity"] == pytest.approx(1.0)
+    assert any("no N2O credit" in n and "cowpea" in n and "groundnut" in n for n in notes)
+
+
+def test_rotation_only_is_disclosure_only():
+    a = {"field_parameters": {}, "foods": [{"name": "Maize", "area_allocated": 1,
+                                            "rotation_sequence": ["Soybean"]}]}
+    out, notes = adjust_field_emissions(_flows(), a, GH)
+    assert sum(f["quantity"] for f in out if f["substance"] == "N2O") == pytest.approx(2.0)
+    assert any("soybean" in n and "no N2O credit" in n for n in notes)
+
+
+# ---- compost / manure organic N -------------------------------------------------------------
+
+WET_P = {"ef1_synthetic": 0.016, "ef1_other": 0.006, "frac_gasm": 0.21, "frac_leach": 0.24,
+         "ef4": 0.014, "ef5": 0.011}
+
+
+def _compost_farm(source="Farm-made compost", ids=None, fert=None):
+    return {"field_parameters": dict(WET_P),
+            "foods": [{"id": "a", "name": "Maize", "area_allocated": 2.0},
+                      {"id": "b", "name": "Cassava", "area_allocated": 3.0}],
+            "management_practices": {
+                "soil_management": {"uses_compost": True, "compost_source": source,
+                                    "compost_application_rate": 5.0,
+                                    "compost_crop_ids": ids or []},
+                "fertilization": {"fertilizer_applications": fert or []}}}
+
+
+def test_compost_n2o_nh3_no3_hand_calculated():
+    out, notes = adjust_field_emissions([], _compost_farm(), GH)
+    by = {f["substance"]: f["quantity"] for f in out if f.get("origin") == "compost"}
+    f_on = 5.0 * 1000 * 5.0 * 0.012                     # 300 kg N on 5 ha
+    assert by["NH3"] == pytest.approx(f_on * 0.21 * 17 / 14)          # 76.5 kg NH3
+    assert by["NO3"] == pytest.approx(f_on * 0.24 * 62 / 14)          # 318.9 kg NO3
+    n2o = f_on * (0.006 + 0.21 * 0.014 + 0.24 * 0.011) * 44 / 28      # 5.461 kg N2O
+    assert by["N2O"] == pytest.approx(n2o)
+    assert by["NH3"] == pytest.approx(76.5) and by["N2O"] == pytest.approx(5.4593, rel=1e-4)
+    assert by["NOx"] == pytest.approx(0.21 * n2o)                     # Nemecek & Schnetzer 2011
+    assert any("uncited engine screening default" in n for n in notes)
+
+
+def test_compost_respects_crop_ids_and_dry_no_leaching():
+    out, _ = adjust_field_emissions([], _compost_farm(ids=["b"]), GH)
+    nh3 = [f["quantity"] for f in out if f["substance"] == "NH3"][0]
+    assert nh3 == pytest.approx(5.0 * 1000 * 3.0 * 0.012 * 0.21 * 17 / 14)   # cassava 3 ha only
+    a = _compost_farm()
+    a["field_parameters"]["frac_leach"] = 0.0
+    out, _ = adjust_field_emissions([], a, DRY)
+    assert not [f for f in out if f["substance"] == "NO3"]
+
+
+def test_manure_entered_twice_counted_once():
+    fert = [{"fertilizer_type": "Organic Fertilizer", "application_rate": 500,
+             "applications_per_season": 1}]
+    out, notes = adjust_field_emissions([], _compost_farm("Animal manure", fert=fert), GH)
+    assert not [f for f in out if f.get("origin") == "compost"]
+    assert any("double entry" in n for n in notes)
+    # an organic row on another crop does not suppress compost on this one
+    fert[0]["crop_ids"] = ["b"]
+    out, _ = adjust_field_emissions([], _compost_farm("Animal manure", fert=fert), GH)
+    nh3 = [f["quantity"] for f in out if f["substance"] == "NH3"][0]
+    assert nh3 == pytest.approx(5.0 * 1000 * 2.0 * 0.005 * 0.21 * 17 / 14)   # maize only, 0.5% N
 
 
 def test_legume_crop_does_not_self_credit():
@@ -124,6 +190,14 @@ def test_no_dluc_by_default_but_assumption_recorded():
     flows, notes = luc.dluc_flows({"foods": [{"name": "Cocoa", "area_allocated": 1}]}, GH, 0.006, 0.24)
     assert flows == []
     assert any("no land conversion within the last 20 years" in n for n in notes)
+    assert any("PAS 2050-1" in n and "NOT applied" in n for n in notes)
+
+
+def test_forest_zone_falls_back_to_country_then_climate():
+    zone, basis = luc.forest_zone(GH, {}, "tropical wet")
+    assert zone in luc.FOREST
+    other = SimpleNamespace(code="XX", climate_zone="dry tropical")
+    assert luc.forest_zone(other, {}, "tropical dry")[0] == "tropical dry"
 
 
 def test_forest_to_cocoa_in_ghana():
@@ -139,6 +213,35 @@ def test_forest_to_cocoa_in_ghana():
     expect = (bio + soc) * 44 / 12 * 1000 * 2.0 / 20
     assert co2 == pytest.approx(expect)
     assert not any(f["substance"] == "N2O" for f in flows)    # SOC gained, no F_SOM
+
+
+def _luc_food(name, **extra):
+    return {"foods": [{"name": name, "area_allocated": 1.0, **extra,
+                       "land_use_change": {"previous_land_use": "forest", "years_since_conversion": 5}}]}
+
+
+def test_perennials_without_biomass_class_do_not_crash():
+    """New perennials (biomass_class None) used to raise KeyError in dLUC."""
+    forest = luc.FOREST["tropical moist"]
+    before = forest["agb"] * (1 + forest["r"]) * 0.47 + forest["litter"] + forest["deadwood"]
+    factors, _, _ = luc.load_stock_change_factors(GH)
+    soc = 52.0 * (1.0 - factors["FLU_perennial_tree_crop"])
+    # rubber: cited IPCC 2019 Table 5.3 biomass 40.1 t C/ha
+    flows, _ = luc.dluc_flows(_luc_food("Rubber"), GH, 0.006, 0.24)
+    co2 = [f["quantity"] for f in flows if f["substance"] == "CO2_luc"][0]
+    assert co2 == pytest.approx((before - 40.1 + soc) * 44 / 12 * 1000 / 20)
+    # cashew: no tropical Table 5.1/5.3 row -> biomass not credited, disclosed
+    flows, notes = luc.dluc_flows(_luc_food("Cashew"), GH, 0.006, 0.24)
+    co2 = [f["quantity"] for f in flows if f["substance"] == "CO2_luc"][0]
+    assert co2 == pytest.approx((before + soc) * 44 / 12 * 1000 / 20)
+    assert any("not credited" in n for n in notes)
+
+
+def test_farmer_declared_perennial_gets_permanent_crop_factors():
+    food = _luc_food("Shea", establishment={"immature_years": 10, "productive_years": 40})
+    flows, notes = luc.dluc_flows(food, GH, 0.006, 0.24)
+    assert any(f["substance"] == "CO2_luc" for f in flows)
+    assert any("'shea'" in n and "not credited" in n for n in notes)
 
 
 def test_dluc_outside_window_and_fallback_region():
@@ -226,7 +329,7 @@ def test_kernel_honours_dry_parameters_end_to_end():
     assert sum(f["quantity"] for f in lci if f["substance"] == "NO3") == 0.0   # FracLEACH = 0
     direct = [f for f in lci if f.get("origin") == "synthetic_fertiliser"]
     total_syn = sum(f["quantity"] for f in direct)
-    expect = 46 * (0.005 + 0.11 * 0.005) * 44 / 28
+    expect = 46 * (0.005 + 0.15 * 0.005) * 44 / 28    # urea FracGASF 0.15 (Table 11.3, audit 3.12)
     assert total_syn == pytest.approx(expect)
     assert any(f.get("origin") == "crop_residues" for f in lci)
 

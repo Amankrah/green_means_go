@@ -38,6 +38,9 @@ ONFARM_FLOWS = {
     "P":          (("Phosphorus",),                                       "7723-14-0",  "emission/water"),
     "SO2":        (("Sulfur dioxide",),                                   "7446-09-5",  "emission/air"),
     "PM25":       (("Particulates, < 2.5 um", "Particulate Matter, < 2.5 um"), None,    "emission/air"),
+    # residue burning (biogenic carbon -> the non-fossil CO flow)
+    "CO_bio":     (("Carbon monoxide, non-fossil",),                      "630-08-0",   "emission/air"),
+    "NMVOC":      (("NMVOC, non-methane volatile organic compounds",),    None,         "emission/air"),
     "water":      (("Water",),                                           None,          "resource/inwater"),
     "land_occ":   (("Occupation, annual crop", "Occupation, annual crop, non-irrigated"), None, "resource/land"),
     # permanent crop (cocoa, oil palm), engine/perennials.py

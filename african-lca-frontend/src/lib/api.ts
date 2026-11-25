@@ -1,11 +1,17 @@
 // API service for the Green Means Go Backend
 
-import { AssessmentRequest, AssessmentResult } from '@/types/assessment';
+import { AssessmentRequest, AssessmentResult, FertilizerApplicationMethodPayload } from '@/types/assessment';
 import { RecommendationsResponse } from '@/types/recommendations';
-import { EnhancedAssessmentRequest, FertilizerApplication, PesticideApplication } from '@/types/enhanced-assessment';
+import {
+  ApplicationMethod,
+  EnhancedAssessmentRequest,
+  FertilizerType,
+  StorageFacilityType,
+  isRiceCrop,
+  isKnownAnnualCrop,
+} from '@/types/enhanced-assessment';
 import { COUNTRY_TO_REGION } from '@/lib/country-examples';
 import { FARM_FUEL_DEFAULT_UNIT } from '@/lib/enhanced-assessment-schema';
-import { deriveSeasonalFactor } from '@/lib/seasonal-factor';
 import {
   AuthUser,
   UserRole,
@@ -615,9 +621,56 @@ export const assessmentAPI = new AssessmentAPI();
 // The engine models ONE delivery leg to market: take the most motorised mode the farmer ticked
 // (foot / bicycle only -> no transport emissions).
 const MARKET_MODE_PRIORITY = ['Large truck', 'Pickup truck', 'Public transport', 'Motorcycle', 'Bicycle', 'On foot/Head carrying'];
-function pickMarketMode(modes?: string[]): string | undefined {
+// UI mode -> the keyword engine/inputs.py MARKET_TRANSPORT_MATCH / ZERO_EMISSION_MODES keys on.
+// "Pickup truck" must not contain "truck": the engine checks "truck" (lorry) before "pickup"
+// (light commercial vehicle).
+const MARKET_MODE_TO_ENGINE: Record<string, string> = {
+  'Large truck': 'Large truck',
+  'Pickup truck': 'Pickup',
+  'Public transport': 'Public transport',
+  'Motorcycle': 'Motorcycle',
+  'Bicycle': 'Bicycle',
+  'On foot/Head carrying': 'On foot',
+};
+export function pickMarketMode(modes?: string[]): string | undefined {
   if (!modes || modes.length === 0) return undefined;
-  return MARKET_MODE_PRIORITY.find((m) => modes.includes(m)) ?? modes[0];
+  const mode = MARKET_MODE_PRIORITY.find((m) => modes.includes(m)) ?? modes[0];
+  return MARKET_MODE_TO_ENGINE[mode] ?? mode;
+}
+
+const FERTILIZER_METHOD_TO_API: Record<ApplicationMethod, FertilizerApplicationMethodPayload> = {
+  [ApplicationMethod.BROADCAST]: 'broadcast',
+  [ApplicationMethod.BAND_PLACEMENT]: 'band_placement',
+  [ApplicationMethod.SIDE_DRESSING]: 'side_dressing',
+  [ApplicationMethod.FOLIAR_SPRAY]: 'foliar',
+  [ApplicationMethod.FERTIGATION]: 'fertigation',
+  [ApplicationMethod.PRECISION_APPLICATION]: 'band_placement',
+};
+
+const cleanList = (items?: string[]) => (items ?? []).map((s) => s.trim()).filter(Boolean);
+const trimmedOrUndefined = (s?: string) => (s && s.trim() ? s.trim() : undefined);
+const finiteOrUndefined = (n: unknown) =>
+  typeof n === 'number' && Number.isFinite(n) ? n : undefined;
+const validMonths = (months?: Array<number | string>) =>
+  [...new Set((months ?? []).map(Number).filter((m) => Number.isInteger(m) && m >= 1 && m <= 12))].sort((a, b) => a - b);
+
+/**
+ * Stable wire id per crop: the wizard's cropId (so crop_ids on fertiliser / pesticide / lime /
+ * compost rows keep pointing at the same crop after reordering), deduplicated and capped at the
+ * API's 64 characters; `crop_<n>` when the form has no id.
+ */
+export function foodIdsForCrops(crops: Array<{ cropId?: string }>): string[] {
+  const used = new Set<string>();
+  return crops.map((c, i) => {
+    let id = (c.cropId || '').trim().slice(0, 64) || `crop_${i + 1}`;
+    if (used.has(id)) {
+      let n = 2;
+      while (used.has(`${id.slice(0, 58)}_${n}`)) n++;
+      id = `${id.slice(0, 58)}_${n}`;
+    }
+    used.add(id);
+    return id;
+  });
 }
 
 // Utility functions for the frontend
@@ -701,6 +754,29 @@ export function transformEnhancedAssessmentToBackend(data: EnhancedAssessmentReq
   const mapped = COUNTRY_TO_REGION[data.farmProfile.country as string]
     ?? { country: data.farmProfile.country, region: undefined };
 
+  const foodIds = foodIdsForCrops(data.cropProductions);
+  const foodIdByCropId = new Map<string, string>();
+  data.cropProductions.forEach((c, i) => {
+    if (c.cropId && !foodIdByCropId.has(c.cropId)) foodIdByCropId.set(c.cropId, foodIds[i]);
+  });
+  // [] means "all crops" on the API; ids of removed crops are dropped (the form refuses them).
+  const toFoodIds = (ids?: string[]) =>
+    [...new Set((ids ?? []).map((id) => foodIdByCropId.get(id)).filter((id): id is string => !!id))];
+
+  const soil = data.managementPractices.soilManagement;
+  const fert = data.managementPractices.fertilization;
+  const water = data.managementPractices.waterManagement;
+  const pest = data.pestManagement;
+  // Rows of type "None" or with no product rate carry no inventory; never send them.
+  const fertRows = (fert.fertilizerApplications ?? []).filter(
+    (a) => String(a.fertilizerType).toLowerCase() !== FertilizerType.NONE.toLowerCase()
+      && Number(a.applicationRate) > 0,
+  );
+  const infra = data.equipmentEnergy?.infrastructure;
+  const storageFacilities = cleanList(infra?.storageFacilities);
+  const hasCold = storageFacilities.includes(StorageFacilityType.COLD_STORAGE);
+  const storageCapacity = finiteOrUndefined(infra?.storageCapacity);
+
   const backendData: AssessmentRequest = {
     company_name: `${data.farmProfile.farmerName} - ${data.farmProfile.farmName}`,
     country: mapped.country as AssessmentRequest['country'],
@@ -715,49 +791,78 @@ export function transformEnhancedAssessmentToBackend(data: EnhancedAssessmentReq
       certifications: data.farmProfile.certifications,
       participates_in_programs: data.farmProfile.participatesInPrograms,
     },
+    run_uncertainty: data.assessmentParameters?.includeUncertaintyAnalysis ?? true,
+    study_meta: { admin_region: trimmedOrUndefined(data.farmProfile.region) },
     management_practices: {
       soil_management: {
         // Backend SoilType enum is space-less PascalCase (ClayLoam), the UI uses spaces
         // ("Clay Loam"); strip the space so multi-word soil types validate.
-        soil_type: data.managementPractices.soilManagement.soilType?.replace(/ /g, ''),
-        uses_compost: data.managementPractices.soilManagement.compostUse.usesCompost,
-        compost_source: data.managementPractices.soilManagement.compostUse.compostsource,
-        compost_application_rate: data.managementPractices.soilManagement.compostUse.applicationRate,
-        conservation_practices: data.managementPractices.soilManagement.conservationPractices,
-        soil_testing_frequency: data.managementPractices.soilManagement.soilTestingFrequency,
+        soil_type: soil.soilType?.replace(/ /g, ''),
+        uses_compost: soil.compostUse.usesCompost,
+        compost_source: soil.compostUse.compostsource,
+        compost_application_rate: soil.compostUse.applicationRate,
+        compost_crop_ids: soil.compostUse.usesCompost ? toFoodIds(soil.compostUse.cropIds) : [],
+        conservation_practices: soil.conservationPractices,
+        soil_testing_frequency: soil.soilTestingFrequency,
+        soil_ph: finiteOrUndefined(soil.soilpH),
+        organic_matter_pct: finiteOrUndefined(soil.organicMatterContent),
+        cover_crops: !!soil.usesCoverCrops,
+        practices_adopted_years_ago: finiteOrUndefined(soil.practicesAdoptedYearsAgo),
+        lime_applications: (soil.limeApplications ?? [])
+          .filter((l) => l.rateTPerHaPerYear > 0)
+          .map((l) => ({
+            material: l.material,
+            rate_t_per_ha_per_year: l.rateTPerHaPerYear,
+            crop_ids: toFoodIds(l.cropIds),
+          })),
       },
       fertilization: {
-        uses_fertilizers: data.managementPractices.fertilization.usesFertilizers,
-        fertilizer_applications: data.managementPractices.fertilization.fertilizerApplications.map((app: FertilizerApplication) => ({
-          fertilizer_type: app.fertilizerType,
-          npk_ratio: app.npkRatio,
-          application_rate: app.applicationRate,
-          applications_per_season: app.applicationsPerSeason,
-          cost: app.cost,
-        })),
-        soil_test_based: data.managementPractices.fertilization.soilTestBased,
-        follows_nutrient_plan: data.managementPractices.fertilization.followsNutrientPlan,
+        uses_fertilizers: fert.usesFertilizers && fertRows.length > 0,
+        fertilizer_applications: fertRows.map((app) => {
+          const method = app.applicationMethod ?? fert.applicationMethod;
+          return {
+            fertilizer_type: app.fertilizerType,
+            npk_ratio: trimmedOrUndefined(app.npkRatio),
+            application_rate: app.applicationRate,
+            applications_per_season: app.applicationsPerSeason,
+            application_method: method ? FERTILIZER_METHOD_TO_API[method] : undefined,
+            brand_name: trimmedOrUndefined(app.brandName),
+            crop_ids: toFoodIds(app.cropIds),
+            cost: app.cost,
+          };
+        }),
+        soil_test_based: fert.soilTestBased,
+        follows_nutrient_plan: fert.followsNutrientPlan,
+        timing_strategy: fert.timingStrategy || undefined,
       },
       water_management: {
-        water_source: data.managementPractices.waterManagement.waterSource,
-        irrigation_system: data.managementPractices.waterManagement.irrigationSystem,
-        irrigation_water_m3: data.managementPractices.waterManagement.irrigationWaterM3 ?? undefined,
-        water_conservation_practices: data.managementPractices.waterManagement.waterConservationPractices,
+        water_source: water.waterSource,
+        irrigation_system: water.irrigationSystem,
+        irrigation_water_m3: water.irrigationWaterM3 ?? undefined,
+        water_conservation_practices: water.waterConservationPractices ?? [],
+        drainage_system: water.drainageSystem ? 'present' : 'none',
       },
       // Key names must match app/production/models.py exactly: the API rejects unknown
       // keys (it used to drop `pesticides_used` silently, losing every pesticide).
       pest_management: {
-        management_approach: data.pestManagement.managementApproach,
-        uses_ipm: data.pestManagement.usesIPM,
-        pesticides: data.pestManagement.pesticides.map((pest: PesticideApplication) => ({
-          pesticide_type: pest.pesticideType,
-          active_ingredient: pest.activeIngredient,
-          application_rate: pest.applicationRate,
-          applications_per_season: pest.applicationsPerSeason,
-          active_ingredient_content: pest.activeIngredientContent ?? undefined,
-          target_pests: pest.targetPests,
+        management_approach: pest.managementApproach,
+        uses_ipm: pest.usesIPM,
+        pesticides: pest.pesticides.map((p) => ({
+          pesticide_type: p.pesticideType,
+          active_ingredient: p.activeIngredient,
+          application_rate: p.applicationRate,
+          applications_per_season: p.applicationsPerSeason,
+          active_ingredient_content: p.activeIngredientContent ?? undefined,
+          target_pests: cleanList(p.targetPests),
+          brand_name: trimmedOrUndefined(p.brandName),
+          crop_ids: toFoodIds(p.cropIds),
         })),
-        pest_monitoring_frequency: data.pestManagement.pestMonitoringFrequency,
+        pest_monitoring_frequency: pest.pestMonitoringFrequency,
+        primary_pests: cleanList(pest.primaryPests),
+        primary_diseases: cleanList(pest.primaryDiseases),
+        ipm_practices: cleanList(pest.ipmPractices),
+        biological_controls: cleanList(pest.biologicalControls),
+        uses_economic_thresholds: !!pest.usesEconomicThresholds,
       },
     },
     // Include equipment_energy if provided (convert to snake_case and strip infrastructure field)
@@ -784,6 +889,12 @@ export function transformEnhancedAssessmentToBackend(data: EnhancedAssessmentReq
         primary_use: fc.primaryUse,
         cost: fc.cost,
       })),
+      storage: (storageFacilities.length > 0 || storageCapacity !== undefined) ? {
+        facilities: storageFacilities,
+        capacity_tonnes: storageCapacity,
+        refrigerant: hasCold ? trimmedOrUndefined(infra?.refrigerant) : undefined,
+        refrigerant_charge_kg: hasCold ? finiteOrUndefined(infra?.refrigerantChargeKg) : undefined,
+      } : undefined,
     } : undefined,
     logistics: data.equipmentEnergy ? {
       packaging_material: data.equipmentEnergy.infrastructure?.packagingMaterial?.trim() || undefined,
@@ -792,37 +903,56 @@ export function transformEnhancedAssessmentToBackend(data: EnhancedAssessmentReq
       market_transport_mode: pickMarketMode(data.equipmentEnergy.infrastructure?.transportAccess?.transportMode),
       input_transport_km: data.equipmentEnergy.infrastructure?.inputTransportKm ?? undefined,
     } : undefined,
-    foods: data.cropProductions.map((crop, index) => ({
-      id: `crop_${index + 1}`,
-      name: crop.cropName,
-      quantity_kg: crop.annualProduction,
-      category: crop.category,
-      crop_type: crop.variety,
-      origin_country: data.farmProfile.country,
-      production_system: crop.productionSystem,
-      // Derived from the planting months and the country's rainy season; the form's
-      // `season` is only a display mirror of the same rule (never the TS "Harmattan").
-      seasonal_factor: deriveSeasonalFactor(data.farmProfile.country, crop.seasonality.plantingMonths),
-      variety: crop.variety,
-      area_allocated: crop.areaAllocated,
-      cropping_pattern: crop.croppingPattern,
-      intercropping_partners: crop.intercroppingPartners,
-      post_harvest_losses: crop.postHarvestLosses,
-      seed_rate_kg_per_ha: crop.seedRateKgPerHa ?? undefined,
-      land_use_change: crop.landUseChange?.previousLandUse
-        ? { previous_land_use: crop.landUseChange.previousLandUse,
-            years_since_conversion: crop.landUseChange.yearsSinceConversion ?? 0 }
-        : undefined,
-      residue_management: (crop.residueManagement?.fractionRemoved != null || crop.residueManagement?.fractionBurnt != null)
-        ? { fraction_removed: crop.residueManagement?.fractionRemoved ?? 0,
-            fraction_burnt: crop.residueManagement?.fractionBurnt ?? 0 }
-        : undefined,
-      establishment: (crop.establishment?.immatureYears != null || crop.establishment?.productiveYears != null)
-        ? { immature_years: crop.establishment?.immatureYears,
-            productive_years: crop.establishment?.productiveYears,
-            input_share: crop.establishment?.inputShare }
-        : undefined,
-    })),
+    foods: data.cropProductions.map((crop, index) => {
+      const rice = isRiceCrop(crop.cropName);
+      const luc = crop.landUseChange;
+      const years = finiteOrUndefined(luc?.yearsSinceConversion);
+      // Annual crops never carry establishment (the API refuses it with a 422).
+      const est = isKnownAnnualCrop(crop) ? undefined : crop.establishment;
+      const establishment = {
+        ...(finiteOrUndefined(est?.immatureYears) !== undefined && { immature_years: est!.immatureYears }),
+        ...(finiteOrUndefined(est?.productiveYears) !== undefined && est!.productiveYears! > 0 && { productive_years: est!.productiveYears }),
+        ...(finiteOrUndefined(est?.inputShare) !== undefined && { input_share: est!.inputShare }),
+      };
+      return {
+        id: foodIds[index],
+        name: crop.cropName,
+        quantity_kg: crop.annualProduction,
+        category: crop.category,
+        crop_type: crop.variety,
+        origin_country: data.farmProfile.country,
+        production_system: crop.productionSystem,
+        // Only an explicit override; blank lets the engine derive wet/dry from the planting
+        // months and the admin region's rainy season.
+        seasonal_factor: crop.seasonality.seasonOverride || undefined,
+        variety: crop.variety,
+        area_allocated: crop.areaAllocated,
+        cropping_pattern: crop.croppingPattern,
+        intercropping_partners: crop.intercroppingPartners ? cleanList(crop.intercroppingPartners) : undefined,
+        post_harvest_losses: finiteOrUndefined(crop.postHarvestLosses),
+        seed_rate_kg_per_ha: crop.seedRateKgPerHa ?? undefined,
+        crops_per_year: Math.min(4, Math.max(1, Math.round(Number(crop.seasonality.cropsPerYear) || 1))),
+        growing_period_days: finiteOrUndefined(crop.seasonality.growingPeriod),
+        planting_months: validMonths(crop.seasonality.plantingMonths),
+        harvest_months: validMonths(crop.seasonality.harvestingMonths),
+        rotation_sequence: cleanList(crop.rotationSequence),
+        water_regime: rice && crop.waterRegime ? crop.waterRegime : undefined,
+        preseason_water_status: rice && crop.preseasonWaterStatus ? crop.preseasonWaterStatus : undefined,
+        // Years are required with a previous land use (the form refuses a blank); never 0 by default.
+        land_use_change: luc?.previousLandUse && years !== undefined
+          ? { previous_land_use: luc.previousLandUse, years_since_conversion: Math.round(years) }
+          : undefined,
+        residue_management: (crop.residueManagement?.fractionRemoved != null || crop.residueManagement?.fractionBurnt != null)
+          ? { fraction_removed: crop.residueManagement?.fractionRemoved ?? 0,
+              fraction_burnt: crop.residueManagement?.fractionBurnt ?? 0,
+              // Only meaningful when some residue actually leaves the field.
+              removed_residue_use: (crop.residueManagement?.fractionRemoved ?? 0) > 0
+                && crop.residueManagement?.removedResidueUse
+                ? crop.residueManagement.removedResidueUse : undefined }
+          : undefined,
+        establishment: Object.keys(establishment).length ? establishment : undefined,
+      };
+    }),
   };
 
   return backendData;

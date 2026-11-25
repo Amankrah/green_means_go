@@ -157,6 +157,7 @@ impl ProcessingLCAEngine {
             }).collect()),
             lci_inventory: None,
             lci_warnings: Vec::new(),
+            lci_notes: Vec::new(),
         });
 
         info!("Processing assessment completed for {}", assessment.facility_profile.company_name);

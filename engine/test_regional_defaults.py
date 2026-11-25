@@ -46,7 +46,11 @@ def test_nigeria_resolves_to_nigeria_table():
     assert r["row_id"] == "rainfed_partial" and r["diesel_l_per_ha"] == 24
     inputs, notes = [], []
     ad.apply_activity_defaults(a, inputs, notes)
-    assert inputs and inputs[0]["estimated"] and abs(inputs[0]["amount"] - 24 * 2 * 38.7) < 1e-6
+    # diesel MJ/L from the shared cited LHV (energy_carriers.LHV, ~36.0; audit 3.19 retired 38.7)
+    import energy_carriers
+    mj_per_l = energy_carriers.LHV["diesel"]["L"][0]
+    assert 35.5 < mj_per_l < 36.5
+    assert inputs and inputs[0]["estimated"] and abs(inputs[0]["amount"] - 24 * 2 * mj_per_l) < 1e-6
 
 
 def test_ghana_unchanged():

@@ -218,6 +218,11 @@ export const utilitiesSchema = z.object({
   waterSource: z.enum(WATER_SOURCES),
   waterTreatment: z.enum(WATER_TREATMENTS),
   wastewaterTreatment: z.enum(WASTEWATER_TREATMENTS),
+  // Measured effluent concentrations (mg/L); used only for untreated discharge ("None").
+  effluentCodMgPerL: optNonNeg('COD cannot be negative'),
+  effluentBod5MgPerL: optNonNeg('BOD5 cannot be negative'),
+  effluentTotalNMgPerL: optNonNeg('Total nitrogen cannot be negative'),
+  effluentTotalPMgPerL: optNonNeg('Total phosphorus cannot be negative'),
   transportKm: optNonNeg('Distance cannot be negative'),
   localSourcingPct: optPct('Local share is a percentage (0-100)'),
   transportMode: z.enum(TRANSPORT_MODES),
@@ -353,6 +358,10 @@ export const defaultProcessingForm = (): ProcessingFormData => ({
     waterSource: 'Municipal',
     waterTreatment: 'BasicFiltration',
     wastewaterTreatment: 'BasicSedimentation',
+    effluentCodMgPerL: undefined,
+    effluentBod5MgPerL: undefined,
+    effluentTotalNMgPerL: undefined,
+    effluentTotalPMgPerL: undefined,
     transportKm: undefined,
     localSourcingPct: 80,
     transportMode: 'Truck',
@@ -416,6 +425,13 @@ export function buildProcessingPayload(
         water_source: [u.waterSource],
         water_treatment: u.waterTreatment,
         wastewater_treatment: u.wastewaterTreatment,
+        // The API reads measured effluent only for untreated discharge; never send it otherwise.
+        ...(u.wastewaterTreatment === 'None' ? {
+          effluent_cod_mg_per_l: u.effluentCodMgPerL ?? undefined,
+          effluent_bod5_mg_per_l: u.effluentBod5MgPerL ?? undefined,
+          effluent_total_n_mg_per_l: u.effluentTotalNMgPerL ?? undefined,
+          effluent_total_p_mg_per_l: u.effluentTotalPMgPerL ?? undefined,
+        } : {}),
       },
       waste_management: {
         solid_waste_generation: u.solidWasteKgDay || undefined,

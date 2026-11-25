@@ -71,10 +71,6 @@ pub struct EmissionFactorsDatabase {
     /// Water consumption factor for irrigation (no emission, but resource use)
     pub water_use_factor: f64, // Typically 1:1 for direct use
 
-    /// CH4 emissions from rice paddies (kg CH4 per ha per season)
-    /// Source: IPCC 2019, Chapter 5
-    pub ch4_from_rice_paddies: EmissionFactor,
-
     /// Indirect N2O parameters for synthetic fertiliser N (IPCC 2019 Refinement, Vol 4,
     /// Ch 11, Table 11.3). Volatilisation and leaching are SEPARATE pathways, each with its
     /// own loss fraction and emission factor; they must not be conflated.
@@ -156,8 +152,11 @@ impl Default for EmissionFactorsDatabase {
                 geographical_validity: "Nigeria national grid".to_string(),
             },
 
-            // Urea production: 1.2 kg CO2 per kg urea
-            // Includes production energy and CO2 release from urea hydrolysis
+            // Legacy screening value for urea production (category Upstream: dropped by the
+            // served path, where the supply-chain solver owns production). Field CO2 from
+            // urea hydrolysis is a separate flow (IPCC Eq 11.13, "Carbon dioxide (CO2) -
+            // urea hydrolysis") that the legacy GWP below does not sum, so it is not
+            // counted twice there.
             co2_from_urea_production: EmissionFactor {
                 value: 1.2,
                 unit: "kg CO2 per kg urea".to_string(),
@@ -191,17 +190,6 @@ impl Default for EmissionFactorsDatabase {
             // Water use: Direct measurement
             water_use_factor: 1.0,
 
-            // Methane from rice paddies: 200 kg CH4 per ha per season (continuously flooded)
-            // Source: IPCC 2019, Chapter 5
-            ch4_from_rice_paddies: EmissionFactor {
-                value: 200.0,
-                unit: "kg CH4 per ha per season".to_string(),
-                source: "IPCC 2019, Vol 4, Ch 5, Table 5.12".to_string(),
-                year: 2019,
-                uncertainty: 50.0, // High variation based on water regime
-                geographical_validity: "Tropical continuously flooded rice".to_string(),
-            },
-
             // IPCC 2019 Refinement, Vol 4, Ch 11, Table 11.3 (synthetic fertiliser N).
             frac_gasf: 0.11,          // fraction of applied synthetic N volatilised
             frac_leach: 0.24,         // fraction of applied N leached/run off (wet climate)
@@ -223,6 +211,10 @@ pub struct LCICalculator {
     params: FieldParameters,
     /// Validation warnings raised while building the inventory.
     warnings: Vec<String>,
+    /// Modelling disclosures (assumptions, inferred values) raised while building it.
+    notes: Vec<String>,
+    /// Water management of the assessment, for the rice water-regime inference.
+    water: Option<WaterManagement>,
 }
 
 /// IPCC 2019 Refinement Vol 4 Ch 11 Table 11.1 (updated): EF1FR for flooded rice fields,
@@ -232,12 +224,109 @@ pub const EF1_FLOODED_RICE: f64 = 0.004;
 
 const N2O_PER_N2O_N: f64 = 44.0 / 28.0;
 const NO3_PER_N: f64 = 62.0 / 14.0;
+const NH3_PER_N: f64 = 17.0 / 14.0;
 
-/// Flooded (paddy) rice: rice that is not declared upland. Matches the kernel's rice CH4
-/// assumption (flooded paddy) so N2O and CH4 describe the same water regime.
-fn is_flooded_rice(food: &FoodItem) -> bool {
-    let n = food.name.to_lowercase();
-    n.contains("rice") && !n.contains("upland")
+/// ecoinvent field-emission model: NOx = 0.21 x N2O (kg NOx per kg N2O), applied to the
+/// total soil N2O (direct + indirect). Nemecek T. & Schnetzer J. (2011) Methods of
+/// assessment of direct field emissions for LCIs of agricultural production systems,
+/// Data v3.0, Agroscope Reckenholz-Taenikon ART, Zurich, section on nitrogen oxides.
+/// FracGASF/FracGASM (IPCC) already include NOx-N, so NH3-N computed as N x FracGAS
+/// overlaps this NOx-N by < 2% of the volatilised N; the overlap is not netted out.
+pub const NOX_PER_N2O: f64 = 0.21;
+
+/// Soil N2O flows that NOX_PER_N2O applies to (not residue burning, which has its own NOx).
+const SOIL_N2O_SUBSTANCES: [&str; 4] = [
+    "Dinitrogen monoxide (N2O)",
+    "Dinitrogen monoxide (N2O) - indirect",
+    "Dinitrogen monoxide (N2O) - crop residues",
+    "Dinitrogen monoxide (N2O) - organic fertiliser",
+];
+
+/// What an inventory flow represents. The Python engine keeps `Field` flows only; inventory
+/// items are merged by (substance, compartment, category), never across categories, and the
+/// category, not the free-text source, decides what is kept.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FlowCategory {
+    /// Direct on-farm field emission or resource use.
+    Field,
+    /// Production of a purchased input (owned by the supply-chain solver in Python).
+    Upstream,
+    /// On-farm fuel / electricity combustion (owned by the supply-chain solver in Python).
+    Energy,
+    /// Pre-characterised CO2-eq (legacy).
+    Aggregated,
+}
+
+impl FlowCategory {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            FlowCategory::Field => "field",
+            FlowCategory::Upstream => "upstream",
+            FlowCategory::Energy => "energy",
+            FlowCategory::Aggregated => "aggregated",
+        }
+    }
+}
+
+/// Foods a row (fertiliser / lime / compost) applies to: those with area, restricted to
+/// `crop_ids` when given (CONTRACT §1: [] = all crops).
+fn target_foods<'a>(foods: &'a [FoodItem], crop_ids: &[String]) -> Vec<&'a FoodItem> {
+    foods.iter()
+        .filter(|f| f.area_allocated.unwrap_or(0.0) > 0.0)
+        .filter(|f| crop_ids.is_empty() || crop_ids.iter().any(|id| id.trim() == f.id))
+        .collect()
+}
+
+/// Rice water regime (CONTRACT §1 vocabulary) and, when inferred, how. Order: declared
+/// value; name containing "upland"; production system Rainfed; irrigation system
+/// (flood/furrow -> continuously flooded, or multiple drainage when alternate wetting and
+/// drying is declared; sprinkler/drip -> upland, the field is not flooded; "None
+/// (Rainfed)" -> regular rainfed); production system Irrigated; otherwise the IPCC 2019
+/// Table 5.11 baseline (continuously flooded).
+pub fn rice_water_regime(food: &FoodItem, water: Option<&WaterManagement>) -> (String, Option<String>) {
+    if let Some(r) = food.water_regime.as_deref().map(|s| s.trim().to_lowercase()) {
+        if field::rice_sfw(&r).is_some() {
+            return (r, None);
+        }
+    }
+    let infer = |r: &str, why: String| (r.to_string(), Some(why));
+    if food.name.to_lowercase().contains("upland") {
+        return infer("upland", "crop name contains 'upland'".to_string());
+    }
+    if matches!(food.production_system, Some(ProductionSystem::Rainfed)) {
+        return infer("rainfed_regular", "production system Rainfed".to_string());
+    }
+    let irr = water.and_then(|w| w.irrigation_system.clone()).unwrap_or_default();
+    let irr_l = irr.to_lowercase();
+    let awd = water.map(|w| w.water_conservation_practices.iter().any(|p| {
+        let p = p.to_lowercase();
+        p.contains("alternate wetting") || p.contains("awd") || p.contains("intermittent")
+    })).unwrap_or(false);
+    let flooded = |why: String| if awd {
+        infer("irrigated_multiple_drainage",
+              format!("{why} with alternate wetting and drying declared (Table 5.12 note b: AWD is multiple drainage)"))
+    } else {
+        infer("irrigated_continuously_flooded", why)
+    };
+    if irr_l.contains("flood") || irr_l.contains("furrow") {
+        return flooded(format!("irrigation system '{irr}'"));
+    }
+    if irr_l.contains("sprinkler") || irr_l.contains("drip") {
+        return infer("upland", format!("irrigation system '{irr}' does not flood the field"));
+    }
+    if irr_l.contains("none") || irr_l.contains("rainfed") {
+        return infer("rainfed_regular", format!("irrigation system '{irr}'"));
+    }
+    if matches!(food.production_system, Some(ProductionSystem::Irrigated)) {
+        return flooded("production system Irrigated".to_string());
+    }
+    let why = if irr.is_empty() {
+        "no water regime, production system or irrigation system declared".to_string()
+    } else {
+        format!("irrigation system '{irr}' has no IPCC water-regime equivalent")
+    };
+    infer("irrigated_continuously_flooded",
+          format!("{why}: IPCC 2019 Table 5.11 baseline (continuously flooded) assumed"))
 }
 
 #[derive(Debug, Clone)]
@@ -247,6 +336,7 @@ pub struct InventoryItem {
     pub unit: String,
     pub compartment: EnvironmentalCompartment, // Air, Water, Soil
     pub source: String, // Which input caused this emission
+    pub category: FlowCategory,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -264,6 +354,8 @@ impl LCICalculator {
             inventory: HashMap::new(),
             params: FieldParameters::default(),
             warnings: Vec::new(),
+            notes: Vec::new(),
+            water: None,
         }
     }
 
@@ -272,10 +364,27 @@ impl LCICalculator {
         &self.warnings
     }
 
+    /// Modelling disclosures from the last `calculate_inventory` call.
+    pub fn notes(&self) -> &[String] {
+        &self.notes
+    }
+
     fn warn_once(&mut self, msg: String) {
         if !self.warnings.contains(&msg) {
             self.warnings.push(msg);
         }
+    }
+
+    fn note_once(&mut self, msg: String) {
+        if !self.notes.contains(&msg) {
+            self.notes.push(msg);
+        }
+    }
+
+    /// Flooded rice (EF1FR for N2O, IPCC 2019 Table 11.1): rice whose water regime (the
+    /// same one the CH4 model uses) is anything but upland.
+    fn is_flooded_rice(&self, food: &FoodItem) -> bool {
+        field::is_rice(&food.name) && rice_water_regime(food, self.water.as_ref()).0 != "upland"
     }
 
     /// Calculate complete life cycle inventory from user inputs
@@ -289,11 +398,15 @@ impl LCICalculator {
         // Clear previous inventory
         self.inventory.clear();
         self.warnings.clear();
+        self.notes.clear();
         self.params = assessment.field_parameters.clone().unwrap_or_default();
+        self.water = assessment.management_practices.as_ref().map(|m| m.water_management.clone());
 
-        // 1. Calculate emissions from fertilizers (N2O, production CO2)
+        // 1. Calculate emissions from fertilizers (N2O, NH3, NO3, urea CO2, production CO2)
         if let Some(ref mgmt) = assessment.management_practices {
             self.calculate_fertilizer_emissions(&mgmt.fertilization, &assessment.foods)?;
+            // 1b. Liming CO2 (IPCC 2006 Vol 4 Ch 11 Eq 11.12)
+            self.calculate_lime_emissions(&mgmt.soil_management, &assessment.foods)?;
         }
 
         // 2. Calculate emissions from fuel consumption (CO2)
@@ -311,8 +424,8 @@ impl LCICalculator {
             self.calculate_water_consumption(&mgmt.water_management, &assessment.foods)?;
         }
 
-        // 5. Calculate crop-specific emissions (e.g., CH4 from rice)
-        self.calculate_crop_specific_emissions(&assessment.foods)?;
+        // 5. Calculate crop-specific emissions (CH4 from rice, IPCC 2019 Eq 5.1-5.3)
+        self.calculate_crop_specific_emissions(assessment)?;
 
         // 6. Calculate land use
         self.calculate_land_use(&assessment.foods)?;
@@ -320,6 +433,9 @@ impl LCICalculator {
         // 7. N2O from crop residues returned to soil (IPCC 2019 Eq 11.6, F_CR). Runs whether
         //    or not fertiliser is used: residue N is an N input in its own right.
         self.calculate_crop_residue_emissions(&assessment.foods)?;
+
+        // 8. Soil NOx from the soil N2O (ecoinvent NOx = 0.21 x N2O). Last: needs all N2O.
+        self.calculate_soil_nox();
 
         info!("LCI calculation completed. {} inventory items generated", self.inventory.len());
 
@@ -337,91 +453,164 @@ impl LCICalculator {
         if !fertilization.uses_fertilizers {
             return Ok(());
         }
-
-        // Calculate total area under cultivation
-        let total_area_ha: f64 = foods.iter()
-            .filter_map(|f| f.area_allocated)
-            .sum();
-
-        if total_area_ha == 0.0 {
-            warn!("No area allocated for crops, cannot calculate fertilizer emissions accurately");
-            return Ok(());
-        }
-
-        // Flooded rice uses EF1FR for all N inputs (IPCC 2019 Table 11.1).
-        let all_flooded_rice = foods.iter().filter(|f| f.area_allocated.unwrap_or(0.0) > 0.0)
-            .all(is_flooded_rice);
+        let p = self.params.clone();
 
         for app in &fertilization.fertilizer_applications {
+            // CONTRACT §1: type "None", rate 0 or 0 applications -> no burden at all.
+            let type_l = app.fertilizer_type.trim().to_lowercase();
+            if field::is_none_fertiliser(&type_l) || !(app.application_rate > 0.0)
+                || app.applications_per_season == 0
+            {
+                continue;
+            }
+            let targets = target_foods(foods, &app.crop_ids);
+            if targets.is_empty() {
+                if app.crop_ids.is_empty() {
+                    warn!("No area allocated for crops, cannot calculate fertilizer emissions");
+                } else {
+                    info!("fertiliser '{}' is assigned to crop id(s) {:?} absent from this assessment",
+                          app.fertilizer_type, app.crop_ids);
+                }
+                continue;
+            }
+
             // Explicit N lookup (declared grade first). Unknown types get ZERO N and a
             // validation warning instead of the former silent 10%.
             let fert = field::fertiliser_n(&app.fertilizer_type, &app.npk_ratio);
             if let Some(w) = fert.warning.clone() {
                 self.warn_once(w);
             }
-            let n_content = fert.n_fraction;
+            let organic = fert.form == NForm::Organic;
+            // Product deciding the N form (free-text name + straight grade, e.g. 46-0-0 = urea).
+            let n_form = field::n_form_type(&app.fertilizer_type, &app.npk_ratio);
 
-            // Total N applied (kg N)
-            // application_rate is in kg fertilizer/ha/season
-            // n_content is fraction of N in the fertilizer
-            let n_applied_per_ha = app.application_rate * n_content;
-            let applications_per_year = app.applications_per_season as f64;
-            let total_n_applied = n_applied_per_ha * total_area_ha * applications_per_year;
+            // application_rate = kg PRODUCT / ha / application (CONTRACT §1): annual product
+            // = rate x applications per season x crops per year x area, per target crop.
+            // Flooded rice takes EF1FR for all N inputs (IPCC 2019 Table 11.1).
+            let apps = app.applications_per_season as f64;
+            let (mut product_kg, mut n_applied, mut n2o_n_direct, mut area_ha) = (0.0, 0.0, 0.0, 0.0);
+            for f in &targets {
+                let area = f.area_allocated.unwrap_or(0.0);
+                let product = app.application_rate * apps * f.crops_per_year() * area;
+                let n = product * fert.n_fraction;
+                let ef1 = if self.is_flooded_rice(f) { EF1_FLOODED_RICE }
+                          else if organic { p.ef1_other } else { p.ef1_synthetic };
+                product_kg += product;
+                n_applied += n;
+                n2o_n_direct += n * ef1;
+                area_ha += area;
+            }
+            info!("Fertilizer {}: {:.1} kg product, {:.1} kg N/year on {:.2} ha",
+                  app.fertilizer_type, product_kg, n_applied, area_ha);
 
-            info!("Fertilizer application: {} kg/ha/season x {} ha x {} times = {} kg N/year",
-                  n_applied_per_ha, total_area_ha, applications_per_year, total_n_applied);
+            if let Some(m) = app.application_method.as_deref() {
+                let m = m.trim().to_lowercase();
+                if matches!(m.as_str(), "incorporated" | "band_placement" | "side_dressing") {
+                    self.note_once(format!(
+                        "fertiliser '{}' application method '{}' recorded but not modelled: \
+                         NH3 uses the IPCC 2019 Tier 1 FracGAS default (no cited Tier 1 \
+                         reduction factor for incorporation or placement of mineral fertiliser)",
+                        app.fertilizer_type, m));
+                }
+            }
 
-            if fert.form == NForm::Organic {
-                // F_ON: organic N uses EF1 for "other N inputs" and FracGASM (IPCC 2019
-                // Table 11.1 / 11.3), not the synthetic-fertiliser factors.
-                let ef1 = if all_flooded_rice { EF1_FLOODED_RICE } else { self.params.ef1_other };
-                let direct = total_n_applied * ef1;
-                let indirect = total_n_applied * self.params.frac_gasm * self.params.ef4
-                    + total_n_applied * self.params.frac_leach * self.params.ef5;
-                if total_n_applied > 0.0 {
+            // Volatilisation (NH3 + NOx) fraction: FracGASM for organic N; FracGASF by
+            // fertiliser N form for synthetic N (IPCC 2019 Vol 4 Ch 11 Table 11.3).
+            let (frac_gas, frac_label) = if organic {
+                (p.frac_gasm, "FracGASM (organic N)".to_string())
+            } else {
+                match field::n_volatilisation_class(&n_form) {
+                    field::NVolClass::Urea => (p.frac_gasf_urea, "FracGASF urea".to_string()),
+                    field::NVolClass::AmmoniumBased => (p.frac_gasf_ammonium, "FracGASF ammonium-based".to_string()),
+                    field::NVolClass::NitrateBased => (p.frac_gasf_nitrate, "FracGASF nitrate-based".to_string()),
+                    field::NVolClass::AmmoniumNitrateBased => (p.frac_gasf_ammonium_nitrate, "FracGASF ammonium-nitrate-based".to_string()),
+                    field::NVolClass::Unclassified => (p.frac_gasf, "FracGASF aggregated (N form not identified)".to_string()),
+                }
+            };
+            // The SAME volatilised N drives NH3 and the EF4 indirect N2O (Eq 11.9).
+            let n_volatilised = n_applied * frac_gas;
+            let n_leached = n_applied * p.frac_leach;
+            let n2o_n_indirect = n_volatilised * p.ef4 + n_leached * p.ef5;
+
+            if n_applied > 0.0 {
+                if organic {
                     self.add_inventory_item(InventoryItem {
                         substance: "Dinitrogen monoxide (N2O) - organic fertiliser".to_string(),
-                        quantity: (direct + indirect) * N2O_PER_N2O_N,
+                        quantity: (n2o_n_direct + n2o_n_indirect) * N2O_PER_N2O_N,
                         unit: "kg".to_string(),
                         compartment: EnvironmentalCompartment::Air,
                         source: format!("Direct and indirect N2O from {} ({:.1} kg organic N; {})",
-                                        app.fertilizer_type, total_n_applied, fert.source),
+                                        app.fertilizer_type, n_applied, fert.source),
+                        category: FlowCategory::Field,
                     });
+                } else {
+                    // IPCC 2019 Eq 11.1: direct N2O-N = N x EF1; N2O = N2O-N x 44/28.
                     self.add_inventory_item(InventoryItem {
-                        substance: "Nitrate (NO3-)".to_string(),
-                        quantity: total_n_applied * self.params.frac_leach * NO3_PER_N,
+                        substance: "Dinitrogen monoxide (N2O)".to_string(),
+                        quantity: n2o_n_direct * N2O_PER_N2O_N,
                         unit: "kg".to_string(),
-                        compartment: EnvironmentalCompartment::Water,
-                        source: format!("Nitrate leaching from {} application", app.fertilizer_type),
+                        compartment: EnvironmentalCompartment::Air,
+                        source: format!("Direct N2O emissions from {} application", app.fertilizer_type),
+                        category: FlowCategory::Field,
+                    });
+                    // Indirect N2O (IPCC 2019 Eq 11.9 & 11.10): volatilisation (EF4) and
+                    // leaching (EF5) are separate pathways with their own loss fractions.
+                    self.add_inventory_item(InventoryItem {
+                        substance: "Dinitrogen monoxide (N2O) - indirect".to_string(),
+                        quantity: n2o_n_indirect * N2O_PER_N2O_N,
+                        unit: "kg".to_string(),
+                        compartment: EnvironmentalCompartment::Air,
+                        source: format!("Indirect N2O emissions from {} (volatilisation + leaching)", app.fertilizer_type),
+                        category: FlowCategory::Field,
                     });
                 }
+                self.add_inventory_item(InventoryItem {
+                    substance: "Ammonia (NH3)".to_string(),
+                    quantity: n_volatilised * NH3_PER_N,
+                    unit: "kg".to_string(),
+                    compartment: EnvironmentalCompartment::Air,
+                    source: format!("NH3 volatilisation from {} ({:.1} kg N x {} {:.2}; IPCC 2019 Vol 4 Ch 11 Table 11.3)",
+                                    app.fertilizer_type, n_applied, frac_label, frac_gas),
+                    category: FlowCategory::Field,
+                });
+                // Nitrate to water: ONLY the leached fraction (the volatilised N leaves to air).
+                self.add_inventory_item(InventoryItem {
+                    substance: "Nitrate (NO3-)".to_string(),
+                    quantity: n_leached * NO3_PER_N,
+                    unit: "kg".to_string(),
+                    compartment: EnvironmentalCompartment::Water,
+                    source: format!("Nitrate leaching from {} application", app.fertilizer_type),
+                    category: FlowCategory::Field,
+                });
+            }
+            if organic {
                 continue;
             }
 
-            // IPCC 2019 Equation 11.1: Direct N2O emissions
-            // N2O-N = N_applied x EF1 (region/climate-specific, see FieldParameters)
-            let ef1 = if all_flooded_rice { EF1_FLOODED_RICE } else { self.params.ef1_synthetic };
-            let n2o_n_direct = total_n_applied * ef1;
+            // Urea hydrolysis CO2 at the field: IPCC 2006 Vol 4 Ch 11 Eq 11.13,
+            // CO2 = M_urea x 0.20 t C/t x 44/12. Fossil carbon fixed at the urea plant.
+            if field::is_straight_urea(&n_form) && product_kg > 0.0 {
+                self.add_inventory_item(InventoryItem {
+                    substance: "Carbon dioxide (CO2) - urea hydrolysis".to_string(),
+                    quantity: product_kg * field::UREA_EF_C_PER_T * field::CO2_PER_C,
+                    unit: "kg".to_string(),
+                    compartment: EnvironmentalCompartment::Air,
+                    source: format!("Urea hydrolysis CO2 from {:.1} kg {} (IPCC 2006 Vol 4 Ch 11 Eq 11.13, 0.20 t C/t urea)",
+                                    product_kg, app.fertilizer_type),
+                    category: FlowCategory::Field,
+                });
+            } else if type_l.contains("urea") || type_l.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| w == "uan") {
+                self.note_once(format!(
+                    "'{}' is a urea-containing solution: its urea share is unknown, so IPCC Eq 11.13 \
+                     urea CO2 is not booked", app.fertilizer_type));
+            }
 
-            // Convert N2O-N to N2O (molecular weight ratio: 44/28)
-            let n2o_direct = n2o_n_direct * (44.0 / 28.0);
-
-            // Add to inventory
-            self.add_inventory_item(InventoryItem {
-                substance: "Dinitrogen monoxide (N2O)".to_string(),
-                quantity: n2o_direct,
-                unit: "kg".to_string(),
-                compartment: EnvironmentalCompartment::Air,
-                source: format!("Direct N2O emissions from {} application", app.fertilizer_type),
-            });
-
-            // CO2 from fertilizer production
+            // CO2 from fertilizer production (legacy screening factors; Upstream, dropped by
+            // the served path, which takes production from the supply-chain solver).
             let production_co2 = match app.fertilizer_type.as_str() {
-                "Urea" => app.application_rate * total_area_ha * applications_per_year
-                         * self.emission_factors.co2_from_urea_production.value,
-                "NPK Compound" | "NPK" => app.application_rate * total_area_ha * applications_per_year
-                                         * self.emission_factors.co2_from_npk_production.value,
-                _ => app.application_rate * total_area_ha * applications_per_year * 1.0, // Generic factor
+                "Urea" => product_kg * self.emission_factors.co2_from_urea_production.value,
+                "NPK Compound" | "NPK" => product_kg * self.emission_factors.co2_from_npk_production.value,
+                _ => product_kg * 1.0, // Generic factor
             };
 
             self.add_inventory_item(InventoryItem {
@@ -430,12 +619,13 @@ impl LCICalculator {
                 unit: "kg".to_string(),
                 compartment: EnvironmentalCompartment::Air,
                 source: format!("Production and transport of {}", app.fertilizer_type),
+                category: FlowCategory::Upstream,
             });
 
             // Mineral depletion from fertilizer production
             // NPK requires phosphate rock (P) and potash (K) mining
             // Urea requires natural gas (but that's fossil depletion, not mineral)
-            let total_fertilizer_kg = app.application_rate * total_area_ha * applications_per_year;
+            let total_fertilizer_kg = product_kg;
 
             match app.fertilizer_type.as_str() {
                 "NPK Compound" | "NPK" => {
@@ -455,6 +645,7 @@ impl LCICalculator {
                                     unit: "kg Fe-eq".to_string(),
                                     compartment: EnvironmentalCompartment::Resource,
                                     source: format!("Phosphate mining for {} production", app.fertilizer_type),
+                                    category: FlowCategory::Upstream,
                                 });
                             }
 
@@ -470,6 +661,7 @@ impl LCICalculator {
                                     unit: "kg Fe-eq".to_string(),
                                     compartment: EnvironmentalCompartment::Resource,
                                     source: format!("Potash mining for {} production", app.fertilizer_type),
+                                    category: FlowCategory::Upstream,
                                 });
                             }
                         }
@@ -480,44 +672,71 @@ impl LCICalculator {
                     // (Urea is from natural gas, organic fertilizers don't deplete minerals)
                 }
             }
-
-            // Indirect N2O emissions (IPCC 2019 Eq 11.9 & 11.10). Volatilisation and
-            // leaching are SEPARATE pathways: N volatilised as NH3/NOx (FracGASF) and N lost
-            // to leaching/runoff (FracLEACH) each have their own N2O emission factor (EF4,
-            // EF5). Copy the parameters out first (f64 is Copy) so we don't hold a borrow of
-            // self across add_inventory_item.
-            let frac_gasf = self.params.frac_gasf;
-            let frac_leach = self.params.frac_leach;
-            let ef4 = self.params.ef4;
-            let ef5 = self.params.ef5;
-
-            let n_volatilised = total_n_applied * frac_gasf;
-            let n_leached = total_n_applied * frac_leach;
-            let n2o_n_indirect = n_volatilised * ef4 + n_leached * ef5;
-            let n2o_indirect = n2o_n_indirect * (44.0 / 28.0);
-
-            self.add_inventory_item(InventoryItem {
-                substance: "Dinitrogen monoxide (N2O) - indirect".to_string(),
-                quantity: n2o_indirect,
-                unit: "kg".to_string(),
-                compartment: EnvironmentalCompartment::Air,
-                source: format!("Indirect N2O emissions from {} (volatilisation + leaching)", app.fertilizer_type),
-            });
-
-            // Nitrate leaching to water: ONLY the leached fraction becomes nitrate. The
-            // volatilised N leaves to air as NH3/NOx and must not also be counted as nitrate
-            // (the old code reused a single 20% loss for both, breaking the N mass balance).
-            let no3_leached = n_leached * (62.0 / 14.0); // leached N -> NO3
-            self.add_inventory_item(InventoryItem {
-                substance: "Nitrate (NO3-)".to_string(),
-                quantity: no3_leached,
-                unit: "kg".to_string(),
-                compartment: EnvironmentalCompartment::Water,
-                source: format!("Nitrate leaching from {} application", app.fertilizer_type),
-            });
         }
 
         Ok(())
+    }
+
+    /// Liming CO2, IPCC 2006 Guidelines Vol 4 Ch 11 Section 11.3.1, Eq 11.12 (unchanged in
+    /// the 2019 Refinement): CO2-C = M_limestone x 0.12 + M_dolomite x 0.13 (t C / t);
+    /// x 44/12. All carbonate C is emitted as CO2 (mineral, i.e. fossil carbon). Rates are
+    /// per year, so crops_per_year does not apply.
+    fn calculate_lime_emissions(
+        &mut self,
+        soil: &SoilManagement,
+        foods: &[FoodItem],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for lime in &soil.lime_applications {
+            if !(lime.rate_t_per_ha_per_year > 0.0) {
+                continue;
+            }
+            let m = lime.material.trim().to_lowercase();
+            let (ef, label) = if m.contains("dolomit") {
+                (field::DOLOMITE_EF_C_PER_T, "dolomite, 0.13 t C/t")
+            } else if m.contains("limestone") || m.contains("calcium carbonate") || m.contains("caco3") {
+                (field::LIMESTONE_EF_C_PER_T, "limestone, 0.12 t C/t")
+            } else {
+                self.warn_once(format!(
+                    "lime material '{}' is not limestone or dolomite: no IPCC Eq 11.12 CO2 booked",
+                    lime.material));
+                continue;
+            };
+            let area: f64 = target_foods(foods, &lime.crop_ids).iter()
+                .map(|f| f.area_allocated.unwrap_or(0.0)).sum();
+            if area <= 0.0 {
+                continue;
+            }
+            let mass_t = lime.rate_t_per_ha_per_year * area;
+            self.add_inventory_item(InventoryItem {
+                substance: "Carbon dioxide (CO2) - liming".to_string(),
+                quantity: mass_t * 1000.0 * ef * field::CO2_PER_C,
+                unit: "kg".to_string(),
+                compartment: EnvironmentalCompartment::Air,
+                source: format!("Liming CO2 from {:.2} t {} ({}; IPCC 2006 Vol 4 Ch 11 Eq 11.12)",
+                                mass_t, lime.material, label),
+                category: FlowCategory::Field,
+            });
+        }
+        Ok(())
+    }
+
+    /// Soil NOx = 0.21 x soil N2O (NOX_PER_N2O, ecoinvent / Nemecek & Schnetzer 2011).
+    fn calculate_soil_nox(&mut self) {
+        let n2o: f64 = self.inventory.values()
+            .filter(|i| i.category == FlowCategory::Field
+                    && SOIL_N2O_SUBSTANCES.contains(&i.substance.as_str()))
+            .map(|i| i.quantity)
+            .sum();
+        if n2o > 0.0 {
+            self.add_inventory_item(InventoryItem {
+                substance: "Nitrogen oxides (NOx)".to_string(),
+                quantity: n2o * NOX_PER_N2O,
+                unit: "kg".to_string(),
+                compartment: EnvironmentalCompartment::Air,
+                source: format!("Soil NOx = 0.21 x {:.3} kg soil N2O (Nemecek & Schnetzer 2011, ecoinvent v3 field-emission model)", n2o),
+                category: FlowCategory::Field,
+            });
+        }
     }
 
     /// Calculate CO2 emissions from energy use
@@ -551,6 +770,7 @@ impl LCICalculator {
                     compartment: EnvironmentalCompartment::Air,
                     source: format!("{} consumption: {} L/month ({:.1} L/year)",
                                    fuel.fuel_type, fuel.monthly_consumption, annual_consumption_l),
+                    category: FlowCategory::Energy,
                 });
             }
 
@@ -575,6 +795,7 @@ impl LCICalculator {
                         source: format!("{} consumption: {} kWh/month ({:.1} kWh/year) for {}",
                                        energy.energy_type, energy.monthly_consumption,
                                        annual_consumption_kwh, energy.primary_use),
+                        category: FlowCategory::Energy,
                     });
                 }
             }
@@ -619,6 +840,7 @@ impl LCICalculator {
                 compartment: EnvironmentalCompartment::Air,
                 source: format!("Production of {} pesticide ({})",
                                pesticide.pesticide_type, pesticide.active_ingredient),
+                category: FlowCategory::Aggregated,
             });
         }
 
@@ -656,34 +878,151 @@ impl LCICalculator {
                 compartment: EnvironmentalCompartment::Resource,
                 source: format!("Irrigation water ({})",
                                water_management.irrigation_system.as_deref().unwrap_or("Unknown")),
+                category: FlowCategory::Field,
             });
         }
 
         Ok(())
     }
 
-    /// Calculate crop-specific emissions (e.g., CH4 from rice)
+    /// Rice CH4, IPCC 2019 Refinement Vol 4 Ch 5 Section 5.5, Tier 1:
+    ///   Eq 5.1  CH4 = EF_i x t x A                 (per season; x crops per year)
+    ///   Eq 5.2  EF_i = EFc x SFw x SFp x SFo       (SFs,r = 1 at Tier 1)
+    ///   Eq 5.3  SFo = (1 + sum ROA_i x CFOA_i)^0.59
+    /// EFc Table 5.11, SFw Table 5.12, SFp Table 5.13, CFOA Table 5.14 (field.rs). Each
+    /// season is assumed to have the same water regime and amendments.
     fn calculate_crop_specific_emissions(
         &mut self,
-        foods: &[FoodItem],
+        assessment: &Assessment,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let p = self.params.clone();
+        let mgmt = assessment.management_practices.as_ref();
+        for food in &assessment.foods {
+            if !field::is_rice(&food.name) {
+                continue;
+            }
+            let area = food.area_allocated.unwrap_or(0.0);
+            if area <= 0.0 {
+                continue;
+            }
+            let (regime, inferred) = rice_water_regime(food, self.water.as_ref());
+            if let Some(why) = inferred {
+                self.note_once(format!("rice '{}': water regime '{}' inferred ({}); declare water_regime to refine CH4",
+                                       food.name, regime, why));
+            }
+            let sfw = field::rice_sfw(&regime).unwrap_or(1.0);
+            if sfw == 0.0 {
+                self.note_once(format!("rice '{}' is upland (never flooded): no CH4 (IPCC 2019 Table 5.12 SFw = 0)",
+                                       food.name));
+                continue;
+            }
+            let pre = food.preseason_water_status.as_deref().map(|s| s.trim().to_lowercase())
+                .filter(|s| field::rice_sfp(s).is_some());
+            let pre = match pre {
+                Some(s) => s,
+                None => {
+                    self.note_once(format!("rice '{}': pre-season water status not declared, \
+                        non-flooded < 180 d assumed (SFp 1.00, IPCC 2019 Table 5.13)", food.name));
+                    "non_flooded_lt_180d".to_string()
+                }
+            };
+            let sfp = field::rice_sfp(&pre).unwrap_or(1.0);
+            let cpy = food.crops_per_year();
+            let days = match food.growing_period_days.filter(|d| *d > 0.0) {
+                Some(d) => d,
+                None => {
+                    self.note_once(format!("rice '{}': growing period not declared, IPCC 2019 Table 5.11a \
+                        default cultivation period {} d used", food.name, p.rice_cultivation_days));
+                    p.rice_cultivation_days
+                }
+            };
 
-        for food in foods {
-            // Check if crop is rice (flooded rice paddies emit CH4)
-            if food.name.to_lowercase().contains("rice") {
-                if let Some(area_ha) = food.area_allocated {
-                    // CH4 emissions from flooded rice paddies
-                    let ch4_emissions = area_ha * self.emission_factors.ch4_from_rice_paddies.value;
-
-                    self.add_inventory_item(InventoryItem {
-                        substance: "Methane (CH4)".to_string(),
-                        quantity: ch4_emissions,
-                        unit: "kg".to_string(),
-                        compartment: EnvironmentalCompartment::Air,
-                        source: format!("Methane emissions from rice cultivation ({} ha)", area_ha),
-                    });
+            // SFo: organic amendments per season (t/ha; straw dry, others fresh weight).
+            let mut sum_roa_cfoa = 0.0;
+            let mut parts: Vec<String> = Vec::new();
+            if food.quantity_kg > 0.0 {
+                let rm = food.residue_management.clone().unwrap_or_default();
+                let r = field::residue_n(&food.name, food.quantity_kg / area, area,
+                                         rm.fraction_removed.unwrap_or(0.0),
+                                         rm.fraction_burnt.unwrap_or(0.0),
+                                         rm.frac_renew.unwrap_or(1.0));
+                let straw_t_ha = r.ag_dm_retained / area / cpy / 1000.0;
+                if straw_t_ha > 0.0 {
+                    // Timing is not collected: with >= 2 crops a year the previous straw is
+                    // incorporated shortly (< 30 d) before the next season, else long before.
+                    let (cfoa, timing) = if cpy >= 2.0 {
+                        (field::CFOA_STRAW_SHORT, "< 30 d")
+                    } else {
+                        (field::CFOA_STRAW_LONG, "> 30 d")
+                    };
+                    sum_roa_cfoa += straw_t_ha * cfoa;
+                    parts.push(format!("straw {:.2} t d.m./ha x {:.2} (incorporated {})", straw_t_ha, cfoa, timing));
+                    self.note_once(format!("rice '{}': retained straw treated as incorporated {} before \
+                        the next season (CFOA {:.2}, IPCC 2019 Table 5.14); timing not collected",
+                        food.name, timing, cfoa));
                 }
             }
+            if let Some(m) = mgmt {
+                let s = &m.soil_management;
+                let applies = s.compost_crop_ids.is_empty()
+                    || s.compost_crop_ids.iter().any(|id| id.trim() == food.id);
+                if s.uses_compost && applies {
+                    if let Some(rate) = s.compost_application_rate.filter(|r| *r > 0.0) {
+                        let src = s.compost_source.clone().unwrap_or_default();
+                        let (cfoa, kind) = if src.to_lowercase().contains("manure") {
+                            (field::CFOA_FYM, "farmyard manure")
+                        } else {
+                            (field::CFOA_COMPOST, "compost")
+                        };
+                        let roa = rate / cpy; // t fresh/ha/year spread over the seasons
+                        sum_roa_cfoa += roa * cfoa;
+                        parts.push(format!("{} {:.2} t fresh/ha x {:.2}", kind, roa, cfoa));
+                    }
+                }
+                if m.fertilization.uses_fertilizers {
+                    for app in &m.fertilization.fertilizer_applications {
+                        if app.application_rate <= 0.0 || app.applications_per_season == 0 {
+                            continue;
+                        }
+                        if !(app.crop_ids.is_empty() || app.crop_ids.iter().any(|id| id.trim() == food.id)) {
+                            continue;
+                        }
+                        if field::fertiliser_n(&app.fertilizer_type, &app.npk_ratio).form != NForm::Organic {
+                            continue;
+                        }
+                        let t = app.fertilizer_type.to_lowercase();
+                        let (cfoa, kind) = if t.contains("compost") {
+                            (field::CFOA_COMPOST, "compost")
+                        } else if t.contains("manure") || t.contains("dung") || t.contains("poultry") {
+                            (field::CFOA_FYM, "farmyard manure")
+                        } else {
+                            self.note_once(format!("organic fertiliser '{}' has no IPCC 2019 Table 5.14 \
+                                amendment class: not included in the rice CH4 factor SFo", app.fertilizer_type));
+                            continue;
+                        };
+                        let roa = app.application_rate * app.applications_per_season as f64 / 1000.0;
+                        sum_roa_cfoa += roa * cfoa;
+                        parts.push(format!("{} {:.2} t fresh/ha x {:.2}", kind, roa, cfoa));
+                    }
+                }
+            }
+            let sfo = field::rice_sfo(sum_roa_cfoa);
+
+            let ef = p.rice_ch4_efc * sfw * sfp * sfo;
+            let ch4 = ef * days * area * cpy;
+            self.add_inventory_item(InventoryItem {
+                substance: "Methane (CH4)".to_string(),
+                quantity: ch4,
+                unit: "kg".to_string(),
+                compartment: EnvironmentalCompartment::Air,
+                source: format!(
+                    "Rice CH4 for {} (IPCC 2019 Vol 4 Ch 5 Eq 5.1-5.3): EFc {:.2} kg/ha/d x SFw {:.2} ({}) \
+                     x SFp {:.2} ({}) x SFo {:.3} [{}] x {:.0} d x {:.2} ha x {} season(s)",
+                    food.name, p.rice_ch4_efc, sfw, regime, sfp, pre, sfo,
+                    if parts.is_empty() { "no organic amendment".to_string() } else { parts.join("; ") },
+                    days, area, cpy),
+                category: FlowCategory::Field,
+            });
         }
 
         Ok(())
@@ -706,6 +1045,7 @@ impl LCICalculator {
                 unit: "m2*year".to_string(),
                 compartment: EnvironmentalCompartment::Resource,
                 source: "Agricultural land occupation".to_string(),
+                category: FlowCategory::Field,
             });
         }
 
@@ -717,7 +1057,8 @@ impl LCICalculator {
     /// N2O at EF1 for "other N inputs" (Table 11.1; EF1FR on flooded rice), indirect N2O from
     /// leaching (Eq 11.10, F_CR x FracLEACH x EF5). Residue N is NOT in the volatilisation
     /// term (Eq 11.9 covers F_SN and F_ON/F_PRP only). Field burning of residues (if
-    /// declared) adds CH4 and N2O by IPCC 2006 Vol 4 Eq 2.27 / Table 2.5.
+    /// declared) adds CH4, N2O, CO and NOx by IPCC 2006 Vol 4 Eq 2.27 / Table 2.5 and PM2.5
+    /// and NMVOC by EMEP/EEA 2019 3.F Table 3-1.
     /// Biological N fixation is not an N input (IPCC 2019 Ch 11 footnote 1: legume N2O is
     /// estimated solely from their residue N), so legumes contribute only through F_CR.
     fn calculate_crop_residue_emissions(
@@ -745,7 +1086,7 @@ impl LCICalculator {
             }
             let f_cr = r.f_cr();
             if f_cr > 0.0 {
-                let ef1 = if is_flooded_rice(food) { EF1_FLOODED_RICE } else { self.params.ef1_other };
+                let ef1 = if self.is_flooded_rice(food) { EF1_FLOODED_RICE } else { self.params.ef1_other };
                 let n2o_n = f_cr * ef1 + f_cr * self.params.frac_leach * self.params.ef5;
                 self.add_inventory_item(InventoryItem {
                     substance: "Dinitrogen monoxide (N2O) - crop residues".to_string(),
@@ -755,6 +1096,7 @@ impl LCICalculator {
                     source: format!(
                         "Crop residue N2O for {}: F_CR {:.1} kg N ({:.1} above + {:.1} below ground; {})",
                         food.name, f_cr, r.n_above, r.n_below, r.params.source),
+                    category: FlowCategory::Field,
                 });
                 let no3 = f_cr * self.params.frac_leach * NO3_PER_N;
                 if no3 > 0.0 {
@@ -764,34 +1106,44 @@ impl LCICalculator {
                         unit: "kg".to_string(),
                         compartment: EnvironmentalCompartment::Water,
                         source: format!("Nitrate leaching from {} crop residues", food.name),
+                        category: FlowCategory::Field,
                     });
                 }
             }
             if r.dm_burnt > 0.0 {
-                self.add_inventory_item(InventoryItem {
-                    substance: "Methane (CH4) - residue burning".to_string(),
-                    quantity: r.dm_burnt * field::BURN_CH4_G_PER_KG_DM / 1000.0,
-                    unit: "kg".to_string(),
-                    compartment: EnvironmentalCompartment::Air,
-                    source: format!("Field burning of {} residues ({:.0} kg d.m. burnt; IPCC 2006 Vol 4 Table 2.5)",
-                                    food.name, r.dm_burnt),
-                });
-                self.add_inventory_item(InventoryItem {
-                    substance: "Dinitrogen monoxide (N2O) - residue burning".to_string(),
-                    quantity: r.dm_burnt * field::BURN_N2O_G_PER_KG_DM / 1000.0,
-                    unit: "kg".to_string(),
-                    compartment: EnvironmentalCompartment::Air,
-                    source: format!("Field burning of {} residues ({:.0} kg d.m. burnt; IPCC 2006 Vol 4 Table 2.5)",
-                                    food.name, r.dm_burnt),
-                });
+                // g per kg d.m. burnt: CH4, N2O, CO, NOx from IPCC 2006 Vol 4 Ch 2 Table 2.5
+                // ('Agricultural residues'); PM2.5 and NMVOC from EMEP/EEA 2019 3.F Table 3-1.
+                let ipcc = "IPCC 2006 Vol 4 Ch 2 Table 2.5, agricultural residues";
+                let emep = "EMEP/EEA Guidebook 2019 3.F Table 3-1 Tier 1";
+                let burn: [(&str, f64, &str); 6] = [
+                    ("Methane (CH4) - residue burning", field::BURN_CH4_G_PER_KG_DM, ipcc),
+                    ("Dinitrogen monoxide (N2O) - residue burning", field::BURN_N2O_G_PER_KG_DM, ipcc),
+                    ("Carbon monoxide - residue burning", field::BURN_CO_G_PER_KG_DM, ipcc),
+                    ("NOx - residue burning", field::BURN_NOX_G_PER_KG_DM, ipcc),
+                    ("Particulates, < 2.5 um - residue burning", field::BURN_PM25_G_PER_KG_DM, emep),
+                    ("NMVOC - residue burning", field::BURN_NMVOC_G_PER_KG_DM, emep),
+                ];
+                for (substance, g_per_kg, src) in burn {
+                    self.add_inventory_item(InventoryItem {
+                        substance: substance.to_string(),
+                        quantity: r.dm_burnt * g_per_kg / 1000.0,
+                        unit: "kg".to_string(),
+                        compartment: EnvironmentalCompartment::Air,
+                        source: format!("Field burning of {} residues ({:.0} kg d.m. burnt x {} g/kg; {})",
+                                        food.name, r.dm_burnt, g_per_kg, src),
+                        category: FlowCategory::Field,
+                    });
+                }
             }
         }
         Ok(())
     }
 
-    /// Add inventory item to the collection
+    /// Add inventory item to the collection. Items merge only within the same (substance,
+    /// compartment, category): a field emission never merges with an upstream or energy
+    /// flow of the same substance.
     fn add_inventory_item(&mut self, item: InventoryItem) {
-        let key = format!("{}_{:?}", item.substance, item.compartment);
+        let key = format!("{}_{:?}_{:?}", item.substance, item.compartment, item.category);
 
         // If item already exists, aggregate quantities
         if let Some(existing) = self.inventory.get_mut(&key) {
@@ -828,6 +1180,10 @@ mod n_balance_tests {
             intercropping_partners: None,
             post_harvest_losses: None,
             residue_management: None,
+            crops_per_year: None,
+            growing_period_days: None,
+            water_regime: None,
+            preseason_water_status: None,
         }
     }
 
@@ -837,10 +1193,13 @@ mod n_balance_tests {
             fertilizer_applications: vec![FertilizerApplication {
                 fertilizer_type: "Urea".to_string(), // 46% N
                 npk_ratio: None,
-                application_rate: 100.0, // kg/ha/season
+                application_rate: 100.0, // kg/ha/application
                 applications_per_season: 1,
                 cost: None,
                 currency: None,
+                application_method: None,
+                brand_name: None,
+                crop_ids: vec![],
             }],
             soil_test_based: false,
             follows_nutrient_plan: false,
@@ -865,7 +1224,8 @@ mod n_balance_tests {
             .expect("fertiliser emissions");
 
         let n_applied = 100.0 * 0.46; // 46 kg N
-        let (frac_gasf, frac_leach, ef4, ef5) = (0.11, 0.24, 0.010, 0.011);
+        // FracGASF for urea, IPCC 2019 Table 11.3 (disaggregated).
+        let (frac_gasf, frac_leach, ef4, ef5) = (0.15, 0.24, 0.010, 0.011);
         let n2o_ratio = 44.0 / 28.0;
 
         let direct = flow_by_source(&calc, "Direct N2O");
@@ -898,14 +1258,182 @@ mod n_balance_tests {
     fn dry_climate_parameters_remove_leaching() {
         let mut calc = LCICalculator::new();
         calc.params = FieldParameters { ef1_synthetic: 0.005, ef1_other: 0.005, frac_gasf: 0.11,
-            frac_gasm: 0.21, frac_leach: 0.0, ef4: 0.005, ef5: 0.011 };
+            frac_gasm: 0.21, frac_leach: 0.0, ef4: 0.005, ef5: 0.011, ..FieldParameters::default() };
         calc.calculate_fertilizer_emissions(&urea_100kg(), &vec![maize(1.0)]).unwrap();
         let n = 46.0;
         let direct = flow_by_source(&calc, "Direct N2O");
         assert!((direct - n * 0.005 * 44.0 / 28.0).abs() < 1e-9);
         let indirect = flow_by_source(&calc, "Indirect N2O");
-        assert!((indirect - n * 0.11 * 0.005 * 44.0 / 28.0).abs() < 1e-9);
+        assert!((indirect - n * 0.15 * 0.005 * 44.0 / 28.0).abs() < 1e-9);
         assert_eq!(sum_substance(&calc, "Nitrate (NO3-)"), 0.0);
+    }
+
+    fn assessment(foods: Vec<FoodItem>, fert: FertilizationPractices, water: WaterManagement,
+                  lime: Vec<LimeApplication>) -> Assessment {
+        Assessment {
+            id: uuid::Uuid::new_v4(), company_name: "t".into(), country: Country::Ghana,
+            currency: Currency::GHS, region: None, foods, assessment_date: chrono::Utc::now(),
+            methodology: LCAMethodology {
+                functional_unit: "1 kg".into(), system_boundary: SystemBoundary::CradleToGate,
+                allocation_method: AllocationMethod::Mass,
+                characterization_method: CharacterizationMethod::IpccAr6,
+                normalization_method: None, weighting_method: None },
+            results: None, farm_profile: None,
+            management_practices: Some(ManagementPractices {
+                soil_management: SoilManagement { soil_type: None, uses_compost: false,
+                    compost_source: None, conservation_practices: vec![],
+                    soil_testing_frequency: None, compost_application_rate: None,
+                    compost_crop_ids: vec![], lime_applications: lime },
+                fertilization: fert,
+                water_management: water,
+                pest_management: PestManagement { management_approach: "x".into(), uses_ipm: false,
+                    pesticides_used: vec![], monitoring_frequency: None },
+            }),
+            equipment_energy: None, field_parameters: None,
+        }
+    }
+
+    fn water(system: &str, practices: &[&str]) -> WaterManagement {
+        WaterManagement { water_source: vec![], irrigation_system: Some(system.to_string()),
+            water_conservation_practices: practices.iter().map(|s| s.to_string()).collect() }
+    }
+
+    fn no_fert() -> FertilizationPractices {
+        FertilizationPractices { uses_fertilizers: false, fertilizer_applications: vec![],
+            soil_test_based: false, follows_nutrient_plan: false }
+    }
+
+    fn by_cat(calc: &LCICalculator, substance: &str, cat: FlowCategory) -> f64 {
+        calc.get_inventory().values().filter(|i| i.substance == substance && i.category == cat)
+            .map(|i| i.quantity).sum()
+    }
+
+    // NH3 = N x FracGASF(urea 0.15) x 17/14; NOx = 0.21 x soil N2O; urea CO2 = M x 0.2 x 44/12.
+    #[test]
+    fn urea_nh3_nox_and_hydrolysis_co2() {
+        let mut calc = LCICalculator::new();
+        let mut food = maize(1.0);
+        food.quantity_kg = 0.0; // no residues, to isolate the fertiliser N2O
+        calc.calculate_inventory(&assessment(vec![food], urea_100kg(), water("None (Rainfed)", &[]), vec![]))
+            .unwrap();
+        let nh3 = sum_substance(&calc, "Ammonia (NH3)");
+        assert!((nh3 - 46.0 * 0.15 * 17.0 / 14.0).abs() < 1e-9, "{nh3}");
+        let n2o: f64 = SOIL_N2O_SUBSTANCES.iter().map(|s| sum_substance(&calc, s)).sum();
+        assert!((sum_substance(&calc, "Nitrogen oxides (NOx)") - 0.21 * n2o).abs() < 1e-12);
+        let co2 = by_cat(&calc, "Carbon dioxide (CO2) - urea hydrolysis", FlowCategory::Field);
+        assert!((co2 - 100.0 * 0.20 * 44.0 / 12.0).abs() < 1e-9);
+        // production CO2 is a separate (upstream) item and never merges with the field CO2
+        assert!(by_cat(&calc, "Carbon dioxide (CO2)", FlowCategory::Upstream) > 0.0);
+        assert_eq!(by_cat(&calc, "Carbon dioxide (CO2)", FlowCategory::Field), 0.0);
+    }
+
+    // A free-text product with the straight urea grade is treated as urea (FracGASF 0.15 and
+    // Eq 11.13 CO2), as engine/inputs.py identifies it from the grade.
+    #[test]
+    fn free_text_urea_grade_is_urea() {
+        let mut calc = LCICalculator::new();
+        let mut f = urea_100kg();
+        f.fertilizer_applications[0].fertilizer_type = "White prills".into();
+        f.fertilizer_applications[0].npk_ratio = Some("46-0-0".into());
+        calc.calculate_fertilizer_emissions(&f, &vec![maize(1.0)]).unwrap();
+        assert!((sum_substance(&calc, "Ammonia (NH3)") - 46.0 * 0.15 * 17.0 / 14.0).abs() < 1e-9);
+        assert!((sum_substance(&calc, "Carbon dioxide (CO2) - urea hydrolysis") - 100.0 * 0.2 * 44.0 / 12.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn none_rows_and_zero_applications_are_skipped() {
+        let mut calc = LCICalculator::new();
+        let mut f = urea_100kg();
+        f.fertilizer_applications[0].applications_per_season = 0;
+        calc.calculate_fertilizer_emissions(&f, &vec![maize(1.0)]).unwrap();
+        assert!(calc.get_inventory().is_empty());
+        f.fertilizer_applications[0].applications_per_season = 1;
+        f.fertilizer_applications[0].fertilizer_type = "None".into();
+        calc.calculate_fertilizer_emissions(&f, &vec![maize(1.0)]).unwrap();
+        assert!(calc.get_inventory().is_empty());
+    }
+
+    // crops_per_year multiplies seasonal fertiliser N; crop_ids restrict a row to its crops.
+    #[test]
+    fn crops_per_year_and_crop_ids() {
+        let mut one = LCICalculator::new();
+        one.calculate_fertilizer_emissions(&urea_100kg(), &vec![maize(1.0)]).unwrap();
+        let mut two = LCICalculator::new();
+        let mut m = maize(1.0);
+        m.crops_per_year = Some(2);
+        two.calculate_fertilizer_emissions(&urea_100kg(), &vec![m]).unwrap();
+        let d1 = sum_substance(&one, "Dinitrogen monoxide (N2O)");
+        assert!((sum_substance(&two, "Dinitrogen monoxide (N2O)") - 2.0 * d1).abs() < 1e-9);
+
+        let mut cowpea = maize(1.0);
+        cowpea.id = "2".into();
+        cowpea.name = "Cowpea".into();
+        let mut f = urea_100kg();
+        f.fertilizer_applications[0].crop_ids = vec!["1".into()];
+        let mut both = LCICalculator::new();
+        both.calculate_fertilizer_emissions(&f, &vec![maize(1.0), cowpea]).unwrap();
+        assert!((sum_substance(&both, "Dinitrogen monoxide (N2O)") - d1).abs() < 1e-9);
+    }
+
+    #[test]
+    fn liming_co2() {
+        let mut calc = LCICalculator::new();
+        let lime = vec![LimeApplication { material: "limestone".into(), rate_t_per_ha_per_year: 1.0, crop_ids: vec![] },
+                        LimeApplication { material: "dolomite".into(), rate_t_per_ha_per_year: 1.0, crop_ids: vec!["9".into()] }];
+        calc.calculate_inventory(&assessment(vec![maize(2.0)], no_fert(), water("None (Rainfed)", &[]), lime)).unwrap();
+        let co2 = sum_substance(&calc, "Carbon dioxide (CO2) - liming");
+        assert!((co2 - 2.0 * 1000.0 * 0.12 * 44.0 / 12.0).abs() < 1e-9, "{co2}");
+    }
+
+    fn rice(area: f64) -> FoodItem {
+        let mut r = maize(area);
+        r.name = "Rice".into();
+        r.quantity_kg = 0.0; // no straw: isolates EFc x SFw x SFp
+        r.growing_period_days = Some(120.0);
+        r
+    }
+
+    fn rice_ch4(food: FoodItem, w: WaterManagement) -> f64 {
+        let mut calc = LCICalculator::new();
+        calc.calculate_inventory(&assessment(vec![food], no_fert(), w, vec![])).unwrap();
+        sum_substance(&calc, "Methane (CH4)")
+    }
+
+    #[test]
+    fn rice_ch4_follows_ipcc_2019_ch5() {
+        let flooded = rice_ch4(rice(1.0), water("Flood Irrigation", &[]));
+        assert!((flooded - 1.19 * 120.0).abs() < 1e-9, "{flooded}");
+        let awd = rice_ch4(rice(1.0), water("Flood Irrigation", &["Alternate wetting and drying"]));
+        assert!((awd - 1.19 * 120.0 * 0.55).abs() < 1e-9);
+        let mut up = rice(1.0);
+        up.name = "Upland rice".into();
+        assert_eq!(rice_ch4(up, water("Flood Irrigation", &[])), 0.0);
+        let mut two = rice(1.0);
+        two.crops_per_year = Some(2);
+        assert!((rice_ch4(two, water("Flood Irrigation", &[])) - 2.0 * flooded).abs() < 1e-9);
+        let mut declared = rice(1.0);
+        declared.water_regime = Some("rainfed_drought_prone".into());
+        declared.preseason_water_status = Some("flooded_gt_30d".into());
+        assert!((rice_ch4(declared, water("Flood Irrigation", &[])) - 1.19 * 120.0 * 0.16 * 2.41).abs() < 1e-9);
+        // retained straw: SFo = (1 + ROA x CFOA)^0.59, single crop -> CFOA 0.19 (> 30 d)
+        let mut straw = rice(1.0);
+        straw.quantity_kg = 4000.0;
+        let roa = 4000.0 * 0.89 * 1.4 / 1000.0;
+        let expect = 1.19 * 120.0 * (1.0 + roa * 0.19f64).powf(0.59);
+        assert!((rice_ch4(straw, water("Flood Irrigation", &[])) - expect).abs() < 1e-9);
+    }
+
+    // The flooded-rice EF1 follows the same water regime as CH4: upland rice uses EF1.
+    #[test]
+    fn upland_rice_uses_upland_ef1() {
+        let mut calc = LCICalculator::new();
+        calc.params = FieldParameters { ef1_synthetic: 0.016, ..FieldParameters::default() };
+        calc.water = Some(water("Sprinkler System", &[]));
+        let mut r = maize(1.0);
+        r.name = "Rice".into();
+        calc.calculate_fertilizer_emissions(&urea_100kg(), &vec![r]).unwrap();
+        let direct = flow_by_source(&calc, "Direct N2O");
+        assert!((direct - 46.0 * 0.016 * 44.0 / 28.0).abs() < 1e-9);
     }
 
     // An unknown fertiliser gets zero N (no N2O) and a validation warning, never 10% N.
@@ -958,11 +1486,16 @@ mod n_balance_tests {
         let dm = 3000.0 * 0.87 * 1.0 * 0.5 * 0.80;
         let ch4 = sum_substance(&calc, "Methane (CH4) - residue burning");
         assert!((ch4 - dm * 2.7 / 1000.0).abs() < 1e-9);
+        assert!((sum_substance(&calc, "Carbon monoxide - residue burning") - dm * 92.0 / 1000.0).abs() < 1e-9);
+        assert!((sum_substance(&calc, "NOx - residue burning") - dm * 2.5 / 1000.0).abs() < 1e-9);
+        assert!((sum_substance(&calc, "Particulates, < 2.5 um - residue burning") - dm * 5.4 / 1000.0).abs() < 1e-9);
+        assert!((sum_substance(&calc, "NMVOC - residue burning") - dm * 0.5 / 1000.0).abs() < 1e-9);
     }
 }
 
 // ======================================================================
-// LCI TO LCIA BRIDGE - Convert Inventory to Impact Categories
+// LCI TO LCIA BRIDGE - DEPRECATED. The served path characterises `lci_inventory` in Python
+// (ecoinvent EF 3.1 / ReCiPe 2016 packs); this bridge only feeds the legacy Rust LCIA.
 // ======================================================================
 
 impl LCICalculator {
@@ -1002,9 +1535,13 @@ impl LCICalculator {
             });
         }
 
-        // Characterization factors (IPCC AR6, ReCiPe 2016)
-        let gwp_n2o = 273.0; // N2O has 273x warming potential of CO2 (100-year horizon)
-        let gwp_ch4 = 28.0;  // CH4 has 28x warming potential of CO2 (fossil) - AR6
+        // DEPRECATED legacy LCIA (served only with USE_LEGACY_RUST_LCIA). GWP100 on one
+        // basis, IPCC AR6 WG1 Ch 7 Table 7.15: N2O 273; the only CH4 summed here is rice
+        // paddy CH4, which is non-fossil (27.0). The field CO2 flows "- urea hydrolysis" /
+        // "- liming" are deliberately not summed (the legacy urea production factor already
+        // folds in hydrolysis).
+        let gwp_n2o = 273.0;
+        let gwp_ch4 = 27.0;
 
         // Calculate Global Warming Potential
         let mut gwp_total = 0.0;
