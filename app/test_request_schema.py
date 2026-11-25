@@ -199,3 +199,144 @@ def test_ws1_advanced_food_fields_accepted_and_validated():
     d["foods"][0]["residue_management"]["fraction_burnt"] = 1.5
     with pytest.raises(ValidationError):
         AssessmentRequest(**d)
+
+
+# ---------------------------------------------------------------------------------------
+# Hardening (contract audit, docs/contract_audit/audit_farm_payload.json): bounds, closed
+# vocabularies and cross-field rules. Each case used to be ACCEPTED by the API.
+# ---------------------------------------------------------------------------------------
+def _farm(**patch):
+    d = json.loads(json.dumps(FRONTEND_FARM_PAYLOAD))
+    for path, value in patch.items():
+        keys = path.split(".")
+        cur = d
+        for k in keys[:-1]:
+            cur = cur[int(k)] if isinstance(cur, list) else cur[k]
+        last = keys[-1]
+        if isinstance(cur, list):
+            cur[int(last)] = value
+        else:
+            cur[last] = value
+    return d
+
+
+def _rejects(d, needle=None):
+    with pytest.raises(ValidationError) as e:
+        AssessmentRequest(**d)
+    if needle:
+        assert needle.lower() in str(e.value).lower(), str(e.value)
+
+
+@pytest.mark.parametrize("path,value,needle", [
+    ("foods.0.area_allocated", -2, "greater than 0"),
+    ("foods.0.area_allocated", 0, "greater than 0"),
+    ("foods.0.area_allocated", 1e9, "less than or equal"),
+    ("foods.0.quantity_kg", 0, "greater than 0"),
+    ("foods.0.quantity_kg", float("nan"), "finite"),
+    ("foods.0.quantity_kg", float("inf"), "finite"),
+    ("foods.0.post_harvest_losses", 150, "less than or equal"),
+    ("management_practices.fertilization.fertilizer_applications.0.application_rate", -200, "greater than or equal"),
+    ("management_practices.fertilization.fertilizer_applications.0.application_rate", 1e9, "less than or equal"),
+    ("management_practices.fertilization.fertilizer_applications.0.applications_per_season", 99, "less than or equal"),
+    ("management_practices.soil_management.compost_application_rate", -10, "greater than or equal"),
+    ("management_practices.soil_management.compost_application_rate", 1e6, "less than or equal"),
+    ("management_practices.water_management.irrigation_water_m3", -1, "greater than or equal"),
+    ("management_practices.pest_management.pesticides.0.application_rate", 1e4, "less than or equal"),
+    ("management_practices.pest_management.pesticides.0.active_ingredient_content", 1.5, "less than or equal"),
+    ("equipment_energy.equipment.0.hours_per_year", -5, "greater than or equal"),
+    ("equipment_energy.equipment.0.hours_per_year", 20000, "less than or equal"),
+    ("equipment_energy.energy_sources.0.monthly_consumption", -40, "greater than or equal"),
+    ("equipment_energy.fuel_consumption.0.monthly_consumption", 1e12, "less than or equal"),
+    ("farm_profile.total_farm_size", 0, "greater than 0"),
+    ("farm_profile.farming_experience", -1, "greater than or equal"),
+    ("logistics.distance_to_market_km", -25, "greater than or equal"),
+    ("ipcc_ef1_scale", 0, "greater than 0"),
+])
+def test_numeric_bounds_rejected(path, value, needle):
+    _rejects(_farm(**{path: value}), needle)
+
+
+def test_empty_foods_rejected():
+    _rejects(_farm(foods=[]), "at least 1")
+
+
+@pytest.mark.parametrize("path,value", [
+    ("management_practices.water_management.irrigation_system", "Teleportation"),
+    ("management_practices.water_management.water_source", ["Ocean"]),
+    ("management_practices.pest_management.pesticides.0.pesticide_type", "Magic dust"),
+    ("management_practices.soil_management.compost_source", "Moon dust"),
+    ("equipment_energy.equipment.0.power_source", "Nuclear"),
+    ("equipment_energy.energy_sources.0.energy_type", "Fusion"),
+    ("equipment_energy.fuel_consumption.0.unit", "gallons"),
+])
+def test_closed_vocabularies_reject_unknown_values(path, value):
+    _rejects(_farm(**{path: value}), "not recognised" if "unit" not in path else "not supported")
+
+
+def test_vocabularies_normalise_wizard_and_archived_spellings():
+    d = _farm(**{
+        "management_practices.water_management.irrigation_system": "Sprinkler",
+        "management_practices.water_management.water_source": ["river", "Borehole", "borehole"],
+        "management_practices.soil_management.compost_source": "Farm-made compost (fosse fumiere)",
+        "equipment_energy.equipment.0.power_source": "Diesel",
+        "equipment_energy.energy_sources.0.energy_type": "Grid Electricity",
+        "equipment_energy.fuel_consumption.0.unit": "litres",
+    })
+    r = AssessmentRequest(**d)
+    wm = r.management_practices.water_management
+    assert wm.irrigation_system.value == "Sprinkler System"
+    assert [w.value for w in wm.water_source] == ["River/Stream", "Borehole"]
+    assert r.management_practices.soil_management.compost_source.value == "Farm-made compost"
+    assert r.equipment_energy.equipment[0].power_source.value == "Diesel engine"
+    assert r.equipment_energy.fuel_consumption[0].unit == "L"
+
+
+def test_free_text_fertiliser_and_fuel_names_still_accepted():
+    """Trade names are classified by the intelligence layer; the API must not block them."""
+    d = _farm(**{
+        "management_practices.fertilization.fertilizer_applications.0.fertilizer_type": "compound fert. (the blue bag)",
+        "equipment_energy.fuel_consumption.0.fuel_type": "gas oil from the roadside seller",
+    })
+    AssessmentRequest(**d)
+
+
+def test_area_required_when_inputs_declared():
+    d = _farm()
+    d["foods"][0].pop("area_allocated")
+    _rejects(d, "area_allocated (ha) is required")
+
+
+def test_area_not_required_for_bare_product_assessment():
+    d = {"company_name": "x", "country": "Ghana",
+         "foods": [{"id": "1", "name": "Maize", "quantity_kg": 100, "category": "Cereals"}]}
+    assert AssessmentRequest(**d).foods[0].area_allocated is None
+
+
+def test_fertiliser_flag_must_match_rows():
+    _rejects(_farm(**{"management_practices.fertilization.uses_fertilizers": False}),
+             "uses_fertilizers is false")
+    d = _farm(**{"management_practices.fertilization.fertilizer_applications": []})
+    _rejects(d, "uses_fertilizers is true")
+    # all-zero rows with the flag off are tolerated (the wizard keeps empty rows around)
+    d = _farm(**{"management_practices.fertilization.uses_fertilizers": False,
+                 "management_practices.fertilization.fertilizer_applications.0.application_rate": 0})
+    AssessmentRequest(**d)
+
+
+def test_compost_flag_requires_rate_and_source():
+    _rejects(_farm(**{"management_practices.soil_management.compost_application_rate": 0}),
+             "uses_compost is true")
+    _rejects(_farm(**{"management_practices.soil_management.compost_source": "Not used"}),
+             "uses_compost is true")
+    # flag off: rate and source are ignored by the engine, so they are not an error
+    AssessmentRequest(**_farm(**{"management_practices.soil_management.uses_compost": False}))
+
+
+def test_crop_areas_cannot_exceed_farm_size():
+    _rejects(_farm(**{"foods.0.area_allocated": 3.5}), "total_farm_size")
+    AssessmentRequest(**_farm(**{"foods.0.area_allocated": 3.0}))
+
+
+def test_bad_region_is_a_validation_error_not_a_500():
+    _rejects(_farm(region="Mars"), "unknown region")
+    assert AssessmentRequest(**_farm(region="ghana")).region == "GH"

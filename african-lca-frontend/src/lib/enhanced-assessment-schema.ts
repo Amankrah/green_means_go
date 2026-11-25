@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import type { DefaultValues } from 'react-hook-form';
 import { NEW_REGIONS_BY_COUNTRY, NEW_COMMON_CROPS } from './regions';
 import {
   FarmType,
@@ -93,6 +94,24 @@ export const FORM_STEPS = [
 // VALIDATION SCHEMAS - Step by Step
 // ======================================================================
 
+// Upper bounds shared with the API models (app/production/models.py). The server rejects
+// anything above these, so the wizard must never let them through.
+export const MAX_AREA_HA = 1_000_000;
+export const MAX_RATE_KG_PER_HA = 5000;
+export const MAX_APPLICATIONS_PER_SEASON = 12;
+export const MAX_HOURS_PER_YEAR = 8760;
+export const MAX_MONTHLY_CONSUMPTION = 1_000_000;
+
+// Engine-fuel units the API accepts for farm fuel rows; natural unit per fuel type.
+export const FARM_FUEL_UNITS = ['L', 'kg'] as const;
+export type FarmFuelUnit = (typeof FARM_FUEL_UNITS)[number];
+export const FARM_FUEL_DEFAULT_UNIT: Record<FuelType, FarmFuelUnit> = {
+  [FuelType.DIESEL]: 'L',
+  [FuelType.PETROL]: 'L',
+  [FuelType.KEROSENE]: 'L',
+  [FuelType.LPG]: 'kg',
+};
+
 // Step 1: Farm Profile Schema
 export const farmProfileSchema = z.object({
   // Basic Information
@@ -118,10 +137,10 @@ export const farmProfileSchema = z.object({
     longitude: z.number().min(-180).max(180)
   }).optional(),
   
-  // Farm Infrastructure
-  totalFarmSize: z.number()
+  // Farm Infrastructure (upper bound mirrors the API: 1,000,000 ha)
+  totalFarmSize: z.number({ message: "Enter the total farm size in hectares" })
     .min(0.1, "Farm size must be at least 0.1 hectares")
-    .max(10000, "Please contact us for farms larger than 10,000 hectares"),
+    .max(MAX_AREA_HA, "Please verify the farm size (maximum 1,000,000 hectares)"),
   
   farmingExperience: z.number()
     .min(0, "Experience cannot be negative")
@@ -154,12 +173,13 @@ export const cropProductionSchema = z.array(z.object({
       .min(1, "Please specify the crop variety")
       .max(100, "Variety name must be less than 100 characters"),
     
-    // Production Details
-    areaAllocated: z.number()
+    // Production Details. Area and production drive every per-hectare input and the
+    // functional unit, so both must be real positive numbers (0 is not "unknown").
+    areaAllocated: z.number({ message: "Enter the area allocated to this crop" })
       .min(0.01, "Area must be at least 0.01 hectares")
-      .max(10000, "Please verify area allocated"),
-    
-    annualProduction: z.number()
+      .max(MAX_AREA_HA, "Please verify area allocated"),
+
+    annualProduction: z.number({ message: "Enter the annual production in kg" })
       .min(0.1, "Production must be at least 0.1 kg")
       .max(100000000, "Please verify annual production"),  // up to ~100k tonnes for large commercial farms
     
@@ -184,8 +204,9 @@ export const cropProductionSchema = z.array(z.object({
       cropsPerYear: z.number()
         .min(0.5, "Must be at least 0.5 crops per year")
         .max(4, "Cannot exceed 4 crops per year"),
-      season: z.array(z.nativeEnum(SeasonType))
-        .min(1, "Please select at least one season")
+      // Derived from the planting months and the country's rainy season (see
+      // lib/seasonal-factor.ts); kept in the form so saved snapshots stay self-describing.
+      season: z.array(z.nativeEnum(SeasonType)).default([SeasonType.WET_SEASON])
     }),
     
     // Intercropping & Rotation
@@ -275,20 +296,26 @@ export const managementPracticesSchema = z.object({
         z.number().min(0).max(100).optional()
       ),
       applicationTiming: z.string().default("Before planting")
-    }).refine(
-      (data) => {
-        // If user doesn't use compost, validation passes
-        if (!data.usesCompost) {
-          return true;
-        }
-        // If user uses compost, they must select a valid source (not "Not used")
-        return data.compostsource !== CompostSource.NONE;
-      },
-      {
-        message: "Please select a compost source when using compost",
-        path: ["compostsource"]
+    }).superRefine((data, ctx) => {
+      // If user doesn't use compost, validation passes
+      if (!data.usesCompost) return;
+      // If user uses compost, they must select a valid source (not "Not used") ...
+      if (data.compostsource === CompostSource.NONE) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please select a compost source when using compost",
+          path: ["compostsource"],
+        });
       }
-    )
+      // ... and give the rate, because the engine scales the compost burden and field N2O by it.
+      if (!(typeof data.applicationRate === "number" && data.applicationRate > 0)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter the compost application rate (tonnes per hectare) when using compost",
+          path: ["applicationRate"],
+        });
+      }
+    })
   }),
   
   // Fertilization Practices
@@ -298,12 +325,15 @@ export const managementPracticesSchema = z.object({
       fertilizerType: z.nativeEnum(FertilizerType),
       brandName: z.string().optional(),
       npkRatio: z.string().optional(),
-      applicationRate: z.number()
-        .min(0, "Application rate cannot be negative")
-        .max(1000, "Please verify application rate"),
-      applicationsPerSeason: z.number()
-        .min(0, "Applications cannot be negative")
-        .max(10, "Maximum 10 applications per season"),
+      // A fertiliser row the user adds must describe a real application: zero rows used to
+      // pass every layer and be silently skipped by the engine.
+      applicationRate: z.number({ message: "Enter the application rate in kg per hectare" })
+        .gt(0, "Application rate must be greater than zero")
+        .max(MAX_RATE_KG_PER_HA, "Please verify application rate (maximum 5000 kg/ha)"),
+      applicationsPerSeason: z.number({ message: "Enter the number of applications per season" })
+        .int("Applications per season must be a whole number")
+        .min(1, "At least one application per season")
+        .max(MAX_APPLICATIONS_PER_SEASON, "Maximum 12 applications per season"),
       cost: z.preprocess(
         (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
         z.number().min(0, "Cost cannot be negative").optional()
@@ -314,19 +344,51 @@ export const managementPracticesSchema = z.object({
     timingStrategy: z.nativeEnum(TimingStrategy).optional(),
     soilTestBased: z.boolean().default(false),
     followsNutrientPlan: z.boolean().default(false)
+  }).superRefine((data, ctx) => {
+    // The flag and the rows must agree: the engine reads the rows, the kernel reads the flag.
+    const rows = data.fertilizerApplications ?? [];
+    if (data.usesFertilizers && rows.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add at least one fertilizer application, or untick 'uses fertilizers'",
+        path: ["fertilizerApplications"],
+      });
+    }
+    if (!data.usesFertilizers && rows.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Tick 'uses fertilizers' or remove the fertilizer applications listed",
+        path: ["usesFertilizers"],
+      });
+    }
   }),
   
   // Water Management
   waterManagement: z.object({
     waterSource: z.array(z.nativeEnum(WaterSource))
       .min(1, "Please select at least one water source"),
-    irrigationSystem: z.nativeEnum(IrrigationSystem).optional(),
+    // "" is what an unselected <select> submits; treat it as "no irrigation system".
+    irrigationSystem: z.preprocess(
+      (val) => (val === "" || val === null ? undefined : val),
+      z.nativeEnum(IrrigationSystem).optional()
+    ),
     irrigationWaterM3: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
-      z.number().min(0, "Water volume cannot be negative").optional()
+      z.number().min(0, "Water volume cannot be negative").max(1e9, "Please verify the irrigation volume").optional()
     ),
     drainageSystem: z.boolean().default(false),
     waterConservationPractices: z.array(z.string()).default([])
+  }).superRefine((data, ctx) => {
+    // An irrigated farm must report its water: without it the engine invents a volume (and
+    // pumping energy) from the crop water need, which is not the farmer's data.
+    const irrigated = !!data.irrigationSystem && data.irrigationSystem !== IrrigationSystem.NONE;
+    if (irrigated && !(typeof data.irrigationWaterM3 === "number" && data.irrigationWaterM3 > 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter the irrigation water applied per year (m3) for the selected irrigation system",
+        path: ["irrigationWaterM3"],
+      });
+    }
   })
 });
 
@@ -347,24 +409,35 @@ export const pestManagementSchema = z.object({
       z.number().gt(0, "Must be above 0").max(1, "Enter a fraction, e.g. 0.36 for 360 g/L").optional()
     ),
     brandName: z.string().min(1, "Brand name is required"),
-    applicationRate: z.number()
-      .min(0, "Application rate cannot be negative")
+    applicationRate: z.number({ message: "Enter the application rate (product per hectare)" })
+      .gt(0, "Application rate must be greater than zero")
       .max(100, "Please verify application rate"),
-    applicationsPerSeason: z.number()
-      .min(0, "Applications cannot be negative")
-      .max(20, "Maximum 20 applications per season"),
+    applicationsPerSeason: z.number({ message: "Enter the number of applications per season" })
+      .int("Applications per season must be a whole number")
+      .min(1, "At least one application per season")
+      .max(MAX_APPLICATIONS_PER_SEASON, "Maximum 12 applications per season"),
     targetPests: z.array(z.string()),
     cost: z.number().min(0).optional(),
     currency: z.nativeEnum(Currency).optional(),
     safetyPrecautions: z.array(z.string()).optional().default([])
   })).default([]),
-  
+
   usesIPM: z.boolean().default(false),
   ipmPractices: z.array(z.nativeEnum(IPMPractice)).default([]),
   biologicalControls: z.array(z.string()).default([]),
-  
+
   pestMonitoringFrequency: z.nativeEnum(MonitoringFrequency),
   usesEconomicThresholds: z.boolean().default(false)
+}).superRefine((data, ctx) => {
+  // "Chemical pesticides only" without a single pesticide row is a contradiction the engine
+  // would score as a pesticide-free farm.
+  if (data.managementApproach === PestManagementApproach.CHEMICAL_ONLY && (data.pesticides ?? []).length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "List the pesticides used, or choose a different pest management approach",
+      path: ["pesticides"],
+    });
+  }
 });
 
 // Step 5: Equipment & Energy Schema
@@ -375,19 +448,23 @@ export const equipmentEnergySchema = z.object({
     age: z.number()
       .min(0, "Age cannot be negative")
       .max(50, "Please verify equipment age"),
-    hoursPerYear: z.number()
-      .min(0, "Hours cannot be negative")
-      .max(4000, "Maximum 4000 hours per year"),
+    hoursPerYear: z.number({ message: "Enter the operating hours per year" })
+      .gt(0, "Operating hours must be greater than zero")
+      .max(MAX_HOURS_PER_YEAR, "Maximum 8760 hours per year"),
     fuelEfficiency: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
       z.number().min(0, "Fuel efficiency cannot be negative").optional()
     )
   })).default([]),
-  
-  // Engine fuels (machinery, pumps, dryers), in litres per month (LPG may be in kg).
+
+  // Engine fuels (machinery, pumps, dryers). The unit is sent to the API so LPG in kg is
+  // never read as litres.
   fuelConsumption: z.array(z.object({
     fuelType: z.nativeEnum(FuelType),
-    monthlyConsumption: z.number().min(0, "Consumption cannot be negative"),
+    monthlyConsumption: z.number({ message: "Enter the monthly consumption" })
+      .gt(0, "Monthly consumption must be greater than zero")
+      .max(MAX_MONTHLY_CONSUMPTION, "Please verify the monthly consumption"),
+    unit: z.enum(FARM_FUEL_UNITS).default('L'),
     primaryUse: z.string().min(1, "Primary use is required"),
     cost: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
@@ -397,8 +474,9 @@ export const equipmentEnergySchema = z.object({
 
   energySources: z.array(z.object({
     energyType: z.nativeEnum(EnergyType),
-    monthlyConsumption: z.number()
-      .min(0, "Consumption cannot be negative"),
+    monthlyConsumption: z.number({ message: "Enter the monthly consumption" })
+      .gt(0, "Monthly consumption must be greater than zero")
+      .max(MAX_MONTHLY_CONSUMPTION, "Please verify the monthly consumption"),
     primaryUse: z.string().min(1, "Primary use is required"),
     cost: z.preprocess(
       (val) => val === "" || val === null || val === undefined || isNaN(Number(val)) ? undefined : Number(val),
@@ -478,6 +556,99 @@ export const enhancedAssessmentSchema = z.object({
 });
 
 export type EnhancedAssessmentFormData = z.infer<typeof enhancedAssessmentSchema>;
+/** What the form holds before zod applies defaults and coercions (react-hook-form's value type). */
+export type EnhancedAssessmentFormInput = z.input<typeof enhancedAssessmentSchema>;
+
+/**
+ * The wizard's starting state: nothing filled in. Every result-driving field is empty so an
+ * untouched form cannot pass validation (the old default was a complete synthetic farm).
+ * Only fixed study parameters and empty collections are preset.
+ */
+export function blankFarmAssessmentForm(): DefaultValues<EnhancedAssessmentFormInput> {
+  return {
+    farmProfile: {
+      farmerName: '',
+      farmName: '',
+      country: undefined,
+      region: '',
+      totalFarmSize: undefined,
+      farmingExperience: undefined,
+      farmType: undefined,
+      primaryFarmingSystem: undefined,
+      certifications: [],
+      participatesInPrograms: [],
+    },
+    cropProductions: [],
+    managementPractices: {
+      soilManagement: {
+        soilType: undefined,
+        soilpH: undefined,
+        organicMatterContent: undefined,
+        soilTestingFrequency: undefined,
+        conservationPractices: [],
+        coverCrops: [],
+        compostUse: {
+          usesCompost: false,
+          compostsource: CompostSource.NONE,
+          applicationRate: undefined,
+          applicationTiming: 'Before planting',
+        },
+      },
+      fertilization: {
+        usesFertilizers: false,
+        fertilizerApplications: [],
+        applicationMethod: undefined,
+        timingStrategy: undefined,
+        soilTestBased: false,
+        followsNutrientPlan: false,
+      },
+      waterManagement: {
+        waterSource: [],
+        irrigationSystem: undefined,
+        irrigationWaterM3: undefined,
+        drainageSystem: false,
+        waterConservationPractices: [],
+      },
+    },
+    pestManagement: {
+      primaryPests: [],
+      primaryDiseases: [],
+      managementApproach: undefined,
+      pesticides: [],
+      usesIPM: false,
+      ipmPractices: [],
+      biologicalControls: [],
+      pestMonitoringFrequency: undefined,
+      usesEconomicThresholds: false,
+    },
+    equipmentEnergy: {
+      equipment: [],
+      fuelConsumption: [],
+      energySources: [],
+      infrastructure: {
+        packagingMaterial: undefined,
+        packagingKgPerTonne: undefined,
+        inputTransportKm: undefined,
+        storageCapacity: undefined,
+        storageFacilities: [],
+        transportAccess: {
+          roadAccess: undefined,
+          distanceToMarket: undefined,
+          transportMode: [],
+          transportCost: undefined,
+        },
+      },
+    },
+    assessmentParameters: {
+      functionalUnit: FunctionalUnit.PER_KG_PRODUCT,
+      systemBoundary: SystemBoundary.CRADLE_TO_GATE,
+      assessmentPeriod: 1,
+      includeUncertaintyAnalysis: true,
+      includeSensitivityAnalysis: true,
+      benchmarkComparison: true,
+    },
+  };
+}
 
 // ======================================================================
 // FIELD CONFIGURATIONS FOR DYNAMIC FORMS

@@ -128,13 +128,29 @@ def carrier_of(text: str | None) -> str | None:
     return None
 
 
+# Units a fuel amount may be declared in (the request model admits only these).
+FUEL_UNITS: tuple[str, ...] = ("L", "kg", "m3", "MJ")
+
+_UNIT_ALIASES = {"l": "L", "litre": "L", "liter": "L", "litres": "L", "liters": "L",
+                 "kg": "kg", "kilogram": "kg", "kilograms": "kg", "kgs": "kg",
+                 "m3": "m3", "m^3": "m3", "m³": "m3", "cubic metre": "m3", "cubic meter": "m3",
+                 "mj": "MJ", "kwh": "kWh"}
+
+
+def normalise_fuel_unit(u: str | None) -> str | None:
+    """Canonical fuel unit for free text ('litres' -> 'L'), or None when `u` is not a fuel
+    unit this table knows. Used by the request model so an unknown unit is a 422 instead of
+    an input the unit layer later excludes."""
+    if not u:
+        return None
+    canon = _UNIT_ALIASES.get(u.strip().lower())
+    return canon if canon in FUEL_UNITS else None
+
+
 def _norm_unit(u: str | None) -> str | None:
     if not u:
         return None
-    low = u.strip().lower()
-    return {"l": "L", "litre": "L", "liter": "L", "litres": "L", "liters": "L",
-            "kg": "kg", "kilogram": "kg", "kgs": "kg", "m3": "m3", "m^3": "m3", "m³": "m3",
-            "mj": "MJ", "kwh": "kWh"}.get(low, u)
+    return _UNIT_ALIASES.get(u.strip().lower(), u)
 
 
 def dataset_for(carrier: str, context: str = "*") -> tuple[str, str]:

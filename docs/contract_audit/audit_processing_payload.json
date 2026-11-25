@@ -1,0 +1,267 @@
+{
+  "audit": "PROCESSING (post-farm-gate) assessment contract: frontend wizard -> FastAPI pydantic -> engine",
+  "date": "2026-11-25",
+  "repo": "C:/Users/Windows/Desktop/Dev_Projects/green_means_go",
+  "read_only": true,
+  "method": {
+    "files_read": [
+      "app/processing/models.py",
+      "app/processing/routes.py",
+      "app/production/models.py (StrictModel, lines 18-46)",
+      "app/main.py (router mounting, lines 111-120)",
+      "app/auth/deps.py (require_role, lines 51-63)",
+      "app/assessment_stream.py (error event, lines 60-63)",
+      "engine/process_inputs.py",
+      "engine/process_service.py",
+      "engine/process_adapter.py (allocation + refrigerant, lines 55-100, 120-125, 170-215)",
+      "engine/conversion_ratios.py (default_raw_input, lines 84-97)",
+      "engine/energy_carriers.py (carrier_of / carrier_input, lines 122-175)",
+      "engine/units.py (unit mismatch, lines 140-158)",
+      "engine/refrigerants.py (DEFAULT_GWP, lines 40-62)",
+      "engine/regions.py (get_region, lines 332-341)",
+      "engine/orchestrator.py (assess, lines 474-500)",
+      "african-lca-frontend/src/lib/processing-assessment-schema.ts",
+      "african-lca-frontend/src/lib/api.ts (lines 386-390, 415-483)",
+      "african-lca-frontend/src/lib/country-examples.ts (COUNTRY_TO_REGION, lines 222-227)",
+      "african-lca-frontend/src/lib/regions.ts (lines 1-60)",
+      "african-lca-frontend/src/app/processing-assessment/page.tsx",
+      "african-lca-frontend/src/components/processing-assessment/{FacilityStep,ProductsStep,UtilitiesStep,ReviewStep,fields}.tsx",
+      "app/test_request_schema.py, app/test_processing_api.py, app/test_auth_workspace.py, engine/test_process_inputs.py, engine/test_wizard_inputs.py"
+    ],
+    "direct_model_probes": "32 payloads instantiated against app.processing.models.ProcessingAssessmentRequest with .venv/Scripts/python.exe (PYTHONPATH=app), then fed to engine.process_inputs.extract_processing_inputs and engine.process_adapter._allocation without a server or LCA solve. Script: scratchpad/probe_processing.py; raw outcomes: scratchpad/probe_results.json."
+  },
+  "headline": "The wizard sends a payload that is a strict subset of the pydantic contract and validates cleanly (every key it emits exists on the backend; no unknown keys; app/test_request_schema.py:115-118 covers the happy path). The wizard cannot skip steps. However, the inputs that actually drive the result (raw material, electricity, fuel, water, waste, transport, refrigerant) are optional at every layer, so a facility assessment can be produced from a facility name, one product name, one tonnage figure and defaulted packaging. Pydantic enforces positivity only on processing_capacity, annual_production and processing_steps; every other quantity accepts 0, negative, NaN, inf and absurd magnitudes, and the engine then silently drops negatives (no error, at most a note). Free-text fields (fuel_type, unit, water_source, refrigerant_type, region) accept anything and are defaulted silently (diesel, excluded, tap water, GWP 1500, GH/CA).",
+
+  "A_field_contract": {
+    "legend": "status: OK | MISMATCH | FRONTEND_SENDS_UNKNOWN_KEY | BACKEND_REQUIRED_BUT_FRONTEND_MAY_OMIT | FRONTEND_SENDS_BUT_BACKEND_IGNORES | ENGINE_READS_BUT_NOT_VALIDATED. 'frontend' = buildProcessingPayload in african-lca-frontend/src/lib/processing-assessment-schema.ts:256-337. Keys set to undefined are dropped by JSON.stringify (api.ts:428), so 'conditional' means the key is absent from the wire when blank.",
+    "strict_model": "ProcessingAssessmentRequest and every nested request model inherit StrictModel (app/processing/models.py:7-9, 143, 171, 181, 198, 212, 220, 230, 237, 248, 253, 264, 271, 289, 297, 318) with model_config extra='forbid' (app/production/models.py:27). Unknown keys -> 422 (probe P11: 'bogus' -> extra_forbidden). Keys listed in _legacy are silently discarded (production/models.py:31-46; processing/models.py:184-185, 199, 221, 231, 238, 261, 265, 276; probe P23 accepted). No unknown key is silently dropped except the declared legacy ones.",
+    "top_level": [
+      {"field": "country", "type": "str", "required": true, "validator": "must be Ghana|Nigeria|Global (models.py:339-347)", "frontend": "always; mapped UI country -> bucket (schema.ts:266-269; country-examples.ts:222-227)", "status": "OK", "note": "Probe P7 'Canada' -> 422; frontend never sends raw UI country."},
+      {"field": "region", "type": "Optional[str]", "required": false, "default": null, "validator": "none", "frontend": "always; engine code GH/NG/CA/SN/BF/ZA (schema.ts:270)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "engine/process_service.py:40-50 silently falls back to GH, or CA when country is Global, on an unknown region. Probe P8 ('Global' + 'Mars') accepted and resolved to CA with no warning in the response."},
+      {"field": "facility_profile", "type": "ProcessingFacilityProfile", "required": true, "frontend": "always (schema.ts:274-284)", "status": "OK"},
+      {"field": "processing_operations", "type": "ProcessingOperations", "required": false, "default": "ProcessingOperations() (models.py:322)", "frontend": "always (schema.ts:285-319)", "status": "OK", "note": "A direct caller may omit the whole block; every sub-block then takes defaults (80% local sourcing, BasicFiltration, BasicSedimentation, Landfill 70% organic)."},
+      {"field": "processed_products", "type": "List[ProcessedProduct]", "required": true, "validator": "non-empty (models.py:349-354)", "frontend": "always (schema.ts:320-335)", "status": "OK", "note": "Probe P6 [] -> 422."},
+      {"field": "allocation_basis", "type": "AllocationBasis enum", "required": false, "default": "mass (models.py:324)", "frontend": "always (schema.ts:273)", "status": "OK", "note": "Economic basis without prices accepted by pydantic; engine falls back to mass with a note (process_adapter.py:70-77; probe P22). Only zod enforces prices (schema.ts:152-163)."},
+      {"field": "run_uncertainty", "type": "bool", "required": false, "default": true, "frontend": "never", "status": "OK", "note": "Server default used; routes.py:82,125."},
+      {"field": "facility_id", "type": "Optional[str]", "required": false, "frontend": "conditional (schema.ts:271; from ?facilityId, page.tsx:47,106)", "status": "OK", "note": "Ownership checked, 404 otherwise (routes.py:49-56)."},
+      {"field": "title", "type": "Optional[str]", "required": false, "frontend": "always unless both names blank (schema.ts:272)", "status": "OK"},
+      {"field": "form_snapshot", "type": "Optional[Dict]", "required": false, "frontend": "never", "status": "OK", "note": "Farm wizard sends it (api.ts:488-491); processing does not, so the archive's 'form' is always null for processing (routes.py:59-63). Arbitrary JSON accepted, not size-limited (probe P29)."}
+    ],
+    "facility_profile": [
+      {"field": "facility_name", "type": "str", "required": true, "frontend": "always, falls back to 'Facility' (schema.ts:275)", "zod": "min 2 / max 120 (schema.ts:85)", "status": "OK", "note": "Pydantic accepts '' (probe P21)."},
+      {"field": "company_name", "type": "str", "required": true, "frontend": "always, falls back to facility name or 'Company' (schema.ts:276)", "zod": "optional max 120 (schema.ts:86)", "status": "OK", "note": "Pydantic accepts '' (P21)."},
+      {"field": "facility_type", "type": "ProcessingFacilityType enum", "required": true, "frontend": "always (schema.ts:277)", "zod": "enum FACILITY_TYPES (schema.ts:19-23, 87), same 12 values", "status": "OK", "note": "Engine: selects default raw material when a product has none (conversion_ratios.py:84-97). Probe P9 'Brewery' -> 422."},
+      {"field": "processing_capacity", "type": "float", "required": true, "validator": "> 0 (models.py:163-168)", "frontend": "always (schema.ts:278)", "zod": "positive (schema.ts:91)", "status": "OK", "note": "Report-only (process_inputs.py:559-583). NaN and inf accepted (probes P31, P32). 0 -> 422 (P2)."},
+      {"field": "operational_hours_per_day", "type": "float", "required": false, "default": 8.0, "frontend": "always (schema.ts:279)", "zod": "positive (schema.ts:92)", "status": "OK", "note": "Report-only. Pydantic accepts 0 and negatives (P20); no <= 24 bound anywhere."},
+      {"field": "operational_days_per_year", "type": "int", "required": false, "default": 250, "frontend": "always (schema.ts:280)", "zod": "positive, NOT integer (schema.ts:93; input step=1 only, FacilityStep.tsx:54)", "status": "MISMATCH", "note": "zod lets 250.5 through, pydantic int rejects it (probe: 250.5 -> 422 int_from_float). Live field: scales solid waste kg/day to a year (process_inputs.py:490). Pydantic accepts -1 and 100000 (P20, P20b); no 1..366 bound anywhere."},
+      {"field": "established_year, certifications, employee_count, facility_size", "required": false, "frontend": "never", "status": "OK", "note": "Not read by the engine (grep process_inputs.py / process_adapter.py: no reference). Dead optional metadata."},
+      {"field": "location_type", "type": "LocationType enum", "required": false, "default": "Rural", "frontend": "always (schema.ts:281)", "zod": "enum (schema.ts:25, 90)", "status": "OK", "note": "Report-only (models.py:149-151)."},
+      {"field": "admin_region", "type": "Optional[str]", "frontend": "conditional (schema.ts:283)", "zod": "max 100 (schema.ts:89)", "status": "OK", "note": "Report-only; no length limit server side."}
+    ],
+    "processing_operations.energy_management": [
+      {"field": "primary_energy_source", "type": "EnergySource enum (9 values)", "default": "GridElectricity", "frontend": "always (schema.ts:287); zod restricts to 5 values ELECTRICITY_SUPPLY (schema.ts:56-58, 123)", "status": "OK", "note": "Engine maps to carrier (process_inputs.py:291-295); Mixed/Biomass/LPG/NaturalGas -> grid. P13 'Nuclear' -> 422."},
+      {"field": "monthly_electricity_consumption", "type": "Optional[float]", "default": null, "frontend": "conditional: `u.elecKwhMonth || undefined` so blank AND 0 are omitted (schema.ts:288)", "zod": "optional min 0 (schema.ts:122)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "No sign check in pydantic: -100 accepted (P12). Engine `if monthly_kwh:` then `if annual_kwh > 0` else note 'no electricity consumption found' (process_inputs.py:410-416, 436-437) -> negative silently becomes 'no electricity'."},
+      {"field": "monthly_fuel_consumption + fuel_type (legacy single stream)", "type": "Optional[float], Optional[str]", "frontend": "never", "status": "OK", "note": "Engine folds in as one more stream, assuming Diesel when fuel_type is null (process_inputs.py:441-443; probe P24 100 L/month with fuel_type None -> 46,440 MJ diesel)."},
+      {"field": "fuel_streams[].fuel_type", "type": "str (free text)", "required": true, "frontend": "always, filtered to amount > 0 (schema.ts:290-292); zod enum FUEL_TYPES (schema.ts:43-46, 116)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "Pydantic accepts any string. Engine energy_carriers.carrier_of returns None -> note 'not recognised; modelled as diesel' (process_inputs.py:449-452; probe P12b 'Unobtainium' accepted)."},
+      {"field": "fuel_streams[].monthly_consumption", "type": "float", "required": true, "frontend": "always within stream", "zod": "optional min 0 (schema.ts:117)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "No sign check; -5 accepted (P12). Engine `if monthly <= 0: continue` (process_inputs.py:445-447) -> silently dropped."},
+      {"field": "fuel_streams[].unit", "type": "Optional[str] free text", "frontend": "always; zod enum L|kg|m3|MJ (schema.ts:47, 118)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'gallons' accepted (P12b); carrier_input carries the unit through (energy_carriers.py:166-169) and engine/units.py:150-153 raises UnitMismatchError -> 'input excluded'. The fuel disappears from the inventory with only a note."},
+      {"field": "fuel_streams[].use", "frontend": "never", "status": "OK", "note": "Report label; engine uses it only to detect 'generator' (process_inputs.py:448, 453)."},
+      {"field": "renewable_energy_percentage", "type": "float", "default": 0.0, "frontend": "always (schema.ts:289)", "zod": "0..100 (schema.ts:112-113, 124)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "Pydantic has no range; 250 accepted (P12). Engine clamps to 0..1 (process_inputs.py:408)."}
+    ],
+    "processing_operations.water_management": [
+      {"field": "water_source", "type": "List[str] free text", "default": "[]", "frontend": "always, single-element list (schema.ts:296); zod enum WATER_SOURCES (schema.ts:59, 127)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "Keyword match against _NATURAL_WATER (process_inputs.py:298-302, 325-333); 'Ocean' accepted (P14b) and treated as bought municipal water silently."},
+      {"field": "monthly_water_consumption", "type": "Optional[float]", "frontend": "conditional `|| undefined` (schema.ts:295)", "zod": "optional min 0 (schema.ts:126)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-3 accepted (P14b); engine `if m3 <= 0: return 0.0, [], None` (process_inputs.py:319-320) -> silently no water, no wastewater."},
+      {"field": "water_treatment", "type": "WaterTreatment enum", "default": "BasicFiltration", "frontend": "always (schema.ts:297)", "status": "OK", "note": "P14 'Magic' -> 422."},
+      {"field": "wastewater_treatment", "type": "WastewaterTreatment enum", "default": "BasicSedimentation", "frontend": "always (schema.ts:298)", "status": "OK", "note": "Omitting the block defaults to treated effluent (a flattering default for a direct caller)."}
+    ],
+    "processing_operations.waste_management": [
+      {"field": "solid_waste_generation", "type": "Optional[float]", "frontend": "conditional `|| undefined` (schema.ts:301)", "zod": "optional min 0 (schema.ts:133)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-10 accepted (P15); engine `if kg_day:` true, to_treat negative, `if to_treat * frac > 0` false -> nothing emitted, no note (process_inputs.py:488-511)."},
+      {"field": "organic_waste_percentage", "type": "float", "default": 70.0, "frontend": "always (schema.ts:302)", "zod": "0..100 (schema.ts:134)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "500 accepted (P15); engine clamps (process_inputs.py:500-501)."},
+      {"field": "waste_disposal_method", "type": "WasteDisposalMethod enum", "default": "Landfill", "frontend": "always (schema.ts:303)", "status": "OK"},
+      {"field": "byproduct_utilization[].byproduct_name / utilization_method", "type": "str required", "frontend": "conditional when byproductPct > 0; utilization_method hard-coded 'reused or sold', name defaults 'By-product' (schema.ts:304-307)", "status": "OK", "note": "Pydantic accepts '' for both (P15)."},
+      {"field": "byproduct_utilization[].percentage_utilized", "type": "float", "default": 0.0, "frontend": "conditional", "zod": "0..100 (schema.ts:135)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "900 accepted (P15b); engine clamps the SUM to 100 -> entire solid-waste stream leaves burden-free (process_inputs.py:492-494; probe note '100% of solid waste is used as by-products (: )')."}
+    ],
+    "processing_operations.raw_material_sourcing": [
+      {"field": "local_sourcing_percentage", "type": "float", "default": 80.0, "frontend": "always (schema.ts:312)", "zod": "0..100 (schema.ts:131)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "150 accepted (P16b); engine clamps (process_inputs.py:519-521)."},
+      {"field": "average_transport_distance", "type": "Optional[float]", "frontend": "conditional `?? undefined` so an explicit 0 IS sent (schema.ts:311), unlike the other quantities which use `|| undefined`", "zod": "optional min 0 (schema.ts:130)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-50 accepted (P16b); `if distance > 0` false -> no transport row and estimated_km False, no note (process_inputs.py:516-533). A UI user typing 0 removes inbound transport entirely while a blank gives the cited default; the Review step shows 'default from ...' for 0 (ReviewStep.tsx:64 uses truthiness), i.e. the review misreports 0 km as the default."},
+      {"field": "transport_mode", "type": "TransportMode enum", "default": "Truck", "frontend": "always (schema.ts:313)", "status": "OK", "note": "P16 'Donkey' -> 422."},
+      {"field": "storage_practices.storage_loss_percentage", "type": "float", "default": 5.0, "frontend": "never", "status": "OK", "note": "Engine applies 5% to DEFAULT conversion ratios only (process_inputs.py:345-347, 362); UI cannot change it. No range in pydantic; engine clamps 0..0.5."}
+    ],
+    "processing_operations.refrigerant_management": [
+      {"field": "refrigerant_type", "type": "Optional[str] free text", "frontend": "conditional (schema.ts:316)", "zod": "max 60 (schema.ts:139)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "Unknown gas -> DEFAULT_GWP 1500 with a note (engine/refrigerants.py:43, 57-61; P17b 'Unobtainium-99' x 1e6 kg accepted = 1.5e9 kg CO2e added to climate)."},
+      {"field": "annual_leakage_kg", "type": "Optional[float]", "frontend": "conditional `|| undefined` (schema.ts:317)", "zod": "optional min 0 (schema.ts:140)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-1 accepted (P17); refrigerant_co2e returns 0 silently (refrigerants.py:55-56). Blank type with positive kg -> GWP 1500 default."}
+    ],
+    "processed_products[]": [
+      {"field": "id", "type": "str", "required": true, "frontend": "always, generated product_N (schema.ts:321)", "status": "OK", "note": "'' accepted (P21)."},
+      {"field": "name", "type": "str", "required": true, "frontend": "always (schema.ts:322)", "zod": "min 1 (schema.ts:103)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'' accepted by pydantic (P21). Engine keys the co-product allocation by name (process_adapter.py:66-67): two products named 'Flour' (100 t + 900 t) collapse to ONE breakdown entry with factor 0.9; the 100 t product vanishes from breakdown_by_product (verified). Neither zod nor pydantic checks uniqueness."},
+      {"field": "product_type", "type": "ProductType enum", "required": true, "frontend": "always (schema.ts:323)", "status": "OK", "note": "P10 'Beer' -> 422. 'Other' + facility 'General' -> no default raw material; cradle burden silently omitted with a note (conversion_ratios.py:87-92; probe P1)."},
+      {"field": "annual_production", "type": "float (tonnes)", "required": true, "validator": "> 0 (models.py:310-315)", "frontend": "always (schema.ts:324)", "zod": "positive (schema.ts:105)", "status": "OK", "note": "0 and -5 -> 422 (P3, P4). 1e12 t, inf, and boolean true (coerced to 1.0) accepted (P5, P32, P27b); numeric string '12' coerced (P27). No allow_inf_nan=False in StrictModel."},
+      {"field": "raw_material_inputs[].material_name", "type": "str", "required": true, "frontend": "conditional: only when name non-blank AND kg > 0 (schema.ts:326-329)", "zod": "rawMaterial optional max 120 (schema.ts:106)", "status": "BACKEND_REQUIRED_BUT_FRONTEND_MAY_OMIT", "note": "The whole array is optional (default [] models.py:302), so omission is legal. A user who types a raw material but leaves kg blank has the raw material silently dropped by the builder; the engine then substitutes the default ratio or nothing."},
+      {"field": "raw_material_inputs[].quantity_per_tonne_output", "type": "float", "required": true, "frontend": "conditional", "zod": "optional min 0 (schema.ts:107)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "No sign/positivity in pydantic: blank/0, -1000 and 1e9 kg/t all accepted (P18). Engine filters <= 0 silently (process_inputs.py:350-352) and accepts 1e9 kg/t -> 1,000,000,000 kg maize and 86,000,000 tkm transport for 1 t of output."},
+      {"field": "raw_material_inputs[].source_location", "frontend": "never", "status": "OK", "note": "Report-only."},
+      {"field": "processing_steps[]", "type": "List[ProcessingStep]", "default": "[]", "frontend": "never", "validator": "energy_intensity, water_usage >= 0 (models.py:281-286)", "status": "OK", "note": "Engine fallback for electricity/water when no facility meter (process_inputs.py:308-311, 412-415). The ONLY per-quantity non-negativity validator in the contract, on a field the UI never sends. P25 -1 -> 422."},
+      {"field": "packaging", "type": "PackagingInfo", "default": "PackagingInfo() = PlasticBag, 50 kg, 0.1 kg/unit (models.py:290-292, 304)", "frontend": "always with material/size/weight (schema.ts:330-334); recyclable never sent", "zod": "size and weight positive (schema.ts:98-99)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "Pydantic has no positivity: size 0 / weight -1 accepted (P19b) -> engine `> 0` guard skips packaging silently; size 0.001 / weight 1000 accepted (P19c) -> 1e9 kg polypropylene per tonne. Omitting packaging entirely (P1) fabricates 2 kg polypropylene per tonne of product that the caller never declared."},
+      {"field": "quality_grade, market_destination", "frontend": "never", "status": "OK", "note": "Report-only defaults."},
+      {"field": "economic_value", "type": "Optional[float]", "frontend": "conditional `|| undefined` (schema.ts:325)", "zod": "optional min 0; required > 0 when allocationBasis economic (schema.ts:108, 152-163)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-3 accepted (P22b); `(prices.get(n) or 0) > 0` false -> silent fallback to mass (process_adapter.py:70-77)."}
+    ],
+    "frontend_sends_unknown_key": "None found. Every key emitted by buildProcessingPayload exists on the backend models; app/test_request_schema.py:115-118 and :153-160 lock this in for the fixture payload.",
+    "frontend_sends_but_backend_ignores": "None at the pydantic layer. Report-only fields the frontend sends (processing_capacity, operational_hours_per_day, location_type, admin_region) are consumed only by report_only_metadata (process_inputs.py:559-583) and the ISO report, by design (models.py:149-151)."
+  },
+
+  "B_required_enforcement": {
+    "legend": "For each result-driving input: where presence is enforced, and whether 0 / empty / negative / absurd pass each layer. 'UI' = zod schema + builder; 'API' = pydantic; 'engine' = engine/process_inputs.py and friends.",
+    "inputs": [
+      {"input": "facility_type", "drives": "default raw material when none declared (conversion_ratios.py:84-97)", "presence": "zod enum (schema.ts:87) + pydantic enum required (models.py:148)", "zero_empty_negative": "n/a enum", "unknown": "422 (P9)", "verdict": "enforced UI+API"},
+      {"input": "product_type", "drives": "default raw material", "presence": "zod enum (104) + pydantic enum required (300)", "unknown": "422 (P10)", "loophole": "'Other' is a legal value that yields no raw material and no error (P1 note)", "verdict": "enforced UI+API; 'Other' is a legal no-data path"},
+      {"input": "annual_production (t)", "drives": "every per-kg figure (divisor) and mass allocation", "presence": "zod positive (105); pydantic > 0 (310-315)", "zero": "422 (P3)", "negative": "422 (P4)", "absurd": "1e12 accepted (P5), inf accepted (P32), true accepted as 1.0 (P27b); engine divides by total_kg with `total_kg or 1.0` (process_adapter.py:104)", "verdict": "presence and sign enforced UI+API; magnitude nowhere"},
+      {"input": "raw material name + kg per tonne", "drives": "usually the dominant burden (process_inputs.py:6-8, 384-385)", "presence": "NOWHERE. zod optional (106-107); builder drops unless both set and kg > 0 (326-329); pydantic list default [] (302); engine falls back to default ratio or a note (355-371)", "zero_negative": "accepted by API (P18), silently filtered by engine (350-352)", "absurd": "1e9 kg/t accepted and propagated (P18)", "verdict": "nowhere"},
+      {"input": "electricity kWh/month", "drives": "purchased electricity", "presence": "NOWHERE (zod optional 122; pydantic Optional 189; engine note only 436-437)", "zero": "UI omits key; API accepts; engine 'no electricity' note", "negative": "API accepts (P12); engine silently zeroes (410-416)", "absurd": "unbounded", "verdict": "nowhere"},
+      {"input": "fuel type + amount + unit", "drives": "on-site combustion", "presence": "NOWHERE (streams default []; UI 'No fuel declared' is acceptable, UtilitiesStep.tsx:72)", "zero_negative": "UI filters out (290-291); API accepts negative (P12); engine `continue` (445-447)", "unknown_type": "API accepts (free str 175); engine -> diesel + note (449-452)", "unknown_unit": "API accepts (free str 177); unit layer excludes the input with a note (units.py:150-153)", "verdict": "nowhere; enum only in zod"},
+      {"input": "water m3/month + source", "drives": "tap water / withdrawal / wastewater", "presence": "NOWHERE", "negative": "API accepts (P14b); engine returns 0 (319-320)", "unknown_source": "API accepts free text (202); engine assumes bought water (325-333)", "verdict": "nowhere"},
+      {"input": "packaging material/size/weight", "drives": "packaging material kg", "presence": "UI requires size and weight positive (98-99, ProductsStep.tsx:79-84); pydantic DEFAULTS when omitted (290-292, 304)", "zero_negative": "API accepts (P19b); engine skips silently (477-483)", "absurd": "0.001 kg bag with 1000 kg packaging accepted (P19c) -> 1e9 kg", "verdict": "UI only; API fabricates a default when absent"},
+      {"input": "solid waste kg/day + organic % + by-product %", "drives": "waste treatment", "presence": "NOWHERE", "negative": "API accepts (P15); engine emits nothing, no note (488-511)", "absurd_pct": "500% organic clamped; 900% by-product clamps to 100% -> all waste burden-free (P15b)", "verdict": "nowhere; percentages bounded only in zod"},
+      {"input": "inbound transport km + mode + local %", "drives": "tkm freight", "presence": "not required by design (default distance from local share, 516-521)", "negative_km": "API accepts (P16b); engine drops silently", "zero_km": "UI sends 0 (`??`, 311) -> transport removed, review shows 'default' (ReviewStep.tsx:64)", "verdict": "default path OK; negative/zero unvalidated"},
+      {"input": "refrigerant type + kg/yr", "drives": "direct GWP100 emission", "presence": "optional by design", "negative": "API accepts (P17); engine 0", "unknown_type": "API accepts; engine GWP 1500 default (refrigerants.py:43, 57-61)", "absurd": "1e6 kg accepted (P17b)", "verdict": "nowhere"},
+      {"input": "country / region", "drives": "background datasets (grid mix, AWARE CFs)", "presence": "zod enum COUNTRIES (88) mapped (266-270); pydantic country validator (339-347); region unvalidated (320)", "unknown_region": "API accepts (P8); engine silently falls to GH or CA (process_service.py:40-50). Verified: Ghana+'Mars' -> GH, Global+'Mars' -> CA, Nigeria+'Ontario' -> CA (Ontario is a CA alias)", "verdict": "country enforced API; region nowhere"},
+      {"input": "operational_days_per_year", "drives": "annual solid waste (490)", "presence": "zod positive (93); pydantic int default 250 (154)", "fractional": "zod passes 250.5, pydantic 422 (MISMATCH)", "negative_absurd": "-1 and 100000 accepted (P20, P20b)", "verdict": "sign/range nowhere"},
+      {"input": "economic_value when allocation_basis=economic", "drives": "per-product split", "presence": "zod superRefine only (152-163); pydantic none; engine silent fallback to mass with a note (process_adapter.py:70-77; P22)", "negative": "API accepts (P22b) -> fallback", "verdict": "UI only"}
+    ],
+    "pydantic_positivity_summary": "Exactly three numeric validators exist: processing_capacity > 0 (models.py:163-168, report-only), annual_production > 0 (310-315), processing_steps energy/water >= 0 (281-286, never sent by UI). All 14 other quantities and 4 percentages are unbounded. StrictModel does not set allow_inf_nan=False, so NaN/inf pass (P31, P32)."
+  },
+
+  "C_bypass_paths": [
+    {
+      "id": "C1",
+      "path": "UI: complete the wizard with no utility or raw-material data",
+      "steps_skippable": false,
+      "evidence": "Next validates the current section via trigger(STEP_FIELDS[step]) (page.tsx:90-95, schema.ts:199-204); step markers are non-clickable divs (page.tsx:182-202); Run uses handleSubmit(onSubmit) with the full zod schema (page.tsx:129, 58-62). So steps cannot be skipped, but the required set is: facilityName >= 2 chars, capacity/hours/days > 0 (prefilled 10/8/250, schema.ts:225-227), one product name + tonnes, package size/weight (prefilled 50/0.1, schema.ts:214).",
+      "ui_action": "Facility: type any name, Next. Products: type a name and e.g. 100 tonnes, keep type 'FlourWheat' (or pick 'Other'), Next. Utilities: leave every field blank, Next. Review: Run assessment.",
+      "server_response": "200 / SSE result. Inventory = default raw material via conversion ratio (or nothing for 'Other'), 2 kg polypropylene per tonne packaging, default inbound transport at 80% local; notes list the gaps but the result, single score, ISO report and recommendations are produced and saved (routes.py:98-103, 135-141).",
+      "probe": "P1 equivalent: inputs=[('PlasticBag packaging', 2.0, 'kg')], notes = no raw material / no electricity."
+    },
+    {
+      "id": "C2",
+      "path": "Direct POST with minimal JSON",
+      "payload": {"country": "Ghana", "facility_profile": {"facility_name": "x", "company_name": "x", "facility_type": "General", "processing_capacity": 1}, "processed_products": [{"id": "p1", "name": "p", "product_type": "Other", "annual_production": 1}]},
+      "endpoint": "POST /processing/assess or /processing/assess/stream (also under /v1, main.py:116-120) with a processor or researcher JWT (routes.py:46, 89, 114; app/test_auth_workspace.py:150-153 shows farmer -> 403)",
+      "server_response": "Pydantic ACCEPTED (probe P1). Engine extracts only the fabricated default packaging (2 kg PP). Response 200 with a complete ProcessingAssessmentResponse; saved to the user's assessments.",
+      "evidence": "models.py:322 (operations default), :302 (raw materials default []), :304 (packaging default); process_inputs.py:477-483; process_adapter.py:104 (`total_kg or 1.0`)."
+    },
+    {
+      "id": "C3",
+      "path": "Zero inventory: valid enum, zero/negative packaging",
+      "payload_delta": "...processed_products[0].packaging = {\"package_size\": 0, \"packaging_weight_per_unit\": -1}",
+      "server_response": "ACCEPTED (P19b). extract_processing_inputs returns inputs=[] with note 'no purchased inputs extracted'. orchestrator.assess loops over zero inputs (orchestrator.py:495-496) and returns an all-zero result; adapter divides by total_kg. A saved assessment with single score ~0 and a 'Compiling your report' ISO report."
+    },
+    {
+      "id": "C4",
+      "path": "Negative quantities to silently null out burdens",
+      "payload_delta": "energy_management.monthly_electricity_consumption=-100; water_management.monthly_water_consumption=-3; waste_management.solid_waste_generation=-10; raw_material_sourcing.average_transport_distance=-50; refrigerant_management.annual_leakage_kg=-1; raw_material_inputs[].quantity_per_tonne_output=-1000",
+      "server_response": "All ACCEPTED (P12, P14b, P15, P16b, P17, P18). Engine treats each as absent; only electricity leaves a note. No 422, no warning in data_quality.",
+      "evidence": "process_inputs.py:319-320, 350-352, 410-416, 445-447, 488-511, 516-533; refrigerants.py:55-56."
+    },
+    {
+      "id": "C5",
+      "path": "Absurd magnitudes",
+      "payload_delta": "annual_production=1e12 (P5) or inf (P32); processing_capacity=NaN (P31); quantity_per_tonne_output=1e9 (P18); packaging 0.001 kg bag with 1000 kg wrap (P19c); operational_days_per_year=100000 (P20b); percentage_utilized=900 (P15b)",
+      "server_response": "All ACCEPTED. Engine propagates 1e9 kg maize + 8.6e7 tkm (P18), 1e9 kg polypropylene (P19c), inf packaging (P32); 900% by-product clamps to 100% so all solid waste leaves burden-free (P15b)."
+    },
+    {
+      "id": "C6",
+      "path": "Unknown enums in free-text fields",
+      "payload_delta": "fuel_streams[0].fuel_type='Unobtainium', unit='gallons' (P12b); water_source=['Ocean'] (P14b); refrigerant_type='Unobtainium-99' (P17b); region='Mars' (P8)",
+      "server_response": "All ACCEPTED. Fuel -> 'modelled as diesel' then excluded by the unit layer (energy_carriers.py:166-169, units.py:150-153); water source -> bought tap water; refrigerant -> GWP 1500 default; region -> GH or CA silently (process_service.py:40-50). Real enums (facility_type, product_type, primary_energy_source, water_treatment, wastewater_treatment, waste_disposal_method, transport_mode, packaging_material, allocation_basis) do return 422 (P9, P10, P13, P14, P16, P19)."
+    },
+    {
+      "id": "C7",
+      "path": "Economic allocation without prices (UI blocks it, API does not)",
+      "payload_delta": "allocation_basis='economic' with no economic_value (P22) or economic_value=-3 (P22b)",
+      "server_response": "ACCEPTED; engine returns basis_used='mass' with note 'economic allocation requested but a per-kg value was missing; fell back to mass allocation' (process_adapter.py:70-77). The zod guard at schema.ts:152-163 is UI-only."
+    },
+    {
+      "id": "C8",
+      "path": "Duplicate product names collapse allocation",
+      "payload_delta": "two products both named 'Flour' (100 t FlourWheat + 900 t FlourMaize)",
+      "server_response": "ACCEPTED (no uniqueness check in zod schema.ts:102-110 or pydantic models.py:297-315). _allocation keys by name (process_adapter.py:66-67): result has ONE breakdown entry 'Flour' with factor 0.9; the 100 t product disappears from breakdown_by_product while its raw material (140 t wheat) stays in the facility total. Verified by direct call."
+    },
+    {
+      "id": "C9",
+      "path": "Legacy keys and legacy fuel stream",
+      "payload_delta": "processing_operations.equipment_efficiency={...}, energy_management.backup_generator=true (P23); energy_management.monthly_fuel_consumption=100 with fuel_type=null (P24)",
+      "server_response": "ACCEPTED. Legacy keys dropped silently by design (production/models.py:31-46). Legacy fuel with no type is modelled as 100 L/month Diesel = 46,440 MJ/yr (process_inputs.py:441-443)."
+    },
+    {
+      "id": "C10",
+      "path": "Type coercion",
+      "payload_delta": "annual_production='12' (P27) or true (P27b)",
+      "server_response": "ACCEPTED: '12' -> 12.0 t; true -> 1.0 t. 'abc' -> 422 float_parsing (P26). Pydantic lax mode; StrictModel does not set strict=True."
+    }
+  ],
+
+  "D_recommendations": [
+    {"rank": 1, "layer": "API (pydantic)", "file": "app/processing/models.py", "fix": "Add numeric constraints with pydantic Field: gt=0 on RawMaterialInput.quantity_per_tonne_output (267), FuelStream.monthly_consumption (176), PackagingInfo.package_size and packaging_weight_per_unit (291-292), ProcessedProduct.economic_value (308); ge=0 on monthly_electricity_consumption (189), monthly_water_consumption (203), solid_waste_generation (222), average_transport_distance (242), annual_leakage_kg (250); ge=0, le=100 on renewable_energy_percentage (195), organic_waste_percentage (225), percentage_utilized (217), local_sourcing_percentage (241), storage_loss_percentage (234); ge=1, le=366 on operational_days_per_year (154); gt=0, le=24 on operational_hours_per_day (153). Add allow_inf_nan=False to StrictModel.model_config (app/production/models.py:27) so NaN/inf are 422. Add sane upper bounds (e.g. annual_production <= 1e7 t) or at least a 'plausibility' warning.", "why": "Closes C3, C4, C5 at the layer a direct caller cannot bypass; the engine currently hides negatives with no error."},
+    {"rank": 2, "layer": "API (pydantic)", "file": "app/processing/models.py", "fix": "Turn free-text fields into Literals/enums shared with the frontend lists: FuelStream.fuel_type (175) -> the 12 FUEL_TYPES (schema.ts:43-46) or energy_carriers keyword set; FuelStream.unit (177) -> L|kg|m3|MJ; ProcessingWaterManagement.water_source items (202) -> WATER_SOURCES (schema.ts:59); RefrigerantManagement.refrigerant_type (249) -> validate against engine.refrigerants.REFRIGERANT_GWP100 keys (or require an explicit 'Other' with a GWP). Validate `region` (320) with engine.regions.get_region in a field_validator and reject unknown codes instead of the silent GH/CA fallback in engine/process_service.py:40-50.", "why": "Closes C6; today an unknown fuel is silently excluded and an unknown refrigerant gets GWP 1500 with only a note."},
+    {"rank": 3, "layer": "API (route or model_validator)", "file": "app/processing/models.py (ProcessingAssessmentRequest) and app/processing/routes.py", "fix": "Add a completeness gate: require at least one energy input (monthly_electricity_consumption > 0, a fuel stream, or processing_steps) AND, for every product, either a raw_material_inputs entry or a product_type/facility_type with a default conversion ratio (engine.conversion_ratios.default_raw_input is not None). Return 422 with field-level detail, or at minimum mark the saved result data_quality.completeness as 'screening-incomplete' and surface the engine notes (process_inputs.py:384-385, 436-437, 536-537) as structured warnings rather than free text.", "why": "Closes C1/C2: today a facility footprint can consist solely of defaulted packaging."},
+    {"rank": 4, "layer": "API (pydantic)", "file": "app/processing/models.py:304, 290-292", "fix": "Make ProcessedProduct.packaging required (no PackagingInfo() default) or default to 'no packaging' rather than 50 kg polypropylene bags at 0.1 kg. Same for processing_operations (322): keep the default but make the report state which blocks were defaulted.", "why": "The server currently fabricates 2 kg PP per tonne for a product the caller described without packaging (P1)."},
+    {"rank": 5, "layer": "API (model_validator)", "file": "app/processing/models.py:318-354", "fix": "Reject allocation_basis='economic' when any product lacks economic_value > 0 (mirror schema.ts:152-163) instead of the silent mass fallback in engine/process_adapter.py:70-77. Reject duplicate product names (or key allocation by id in process_adapter.py:66-67).", "why": "Closes C7 and C8; the ISO allocation statement otherwise does not match the request."},
+    {"rank": 6, "layer": "UI (zod + builder)", "file": "african-lca-frontend/src/lib/processing-assessment-schema.ts", "fix": "(a) daysPerYear: add .int() and .max(366); hoursPerDay .max(24) (92-93). (b) superRefine: require elecKwhMonth > 0 or a fuel stream with amountMonth > 0; require rawMaterial + rawKgPerTonne when productType is 'Other' or when the (facilityType, productType) pair has no default ratio; flag rawMaterial-without-kg and kg-without-rawMaterial as errors instead of silently dropping them in the builder (326-329). (c) Unique product names. (d) Treat transportKm === 0 consistently with the other quantities, or make ReviewStep.tsx:64 show '0 km (no inbound transport)'. (e) Send form_snapshot like the farm wizard (page.tsx:106 / api.ts:478-483) so re-run/edit works for processing archives.", "why": "Gives users the error at input time; mirrors the backend fixes so the two layers stay in step (app/test_request_schema.py:6 asks for exactly that)."},
+    {"rank": 7, "layer": "Engine", "file": "engine/process_inputs.py", "fix": "Emit a structured warning (not just a note) whenever an input is present but non-positive, unrecognised, clamped, or excluded by the unit layer (lines 319-320, 350-352, 410-416, 445-452, 488-511, 516-533; energy_carriers.py:166-169). Surface the count of excluded/defaulted inputs in data_quality so the frontend can show it.", "why": "Defence in depth for archived requests that predate the stricter contract."},
+    {"rank": 8, "layer": "Tests", "file": "app/test_request_schema.py (add), app/test_processing_api.py (convert)", "fix": "Add parametrised negative tests for every probe above (zero/negative/absurd/NaN/unknown free text -> 422) alongside the positive fixture at lines 60-118. app/test_processing_api.py is a live-server script (BASE_URL requests, lines 29-45), not a pytest contract test; convert it to TestClient with the role dependency overridden. Add a frontend unit test that runs buildProcessingPayload(defaultProcessingForm()) through a JSON schema exported from pydantic (model_json_schema) to catch drift.", "why": "Today only the happy-path fixture and three unknown-key cases are tested (lines 115-118, 153-160)."}
+  ],
+
+  "probe_outcomes": {
+    "note": "Exact pydantic outcomes from probe_processing.py (ACCEPTED = model instantiated; REJECTED_422 = ValidationError, which FastAPI returns as 422). Engine column = extract_processing_inputs on the accepted dump.",
+    "P1_minimal": "ACCEPTED; engine inputs=[PlasticBag packaging 2.0 kg]; notes: no raw material, no electricity",
+    "P2_capacity_zero": "REJECTED_422 facility_profile.processing_capacity value_error",
+    "P3_production_zero": "REJECTED_422 processed_products.0.annual_production value_error",
+    "P4_production_negative": "REJECTED_422 processed_products.0.annual_production value_error",
+    "P5_production_1e12": "ACCEPTED; total_kg=1e15, packaging 2e12 kg",
+    "P6_no_products": "REJECTED_422 processed_products value_error",
+    "P7_country_Canada": "REJECTED_422 country value_error",
+    "P8_Global_region_Mars": "ACCEPTED; resolves to CA silently",
+    "P9_facility_type_Brewery": "REJECTED_422 enum",
+    "P10_product_type_Beer": "REJECTED_422 enum",
+    "P11_unknown_top_key": "REJECTED_422 extra_forbidden",
+    "P12_negative_elec_250pct_unknown_fuel_negative_gallons": "ACCEPTED; engine: no electricity, fuel skipped",
+    "P12b_unknown_fuel_positive_gallons": "ACCEPTED; engine emits 'Unobtainium (facility fuel)' 6000 gallons (diesel proxy) which the unit layer will exclude",
+    "P13_primary_energy_source_Nuclear": "REJECTED_422 enum",
+    "P14_water_treatment_Magic": "REJECTED_422 enum",
+    "P14b_water_-3_source_Ocean": "ACCEPTED; engine: no water, no wastewater",
+    "P15_waste_-10_organic_500_byproduct_900": "ACCEPTED; engine: nothing emitted",
+    "P15b_waste_10_organic_500_byproduct_900": "ACCEPTED; engine: 100% by-product, waste burden-free",
+    "P16_transport_mode_Donkey": "REJECTED_422 enum",
+    "P16b_km_-50_local_150": "ACCEPTED; engine: no transport, no note",
+    "P17_refrigerant_blank_type_kg_-1": "ACCEPTED; 0 CO2e",
+    "P17b_refrigerant_unknown_1e6kg": "ACCEPTED; GWP 1500 default -> 1.5e9 kg CO2e",
+    "P18_raw_blank0_maize_-1000_maize_1e9": "ACCEPTED; engine: maize 1e9 kg, transport 8.6e7 tkm",
+    "P19_packaging_material_Banana_leaf": "REJECTED_422 enum",
+    "P19b_packaging_size0_weight-1": "ACCEPTED; engine inputs=[] (zero inventory)",
+    "P19c_packaging_0.001kg_bag_1000kg_wrap": "ACCEPTED; packaging 1e9 kg",
+    "P20_days_-1_hours_0": "ACCEPTED",
+    "P20b_days_100000": "ACCEPTED",
+    "P20c_days_250.5": "REJECTED_422 int_from_float (zod would have passed it)",
+    "P21_empty_name_id_facility_company": "ACCEPTED",
+    "P22_economic_no_price": "ACCEPTED; allocation basis_used=mass with fallback note",
+    "P22b_economic_value_-3": "ACCEPTED",
+    "P23_legacy_keys": "ACCEPTED; keys dropped silently",
+    "P24_legacy_fuel_100L_no_type": "ACCEPTED; engine: Diesel 46,440 MJ",
+    "P25_processing_step_energy_-1": "REJECTED_422 value_error",
+    "P26_annual_production_abc": "REJECTED_422 float_parsing",
+    "P27_annual_production_'12'": "ACCEPTED (coerced 12.0)",
+    "P27b_annual_production_true": "ACCEPTED (coerced 1.0)",
+    "P28_frontend_like_nulls": "ACCEPTED",
+    "P29_run_uncertainty_false_facility_id_title_form_snapshot": "ACCEPTED (facility ownership checked only at route level)",
+    "P30_capacity_1e-9_production_1e-9": "ACCEPTED; total_kg=1e-6",
+    "P31_capacity_NaN": "ACCEPTED",
+    "P32_capacity_inf_production_inf": "ACCEPTED; total_kg=inf, packaging inf",
+    "Dup_names_Flour_100t_+_Flour_900t": "ACCEPTED; allocation has one entry 'Flour' factor 0.9 (100 t product lost from breakdown)"
+  },
+
+  "test_coverage_found": {
+    "app/test_request_schema.py": "Positive fixture FRONTEND_PROCESSING_PAYLOAD validates (lines 77-118); three unknown-key rejections (153-160); legacy keys dropped (175-190); example JSONs validate (126-128). No negative-value, zero, enum-free-text or completeness tests.",
+    "app/test_processing_api.py": "Live HTTP script against BASE_URL (lines 29-45, 82-96); not a contract test and does not run under pytest without a server.",
+    "app/test_auth_workspace.py:141-153": "Role gate: farmer -> 403 on /processing/assess.",
+    "engine/test_process_inputs.py, engine/test_wizard_inputs.py:250-320": "Engine extraction behaviour (fuel determinism, water withdrawal, transport default); they test dicts directly, bypassing pydantic.",
+    "frontend": "No test of buildProcessingPayload or the zod schema found (grep african-lca-frontend/src for buildProcessingPayload: only page.tsx and schema.ts)."
+  }
+}

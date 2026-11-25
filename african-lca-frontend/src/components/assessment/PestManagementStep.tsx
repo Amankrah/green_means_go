@@ -231,8 +231,9 @@ export default function PestManagementStep() {
               pesticideType: PesticideType.INSECTICIDE,
               activeIngredient: '',
               brandName: '',
-              applicationRate: 0,
-              applicationsPerSeason: 0,
+              // Blank, not 0: a zero-rate row used to pass validation and be silently ignored.
+              applicationRate: undefined as unknown as number,
+              applicationsPerSeason: 1,
               targetPests: [],
               cost: undefined,
               safetyPrecautions: []

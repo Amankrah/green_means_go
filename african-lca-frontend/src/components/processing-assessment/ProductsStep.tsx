@@ -8,13 +8,15 @@ import {
   PRODUCT_TYPES,
   PACKAGING_MATERIALS,
   newProduct,
+  hasDefaultConversionRatio,
 } from '@/lib/processing-assessment-schema';
 import { Field, inputClass } from './fields';
 
 export default function ProductsStep() {
-  const { control, register, watch, formState: { errors } } = useFormContext<ProcessingFormData>();
+  const { control, register, watch, setValue, formState: { errors } } = useFormContext<ProcessingFormData>();
   const { fields, append, remove } = useFieldArray({ control, name: 'products' });
   const economic = watch('utilities.allocationBasis') === 'economic';
+  const facilityType = watch('facility.facilityType');
   const arrayError = errors.products?.root?.message || (typeof errors.products?.message === 'string' ? errors.products?.message : undefined);
 
   return (
@@ -36,6 +38,8 @@ export default function ProductsStep() {
 
       {fields.map((field, i) => {
         const pe = errors.products?.[i];
+        const packaged = watch(`products.${i}.packaged`) !== false;
+        const rawRequired = !hasDefaultConversionRatio(watch(`products.${i}.productType`), facilityType);
         return (
           <div key={field.id} className="rounded-xl border border-line bg-surface p-4">
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] items-start">
@@ -62,27 +66,40 @@ export default function ProductsStep() {
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Main raw material (the crop or ingredient)" hint="Leave both blank to use a cited default conversion ratio for this product type (e.g. palm oil from fresh fruit bunches)">
+              <Field
+                label="Main raw material (the crop or ingredient)"
+                required={rawRequired}
+                error={pe?.rawMaterial?.message}
+                hint={rawRequired
+                  ? 'This product type has no default conversion ratio, so the raw material and its amount are required'
+                  : 'Leave both blank to use a cited default conversion ratio for this product type (e.g. palm oil from fresh fruit bunches)'}
+              >
                 <input {...register(`products.${i}.rawMaterial`)} className={inputClass} placeholder="e.g. maize grain, wheat grain" />
               </Field>
-              <Field label="Raw material per tonne of product (kg)" error={pe?.rawKgPerTonne?.message}>
+              <Field label="Raw material per tonne of product (kg)" required={rawRequired} error={pe?.rawKgPerTonne?.message}>
                 <input type="number" min="0" step="any" {...register(`products.${i}.rawKgPerTonne`)} className={inputClass} placeholder="e.g. 1050" />
               </Field>
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Field label="Packaging material">
-                <select {...register(`products.${i}.packaging.material`)} className={inputClass}>
-                  {PACKAGING_MATERIALS.map((m) => <option key={m}>{m}</option>)}
-                </select>
-              </Field>
-              <Field label="Package size (kg)" required error={pe?.packaging?.packageSize?.message}>
-                <input type="number" min="0" step="any" {...register(`products.${i}.packaging.packageSize`)} className={inputClass} />
-              </Field>
-              <Field label="Packaging weight / unit (kg)" required error={pe?.packaging?.weightPerUnit?.message}>
-                <input type="number" min="0" step="any" {...register(`products.${i}.packaging.weightPerUnit`)} className={inputClass} />
-              </Field>
-            </div>
+            <label className="mt-3 flex items-center gap-2 text-sm text-ink">
+              <input type="checkbox" checked={!packaged} onChange={(ev) => setValue(`products.${i}.packaged`, !ev.target.checked)} className="rounded" />
+              Unpackaged / bulk (leaves the facility without packaging)
+            </label>
+            {packaged && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <Field label="Packaging material">
+                  <select {...register(`products.${i}.packaging.material`)} className={inputClass}>
+                    {PACKAGING_MATERIALS.map((m) => <option key={m}>{m}</option>)}
+                  </select>
+                </Field>
+                <Field label="Package size (kg)" required error={pe?.packaging?.packageSize?.message}>
+                  <input type="number" min="0" step="any" {...register(`products.${i}.packaging.packageSize`)} className={inputClass} />
+                </Field>
+                <Field label="Packaging weight / unit (kg)" required error={pe?.packaging?.weightPerUnit?.message}>
+                  <input type="number" min="0" step="any" {...register(`products.${i}.packaging.weightPerUnit`)} className={inputClass} />
+                </Field>
+              </div>
+            )}
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Field

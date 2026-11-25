@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-refrigerants.py — on-site refrigerant (F-gas) leakage as a climate contribution.
+refrigerants.py : on-site refrigerant (F-gas) leakage as a climate contribution.
 
 Refrigerant leakage is treated the standard way (IPCC / GHG Protocol): leaked mass x
 GWP100 = kg CO2-eq. We do this method-agnostically with AR6 GWP100 values rather than
@@ -40,23 +40,38 @@ _BLENDS = {
 
 REFRIGERANT_GWP100 = {**_PURE, **_BLENDS}
 
-DEFAULT_GWP = 1500.0  # unknown gas: a mid-range HFC value, flagged in the note
+# The designations the API accepts (app/processing/models.py validates against this list).
+KNOWN_REFRIGERANTS: tuple[str, ...] = tuple(REFRIGERANT_GWP100)
 
 
 def _key(name: str) -> str:
-    return (name or "").strip().upper().replace(" ", "")
+    """Normalise a designation for lookup: case, spaces and hyphens are ignored, so
+    'r134a', 'R 134a' and 'R-134a' are the same gas."""
+    return (name or "").strip().upper().replace(" ", "").replace("-", "")
 
 
 _LOOKUP = {_key(k): v for k, v in REFRIGERANT_GWP100.items()}
+_CANONICAL = {_key(k): k for k in REFRIGERANT_GWP100}
 
 
-def refrigerant_co2e(gas: str, leaked_kg: float) -> tuple[float, str]:
-    """Return (kg CO2-eq, note) for `leaked_kg` of refrigerant `gas` via AR6 GWP100."""
+def canonical_name(gas: str | None) -> str | None:
+    """The table's spelling of `gas`, or None when it is not a known refrigerant."""
+    if not gas:
+        return None
+    return _CANONICAL.get(_key(gas))
+
+
+def refrigerant_co2e(gas: str | None, leaked_kg: float) -> tuple[float, str]:
+    """Return (kg CO2-eq, note) for `leaked_kg` of refrigerant `gas` via AR6 GWP100.
+
+    Raises ValueError for an unknown gas with a positive leak. There is no default GWP: the
+    request model only admits designations from KNOWN_REFRIGERANTS, so this is a defensive
+    check for direct engine callers, not a path a user can reach."""
     if not leaked_kg or leaked_kg <= 0:
         return 0.0, ""
     gwp = _LOOKUP.get(_key(gas))
     if gwp is None:
-        return leaked_kg * DEFAULT_GWP, (
-            f"refrigerant '{gas}' not recognised; used a default GWP100 of {DEFAULT_GWP:.0f} "
-            "(AR6). Provide a standard designation (e.g. R-134a, R-404A, Ammonia) to refine it.")
+        raise ValueError(
+            f"refrigerant '{gas}' is not a known designation; no GWP is assumed. Use one of: "
+            + ", ".join(KNOWN_REFRIGERANTS))
     return leaked_kg * gwp, f"refrigerant {gas} leakage at AR6 GWP100 = {gwp:.0f} kg CO2-eq per kg"

@@ -25,6 +25,9 @@ The flow mapping lives here (PESTICIDE_FLOWS), not in engine/flowmap.py.
 """
 from __future__ import annotations
 
+# Notes carrying this prefix are lifted into data_quality.warnings (engine/service.py).
+WARNING_PREFIX = "validation warning: "
+
 EMISSION_FRACTION_SOIL = 1.0
 EMISSION_SOURCE = ("Nemecek & Kaegi (2007) ecoinvent report No. 15, s.3.9; AGRIBALYSE 3.0 "
                    "methodology (Koch & Salou 2020): 100% of applied active ingredient to "
@@ -113,12 +116,25 @@ def applications(assessment: dict, total_area: float) -> tuple[list[dict], list[
     for p in pests:
         if not isinstance(p, dict):
             continue
+        label = (p.get("active_ingredient") or p.get("pesticide_type") or "pesticide").strip()
         rate = p.get("application_rate") or 0
-        n = p.get("applications_per_season") or 1
+        n = p.get("applications_per_season")
+        if n is None:
+            n = 1                      # not stated: one application
+        if rate < 0 or n < 0:
+            # Rejected by the API model; defend the engine anyway (a negative rate would
+            # otherwise be dropped silently or, in the kernel, become a credit).
+            notes.append(f"{WARNING_PREFIX}pesticide '{label}': negative rate or application "
+                         "count set to zero")
+            rate, n = max(rate, 0), max(n, 0)
+        if n == 0:
+            notes.append(f"pesticide '{label}': 0 applications per season; not counted")
+            continue
         kg_product = rate * n * total_area
         if kg_product <= 0:
             if rate and not total_area:
-                notes.append("pesticide reported but no crop area: cannot scale it")
+                notes.append(f"{WARNING_PREFIX}pesticide '{label}' reported but no crop area: "
+                             "cannot scale it, so it is NOT counted")
             continue
         ai_text = (p.get("active_ingredient") or p.get("pesticide_type") or "pesticide").strip()
         key = canonical_ai(ai_text)

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Prefer the deploy user's cargo/home even when this script is invoked via sudo.
-# Under `sudo`, HOME is /root — rustup's env file prepends $HOME/.cargo/bin, so we
+# Under `sudo`, HOME is /root, and rustup's env file prepends $HOME/.cargo/bin, so we
 # must point HOME at the deploy user before sourcing (or cargo is not found).
 APP_USER="${SUDO_USER:-ubuntu}"
 APP_HOME="$(getent passwd "$APP_USER" | cut -d: -f6)"
@@ -23,7 +23,7 @@ fi
 echo "Updating Green Means Go (as effective cargo user: $APP_USER, HOME=$HOME)..."
 
 cd /var/www/green_means_go
-# data/ is gitignored — pull never replaces LCA or app DBs. Do not rm -rf data/.
+# data/ is gitignored, so pull never replaces LCA or app DBs. Do not rm -rf data/.
 # Drop any leftover local edits that would block pull (stashes preserved for audit).
 if ! git diff --quiet || ! git diff --cached --quiet; then
   git stash push -m "auto-stash-before-update-$(date -u +%Y%m%dT%H%M%SZ)" || true
@@ -52,6 +52,11 @@ echo "Rebuilding frontend..."
 cd ../african-lca-frontend
 npm ci
 npm run build
+
+# This script runs under sudo, so files it created (checkout, builds, caches) are root-owned.
+# The services run as the deploy user and must be able to write caches under the tree.
+echo "Restoring ownership to $APP_USER..."
+chown -R "$APP_USER:$APP_USER" /var/www/green_means_go
 
 # Restart services
 echo "Restarting services..."

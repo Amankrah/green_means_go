@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import { EnhancedAssessmentFormData } from '@/lib/enhanced-assessment-schema';
+import { deriveSeasonalFactor, seasonalFactorLabel } from '@/lib/seasonal-factor';
 import type { AssessmentProgressEvent } from '@/lib/api';
 import AssessmentProgress from '@/components/AssessmentProgress';
 
@@ -62,6 +63,9 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
               {crop.areaAllocated} ha • {crop.annualProduction} kg/year • {crop.productionSystem}
             </p>
             <p className="text-moss">{crop.croppingPattern}</p>
+            <p className="text-xs text-spruce">
+              Growing season: {seasonalFactorLabel(deriveSeasonalFactor(formData.farmProfile?.country, crop.seasonality?.plantingMonths))}
+            </p>
           </div>
         )) || <p className="text-sm text-spruce">No crops added</p>}
       </div>
@@ -198,7 +202,20 @@ export default function ReviewSubmitStep({ onSubmit, isSubmitting, onPrevious, p
         ) : (
           <p><strong>Energy Sources:</strong> No energy sources listed</p>
         )}
-        
+
+        {formData.equipmentEnergy?.fuelConsumption && formData.equipmentEnergy.fuelConsumption.length > 0 ? (
+          <div>
+            <strong>Engine Fuels:</strong>
+            <div className="ml-4 space-y-1">
+              {formData.equipmentEnergy.fuelConsumption.map((fuel, index) => (
+                <p key={index}>• {fuel.fuelType}: {fuel.monthlyConsumption || 0} {fuel.unit || 'L'}/month{fuel.primaryUse ? ` (${fuel.primaryUse})` : ''}</p>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p><strong>Engine Fuels:</strong> No engine fuel listed</p>
+        )}
+
         <div>
           <strong>Infrastructure:</strong>
           <div className="ml-4 space-y-1">

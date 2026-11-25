@@ -69,32 +69,55 @@ def _request_archive(request: AssessmentRequest) -> dict:
     }
 
 
+# Request fields that never reach the engine input dict. Everything else on
+# AssessmentRequest MUST be copied by _build_farm_rust_input; app/test_routes_contract.py
+# fails when a field is added to the model and not forwarded (the way `logistics` was
+# validated, archived and then silently dropped here).
+ENGINE_INPUT_EXCLUDED_FIELDS = frozenset({
+    "farm_id",          # ownership linkage, resolved by the route
+    "title",            # label for the saved assessment
+    "form_snapshot",    # opaque wizard state for edit / re-run
+    "lcia_method",      # passed to run_farm_assessment(method=...)
+    "run_uncertainty",  # passed to run_farm_assessment(run_uncertainty=...)
+})
+
+
 def _build_farm_rust_input(request: AssessmentRequest) -> dict:
+    """The complete engine input for a request: every field the engine reads, serialised
+    to plain JSON types (mode="json") so enum members arrive as their string values."""
     rust_input = {
         "company_name": request.company_name,
         "country": request.country,
-        "foods": [food.model_dump(exclude_none=False) for food in request.foods],
+        "foods": [food.model_dump(mode="json", exclude_none=False) for food in request.foods],
     }
     if request.region:
         rust_input["region"] = request.region
     if request.farm_profile:
-        rust_input["farm_profile"] = request.farm_profile.model_dump()
+        rust_input["farm_profile"] = request.farm_profile.model_dump(mode="json")
     if request.management_practices:
-        rust_input["management_practices"] = request.management_practices.model_dump()
+        rust_input["management_practices"] = request.management_practices.model_dump(mode="json")
     if request.equipment_energy:
-        rust_input["equipment_energy"] = request.equipment_energy.model_dump()
-        print("[OK] Added equipment_energy to rust_input")
-    else:
-        print("[SKIP] Skipped equipment_energy (falsy value)")
+        rust_input["equipment_energy"] = request.equipment_energy.model_dump(mode="json")
+    if request.logistics:
+        rust_input["logistics"] = request.logistics.model_dump(mode="json")
+    if request.study_meta:
+        rust_input["study_meta"] = request.study_meta.model_dump(mode="json", exclude_none=True)
+    if request.ipcc_ef1_scale is not None:
+        rust_input["ipcc_ef1_scale"] = request.ipcc_ef1_scale
     return rust_input
+
+
+def _client_error(e: Exception) -> Optional[HTTPException]:
+    """Engine errors that are the caller's fault: unsupported commodity (honey/apiculture)
+    and anything the engine rejects as a ValueError (unknown region, bad input) are 422."""
+    from engine.commodities import UnsupportedCommodityError
+    if isinstance(e, (UnsupportedCommodityError, ValueError)):
+        return HTTPException(status_code=422, detail=str(e))
+    return None
 
 
 async def _run_farm_engine(request: AssessmentRequest) -> dict:
     rust_input = _build_farm_rust_input(request)
-    if request.study_meta:
-        rust_input["study_meta"] = request.study_meta.model_dump(exclude_none=True)
-    if request.ipcc_ef1_scale is not None:
-        rust_input["ipcc_ef1_scale"] = request.ipcc_ef1_scale
     if USE_VALIDATED_ENGINE:
         # CPU-bound; run in a worker thread so uvicorn's event loop stays responsive.
         from starlette.concurrency import run_in_threadpool
@@ -131,10 +154,9 @@ async def create_assessment(
     except HTTPException:
         raise
     except Exception as e:
-        # WS1: unsupported commodity (honey/apiculture) is a client error, not a 500.
-        from engine.commodities import UnsupportedCommodityError
-        if isinstance(e, UnsupportedCommodityError):
-            raise HTTPException(status_code=422, detail=str(e))
+        client = _client_error(e)
+        if client:
+            raise client
         raise HTTPException(status_code=500, detail=f"Assessment failed: {str(e)}")
 
 
@@ -151,10 +173,6 @@ async def create_assessment_stream(
     # Capture plain values now: the worker thread / SSE generator must not touch the
     # request-scoped ORM session or lazy attributes.
     rust_input = _build_farm_rust_input(request)
-    if request.study_meta:
-        rust_input["study_meta"] = request.study_meta.model_dump(exclude_none=True)
-    if request.ipcc_ef1_scale is not None:
-        rust_input["ipcc_ef1_scale"] = request.ipcc_ef1_scale
     region = request.region
     method = request.lcia_method
     run_uncertainty = bool(request.run_uncertainty)
@@ -214,6 +232,9 @@ async def create_comprehensive_assessment(
     except HTTPException:
         raise
     except Exception as e:
+        client = _client_error(e)
+        if client:
+            raise client
         raise HTTPException(status_code=500, detail=f"Comprehensive assessment failed: {str(e)}")
 
 
@@ -245,6 +266,9 @@ async def rerun_assessment(
     except HTTPException:
         raise
     except Exception as e:
+        client = _client_error(e)
+        if client:
+            raise client
         raise HTTPException(status_code=500, detail=f"Assessment re-run failed: {str(e)}")
 
 @router.post("/assess/{assessment_id}/scenarios", tags=["research-scenarios"])
@@ -560,7 +584,7 @@ async def get_assessment_recommendations(
 
     Fully deterministic: the engine's hotspot attribution is matched against the curated
     measure library and screened for affordability/payback. No LLM produces any number
-    here — the results chat explains this output, it does not generate it.
+    here: the results chat explains this output, it does not generate it.
     """
     assessment = get_owned_assessment(db, user, assessment_id, AssessmentType.farm)
     if assessment is None:

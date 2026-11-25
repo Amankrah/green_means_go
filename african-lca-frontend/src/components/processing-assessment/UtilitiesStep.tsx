@@ -9,6 +9,7 @@ import {
   FUEL_DEFAULT_UNIT,
   FUEL_TYPES,
   FUEL_UNITS,
+  REFRIGERANT_OPTIONS,
   TRANSPORT_MODES,
   WASTE_DISPOSAL_METHODS,
   WASTEWATER_TREATMENTS,
@@ -34,7 +35,7 @@ export default function UtilitiesStep() {
   const products = watch('products') ?? [];
   const multiProduct = products.length > 1;
   // Warn here (where the choice is made) if economic allocation is selected but any product
-  // is missing a price — otherwise the requirement only surfaces at final submit, on the
+  // is missing a price: otherwise the requirement only surfaces at final submit, on the
   // earlier Products step.
   const economicMissingPrices =
     watch('utilities.allocationBasis') === 'economic' &&
@@ -63,7 +64,7 @@ export default function UtilitiesStep() {
           <span className="text-sm font-medium text-ink">Fuels burned on site (add one line per fuel)</span>
           <button
             type="button"
-            onClick={() => appendFuel({ fuelType: 'Diesel', amountMonth: undefined, unit: 'L' })}
+            onClick={() => appendFuel({ fuelType: 'Diesel', amountMonth: undefined as unknown as number, unit: 'L' })}
             className="flex items-center gap-1 text-sm text-moss hover:underline"
           >
             <Plus className="w-4 h-4" /> Add fuel
@@ -167,8 +168,10 @@ export default function UtilitiesStep() {
       <details className="rounded-xl border border-line bg-surface p-4">
         <summary className="cursor-pointer text-sm font-medium text-ink">On-site cooling / refrigerant (optional)</summary>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <Field label="Refrigerant type">
-            <input {...register('utilities.refrigerantType')} className={inputClass} placeholder="e.g. R-134a, R-404A, Ammonia" />
+          <Field label="Refrigerant gas" error={e?.refrigerantType?.message} hint="Standard designations only; the leak is characterised with the gas's AR6 GWP100">
+            <select {...register('utilities.refrigerantType')} className={inputClass}>
+              {REFRIGERANT_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
           </Field>
           <Field label="Annual leakage (kg / year)" error={e?.refrigerantKg?.message}>
             <input type="number" min="0" step="any" {...register('utilities.refrigerantKg')} className={inputClass} />

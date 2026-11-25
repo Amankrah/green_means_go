@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-process_inputs.py — auto-extract the purchased inputs (for the supply-chain solver) from a
+process_inputs.py : auto-extract the purchased inputs (for the supply-chain solver) from a
 submitted PROCESSING (facility) assessment, mirroring inputs.py on the farm side.
 
 A processor has no field emissions; its footprint is purchased utilities and materials:
@@ -345,8 +345,16 @@ def _raw_material_rows(request: dict, notes: list) -> dict:
     rows: dict = {}
     for p in products:
         out_t = p.get("annual_production") or 0.0
-        declared = [ri for ri in (p.get("raw_material_inputs") or [])
-                    if (ri.get("material_name") or "").strip() and (ri.get("quantity_per_tonne_output") or 0) > 0]
+        declared = []
+        for ri in (p.get("raw_material_inputs") or []):
+            name = (ri.get("material_name") or "").strip()
+            qty = ri.get("quantity_per_tonne_output") or 0
+            if name and qty > 0:
+                declared.append(ri)
+            else:
+                notes.append(f"WARNING: product '{p.get('name')}': raw material "
+                             f"'{name or '(unnamed)'}' with {qty:g} kg per tonne was skipped "
+                             "(a name and a positive quantity are required)")
         for ri in declared:
             name = ri["material_name"].strip()
             kg = ri["quantity_per_tonne_output"] * out_t  # (kg/tonne) x tonnes = kg
@@ -405,6 +413,9 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
     em = ops.get("energy_management") or {}
     renew = min(max((em.get("renewable_energy_percentage") or 0.0) / 100.0, 0.0), 1.0)
     monthly_kwh = em.get("monthly_electricity_consumption")
+    if monthly_kwh is not None and monthly_kwh < 0:
+        notes.append(f"WARNING: monthly electricity {monthly_kwh:g} kWh is negative and was ignored")
+        monthly_kwh = None
     if monthly_kwh:
         annual_kwh, elec_basis = monthly_kwh * 12.0, "facility meter"
     else:
@@ -443,6 +454,8 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
     for st in streams:
         monthly = st.get("monthly_consumption") or 0
         if monthly <= 0:
+            notes.append(f"WARNING: fuel stream '{st.get('fuel_type') or '(unnamed)'}' with "
+                         f"{monthly:g} per month was skipped (a positive amount is required)")
             continue
         ftxt = f"{st.get('fuel_type') or ''} {st.get('use') or ''}".lower()
         carrier = ec.carrier_of(st.get("fuel_type"))
@@ -460,6 +473,9 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
     # --- Water: bought (tap / treated) vs self-supplied (elementary withdrawal, applied
     #     after the solve by process_service). Wastewater: discharged share, treated or not.
     wm = ops.get("water_management") or {}
+    if (wm.get("monthly_water_consumption") or 0) < 0:
+        notes.append(f"WARNING: monthly water {wm.get('monthly_water_consumption'):g} m3 is negative "
+                     "and was ignored")
     water_m3 = _water_m3(request)
     bought_m3, withdrawn, treat_ds = _water_split(request)
     if bought_m3 > 0:
@@ -484,8 +500,11 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
 
     # --- Packaging: material per product, scaled by number of packages.
     for p in products:
-        pk = p.get("packaging") or {}
+        pk = p.get("packaging")
         out_kg = (p.get("annual_production") or 0.0) * 1000.0
+        if not pk:
+            notes.append(f"product '{p.get('name')}': no packaging declared; modelled as unpackaged")
+            continue
         pack_size = pk.get("package_size") or 0.0
         wt = pk.get("packaging_weight_per_unit") or 0.0
         if out_kg > 0 and pack_size > 0 and wt > 0:
@@ -493,12 +512,18 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
             inputs.append({"name": f"{mat} packaging",
                            "match_as": PACKAGING_MATCH.get(mat, PACKAGING_MATCH["PlasticBag"]),
                            "amount": out_kg / pack_size * wt, "unit": "kg", "kind": "packaging"})
+        else:
+            notes.append(f"WARNING: product '{p.get('name')}': packaging skipped (package size "
+                         f"{pack_size:g} kg, packaging weight {wt:g} kg; both must be positive)")
 
     # --- Solid waste: by-product utilisation leaves burden-free (cut-off); the rest splits
     #     into organic and inorganic fractions with method-specific treatment datasets.
     wam = ops.get("waste_management") or {}
     kg_day = wam.get("solid_waste_generation")
     op_days = fp.get("operational_days_per_year") or 250
+    if kg_day is not None and kg_day < 0:
+        notes.append(f"WARNING: solid waste {kg_day:g} kg/day is negative and was ignored")
+        kg_day = None
     if kg_day:
         total_waste = kg_day * op_days
         utilised = min(sum(max(b.get("percentage_utilized") or 0.0, 0.0)
@@ -531,6 +556,12 @@ def extract_processing_inputs(request: dict) -> tuple[list[dict], list[str], flo
         local = min(max((rms.get("local_sourcing_percentage") if rms.get("local_sourcing_percentage")
                          is not None else 80.0) / 100.0, 0.0), 1.0)
         distance = local * LOCAL_KM + (1.0 - local) * NONLOCAL_KM
+    elif distance < 0:
+        notes.append(f"WARNING: inbound transport distance {distance:g} km is negative; no inbound "
+                     "transport counted")
+    elif distance == 0 and raw_tonnes > 0:
+        notes.append("inbound transport distance declared as 0 km: no inbound transport counted "
+                     "(leave the distance blank to use the default from the local-sourcing share)")
     if distance > 0 and raw_tonnes > 0:
         mode = rms.get("transport_mode") or "Truck"
         row = {"name": f"inbound transport ({mode.lower()})",

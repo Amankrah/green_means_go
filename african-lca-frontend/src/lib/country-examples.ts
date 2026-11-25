@@ -1,5 +1,5 @@
 /**
- * country-examples.ts — per-country default farm data, drawn from the validated engine
+ * country-examples.ts: per-country default farm data, drawn from the validated engine
  * case studies (engine/case_studies/*.json). Selecting a country in the wizard loads that
  * country's example so the defaults reflect a real farm for that region.
  *
@@ -87,7 +87,7 @@ export const GHANA_EXAMPLE = {
     ],
     energySources: [] as Array<{ energyType: EnergyType; monthlyConsumption: number; primaryUse: string; cost: number; currency: Currency }>,
     fuelConsumption: [
-      { fuelType: FuelType.DIESEL, monthlyConsumption: 45, primaryUse: 'Water pumping and threshing', cost: 120 },
+      { fuelType: FuelType.DIESEL, monthlyConsumption: 45, unit: 'L' as const, primaryUse: 'Water pumping and threshing', cost: 120 },
     ],
     infrastructure: {
       storageCapacity: 5000, storageFacilities: [StorageFacilityType.TRADITIONAL_GRANARY],
@@ -133,7 +133,7 @@ NIGERIA_EXAMPLE.equipmentEnergy.equipment = [
 ];
 NIGERIA_EXAMPLE.equipmentEnergy.energySources = [];
 NIGERIA_EXAMPLE.equipmentEnergy.fuelConsumption = [
-  { fuelType: FuelType.DIESEL, monthlyConsumption: 220, primaryUse: 'Irrigation pumping and tractor', cost: 300000 },
+  { fuelType: FuelType.DIESEL, monthlyConsumption: 220, unit: 'L' as const, primaryUse: 'Irrigation pumping and tractor', cost: 300000 },
 ];
 NIGERIA_EXAMPLE.equipmentEnergy.infrastructure = {
   storageCapacity: 40000, storageFacilities: [StorageFacilityType.HERMETIC_STORAGE],
@@ -181,7 +181,7 @@ CANADA_EXAMPLE.equipmentEnergy.equipment = [
   { equipmentType: EquipmentType.COMBINE_HARVESTER, powerSource: PowerSource.DIESEL, age: 7, hoursPerYear: 400, fuelEfficiency: 45 },
 ];
 CANADA_EXAMPLE.equipmentEnergy.fuelConsumption = [
-  { fuelType: FuelType.DIESEL, monthlyConsumption: 2200, primaryUse: 'Tractor and combine operations', cost: 3200 },
+  { fuelType: FuelType.DIESEL, monthlyConsumption: 2200, unit: 'L' as const, primaryUse: 'Tractor and combine operations', cost: 3200 },
 ];
 CANADA_EXAMPLE.equipmentEnergy.energySources = [
   { energyType: EnergyType.GRID_ELECTRICITY, monthlyConsumption: 1200, primaryUse: 'Grain drying and storage', cost: 480, currency: Currency.USD },

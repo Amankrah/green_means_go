@@ -35,14 +35,14 @@ export default function ReviewStep({
   if (isSubmitting) {
     return <AssessmentProgress variant="processing" live={progress} />;
   }
-  const num = (n: number | undefined, unit = '') => (n || n === 0 ? `${n}${unit}` : '—');
+  const num = (n: number | undefined, unit = '') => (n || n === 0 ? `${n}${unit}` : '-');
 
   return (
     <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2">
         <section className="rounded-xl border border-line bg-surface p-5">
           <h3 className="font-semibold text-ink mb-2">Facility</h3>
-          <Row label="Name" value={v.facility.facilityName || '—'} />
+          <Row label="Name" value={v.facility.facilityName || '-'} />
           <Row label="Type" value={v.facility.facilityType} />
           <Row label="Country / region" value={`${v.facility.country}${v.facility.region ? ` · ${v.facility.region}` : ''}`} />
           <Row label="Capacity" value={num(v.facility.capacity, ' t/day')} />
@@ -60,8 +60,9 @@ export default function ReviewStep({
               .map((f) => `${f.fuelType} ${f.amountMonth} ${f.unit}/mo`).join(', ') || 'none'}
           />
           <Row label="Water" value={`${num(v.utilities.waterM3Month, ' m³/mo')} (${v.utilities.waterSource}, wastewater: ${v.utilities.wastewaterTreatment})`} />
-          <Row label="Solid waste" value={v.utilities.solidWasteKgDay ? `${v.utilities.solidWasteKgDay} kg/day (${v.utilities.wasteDisposalMethod})` : '—'} />
+          <Row label="Solid waste" value={v.utilities.solidWasteKgDay ? `${v.utilities.solidWasteKgDay} kg/day (${v.utilities.wasteDisposalMethod})` : '-'} />
           <Row label="Inbound transport" value={v.utilities.transportKm ? `${v.utilities.transportKm} km (${v.utilities.transportMode})` : `default from ${v.utilities.localSourcingPct ?? 80}% local sourcing (${v.utilities.transportMode})`} />
+          <Row label="Refrigerant" value={v.utilities.refrigerantType && v.utilities.refrigerantType !== 'None' ? `${v.utilities.refrigerantType}, ${num(v.utilities.refrigerantKg, ' kg/yr')} leaked` : 'none'} />
           {v.products.length > 1 && <Row label="Allocation" value={v.utilities.allocationBasis === 'economic' ? 'Economic value' : 'Output mass'} />}
         </section>
       </div>
@@ -73,7 +74,7 @@ export default function ReviewStep({
             <Row
               key={i}
               label={p.name || `Product ${i + 1}`}
-              value={`${num(p.annualProduction, ' t/yr')}${p.rawMaterial ? ` · ${p.rawMaterial}` : ''}${v.utilities.allocationBasis === 'economic' && p.pricePerKg ? ` · ${p.pricePerKg}/kg` : ''}`}
+              value={`${num(p.annualProduction, ' t/yr')}${p.rawMaterial ? ` · ${p.rawMaterial}` : ''}${p.packaged === false ? ' · unpackaged' : ` · ${p.packaging?.material ?? ''} ${p.packaging?.packageSize ?? ''} kg`}${v.utilities.allocationBasis === 'economic' && p.pricePerKg ? ` · ${p.pricePerKg}/kg` : ''}`}
             />
           ))}
         </div>

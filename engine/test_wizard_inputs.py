@@ -374,3 +374,41 @@ def test_farm_flows_apply_replaces_rust_water_and_recharacterises():
     assert field["N2O_UID"]["amount"] == pytest.approx(2000.0 * 0.0003)
     assert res.impacts["total"]["value"] == pytest.approx(sum(r["amount"] for r in res.inventory.values()))
     assert res.contribution["on_farm"] == res.contribution_by_source[farm_flows.FIELD_LABEL]
+
+
+def test_zero_applications_means_zero_and_no_area_is_a_warning():
+    """0 applications per season used to be read as 1 here while the kernel read 0."""
+    a = {"foods": [{"name": "Maize", "category": "Cereals", "quantity_kg": 1000, "area_allocated": 2.0}],
+         "management_practices": {"fertilization": {"uses_fertilizers": True, "fertilizer_applications": [
+             {"fertilizer_type": "Urea", "npk_ratio": "46-0-0", "application_rate": 100,
+              "applications_per_season": 0}]},
+             "pest_management": {"pesticides": [{"pesticide_type": "Herbicide", "active_ingredient": "Glyphosate",
+                                                 "application_rate": 2.0, "applications_per_season": 0}]}}}
+    inputs, notes = extract_purchased_inputs(a)
+    assert not [i for i in inputs if i.get("kind") in ("fertiliser", "pesticide")]
+    assert any("0 applications per season" in n for n in notes)
+
+    a["management_practices"]["fertilization"]["fertilizer_applications"][0]["applications_per_season"] = 1
+    a["management_practices"]["pest_management"]["pesticides"][0]["applications_per_season"] = 1
+    a["foods"][0].pop("area_allocated")
+    inputs, notes = extract_purchased_inputs(a)
+    assert not [i for i in inputs if i.get("kind") in ("fertiliser", "pesticide")]
+    warn = [n for n in notes if n.startswith(pz.WARNING_PREFIX)]
+    assert any("fertiliser" in n and "no crop area" in n for n in warn)
+    assert any("pesticide" in n and "no crop area" in n for n in warn)
+
+
+def test_negative_rates_are_clamped_with_a_warning_not_credited():
+    a = {"foods": [{"name": "Maize", "category": "Cereals", "quantity_kg": 1000, "area_allocated": 2.0}],
+         "management_practices": {
+             "fertilization": {"uses_fertilizers": True, "fertilizer_applications": [
+                 {"fertilizer_type": "Urea", "application_rate": -100, "applications_per_season": 1}]},
+             "soil_management": {"uses_compost": True, "compost_source": "Purchased compost",
+                                 "compost_application_rate": -5}},
+         "equipment_energy": {"fuel_consumption": [{"fuel_type": "Diesel", "monthly_consumption": -10}],
+                              "equipment": [{"equipment_type": "Tractor", "power_source": "Diesel engine",
+                                             "hours_per_year": -3}]}}
+    inputs, notes = extract_purchased_inputs(a)
+    assert all(i["amount"] >= 0 for i in inputs)
+    assert not [i for i in inputs if i.get("kind") in ("fertiliser", "compost")]
+    assert sum(1 for n in notes if n.startswith(pz.WARNING_PREFIX) and "negative" in n) >= 3

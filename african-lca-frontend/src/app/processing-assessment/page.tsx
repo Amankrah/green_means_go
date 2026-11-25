@@ -25,6 +25,7 @@ import {
   getProcessingStepProgress,
   getNextProcessingStep,
   getPreviousProcessingStep,
+  missingRawMaterialIssues,
   COUNTRIES,
 } from '@/lib/processing-assessment-schema';
 import FacilityStep from '@/components/processing-assessment/FacilityStep';
@@ -82,13 +83,20 @@ function ProcessingWizard() {
     return () => { active = false; };
   }, [facilityId, setValue]);
 
-  // Keep the new step in view — Next/Back leave the scroll at the previous footer otherwise.
+  // Keep the new step in view: Next/Back leave the scroll at the previous footer otherwise.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   }, [currentStep]);
 
   const goNext = async () => {
-    const valid = await trigger(STEP_FIELDS[currentStep]);
+    let valid = await trigger(STEP_FIELDS[currentStep]);
+    if (currentStep === ProcessingStep.PRODUCTS) {
+      // The raw-material gate needs the facility type too, so the section-level trigger
+      // cannot run it; mirror the API completeness rule here so Next blocks inline.
+      const issues = missingRawMaterialIssues(methods.getValues('products') ?? [], methods.getValues('facility.facilityType'));
+      issues.forEach((it) => methods.setError(`products.${it.index}.rawMaterial`, { type: 'manual', message: it.message }));
+      if (issues.length) valid = false;
+    }
     if (!valid) return;
     const next = getNextProcessingStep(currentStep);
     if (next) setCurrentStep(next);
@@ -103,7 +111,7 @@ function ProcessingWizard() {
     setLiveProgress(null);
     setSubmitting(true);
     try {
-      const payload = buildProcessingPayload(data, COUNTRY_TO_REGION, { facilityId });
+      const payload = buildProcessingPayload(data, COUNTRY_TO_REGION, { facilityId, formSnapshot: data });
       const result = await assessmentAPI.submitProcessingAssessmentStream(payload, setLiveProgress);
       localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
       localStorage.setItem('lastAssessmentId', result.id);

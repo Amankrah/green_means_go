@@ -63,6 +63,17 @@ def _request_archive(request: ProcessingAssessmentRequest) -> dict:
     }
 
 
+def _check_region(request: ProcessingAssessmentRequest) -> str:
+    """Resolve the engine region up front so an unknown region is a 422, not a 500 or an
+    SSE error half-way through a run."""
+    from engine.process_service import _resolve_region
+    try:
+        return _resolve_region(request.model_dump(mode="json", include={"region", "country"}),
+                               request.region)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
 async def _run_processing_engine(request: ProcessingAssessmentRequest) -> dict:
     if os.getenv("USE_LEGACY_RUST_LCIA") == "1":
         rust_input = {
@@ -94,6 +105,7 @@ async def create_processing_assessment(
     """
     try:
         facility_id = _resolve_facility_id(request, user, db)
+        _check_region(request)
         result = await _run_processing_engine(request)
         save_assessment(
             db, user_id=user.id, a_type=AssessmentType.processing, payload=result,
@@ -104,6 +116,10 @@ async def create_processing_assessment(
 
     except HTTPException:
         raise
+    except ValueError as e:
+        # Engine-level input rejections (unknown region, unknown refrigerant, ...) are the
+        # caller's data, not a server fault.
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing assessment failed: {str(e)}")
 
@@ -118,6 +134,7 @@ async def create_processing_assessment_stream(
     persists the result, ending with a terminal `result` (or `error`) event. Uses the
     validated engine path (the legacy Rust path cannot report per-stage progress)."""
     facility_id = _resolve_facility_id(request, user, db)
+    _check_region(request)
     # Capture plain values now: the worker thread / SSE generator must not touch the
     # request-scoped ORM session or lazy attributes.
     request_dict = request.model_dump(mode="json", exclude={"form_snapshot"})
@@ -160,6 +177,7 @@ async def rerun_processing_assessment(
 
     try:
         facility_id = _resolve_facility_id(request, user, db)
+        _check_region(request)
         result = await _run_processing_engine(request)
         updated = replace_assessment(
             db, existing, payload=result,
@@ -172,6 +190,8 @@ async def rerun_processing_assessment(
         return ProcessingAssessmentResponse(**updated.payload_json)
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing assessment re-run failed: {str(e)}")
 

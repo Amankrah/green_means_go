@@ -30,6 +30,7 @@ import {
   remainingFarmArea,
 } from '@/lib/enhanced-assessment-schema';
 import { commonCropsForCountry } from '@/lib/regions';
+import { deriveSeasonalFactor, seasonalFactorLabel } from '@/lib/seasonal-factor';
 
 const foodCategories = [
   { value: 'Cereals', label: '🌾 Cereals (Maize, Rice, Millet, Sorghum)' },
@@ -213,16 +214,23 @@ export default function CropDetailsStep() {
 
   const handleSeasonalityChange = (index: number, field: 'plantingMonths' | 'harvestingMonths', value: number[]) => {
     setValue(`cropProductions.${index}.seasonality.${field}` as const, value);
-    
+
     // Auto-calculate growing period when months change
     if (field === 'plantingMonths' || field === 'harvestingMonths') {
       const crop = getValues(`cropProductions.${index}`);
       const plantingMonths = field === 'plantingMonths' ? value : crop.seasonality?.plantingMonths || [];
       const harvestingMonths = field === 'harvestingMonths' ? value : crop.seasonality?.harvestingMonths || [];
-      
+
       if (plantingMonths.length > 0 && harvestingMonths.length > 0) {
         const calculatedPeriod = calculateGrowingPeriodFromMonths(plantingMonths, harvestingMonths);
         setValue(`cropProductions.${index}.seasonality.growingPeriod`, calculatedPeriod);
+      }
+      // Mirror the derived season into the form so the saved snapshot carries it.
+      if (field === 'plantingMonths') {
+        setValue(
+          `cropProductions.${index}.seasonality.season`,
+          [deriveSeasonalFactor(country, plantingMonths) as SeasonType],
+        );
       }
     }
   };
@@ -761,6 +769,14 @@ export default function CropDetailsStep() {
                     </select>
                   </div>
                 </div>
+
+                {/* Derived, read-only: sent to the engine as seasonal_factor */}
+                <p className="mt-4 text-xs text-spruce">
+                  Growing season (derived from your planting months and the rainy season in {country || 'your country'}):{' '}
+                  <span className="font-medium">
+                    {seasonalFactorLabel(deriveSeasonalFactor(country, watch(`cropProductions.${index}.seasonality.plantingMonths`)))}
+                  </span>
+                </p>
               </div>
             </motion.div>
             );

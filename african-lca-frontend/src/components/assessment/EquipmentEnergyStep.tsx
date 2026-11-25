@@ -4,7 +4,7 @@ import React from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { Zap, Truck, Info, AlertCircle, BarChart3, Plus, Trash2, Settings, Battery } from 'lucide-react';
-import { EnhancedAssessmentFormData } from '@/lib/enhanced-assessment-schema';
+import { EnhancedAssessmentFormData, FARM_FUEL_UNITS, FARM_FUEL_DEFAULT_UNIT } from '@/lib/enhanced-assessment-schema';
 import { 
   StorageFacilityType, 
   RoadAccessType, 
@@ -121,7 +121,7 @@ export default function EquipmentEnergyStep() {
               equipmentType: EquipmentType.HAND_TOOLS,
               powerSource: PowerSource.MANUAL,
               age: 0,
-              hoursPerYear: 0,
+              hoursPerYear: undefined as unknown as number,
               fuelEfficiency: undefined
             })}
             className="flex items-center space-x-2 px-4 py-2 bg-spruce text-white rounded-lg hover:bg-ink transition-colors"
@@ -292,7 +292,7 @@ export default function EquipmentEnergyStep() {
             type="button"
             onClick={() => appendEnergySource({
               energyType: EnergyType.GRID_ELECTRICITY,
-              monthlyConsumption: 0,
+              monthlyConsumption: undefined as unknown as number,
               primaryUse: '',
               cost: undefined
             })}
@@ -430,7 +430,7 @@ export default function EquipmentEnergyStep() {
           </div>
           <button
             type="button"
-            onClick={() => appendFuel({ fuelType: FuelType.DIESEL, monthlyConsumption: 0, primaryUse: '', cost: undefined })}
+            onClick={() => appendFuel({ fuelType: FuelType.DIESEL, monthlyConsumption: undefined as unknown as number, unit: 'L', primaryUse: '', cost: undefined })}
             className="flex items-center space-x-2 px-4 py-2 bg-spruce text-white rounded-lg hover:bg-ink transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -440,17 +440,26 @@ export default function EquipmentEnergyStep() {
         {fuelFields.length > 0 && (
           <div className="mt-4 space-y-3">
             {fuelFields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_2fr_auto] gap-3 items-end bg-white border border-line rounded-lg p-3">
+              <div key={field.id} className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto_2fr_auto] gap-3 items-end bg-white border border-line rounded-lg p-3">
                 <div>
                   <label className="block text-sm font-medium text-ink mb-1">Fuel</label>
-                  <select {...register(`equipmentEnergy.fuelConsumption.${index}.fuelType`)} className="gmg-input">
+                  <select
+                    {...register(`equipmentEnergy.fuelConsumption.${index}.fuelType`, {
+                      // Switch the unit to the fuel's natural unit (kg for LPG, litres otherwise).
+                      onChange: (ev) => setValue(
+                        `equipmentEnergy.fuelConsumption.${index}.unit`,
+                        FARM_FUEL_DEFAULT_UNIT[ev.target.value as FuelType] ?? 'L',
+                      ),
+                    })}
+                    className="gmg-input"
+                  >
                     {Object.values(FuelType).map((ft) => (
                       <option key={ft} value={ft}>{ft}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-ink mb-1">Per month</label>
+                  <label className="block text-sm font-medium text-ink mb-1">Per month *</label>
                   <input
                     type="number"
                     min="0"
@@ -458,6 +467,19 @@ export default function EquipmentEnergyStep() {
                     {...register(`equipmentEnergy.fuelConsumption.${index}.monthlyConsumption`, { valueAsNumber: true })}
                     className="gmg-input"
                   />
+                  {errors.equipmentEnergy?.fuelConsumption?.[index]?.monthlyConsumption && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.equipmentEnergy.fuelConsumption[index]?.monthlyConsumption?.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1">Unit</label>
+                  <select {...register(`equipmentEnergy.fuelConsumption.${index}.unit`)} className="gmg-input">
+                    {FARM_FUEL_UNITS.map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-ink mb-1">Used for</label>

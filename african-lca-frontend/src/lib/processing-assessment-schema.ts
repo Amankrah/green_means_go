@@ -1,5 +1,5 @@
 /**
- * processing-assessment-schema.ts — validation schema, form model, step config, and the
+ * processing-assessment-schema.ts: validation schema, form model, step config, and the
  * backend payload builder for the PROCESSING (facility) assessment.
  *
  * Shared by the single-page form and the multi-step wizard so both validate identically and
@@ -62,6 +62,56 @@ export const WASTEWATER_TREATMENTS = ['None', 'BasicSedimentation', 'BiologicalT
 
 export const ALLOCATION_BASES = ['mass', 'economic'] as const;
 
+// Refrigerant designations the API accepts (engine/refrigerants.py KNOWN_REFRIGERANTS, AR6
+// GWP100 table) plus "None". The backend rejects anything else, so no free text here.
+export const REFRIGERANTS = [
+  'HFC-134a', 'R-134a', 'HFC-125', 'R-125', 'HFC-143a', 'R-143a', 'HFC-32', 'R-32',
+  'HFC-152a', 'R-152a', 'HCFC-22', 'R-22', 'R-717', 'Ammonia', 'NH3', 'R-744', 'CO2',
+  'R-290', 'Propane', 'R-600a', 'Isobutane', 'R-1234yf', 'R-1234ze',
+  'R-404A', 'R-410A', 'R-407C', 'R-507A', 'R-448A', 'R-449A', 'R-513A',
+] as const;
+export const REFRIGERANT_OPTIONS = ['None', ...REFRIGERANTS] as const;
+
+// Product types with a cited default raw-material conversion ratio (engine/conversion_ratios.py
+// DEFAULT_RATIOS); "Other" resolves through the facility type (FACILITY_DEFAULT_PRODUCT).
+// Any other combination must declare a raw material, or the API refuses the request.
+export const PRODUCT_TYPES_WITH_DEFAULT_RATIO = [
+  'PalmOil', 'CocoaPowder', 'CocoaButter', 'FlourMaize', 'FlourWheat', 'RiceProcessed', 'FlourCassava',
+] as const;
+export const FACILITY_DEFAULT_PRODUCT: Partial<Record<(typeof FACILITY_TYPES)[number], (typeof PRODUCT_TYPES)[number]>> = {
+  PalmOilMill: 'PalmOil',
+  CocoaProcessing: 'CocoaPowder',
+  RiceProcessing: 'RiceProcessed',
+  CassivaProcessing: 'FlourCassava',
+};
+
+export function hasDefaultConversionRatio(productType: string | undefined, facilityType: string | undefined): boolean {
+  let ptype = productType || 'Other';
+  if (ptype === 'Other' && facilityType) {
+    ptype = FACILITY_DEFAULT_PRODUCT[facilityType as (typeof FACILITY_TYPES)[number]] ?? ptype;
+  }
+  return (PRODUCT_TYPES_WITH_DEFAULT_RATIO as readonly string[]).includes(ptype);
+}
+
+/** Index and message for every product that needs a raw material but has none (mirrors the API completeness gate). */
+export function missingRawMaterialIssues(
+  products: ReadonlyArray<{ productType?: string; rawMaterial?: string; rawKgPerTonne?: unknown }>,
+  facilityType: string | undefined,
+): Array<{ index: number; message: string }> {
+  const out: Array<{ index: number; message: string }> = [];
+  products.forEach((p, index) => {
+    const kg = toNum(p.rawKgPerTonne);
+    const declared = !!p.rawMaterial?.trim() && typeof kg === 'number' && kg > 0;
+    if (!declared && !hasDefaultConversionRatio(p.productType, facilityType)) {
+      out.push({
+        index,
+        message: 'This product type has no default conversion ratio: enter its main raw material and the kg per tonne of product',
+      });
+    }
+  });
+  return out;
+}
+
 // UI countries (the page maps these to the backend country + engine region via COUNTRY_TO_REGION).
 export const COUNTRIES = ['Canada', 'Ghana', 'Nigeria', 'Senegal', 'Burkina Faso', 'South Africa'] as const;
 
@@ -89,14 +139,23 @@ export const facilitySchema = z.object({
   region: z.string().trim().max(100).optional(),
   locationType: z.enum(LOCATION_TYPES),
   capacity: reqPositive('Processing capacity must be greater than zero'),
-  hoursPerDay: reqPositive('Operating hours per day must be greater than zero'),
-  daysPerYear: reqPositive('Operating days per year must be greater than zero'),
+  hoursPerDay: z.preprocess(toNum, z.number({ message: 'Operating hours per day must be greater than zero' })
+    .positive('Operating hours per day must be greater than zero')
+    .max(24, 'Operating hours per day cannot exceed 24')),
+  // The API stores this as an integer and scales daily solid waste by it.
+  daysPerYear: z.preprocess(toNum, z.number({ message: 'Operating days per year must be greater than zero' })
+    .int('Operating days per year must be a whole number')
+    .min(1, 'Operating days per year must be at least 1')
+    .max(366, 'Operating days per year cannot exceed 366')),
 });
 
+// Packaging is explicit: either the user states the product leaves unpackaged (bulk), or
+// types the numbers (no prefilled bag). The API models a product without packaging as
+// unpackaged and adds no packaging row.
 export const packagingSchema = z.object({
   material: z.enum(PACKAGING_MATERIALS),
-  packageSize: reqPositive('Package size must be greater than zero'),
-  weightPerUnit: reqPositive('Packaging weight must be greater than zero'),
+  packageSize: optNonNeg('Package size cannot be negative'),
+  weightPerUnit: optNonNeg('Packaging weight cannot be negative'),
 });
 
 export const productSchema = z.object({
@@ -106,15 +165,47 @@ export const productSchema = z.object({
   rawMaterial: z.string().trim().max(120).optional(),
   rawKgPerTonne: optNonNeg('Raw material amount cannot be negative'),       // kg per tonne output
   pricePerKg: optNonNeg('Price cannot be negative'),                        // economic_value
+  packaged: z.boolean().default(true),
   packaging: packagingSchema,
+}).superRefine((p, ctx) => {
+  // A packaged product needs real packaging numbers; an unpackaged one sends none.
+  if (p.packaged) {
+    if (!(typeof p.packaging.packageSize === 'number' && p.packaging.packageSize > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Package size must be greater than zero (or mark the product as unpackaged)', path: ['packaging', 'packageSize'] });
+    }
+    if (!(typeof p.packaging.weightPerUnit === 'number' && p.packaging.weightPerUnit > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Packaging weight must be greater than zero (or mark the product as unpackaged)', path: ['packaging', 'weightPerUnit'] });
+    }
+  }
+  // A raw material needs both its name and its amount; a half-filled pair used to be
+  // dropped silently by the payload builder.
+  const hasName = !!p.rawMaterial?.trim();
+  const hasKg = typeof p.rawKgPerTonne === 'number' && p.rawKgPerTonne > 0;
+  if (hasName && !hasKg) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Enter the kg of this raw material per tonne of product (or clear the name to use the default ratio)',
+      path: ['rawKgPerTonne'],
+    });
+  }
+  if (!hasName && hasKg) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Name the raw material this amount refers to (or clear the amount to use the default ratio)',
+      path: ['rawMaterial'],
+    });
+  }
 });
 
 const optPct = (msg: string) =>
   z.preprocess(toNum, z.number().min(0).max(100, msg).optional()).optional();
 
+// A fuel line the user adds must carry an amount; empty lines are not sent.
 export const fuelStreamSchema = z.object({
   fuelType: z.enum(FUEL_TYPES),
-  amountMonth: optNonNeg('Fuel cannot be negative'),
+  amountMonth: z.preprocess(toNum, z.number({ message: 'Enter the monthly amount for this fuel' })
+    .positive('Fuel amount must be greater than zero')
+    .max(1_000_000, 'Please verify the fuel amount')),
   unit: z.enum(FUEL_UNITS),
 });
 
@@ -136,8 +227,28 @@ export const utilitiesSchema = z.object({
   byproductName: z.string().trim().max(80).optional(),
   wasteDisposalMethod: z.enum(WASTE_DISPOSAL_METHODS),
   allocationBasis: z.enum(ALLOCATION_BASES),
-  refrigerantType: z.string().trim().max(60).optional(),
+  refrigerantType: z.enum(REFRIGERANT_OPTIONS).default('None'),
   refrigerantKg: optNonNeg('Leakage cannot be negative'),
+}).superRefine((u, ctx) => {
+  // A leak amount is meaningless without the gas: the GWP comes from the designation.
+  if (typeof u.refrigerantKg === 'number' && u.refrigerantKg > 0 && (!u.refrigerantType || u.refrigerantType === 'None')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Select the refrigerant gas for the leakage entered',
+      path: ['refrigerantType'],
+    });
+  }
+  // A facility with no energy input at all is not an assessable facility: require either
+  // metered electricity or at least one fuel line.
+  const hasElectricity = typeof u.elecKwhMonth === 'number' && u.elecKwhMonth > 0;
+  const hasFuel = (u.fuelStreams ?? []).some((f) => typeof f.amountMonth === 'number' && f.amountMonth > 0);
+  if (!hasElectricity && !hasFuel) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Enter the monthly electricity use or add at least one fuel burned on site',
+      path: ['elecKwhMonth'],
+    });
+  }
 });
 
 // ---- full schema -----------------------------------------------------------------------
@@ -150,6 +261,10 @@ export const processingAssessmentSchema = z
     utilities: utilitiesSchema,
   })
   .superRefine((data, ctx) => {
+    // Mirror of the API completeness gate (also run by the wizard on the Products step).
+    for (const issue of missingRawMaterialIssues(data.products, data.facility.facilityType)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue.message, path: ['products', issue.index, 'rawMaterial'] });
+    }
     if (data.utilities.allocationBasis === 'economic') {
       data.products.forEach((p, i) => {
         if (!p.pricePerKg || p.pricePerKg <= 0) {
@@ -211,7 +326,9 @@ export const newProduct = (): ProcessingFormData['products'][number] => ({
   rawMaterial: '',
   rawKgPerTonne: undefined,
   pricePerKg: undefined,
-  packaging: { material: 'PlasticBag', packageSize: 50, weightPerUnit: 0.1 },
+  // Packaging numbers are entered by the user, never prefilled.
+  packaged: true,
+  packaging: { material: 'PlasticBag', packageSize: undefined, weightPerUnit: undefined },
 });
 
 export const defaultProcessingForm = (): ProcessingFormData => ({
@@ -245,7 +362,7 @@ export const defaultProcessingForm = (): ProcessingFormData => ({
     byproductName: '',
     wasteDisposalMethod: 'Landfill',
     allocationBasis: 'mass',
-    refrigerantType: '',
+    refrigerantType: 'None',
     refrigerantKg: undefined,
   },
 });
@@ -256,12 +373,12 @@ export const defaultProcessingForm = (): ProcessingFormData => ({
 export function buildProcessingPayload(
   data: ProcessingFormData,
   countryMap: Record<string, { country: string; region: string }>,
-  opts?: { facilityId?: string | null },
+  opts?: { facilityId?: string | null; formSnapshot?: unknown },
 ): Record<string, unknown> {
   const f = data.facility;
   const u = data.utilities;
   // Engine region must be the mapped code (GH/NG/CA). Free-text province/state in
-  // facility.region must NOT override it — that used to send "Ontario" and cause the
+  // facility.region must NOT override it: that used to send "Ontario" and cause the
   // engine to fall through to the Ghana default for Canada (country is sent as "Global").
   const mapped = countryMap[f.country] ?? { country: f.country, region: undefined };
 
@@ -270,6 +387,9 @@ export function buildProcessingPayload(
     region: mapped.region,
     facility_id: opts?.facilityId ?? undefined,
     title: f.facilityName || f.companyName || undefined,
+    // Opaque wizard snapshot so the saved assessment can be reopened for editing (the API
+    // accepts form_snapshot on processing requests just as on farm requests).
+    ...(opts?.formSnapshot !== undefined ? { form_snapshot: opts.formSnapshot } : {}),
     allocation_basis: u.allocationBasis,
     facility_profile: {
       facility_name: f.facilityName.trim() || 'Facility',
@@ -307,13 +427,15 @@ export function buildProcessingPayload(
           : [],
       },
       raw_material_sourcing: {
-        // Blank distance -> the engine's cited default from the local-sourcing share.
-        average_transport_distance: u.transportKm ?? undefined,
+        // Blank or 0 distance -> the engine's cited default from the local-sourcing share
+        // (same rule as every other quantity here, and what the review step says).
+        average_transport_distance: u.transportKm || undefined,
         local_sourcing_percentage: u.localSourcingPct ?? 80,
         transport_mode: u.transportMode,
       },
       refrigerant_management: {
-        refrigerant_type: u.refrigerantType?.trim() || undefined,
+        // Only a named gas is sent; "None" (the default) means no refrigerant on site.
+        refrigerant_type: u.refrigerantType && u.refrigerantType !== 'None' ? u.refrigerantType : undefined,
         annual_leakage_kg: u.refrigerantKg || undefined,
       },
     },
@@ -327,11 +449,17 @@ export function buildProcessingPayload(
         p.rawMaterial?.trim() && (p.rawKgPerTonne ?? 0) > 0
           ? [{ material_name: p.rawMaterial.trim(), quantity_per_tonne_output: p.rawKgPerTonne }]
           : [],
-      packaging: {
-        packaging_material: p.packaging.material,
-        package_size: p.packaging.packageSize,
-        packaging_weight_per_unit: p.packaging.weightPerUnit,
-      },
+      // Sent only for a packaged product with its numbers filled; omitted means unpackaged
+      // (the API adds no packaging row and says so in its notes).
+      ...(p.packaged && (p.packaging.packageSize ?? 0) > 0 && (p.packaging.weightPerUnit ?? 0) > 0
+        ? {
+            packaging: {
+              packaging_material: p.packaging.material,
+              package_size: p.packaging.packageSize,
+              packaging_weight_per_unit: p.packaging.weightPerUnit,
+            },
+          }
+        : {}),
     })),
   };
 }

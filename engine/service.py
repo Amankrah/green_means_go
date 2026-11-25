@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-service.py — one entry point that runs the full validated farm LCA and returns the
+service.py: one entry point that runs the full validated farm LCA and returns the
 frontend AssessmentResponse shape. Used by the production /assess route (replacing the
 Rust hardcoded-LCIA path) and by /farm/assess.
 
@@ -82,7 +82,12 @@ def _engine(region_code: str, method: str | None):
 
 def _region_of(assessment: dict, override: str | None) -> str:
     if override:
-        return override
+        # An explicit override must be a known region code or alias; the API maps the
+        # ValueError to a 422 instead of letting a KeyError surface as a 500.
+        try:
+            return get_region(override).code
+        except KeyError as e:
+            raise ValueError(str(e)) from e
     # An explicit engine region (e.g. "SN" with the kernel country bucket "Global") wins
     # over the country; otherwise "Global" would resolve to CA.
     try:

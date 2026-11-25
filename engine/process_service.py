@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-process_service.py — one entry point that runs the full validated PROCESSING (facility)
+process_service.py : one entry point that runs the full validated PROCESSING (facility)
 LCA and returns the frontend response shape. Parallels service.run_farm_assessment, and
 reuses the same per-region cached engine (the matcher index is ~300 MB).
 
@@ -30,24 +30,30 @@ except ImportError:
 
 
 def _resolve_region(request: dict, override: str | None) -> str:
-    """Resolve to a known region code, tolerating free-text region names (e.g. a province or
-    'Greater Accra'): try the override, then the request region, then the country, else default.
+    """Resolve to a known region code: the override, then the request region, then the
+    country (codes, names and the aliases in engine/regions.py all count). A free-text
+    province in `region` (e.g. 'Greater Accra') falls through to the country.
 
-    Canada is submitted as country \"Global\" + region \"CA\". If a free-text province overwrote
-    the region code and nothing resolves, prefer CA over the Ghana default — otherwise Canada
-    assessments silently run on Ghana backgrounds.
+    Raises ValueError when nothing resolves. There is no silent default: running a facility
+    on another country's grid and climate without saying so is worse than refusing.
     """
-    for cand in (override, request.get("region"), request.get("country")):
+    country = str(request.get("country") or "").strip()
+    # Under country "Global" the region IS the geography (Global only maps to CA by the API
+    # convention), so a region that does not resolve is an error, not a province.
+    candidates = [override, request.get("region")]
+    if country.lower() != "global":
+        candidates.append(country)
+    for cand in candidates:
         if not cand:
             continue
         try:
             return get_region(str(cand).strip()).code
         except KeyError:
             continue
-    country = str(request.get("country") or "").strip().lower()
-    if country in ("global", "canada", "ca"):
-        return "CA"
-    return "GH"   # regions registry is the single source of truth for the default
+    raise ValueError(
+        f"region '{request.get('region')}' / country '{request.get('country')}' do not resolve "
+        "to a supported engine region; give a region code (GH, NG, SN, BF, ZA, CA) or a "
+        "supported country name")
 
 
 WATER_LABEL = "Water withdrawal (on-site)"

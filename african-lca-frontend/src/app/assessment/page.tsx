@@ -29,20 +29,17 @@ import { assessmentAPI, AssessmentProgressEvent } from '@/lib/api';
 import { 
   enhancedAssessmentSchema, 
   type EnhancedAssessmentFormData,
+  type EnhancedAssessmentFormInput,
   FORM_STEPS,
   getStepProgress,
   getNextStep,
   getPreviousStep,
   validateTotalAllocation,
+  blankFarmAssessmentForm,
 } from '@/lib/enhanced-assessment-schema';
 import {
   FormStep,
   EnhancedAssessmentRequest,
-  FarmType,
-  FarmingSystem,
-  CompostSource,
-  FunctionalUnit,
-  SystemBoundary,
   ApplicationMethod,
   TimingStrategy,
   TillageSystem,
@@ -51,27 +48,6 @@ import {
   LaborIntensity,
   PostHarvestHandling,
   MaintenanceFrequency,
-  ProductionSystem,
-  CroppingPattern,
-  SeasonType,
-  SoilType,
-  TestingFrequency,
-  SoilConservationPractice,
-  FertilizerType,
-  WaterSource,
-  IrrigationSystem,
-  PestManagementApproach,
-  PesticideType,
-  IPMPractice,
-  MonitoringFrequency,
-  EquipmentType,
-  PowerSource,
-  EnergyType,
-  FuelType,
-  StorageFacilityType,
-  RoadAccessType,
-  TransportMode,
-  Currency
 } from '@/types/enhanced-assessment';
 import { FoodCategory } from '@/types/assessment';
 
@@ -112,229 +88,11 @@ function ComprehensiveAssessmentPage({
     assessmentId?: string;
   } | null>(null);
 
-  const methods = useForm({
+  const methods = useForm<EnhancedAssessmentFormInput, unknown, EnhancedAssessmentFormData>({
     resolver: zodResolver(enhancedAssessmentSchema), // Will be overridden for specific steps
-    defaultValues: {
-      farmProfile: {
-        farmerName: 'Sarah Thompson',
-        farmName: 'Thompson Prairie Farm',
-        country: 'Canada',
-        region: 'Saskatchewan',
-        totalFarmSize: 520,
-        farmingExperience: 22,
-        farmType: FarmType.COMMERCIAL,
-        primaryFarmingSystem: FarmingSystem.SEMI_COMMERCIAL,
-        certifications: [],
-        participatesInPrograms: ['Climate Smart Agriculture']
-      },
-      cropProductions: [
-        {
-          cropId: 'crop_wheat_001',
-          cropName: 'Wheat',
-          localName: 'Spring Wheat',
-          category: 'Cereals',
-          variety: 'AAC Brandon',
-          areaAllocated: 300,
-          annualProduction: 1140000,
-          productionSystem: ProductionSystem.RAINFED,
-          croppingPattern: CroppingPattern.MONOCULTURE,
-          seasonality: {
-            plantingMonths: [4, 5],
-            harvestingMonths: [8, 9],
-            growingPeriod: 120,
-            cropsPerYear: 1,
-            season: [SeasonType.WET_SEASON]
-          },
-          isIntercropped: false,
-          intercroppingPartners: [],
-          intercroppingRatio: {},
-          rotationSequence: ['Wheat', 'Canola', 'Barley'],
-          rotationDuration: 3,
-          averageYieldPerHectare: 3800,
-          postHarvestLosses: 3
-        },
-        {
-          cropId: 'crop_canola_001',
-          cropName: 'Canola',
-          localName: 'Canola',
-          category: 'Oils',
-          variety: 'InVigor L233P',
-          areaAllocated: 220,
-          annualProduction: 550000,
-          productionSystem: ProductionSystem.RAINFED,
-          croppingPattern: CroppingPattern.MONOCULTURE,
-          seasonality: {
-            plantingMonths: [5],
-            harvestingMonths: [9, 10],
-            growingPeriod: 100,
-            cropsPerYear: 1,
-            season: [SeasonType.WET_SEASON]
-          },
-          isIntercropped: false,
-          intercroppingPartners: [],
-          intercroppingRatio: {},
-          rotationSequence: ['Canola', 'Wheat', 'Barley'],
-          rotationDuration: 3,
-          averageYieldPerHectare: 2500,
-          postHarvestLosses: 4
-        }
-      ],
-      managementPractices: {
-        soilManagement: {
-          soilType: SoilType.LOAM,
-          soilpH: 6.2,
-          organicMatterContent: 3.5,
-          soilTestingFrequency: TestingFrequency.EVERY_2_3_YEARS,
-          conservationPractices: [
-            SoilConservationPractice.CONTOUR_PLOWING,
-            SoilConservationPractice.MULCHING,
-            SoilConservationPractice.MINIMUM_TILL
-          ],
-          coverCrops: ['Mucuna', 'Cowpea'],
-          compostUse: {
-            usesCompost: true,
-            compostsource: CompostSource.FARM_MADE,
-            applicationRate: 8,
-            applicationTiming: "Before planting"
-          }
-        },
-        fertilization: {
-          usesFertilizers: true,
-          fertilizerApplications: [
-            {
-              fertilizerType: FertilizerType.NPK_COMPOUND,
-              brandName: 'Yara NPK 15-15-15',
-              npkRatio: '15-15-15',
-              applicationRate: 250,
-              applicationsPerSeason: 1,
-              cost: 185,
-              currency: Currency.GHS
-            },
-            {
-              fertilizerType: FertilizerType.UREA,
-              brandName: 'Wienco Urea',
-              npkRatio: '46-0-0',
-              applicationRate: 100,
-              applicationsPerSeason: 2,
-              cost: 120,
-              currency: Currency.GHS
-            }
-          ],
-          applicationMethod: ApplicationMethod.BAND_PLACEMENT,
-          timingStrategy: TimingStrategy.SPLIT_APPLICATION,
-          soilTestBased: true,
-          followsNutrientPlan: true
-        },
-        waterManagement: {
-          waterSource: [WaterSource.RAINFALL, WaterSource.RIVER_STREAM],
-          irrigationSystem: IrrigationSystem.NONE,
-          drainageSystem: true,
-          waterConservationPractices: []
-        }
-      },
-      pestManagement: {
-        primaryPests: ['Fall armyworm', 'Stemborer', 'Cassava green mite'],
-        primaryDiseases: ['Maize leaf blight', 'Cassava mosaic disease'],
-        managementApproach: PestManagementApproach.INTEGRATED_IPM,
-        pesticides: [
-          {
-            pesticideType: PesticideType.INSECTICIDE,
-            activeIngredient: 'Emamectin benzoate',
-            brandName: 'Lancer 2.5 EC',
-            applicationRate: 0.5,
-            applicationsPerSeason: 3,
-            targetPests: ['Fall armyworm', 'Stemborer'],
-            cost: 45,
-            currency: Currency.GHS,
-            safetyPrecautions: []
-          },
-          {
-            pesticideType: PesticideType.INSECTICIDE,
-            activeIngredient: 'Lambda-cyhalothrin',
-            brandName: 'Karate 5EC',
-            applicationRate: 0.3,
-            applicationsPerSeason: 2,
-            targetPests: ['Cassava green mite'],
-            cost: 38,
-            currency: Currency.GHS,
-            safetyPrecautions: []
-          }
-        ],
-        usesIPM: true,
-        ipmPractices: [
-          IPMPractice.CROP_ROTATION,
-          IPMPractice.COMPANION_PLANTING,
-          IPMPractice.RESISTANT_VARIETIES,
-          IPMPractice.CULTURAL_CONTROLS
-        ],
-        biologicalControls: ['Neem extract', 'Trichogramma wasps'],
-        pestMonitoringFrequency: MonitoringFrequency.WEEKLY,
-        usesEconomicThresholds: true
-      },
-      equipmentEnergy: {
-        equipment: [
-          {
-            equipmentType: EquipmentType.MEDIUM_TRACTOR,
-            powerSource: PowerSource.DIESEL,
-            age: 8,
-            hoursPerYear: 320,
-            fuelEfficiency: 12.5
-          },
-          {
-            equipmentType: EquipmentType.SPRAYER,
-            powerSource: PowerSource.PETROL,
-            age: 3,
-            hoursPerYear: 85,
-            fuelEfficiency: 2.8
-          },
-          {
-            equipmentType: EquipmentType.WATER_PUMP,
-            powerSource: PowerSource.PETROL,
-            age: 5,
-            hoursPerYear: 120,
-            fuelEfficiency: 3.2
-          }
-        ],
-        fuelConsumption: [
-          {
-            fuelType: FuelType.DIESEL,
-            monthlyConsumption: 145,
-            primaryUse: 'Tractor operations (plowing, planting, transport)',
-            cost: 320
-          }
-        ],
-        energySources: [
-          {
-            energyType: EnergyType.GRID_ELECTRICITY,
-            monthlyConsumption: 85,
-            primaryUse: 'Lighting, phone charging, small tools',
-            cost: 65,
-            currency: Currency.GHS
-          }
-        ],
-        infrastructure: {
-          storageCapacity: 12000,
-          storageFacilities: [
-            StorageFacilityType.TRADITIONAL_GRANARY,
-            StorageFacilityType.HERMETIC_STORAGE
-          ],
-          transportAccess: {
-            roadAccess: RoadAccessType.GRAVEL_ROAD,
-            distanceToMarket: 18,
-            transportMode: [TransportMode.PICKUP_TRUCK, TransportMode.MOTORCYCLE],
-            transportCost: 45
-          }
-        }
-      },
-      assessmentParameters: {
-        functionalUnit: FunctionalUnit.PER_KG_PRODUCT, // Default to most common LCA functional unit
-        systemBoundary: SystemBoundary.CRADLE_TO_GATE, // Default to production-focused boundary
-        assessmentPeriod: 1,
-        includeUncertaintyAnalysis: true,
-        includeSensitivityAnalysis: true,
-        benchmarkComparison: true
-      }
-    },
+    // Blank by design: an untouched wizard must not validate (the old default was a complete
+    // synthetic farm that could be submitted with six clicks). Examples load only on request.
+    defaultValues: blankFarmAssessmentForm(),
     mode: 'onSubmit'
   });
 
@@ -377,7 +135,7 @@ function ComprehensiveAssessmentPage({
 
   // When launched from a saved farm (New assessment → /assessment?farmId=…), prefill the
   // farm profile from that record and remember the link so the result is saved against it.
-  // Skipped when re-running — the snapshot already has the farm identity.
+  // Skipped when re-running: the snapshot already has the farm identity.
   useEffect(() => {
     if (!farmId || rerunFrom) return;
     let active = true;
@@ -395,14 +153,14 @@ function ComprehensiveAssessmentPage({
         if (farm.farmer_name) methods.setValue('farmProfile.farmerName', farm.farmer_name);
       })
       .catch(() => {
-        /* farm not found / not owned — proceed with a blank assessment */
+        /* farm not found / not owned: proceed with a blank assessment */
       });
     return () => {
       active = false;
     };
   }, [farmId, rerunFrom, methods]);
 
-  // Keep the new step in view — Next/Back leave the scroll at the previous footer otherwise.
+  // Keep the new step in view: Next/Back leave the scroll at the previous footer otherwise.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   }, [currentStep]);
@@ -468,28 +226,7 @@ function ComprehensiveAssessmentPage({
       // Transform enhanced form data to API format
       const apiData = transformToAPIFormat(data);
 
-      // Debug: Check if fuelConsumption is being populated
-      const fuelConsumptionDebug = {
-        hasEquipmentEnergy: !!apiData.equipmentEnergy,
-        fuelConsumptionLength: apiData.equipmentEnergy?.fuelConsumption?.length || 0,
-        fuelConsumptionData: apiData.equipmentEnergy?.fuelConsumption,
-        energySourcesLength: apiData.equipmentEnergy?.energySources?.length || 0,
-        energySourcesData: apiData.equipmentEnergy?.energySources
-      };
-
-      console.log('=== FUEL CONSUMPTION DEBUG ===');
-      console.log('Equipment Energy Data:', apiData.equipmentEnergy);
-      console.log('Fuel Consumption Array LENGTH:', fuelConsumptionDebug.fuelConsumptionLength);
-      console.log('Fuel Consumption Array:', fuelConsumptionDebug.fuelConsumptionData);
-      console.log('Energy Sources Array:', fuelConsumptionDebug.energySourcesData);
-      console.log('==============================');
-
-      // Store in localStorage so we can check it later
-      localStorage.setItem('lastFuelDebug', JSON.stringify(fuelConsumptionDebug, null, 2));
-
       // Submit comprehensive assessment to backend
-      console.log('Submitting comprehensive assessment:', apiData);
-      
       const submitOpts = {
         farmId: farmId ?? undefined,
         title: data.farmProfile?.farmName || undefined,
@@ -499,7 +236,7 @@ function ComprehensiveAssessmentPage({
         ? await assessmentAPI.rerunFarmAssessment(rerunId, apiData, submitOpts)
         : await assessmentAPI.submitComprehensiveAssessmentStream(apiData, submitOpts, setLiveProgress);
 
-      // Rerun updates in place — always navigate to the existing id, not a
+      // Rerun updates in place: always navigate to the existing id, not a
       // freshly minted engine uuid that is not a DB row.
       const resultId = rerunId ?? result.id;
 
@@ -510,7 +247,7 @@ function ComprehensiveAssessmentPage({
       setSubmitResult({
         success: true,
         message: rerunId
-          ? 'Assessment updated — scores and report have been replaced.'
+          ? 'Assessment updated: scores and report have been replaced.'
           : 'Comprehensive assessment completed successfully!',
         assessmentId: resultId,
       });
@@ -731,7 +468,7 @@ function ComprehensiveAssessmentPage({
             {rerunId && (
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-4 py-1.5 text-sm font-medium text-amber-900">
                 <AlertTriangle className="w-4 h-4" />
-                Editing saved assessment — submit will replace its scores and report
+                Editing saved assessment: submit will replace its scores and report
               </div>
             )}
             {loadError && (
@@ -1070,7 +807,7 @@ function ComprehensiveAssessmentPage({
         </div>
       </div>
 
-      {/* Wizard field styles — kept with the feature so they survive design-system edits. */}
+      {/* Wizard field styles: kept with the feature so they survive design-system edits. */}
       <style jsx global>{`
         .gmg-input {
           width: 100%;

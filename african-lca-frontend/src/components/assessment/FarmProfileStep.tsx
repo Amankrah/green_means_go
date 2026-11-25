@@ -42,31 +42,39 @@ export default function FarmProfileStep() {
   const selectedCountry = watch('farmProfile.country');
   const countryField = register('farmProfile.country');
 
-  // When the user picks a country, load that country's example farm (from the validated
-  // case studies) so agronomic defaults reflect a real farm for the region. Custom
-  // farmer/farm names are preserved — only empty or known demo placeholders are replaced.
+  // Picking a country only sets the country. It used to replace the whole form with that
+  // country's example farm, which let an untouched wizard submit demo data as a real
+  // assessment. The example is now loaded only by the explicit button below.
   const onCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     countryField.onChange(e);                       // keep react-hook-form in sync
-    const example = COUNTRY_EXAMPLES[e.target.value];
-    if (example) {
-      const current = getValues();
-      const keepFarmer = !isExampleIdentity(current.farmProfile?.farmerName, EXAMPLE_FARMER_NAMES);
-      const keepFarm = !isExampleIdentity(current.farmProfile?.farmName, EXAMPLE_FARM_NAMES);
-      reset({
-        ...current,
-        ...example,
-        farmProfile: {
-          ...example.farmProfile,
-          farmerName: keepFarmer
-            ? current.farmProfile.farmerName
-            : example.farmProfile.farmerName,
-          farmName: keepFarm
-            ? current.farmProfile.farmName
-            : example.farmProfile.farmName,
-          country: e.target.value as EnhancedAssessmentFormData['farmProfile']['country'],
-        },
-      } as EnhancedAssessmentFormData);
+    const region = getValues('farmProfile.region');
+    const regions = REGIONS_BY_COUNTRY[e.target.value as keyof typeof REGIONS_BY_COUNTRY] as string[] | undefined;
+    if (region && regions && !regions.includes(region)) {
+      setValue('farmProfile.region', '');
     }
+  };
+
+  const exampleAvailable = !!(selectedCountry && COUNTRY_EXAMPLES[selectedCountry]);
+
+  // Explicit "load example" action: fills every step with the country's validated case-study
+  // farm so a user can explore the wizard. Custom farmer/farm names are preserved.
+  const loadExampleFarm = () => {
+    const example = selectedCountry ? COUNTRY_EXAMPLES[selectedCountry] : undefined;
+    if (!example) return;
+    if (!window.confirm('Replace everything entered so far with the example farm for this country?')) return;
+    const current = getValues();
+    const keepFarmer = !isExampleIdentity(current.farmProfile?.farmerName, EXAMPLE_FARMER_NAMES);
+    const keepFarm = !isExampleIdentity(current.farmProfile?.farmName, EXAMPLE_FARM_NAMES);
+    reset({
+      ...current,
+      ...example,
+      farmProfile: {
+        ...example.farmProfile,
+        farmerName: keepFarmer ? current.farmProfile.farmerName : example.farmProfile.farmerName,
+        farmName: keepFarm ? current.farmProfile.farmName : example.farmProfile.farmName,
+        country: selectedCountry as EnhancedAssessmentFormData['farmProfile']['country'],
+      },
+    } as unknown as EnhancedAssessmentFormData);
   };
   const totalFarmSize = watch('farmProfile.totalFarmSize');
 
@@ -223,9 +231,15 @@ export default function FarmProfileStep() {
                 {errors.farmProfile.country.message}
               </p>
             )}
-            <p className="mt-1 text-xs text-muted">
-              Choosing a country loads a matching example farm you can then edit.
-            </p>
+            {exampleAvailable && (
+              <button
+                type="button"
+                onClick={loadExampleFarm}
+                className="mt-2 text-xs font-medium text-moss hover:text-spruce underline underline-offset-2"
+              >
+                Load an example farm for this country (replaces your entries)
+              </button>
+            )}
           </div>
 
           <div>

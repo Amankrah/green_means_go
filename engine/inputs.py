@@ -213,16 +213,30 @@ def _fertiliser_inputs(assessment, total_area, inputs, notes):
     if not (fert.get("uses_fertilizers") or fert.get("fertilizer_applications")):
         return
     if not total_area:
-        notes.append("fertiliser reported but no crop area: cannot scale fertiliser inputs")
+        notes.append(f"{pz.WARNING_PREFIX}fertiliser reported but no crop area: fertiliser "
+                     "inputs cannot be scaled, so they are NOT counted")
     for app in fert.get("fertilizer_applications") or []:
         if not isinstance(app, dict):
             continue
+        ftype = app.get("fertilizer_type", "fertiliser")
         rate = app.get("application_rate") or 0
-        n = app.get("applications_per_season") or 1
+        n = app.get("applications_per_season")
+        if n is None:
+            n = 1                      # not stated: one application per season
+        if rate < 0 or n < 0:
+            # Rejected by the API model; defend the engine anyway so a negative rate can
+            # never become an emission credit.
+            notes.append(f"{pz.WARNING_PREFIX}fertiliser '{ftype}': negative rate or "
+                         "application count set to zero")
+            rate, n = max(rate, 0), max(n, 0)
+        if n == 0:
+            # 0 means zero everywhere (the kernel already read it as 0; this layer used to
+            # read it as 1 and count a fertiliser the field model did not).
+            notes.append(f"fertiliser '{ftype}': 0 applications per season; not counted")
+            continue
         kg = rate * n * total_area
         if kg <= 0:
             continue
-        ftype = app.get("fertilizer_type", "fertiliser")
         npk = (app.get("npk_ratio") or "").strip()
         name = f"{ftype} {npk}".strip() + " fertiliser"
         row = {"name": name, "amount": kg, "unit": "kg", "kind": "fertiliser"}
@@ -258,6 +272,10 @@ def _energy_inputs(assessment, inputs, notes):
     metered: dict[str, list] = {}       # carrier -> [(primary_use, monthly)]
     for fu in ee.get("fuel_consumption") or []:
         monthly = fu.get("monthly_consumption") or 0
+        if monthly < 0:
+            notes.append(f"{pz.WARNING_PREFIX}fuel '{fu.get('fuel_type')}': negative monthly "
+                         "consumption ignored")
+            continue
         if monthly <= 0:
             continue
         carrier = carrier_or_classify(fu.get("fuel_type"), notes)
@@ -276,6 +294,10 @@ def _energy_inputs(assessment, inputs, notes):
     for en in ee.get("energy_sources") or []:
         et = _norm(en.get("energy_type"))
         monthly = en.get("monthly_consumption") or 0
+        if monthly < 0:
+            notes.append(f"{pz.WARNING_PREFIX}energy source '{en.get('energy_type')}': negative "
+                         "monthly consumption ignored")
+            continue
         if monthly <= 0:
             continue
         annual = monthly * 12
@@ -314,6 +336,10 @@ def _energy_inputs(assessment, inputs, notes):
         ps = _norm(eq.get("power_source"))
         hrs = eq.get("hours_per_year") or 0
         etype = _norm(eq.get("equipment_type"))
+        if hrs < 0:
+            notes.append(f"{pz.WARNING_PREFIX}equipment '{eq.get('equipment_type')}': negative "
+                         "hours per year ignored")
+            continue
         if hrs <= 0:
             continue
         if any(w in ps for w in ("manual", "human", "animal")):
@@ -386,6 +412,9 @@ def _compost_inputs(assessment, total_area, inputs, notes):
         return
     src = _norm(sm.get("compost_source"))
     rate_t_ha = sm.get("compost_application_rate")
+    if rate_t_ha is not None and rate_t_ha < 0:
+        notes.append(f"{pz.WARNING_PREFIX}compost application rate is negative; set to zero")
+        rate_t_ha = 0
     if "purchas" in src:
         if rate_t_ha and total_area:
             inputs.append({"name": "compost", "match_as": "market for compost",

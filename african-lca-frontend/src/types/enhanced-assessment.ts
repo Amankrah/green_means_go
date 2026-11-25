@@ -539,7 +539,8 @@ export enum EnergyType {
 
 export interface FuelUsage {
   fuelType: FuelType;
-  monthlyConsumption: number; // liters (kg for LPG cylinders)
+  monthlyConsumption: number; // in `unit` (litres for liquid fuels, kg for LPG cylinders)
+  unit?: 'L' | 'kg';
   primaryUse: string;
   cost: number; // cost per liter
 }

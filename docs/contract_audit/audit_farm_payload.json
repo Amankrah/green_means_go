@@ -1,0 +1,313 @@
+{
+  "audit": "FARM (production) assessment contract: frontend wizard -> POST /assess -> engine",
+  "repo": "C:/Users/Windows/Desktop/Dev_Projects/green_means_go",
+  "date": "2026-11-25",
+  "method": {
+    "read_only": true,
+    "files_read": [
+      "app/production/models.py", "app/production/routes.py", "app/auth/deps.py", "app/test_request_schema.py",
+      "engine/inputs.py", "engine/service.py", "engine/adapter.py", "engine/field_model.py", "engine/field_params.py",
+      "engine/pesticides.py", "engine/crop_defaults.py", "engine/regions.py", "engine/rust_kernel.py", "engine/energy_carriers.py",
+      "engine/activity_defaults.py", "engine/commodities.py", "engine/test_wizard_inputs.py",
+      "african_lca_backend/src/main.rs", "african_lca_backend/src/production/lci.rs", "african_lca_backend/src/production/lci_extended.rs",
+      "african-lca-frontend/src/lib/enhanced-assessment-schema.ts", "african-lca-frontend/src/lib/api.ts",
+      "african-lca-frontend/src/lib/country-examples.ts", "african-lca-frontend/src/types/assessment.ts",
+      "african-lca-frontend/src/types/enhanced-assessment.ts", "african-lca-frontend/src/app/assessment/page.tsx",
+      "african-lca-frontend/src/components/assessment/*.tsx"
+    ],
+    "direct_pydantic_probe": {
+      "script": "C:/Users/Windows/AppData/Local/Temp/claude/c--Users-Windows-Desktop-Dev-Projects-green-means-go/9a036904-71db-4f05-a48d-152bf6529012/scratchpad/probe_pydantic.py",
+      "results_file": "C:/Users/Windows/AppData/Local/Temp/claude/c--Users-Windows-Desktop-Dev-Projects-green-means-go/9a036904-71db-4f05-a48d-152bf6529012/scratchpad/probe_results.json",
+      "command": "PYTHONPATH=app .venv/Scripts/python.exe probe_pydantic.py <out>",
+      "payloads_tried": 74,
+      "accepted": 52,
+      "rejected": 22
+    },
+    "engine_probe": "engine.inputs.extract_purchased_inputs, engine.field_model._compost_n2o and the Rust kernel binary (african_lca_backend/target/release/server.exe via engine.rust_kernel.onfarm_lci_from_assessment) were run in-process on the bypass payloads; no HTTP server was started.",
+    "existing_tests_run": "cd app && pytest test_request_schema.py -q -> 21 passed"
+  },
+
+  "A_field_contract": {
+    "legend": {
+      "OK": "name and type match, presence compatible",
+      "MISMATCH": "name or type differs",
+      "FRONTEND_SENDS_UNKNOWN_KEY": "key the frontend sends that pydantic extra=forbid would reject",
+      "BACKEND_REQUIRED_BUT_FRONTEND_MAY_OMIT": "pydantic requires, frontend can leave out",
+      "FRONTEND_SENDS_BUT_BACKEND_IGNORES": "accepted by pydantic but never reaches the engine or is never read",
+      "ENGINE_READS_BUT_NOT_VALIDATED": "engine consumes the value but pydantic imposes no constraint beyond type"
+    },
+    "top_level": [
+      {"backend_field": "company_name", "backend": "str, required (models.py:295)", "frontend_sends": "always: `${farmerName} - ${farmName}` (api.ts:507)", "engine_reads": "adapter.py:412 echo only", "status": "OK", "note": "empty string accepted server-side (probe minimal_empty_strings ACCEPT); zod requires >=2 chars for each name (schema.ts:97-103)"},
+      {"backend_field": "country", "backend": "str, required, validator in VALID_COUNTRIES Ghana|Nigeria|Global (models.py:296, 328-333)", "frontend_sends": "always, mapped via COUNTRY_TO_REGION (api.ts:502-508; country-examples.ts:222-227): Ghana->Ghana, Nigeria->Nigeria, Canada/Senegal/Burkina Faso/South Africa->Global", "engine_reads": "service.py:92-96 region fallback", "status": "OK"},
+      {"backend_field": "region", "backend": "Optional[str], no validator (models.py:298)", "frontend_sends": "always: GH|NG|CA|SN|BF|ZA (api.ts:509)", "engine_reads": "routes.py:105 passes it as `region=` override; service.py:83-85 returns the override UNCHECKED; service.py:274 _engine -> regions.get_region raises KeyError for unknown codes (regions.py:332-341)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "probe bogus_region ('Mars') and empty_region ('') ACCEPT at pydantic; engine then fails with KeyError -> HTTP 500 'Assessment failed: unknown region' instead of 422. Note the wizard's admin region (farmProfile.region, zod-required schema.ts:109-111) is never sent; study_meta.admin_region exists for it (models.py:286-291) but api.ts never populates study_meta."},
+      {"backend_field": "foods", "backend": "List[FoodItem], required, NO min_length (models.py:297)", "frontend_sends": "always, 1..10 items (zod min(1) schema.ts:246)", "engine_reads": "everywhere", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "probe empty_foods ACCEPT. Engine then runs with zero crops: inputs.py:463-487 extracts nothing, total_production_kg=0, adapter.py:257 `total_kg = total_kg or 1.0`, Rust kernel returns 0 flows (verified) -> a saved all-zero assessment."},
+      {"backend_field": "farm_id", "backend": "Optional[str] (models.py:301)", "frontend_sends": "conditionally (api.ts:405)", "engine_reads": "no; routes.py:54-61 ownership check", "status": "OK"},
+      {"backend_field": "title", "backend": "Optional[str] (models.py:302)", "frontend_sends": "conditionally = farmName (page.tsx:495, api.ts:406)", "engine_reads": "no; saved (routes.py:126)", "status": "OK"},
+      {"backend_field": "farm_profile", "backend": "Optional[FarmProfile] (models.py:305)", "frontend_sends": "always (api.ts:510-519)", "engine_reads": "adapter.py:415 echo; iso_report.py:134 farmer_name; routes.py:198 presence check on /assess/comprehensive only", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES", "note": "no FarmProfile field changes any number; see nested table"},
+      {"backend_field": "management_practices", "backend": "Optional[ManagementPractices] (models.py:306)", "frontend_sends": "always (api.ts:520-561)", "engine_reads": "inputs.py, field_model.py, farm_flows.py, Rust kernel", "status": "OK", "note": "optional server-side: /assess with no management_practices is a valid 'simple' assessment"},
+      {"backend_field": "equipment_energy", "backend": "Optional[EquipmentEnergy] (models.py:307)", "frontend_sends": "always (api.ts:563-585)", "engine_reads": "inputs.py:271-355", "status": "OK"},
+      {"backend_field": "logistics", "backend": "Optional[FarmLogistics] (models.py:308)", "frontend_sends": "always (api.ts:586-594)", "engine_reads": "inputs.py:407-460 _logistics_inputs reads assessment['logistics'] (packaging, input transport km, market transport)", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES", "note": "DROPPED AT THE ROUTE: routes.py:72-89 _build_farm_rust_input copies company_name, country, foods, region, farm_profile, management_practices, equipment_energy and never `request.logistics`; _run_farm_engine (92-109) adds only study_meta and ipcc_ef1_scale. grep for 'logistics' in app/ and engine/ finds only models.py:308, test_request_schema.py and test_wizard_inputs.py:234 besides inputs.py. Effect: the farmer's packaging material, distance to market/mode and input_transport_km are silently discarded; the engine always applies INPUT_TRANSPORT_DEFAULT_KM = 230 km (inputs.py:97-99, 433-436) and never adds packaging or market transport. The pydantic test (test_request_schema.py:112) and the engine test (test_wizard_inputs.py:234-235) each pass in isolation; nothing tests the route in between."},
+      {"backend_field": "form_snapshot", "backend": "Optional[Dict[str, Any]] (models.py:311)", "frontend_sends": "always = whole zod form data (page.tsx:496, api.ts:407)", "engine_reads": "no; archived (routes.py:64-69)", "status": "OK", "note": "unbounded opaque blob; probe form_snapshot_arbitrary ACCEPT"},
+      {"backend_field": "lcia_method", "backend": "Optional[str], validator in SUPPORTED_LCIA_METHODS (models.py:314, 335-344)", "frontend_sends": "never (farm wizard)", "engine_reads": "service.py:274", "status": "OK"},
+      {"backend_field": "run_uncertainty", "backend": "bool = True (models.py:320)", "frontend_sends": "never (assessmentParameters.includeUncertaintyAnalysis is collected, schema.ts:450, but not mapped)", "engine_reads": "service.py:300,318", "status": "OK", "note": "pydantic coerces 'yes' -> True (probe run_uncertainty_string ACCEPT)"},
+      {"backend_field": "study_meta", "backend": "Optional[StudyMeta] crop_year/season/admin_region, no bounds (models.py:286-291, 323)", "frontend_sends": "never", "engine_reads": "adapter.py:473 echo", "status": "OK", "note": "crop_year -5000 accepted (probe study_meta_bogus_year)"},
+      {"backend_field": "ipcc_ef1_scale", "backend": "Optional[float], no bounds (models.py:326)", "frontend_sends": "never", "engine_reads": "routes.py:96-97 -> field_params", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-3 and 1e6 ACCEPT (probe); a negative EF1 scale would produce negative N2O"}
+    ],
+    "farm_profile": [
+      {"field": "farmer_name", "backend": "str required (models.py:100)", "frontend": "always (api.ts:511); zod min 2 (schema.ts:97-99)", "engine": "iso_report.py:134 echo", "status": "OK", "note": "empty string accepted server-side"},
+      {"field": "farm_name", "backend": "str required (101)", "frontend": "always (512)", "engine": "echo only", "status": "OK"},
+      {"field": "total_farm_size", "backend": "float required, NO bounds (102)", "frontend": "always (513); zod 0.1..10000 (schema.ts:121-123)", "engine": "NOT READ by any engine module (grep total_farm_size in engine/: none; Rust main.rs:243 parses it but no LCI use)", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES", "note": "0, -100, 1e9 all ACCEPT (probe). The zod superRefine sum(area_allocated) <= totalFarmSize (schema.ts:467-478) has no server counterpart: probe area_exceeds_farm_size (1 ha farm, 500 ha crop) ACCEPT."},
+      {"field": "farming_experience", "backend": "int required (103)", "frontend": "always (514); zod 0..80", "engine": "no", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES", "note": "-5 accepted"},
+      {"field": "farm_type", "backend": "FarmType enum (104, 59-65)", "frontend": "always (515); TS FarmType values identical (enhanced-assessment.ts:91-98)", "engine": "no", "status": "OK"},
+      {"field": "primary_farming_system", "backend": "FarmingSystem enum (105, 67-74)", "frontend": "always (516); TS identical (100-108)", "engine": "no", "status": "OK"},
+      {"field": "certifications", "backend": "List[str] = [] (106)", "frontend": "always (517)", "engine": "no", "status": "OK"},
+      {"field": "participates_in_programs", "backend": "List[str] = [] (107)", "frontend": "always (518)", "engine": "no", "status": "OK"}
+    ],
+    "management_practices.soil_management": [
+      {"field": "soil_type", "backend": "Optional[SoilType] space-less enum (models.py:110, 76-84)", "frontend": "always; UI enum has spaces ('Clay Loam', enhanced-assessment.ts:236-245) and api.ts:525 strips spaces", "engine": "land_use_change.py:148 (LUC soil class)", "status": "OK", "note": "transform-dependent: raw UI value 'Clay Loam' is rejected (probe soil_type_with_space_ClayLoam REJECT)"},
+      {"field": "uses_compost", "backend": "bool = False (111)", "frontend": "always (526)", "engine": "inputs.py:391, field_model.py:97, farm_flows.py:113", "status": "OK", "note": "Rust kernel reads it NESTED as compost_use.uses_compost (main.rs:518-521), which the API never sends, so the kernel's uses_compost is always false; verified: kernel output contains 'Soil organic carbon loss' and never 'Compost use' even with uses_compost=true. Only affects a Rust midpoint the Python engine discards (rust_kernel.py:99-135 keeps LCI flows only) -> dead code, not a number change."},
+      {"field": "compost_source", "backend": "Optional[str] free text (112)", "frontend": "always; CompostSource enum incl. 'Not used' (enhanced-assessment.ts:273-280)", "engine": "inputs.py:393-404 keyword 'purchas'; field_model.py:102 COMPOST_N_FRACTION lookup by exact string; farm_flows.py:111-113 'farm-made'", "status": "ENGINE_READS_BUT_NOT_VALIDATED"},
+      {"field": "compost_application_rate", "backend": "Optional[float], NO bounds (113)", "frontend": "conditionally (527); zod 0..100 (schema.ts:273-276)", "engine": "inputs.py:394-397 purchased compost kg = rate*1000*area; field_model.py:96-110 organic-N N2O", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "probe compost_negative_rate ACCEPT; engine then creates a NEGATIVE purchased input 'compost -20000.0 kg' (verified) = an emissions credit. 1e6 t/ha accepted -> 2e9 kg compost and 436731 kg N2O (verified)."},
+      {"field": "conservation_practices", "backend": "List[str] = [] (114)", "frontend": "always (528)", "engine": "no (Rust midpoint only)", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES"},
+      {"field": "soil_testing_frequency", "backend": "Optional[str] (115)", "frontend": "always (529)", "engine": "no", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES"}
+    ],
+    "management_practices.fertilization": [
+      {"field": "uses_fertilizers", "backend": "bool = False (125)", "frontend": "always (532)", "engine": "inputs.py:228 `if not (uses_fertilizers or fertilizer_applications)`; Rust lci.rs:337-339 returns early when false", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "INCONSISTENT when false with applications present (probe fert_uses_false_but_apps_present ACCEPT): Python counts 800 kg urea production (verified) while the kernel emits NO fertiliser N2O (verified: only crop-residue N2O). The UI clears the array when unticked (ManagementPracticesStep.tsx:291-297) so this needs the direct API."},
+      {"field": "fertilizer_applications[].fertilizer_type", "backend": "str required, free text (118)", "frontend": "always; FertilizerType enum incl. 'None' (enhanced-assessment.ts:306-317)", "engine": "inputs.py:243-248 FERTILISER_MATCH keywords; Rust field::fertiliser_n by name/NPK", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'' and 'Unicorn dust' ACCEPT (probe)"},
+      {"field": "fertilizer_applications[].npk_ratio", "backend": "Optional[str] (119)", "frontend": "always (535)", "engine": "inputs.py:242; Rust fertiliser_n", "status": "OK", "note": "'99-99-99' accepted"},
+      {"field": "fertilizer_applications[].application_rate", "backend": "float required, NO bounds (120)", "frontend": "always (536); zod 0..1000 (schema.ts:298-300)", "engine": "inputs.py:236-241 kg = rate*n*area (skips kg<=0); Rust lci.rs:367-369 N = rate*Nfrac*area*apps (NO sign check)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "probe fert_rate_negative ACCEPT: Rust kernel then emits N2O -9.25 kg direct / -2.42 kg indirect (verified run). fert_rate_zero ACCEPT -> row silently ignored. 1e9 ACCEPT."},
+      {"field": "fertilizer_applications[].applications_per_season", "backend": "int required, NO bounds (121)", "frontend": "always (537); zod 0..10", "engine": "inputs.py:238 `or 1` (0 -> 1!); Rust lci.rs:368", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "applications_per_season=0 is treated as 1 by inputs.py:238 (`app.get(...) or 1`) but as 0 by the kernel -> purchased fertiliser counted, field N2O zero. Negative accepted; 1.5 rejected (int)."},
+      {"field": "fertilizer_applications[].cost", "backend": "Optional[float] (122)", "frontend": "always (538)", "engine": "no", "status": "OK"},
+      {"field": "soil_test_based / follows_nutrient_plan", "backend": "bool (127-128)", "frontend": "always (539-540)", "engine": "no", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES"}
+    ],
+    "management_practices.water_management": [
+      {"field": "water_source", "backend": "List[str] = [] free text (133)", "frontend": "always, zod min 1 (schema.ts:322-323; 543)", "engine": "inputs.py:195 drops 'rain*'; 365-370 'municipal|tap|piped' -> tap water; farm_flows AWARE withdrawal", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'Unicorn tears' accepted"},
+      {"field": "irrigation_system", "backend": "Optional[str] free text (134)", "frontend": "conditionally (544); UI enum incl. 'None (Rainfed)' (enhanced-assessment.ts:356-363)", "engine": "crop_defaults.irrigation_system_key; inputs.py:189-216 water estimate; activity_defaults.py:116-143", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "probe irrigation_bogus_system_and_source ACCEPT; engine treats unknown 'Teleportation' as surface irrigation and INVENTS 10833 m3 water + diesel/electric pumping energy (verified)."},
+      {"field": "irrigation_water_m3", "backend": "Optional[float], NO bounds (138)", "frontend": "conditionally (545); zod min 0", "engine": "inputs.py:197-201 (<=0 -> None); service.py:130-132 partition", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "1e12 ACCEPT -> 3e11 MJ pumping energy (verified); -100 accepted and treated as 'not measured' (falls back to the estimate, so a negative cannot switch irrigation off)"},
+      {"field": "water_conservation_practices", "backend": "List[str] = [] (140)", "frontend": "always (546)", "engine": "report only (inputs.py:505)", "status": "OK"}
+    ],
+    "management_practices.pest_management": [
+      {"field": "management_approach", "backend": "str = 'IntegratedIPM' (160)", "frontend": "always (551)", "engine": "report only", "status": "OK"},
+      {"field": "uses_ipm", "backend": "bool (161)", "frontend": "always (552)", "engine": "report only", "status": "OK"},
+      {"field": "pesticides (alias pesticides_used)", "backend": "List[PesticideApplication] = [] (162, 155-158)", "frontend": "always under `pesticides` (553)", "engine": "pesticides.py:100-146", "status": "OK"},
+      {"field": "pesticides[].pesticide_type", "backend": "str required free text (143)", "frontend": "always (554)", "engine": "pesticides.py:123 fallback AI text", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'' accepted"},
+      {"field": "pesticides[].active_ingredient", "backend": "str required (144)", "frontend": "always, zod min 1 (schema.ts:356; 555)", "engine": "pesticides.py:123-125 canonical_ai", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'' accepted server-side -> falls back to pesticide_type then 'pesticide'"},
+      {"field": "pesticides[].application_rate", "backend": "float required NO bounds (145)", "frontend": "always (556); zod 0..100", "engine": "pesticides.py:116-122 skips kg<=0", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "0 -> row silently dropped; negative -> dropped; 1e9 accepted"},
+      {"field": "pesticides[].applications_per_season", "backend": "int required NO bounds (146)", "frontend": "always (557); zod 0..20", "engine": "pesticides.py:117 `or 1` (0 -> 1)", "status": "ENGINE_READS_BUT_NOT_VALIDATED"},
+      {"field": "pesticides[].active_ingredient_content", "backend": "Optional[float] NO bounds (149)", "frontend": "conditionally (558); zod (0,1]", "engine": "pesticides.py:126-134 uses only if 0<c<=1, else formulation default", "status": "OK", "note": "5.0 accepted and silently replaced by the table default"},
+      {"field": "pesticides[].target_pests", "backend": "List[str] (150)", "frontend": "always (559)", "engine": "report only", "status": "OK"},
+      {"field": "pest_monitoring_frequency (alias monitoring_frequency)", "backend": "Optional[str] (163)", "frontend": "always (560)", "engine": "report only", "status": "OK"}
+    ],
+    "equipment_energy": [
+      {"field": "equipment[].equipment_type", "backend": "str required (175)", "frontend": "always (565)", "engine": "inputs.py:316-346 TRACTOR_CLASS_HP keywords; 'pump' in pumping_declared (168-170)", "status": "ENGINE_READS_BUT_NOT_VALIDATED"},
+      {"field": "equipment[].power_source", "backend": "str required (176)", "frontend": "always (566)", "engine": "inputs.py:314-328 keyword routing", "status": "ENGINE_READS_BUT_NOT_VALIDATED"},
+      {"field": "equipment[].age", "backend": "int required (177)", "frontend": "always (567)", "engine": "report only (inputs.py:506)", "status": "OK", "note": "-1 accepted"},
+      {"field": "equipment[].hours_per_year", "backend": "float required NO bounds (178)", "frontend": "always (568); zod 0..4000", "engine": "inputs.py:315-319 skips <=0", "status": "ENGINE_READS_BUT_NOT_VALIDATED"},
+      {"field": "equipment[].fuel_efficiency", "backend": "Optional[float] (179)", "frontend": "conditionally (569)", "engine": "inputs.py:330-342 (falsy -> ASABE estimate)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-5 accepted -> negative litres"},
+      {"field": "energy_sources[].energy_type", "backend": "str required (185)", "frontend": "always (572); EnergyType enum (enhanced-assessment.ts:531-538)", "engine": "inputs.py:277-304 keyword routing", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'Nuclear' accepted, engine notes 'not recognised; not counted'"},
+      {"field": "energy_sources[].monthly_consumption", "backend": "float required NO bounds (186)", "frontend": "always (573); zod min 0", "engine": "inputs.py:278-280 skips <=0", "status": "ENGINE_READS_BUT_NOT_VALIDATED"},
+      {"field": "energy_sources[].unit", "backend": "Optional[str] (187)", "frontend": "never", "engine": "inputs.py:291-304 natural unit", "status": "OK"},
+      {"field": "energy_sources[].primary_use", "backend": "str required (188)", "frontend": "always (574)", "engine": "inputs.py:172-175 'irrig|pump' -> pumping declared", "status": "OK"},
+      {"field": "energy_sources[].cost / currency", "backend": "Optional (189-190)", "frontend": "always (575-576)", "engine": "no", "status": "OK"},
+      {"field": "fuel_consumption[].fuel_type", "backend": "str required (193)", "frontend": "always (579); FuelType enum (547-552)", "engine": "inputs.py:264 carrier_or_classify (unknown -> diesel)", "status": "ENGINE_READS_BUT_NOT_VALIDATED"},
+      {"field": "fuel_consumption[].monthly_consumption", "backend": "float required NO bounds (194)", "frontend": "always (580); zod min 0", "engine": "inputs.py:262-263 skips <=0", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "1e12 accepted"},
+      {"field": "fuel_consumption[].unit", "backend": "Optional[str] (195)", "frontend": "NEVER sent (api.ts:578-583 has no unit)", "engine": "inputs.py:267 `fu.get('unit') or 'L'`", "status": "MISMATCH", "note": "UI label and schema comment say LPG 'may be in kg' (schema.ts:394, enhanced-assessment.ts:542) but no unit is sent, so 6 kg LPG is read as 6 L (verified: 'lpg (farm) 1839 MJ' from 6/month). The pydantic test fixture (test_request_schema.py:61-62) DOES include unit:'kg', so the fixture is not 'exactly what the frontend builds' as its docstring claims (lines 4-6)."},
+      {"field": "fuel_consumption[].primary_use", "backend": "str required (196)", "frontend": "always (581); zod min 1", "engine": "inputs.py:172-175", "status": "OK"},
+      {"field": "fuel_consumption[].cost", "backend": "Optional[float] (197)", "frontend": "always (582)", "engine": "no", "status": "OK"},
+      {"field": "infrastructure (frontend only)", "backend": "NOT in EquipmentEnergy", "frontend": "NOT sent (api.ts:563 comment 'strip infrastructure'); storageCapacity/roadAccess/transportMode are zod-required (schema.ts:420-430) but only feed `logistics`", "engine": "n/a", "status": "OK", "note": "sending it would be rejected: probe frontend_infrastructure_key_in_equipment_energy REJECT 'Extra inputs are not permitted'"}
+    ],
+    "logistics": [
+      {"field": "packaging_material", "backend": "Optional[str] (208)", "frontend": "conditionally (587)", "engine": "inputs.py:412-425 (if it arrived)", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES", "note": "dropped by routes.py:72-89 (see top_level.logistics)"},
+      {"field": "packaging_kg_per_tonne", "backend": "Optional[float] NO bounds (209)", "frontend": "conditionally (588)", "engine": "inputs.py:413-416", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES", "note": "if forwarded, -5 would give 'PP sacks packaging -5.0 kg' (verified at engine level)"},
+      {"field": "distance_to_market_km", "backend": "Optional[float] (212)", "frontend": "always (589) from zod-required distanceToMarket", "engine": "inputs.py:448-460", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES"},
+      {"field": "market_transport_mode", "backend": "Optional[str] (213)", "frontend": "always (590-592 pickMarketMode)", "engine": "inputs.py:450-456", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES"},
+      {"field": "input_transport_km", "backend": "Optional[float] (216)", "frontend": "conditionally (593)", "engine": "inputs.py:433-446 else 230 km default", "status": "FRONTEND_SENDS_BUT_BACKEND_IGNORES"}
+    ],
+    "foods[]": [
+      {"field": "id", "backend": "str required (238)", "frontend": "always `crop_${i+1}` (596)", "engine": "no", "status": "OK", "note": "'' accepted"},
+      {"field": "name", "backend": "str required (239)", "frontend": "always cropName (597); zod min 1", "engine": "crop_defaults.crop_key (name/crop_type/variety keywords), commodities.py:36-38 honey reject, perennials, field_params", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "'' accepted server-side; unknown crop -> category defaults"},
+      {"field": "quantity_kg", "backend": "float required, validator v<=0 rejected (240, 272-277)", "frontend": "always annualProduction (598); zod 0.1..1e8", "engine": "total_production_kg (inputs.py:490), adapter per-kg divisor, logistics harvest_t", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "0 and -5 REJECT (good). BUT NaN and inf ACCEPT (pydantic float allows them; `nan <= 0` is False): probe qty_nan, qty_inf. With NaN the Rust kernel fails to parse ('Error parsing JSON', verified) -> HTTP 500. 1e12 and 1e-9 accepted (per-kg results become meaningless)."},
+      {"field": "category", "backend": "str, validator in VALID_FOOD_CATEGORIES (241, 265-270)", "frontend": "always (599); CropDetailsStep.tsx:35ff options match", "engine": "crop_defaults CATEGORY_SEED / CATEGORY_WATER", "status": "OK"},
+      {"field": "crop_type", "backend": "Optional[str] (242)", "frontend": "always = variety (600)", "engine": "crop_key", "status": "OK"},
+      {"field": "origin_country", "backend": "Optional[str] (243)", "frontend": "always = UI country e.g. 'Canada' (601)", "engine": "no", "status": "OK"},
+      {"field": "production_system", "backend": "Optional[ProductionSystem] enum (244)", "frontend": "always (602); TS enum identical (160-169)", "engine": "activity_defaults.py:124 'irrigat' check", "status": "OK"},
+      {"field": "seasonal_factor", "backend": "Optional[SeasonalFactor] WetSeason|DrySeason|YearRound (245, 93-96)", "frontend": "always = seasonality.season[0] (603)", "engine": "crop_defaults.py:153 IRRIGATION_SHARE (drives the irrigation water estimate)", "status": "MISMATCH", "note": "(a) TS SeasonType has 'Harmattan' (enhanced-assessment.ts:190) which the backend enum lacks -> would 422 (probe food_bad_seasonal_factor_enum REJECT). (b) The wizard offers NO control for `season`: new crops are hard-coded [WetSeason] (CropDetailsStep.tsx:137) and no input registers seasonality.season, so every wizard crop is sent as WetSeason regardless of dry-season irrigation. A material hidden default."},
+      {"field": "variety", "backend": "Optional[str] (248)", "frontend": "always (604); zod-required min 1", "engine": "crop_key", "status": "OK"},
+      {"field": "area_allocated", "backend": "Optional[float], NO bounds (249)", "frontend": "always (605); zod 0.01..10000 + sum<=farm size", "engine": "inputs.py:149-150 total area scales fertiliser/pesticide/compost/seed; service.py:277-290 per-crop split; Rust lci.rs:343-349 (only ==0 guard) and 367-369; adapter.py:344 per-ha", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "MOST MATERIAL GAP. Omitted/0: all fertiliser, pesticide, compost and seed inputs AND all fertiliser field N2O vanish silently (verified: kernel 0 flows, inputs note 'cannot scale fertiliser inputs'); the assessment still succeeds with a 'clean' per-kg score. Negative: Rust kernel emits NEGATIVE N2O (-2.42 indirect, -2.31 direct, verified with area -2). 1e9 accepted."},
+      {"field": "cropping_pattern", "backend": "Optional[CroppingPattern] (250)", "frontend": "always (606); TS identical (171-177)", "engine": "field_model.py:124 legume credit", "status": "OK"},
+      {"field": "intercropping_partners", "backend": "Optional[List[str]] (251)", "frontend": "always (607)", "engine": "field_model.py:125", "status": "OK"},
+      {"field": "post_harvest_losses", "backend": "Optional[float] NO bounds (252)", "frontend": "always (608); zod 0..100", "engine": "iso_report.py:139 report only", "status": "OK", "note": "150 % accepted"},
+      {"field": "seed_rate_kg_per_ha", "backend": "Optional[float] NO bounds (255)", "frontend": "conditionally (609)", "engine": "crop_defaults.py:111-122 (<=0 -> no seed input at all, i.e. a way to delete the seed burden)", "status": "ENGINE_READS_BUT_NOT_VALIDATED", "note": "-5 accepted; semantics of 0 (\"vegetative\") vs blank (\"use default\") are not documented to the user"},
+      {"field": "land_use_change", "backend": "Optional[LandUseChange] Literal enum + ge=0 (218-221, 257)", "frontend": "conditionally (610-613)", "engine": "land_use_change.py:189", "status": "OK", "note": "properly bounded; negative years REJECT (probe)"},
+      {"field": "residue_management", "backend": "Optional, fractions 0..1 (224-227, 258)", "frontend": "conditionally (614-617)", "engine": "Rust kernel", "status": "OK", "note": "1.5 REJECT (probe)"},
+      {"field": "establishment", "backend": "Optional, ge/gt bounds (230-234, 259)", "frontend": "conditionally (618-622)", "engine": "perennials.py", "status": "OK", "note": "productive_years 0 REJECT (probe)"},
+      {"field": "farm_profile / management_practices nested in food (legacy)", "backend": "_legacy, silently dropped (263)", "frontend": "never", "engine": "n/a", "status": "OK"}
+    ],
+    "frontend_collects_but_never_sends": [
+      "farmProfile.region (admin region, zod-required schema.ts:109-111) - could populate study_meta.admin_region",
+      "farmProfile.coordinates",
+      "cropProductions[].averageYieldPerHectare (zod-required 1..50000, schema.ts:198-200) - never cross-checked against annualProduction/areaAllocated",
+      "cropProductions[].seasonality.plantingMonths/harvestingMonths/growingPeriod/cropsPerYear (zod-required)",
+      "cropProductions[].rotationSequence (engine field_model.py:126 reads food['rotation_sequence'] for the legume credit, but api.ts never maps it -> ENGINE_READS_BUT_FRONTEND_NEVER_SENDS)",
+      "managementPractices.soilManagement.soilpH / organicMatterContent / coverCrops",
+      "managementPractices.fertilization.applicationMethod / timingStrategy",
+      "managementPractices.waterManagement.drainageSystem",
+      "pestManagement.primaryPests / primaryDiseases / ipmPractices / biologicalControls / usesEconomicThresholds",
+      "equipmentEnergy.infrastructure.storageCapacity / storageFacilities / roadAccess / transportCost (storageCapacity, roadAccess, transportMode are zod-REQUIRED yet unused)",
+      "assessmentParameters.* (functionalUnit, systemBoundary, assessmentPeriod, includeUncertaintyAnalysis, includeSensitivityAnalysis, benchmarkComparison) - zod-required, never sent; includeUncertaintyAnalysis does not drive run_uncertainty"
+    ]
+  },
+
+  "B_required_enforcement": [
+    {"input": "crop name", "zod": "min 1 (schema.ts:147-149)", "pydantic": "str required, '' allowed (models.py:239)", "engine": "none; unknown names fall to category defaults (crop_defaults.py:99-129); honey rejected at runtime (commodities.py:34-45, 422 on /assess, 500 on /assess/comprehensive)", "accepts": {"empty": "pydantic yes / zod no", "0": "n/a", "negative": "n/a", "absurd": "any string"}},
+    {"input": "area (area_allocated)", "zod": "0.01..10000 + sum <= totalFarmSize (schema.ts:158-160, 467-478; page.tsx:421-428 re-checks on Next)", "pydantic": "Optional[float], no bounds (models.py:249)", "engine": "no check; `or 0` everywhere (inputs.py:149-150, service.py:277); Rust guards only ==0 (lci.rs:346-349)", "accepts": {"missing": "pydantic yes -> all area-scaled inputs and field N2O silently dropped (verified)", "0": "same as missing", "negative": "yes -> NEGATIVE N2O (verified -2.31 kg direct)", "absurd 1e9": "yes"}},
+    {"input": "yield / quantity (quantity_kg)", "zod": "0.1..1e8 (schema.ts:162-164)", "pydantic": "float, v<=0 rejected (models.py:272-277)", "engine": "adapter.py:257 `total_kg or 1.0`", "accepts": {"0": "no (422)", "negative": "no (422)", "NaN/inf": "YES (probe qty_nan, qty_inf ACCEPT) -> kernel parse error -> 500", "absurd 1e12 / 1e-9": "yes"}},
+    {"input": "fertiliser type", "zod": "nativeEnum FertilizerType (schema.ts:296)", "pydantic": "str required, '' allowed (118)", "engine": "keyword match else generic 'fertiliser' (inputs.py:243-248); Rust fertiliser_n unknown -> zero N + warning", "accepts": {"empty": "pydantic yes", "bogus": "yes"}},
+    {"input": "fertiliser rate", "zod": "0..1000 (298-300)", "pydantic": "float required, no bounds (120)", "engine": "kg<=0 skipped silently (inputs.py:240-241); Rust no sign check (lci.rs:367)", "accepts": {"0": "all layers yes (row is a no-op)", "negative": "pydantic yes -> negative N2O (verified)", "absurd 1e9": "yes"}},
+    {"input": "fertiliser applications/season", "zod": "0..10 (302-304)", "pydantic": "int required, no bounds (121)", "engine": "inputs.py:238 `or 1` turns 0 into 1; Rust uses 0", "accepts": {"0": "yes (inconsistent between layers)", "negative": "yes", "absurd": "yes"}},
+    {"input": "irrigation system", "zod": "optional nativeEnum (324)", "pydantic": "Optional[str] (134)", "engine": "unknown string -> surface irrigation + estimated water and pumping (inputs.py:189-216, 358-385; verified 'Teleportation')", "accepts": {"missing": "yes (rainfed assumed unless production_system says irrigated)", "bogus": "yes, and it ADDS burden"}},
+    {"input": "irrigation water m3", "zod": "min 0 optional (325-328)", "pydantic": "Optional[float], no bounds (138)", "engine": "<=0 -> treated as not measured -> estimate (inputs.py:197-201)", "accepts": {"0": "yes (-> estimate, not zero)", "negative": "yes (-> estimate)", "absurd 1e12": "yes (verified 3e11 MJ pumping)"}},
+    {"input": "fuel / electricity", "zod": "monthlyConsumption min 0; hoursPerYear 0..4000 (386-388, 397, 407)", "pydantic": "float required, no bounds (178, 186, 194)", "engine": "<=0 skipped silently (inputs.py:262-263, 278-280, 318-319); activity defaults fill gaps (inputs.py:473-477)", "accepts": {"0": "yes (then region activity defaults are applied instead)", "negative": "yes (ignored)", "absurd": "yes", "unit": "never sent; LPG read as litres (MISMATCH)"}},
+    {"input": "pesticides", "zod": "activeIngredient min 1, brandName min 1, rate 0..100, apps 0..20, content (0,1] (354-370)", "pydantic": "str/float/int required, no bounds (142-150)", "engine": "kg<=0 skipped (pesticides.py:119-122); content outside (0,1] replaced by table default (126-134)", "accepts": {"0 rate": "all layers yes (no-op row)", "negative": "pydantic yes (ignored)", "empty AI": "pydantic yes", "absurd": "yes"}},
+    {"input": "compost", "zod": "usesCompost bool; source != 'Not used' when used; rate 0..100 (269-288)", "pydantic": "bool/Optional[str]/Optional[float], no bounds (111-113)", "engine": "purchased: amount = rate*1000*area with no sign check (inputs.py:395-397); field N2O: `not rate_t_ha` only (field_model.py:97)", "accepts": {"uses_compost true, no rate": "yes (note only)", "negative rate": "yes -> NEGATIVE purchased compost -20000 kg (verified)", "absurd 1e6": "yes -> 2e9 kg compost, 436731 kg N2O (verified)"}},
+    {"input": "region / country", "zod": "country enum of 6 UI countries (105-107); region admin string min 2 (109-111)", "pydantic": "country in Ghana|Nigeria|Global (328-333); region free Optional[str] (298)", "engine": "region override used unchecked (service.py:83-85) -> KeyError -> 500 for unknown codes; country->region fallback only when region absent", "accepts": {"bogus region": "pydantic yes, engine 500", "empty region": "pydantic yes (falls back to country)", "country/region mismatch (Nigeria + GH)": "yes, region wins"}},
+    {"input": "farm size (total_farm_size)", "zod": "0.1..10000 (121-123)", "pydantic": "float required, no bounds (102)", "engine": "NEVER READ", "accepts": {"0": "yes", "negative": "yes", "absurd": "yes", "crops exceeding farm": "yes (zod-only rule)"}},
+    {"input": "foods list non-empty", "zod": "min 1 (246)", "pydantic": "List[FoodItem] with NO min_length (297)", "engine": "runs with zero crops", "accepts": {"[]": "yes -> all-zero saved assessment"}}
+  ],
+
+  "C_bypass_paths": [
+    {
+      "id": "C1", "layer": "UI",
+      "action": "Open /assessment, click 'Next step' five times, click Submit.",
+      "why_it_works": "useForm defaultValues are a complete synthetic Canadian farm ('Sarah Thompson', 'Thompson Prairie Farm', 520 ha, Wheat 300 ha / Canola 220 ha, fertilisers, pesticides, tractor, grid electricity, market 18 km; page.tsx:117-337). Every step therefore passes trigger() (page.tsx:410-453) and handleSubmit's full-schema resolver (page.tsx:116, 691) without the user entering anything.",
+      "server_result": "POST /assess/stream accepts (country 'Global', region 'CA'); a complete demo assessment is persisted under the user's account and shown as a real result. Mitigation that exists: none (the stepper is not clickable, page.tsx:786-840, so step skipping is blocked, but demo prefill makes that moot).",
+      "severity": "high (data integrity of saved assessments)"
+    },
+    {
+      "id": "C2", "layer": "UI",
+      "action": "Fill valid values, reach Review, click Previous, delete e.g. annualProduction, return to Review, Submit.",
+      "server_result": "Blocked: 'Next step' re-runs trigger() for that step (page.tsx:419) and Submit runs handleSubmit(onSubmit) which re-validates the whole zod schema (page.tsx:691; ReviewSubmitStep.tsx:389-393). The only UI-side gaps are values zod allows: fertiliser/pesticide rows with applicationRate 0 or applicationsPerSeason 0 (defaults when a row is added: ManagementPracticesStep.tsx:317-325, PestManagementStep.tsx:230-239), equipment with hoursPerYear 0 (EquipmentEnergyStep.tsx:124), energy/fuel rows with monthlyConsumption 0 (295, 433), usesFertilizers true with zero rows. These are sent and the engine silently ignores them (inputs.py:240-241, 262-263, 278-280, 318-319; pesticides.py:119-122), so a 'fertilised, sprayed, mechanised' farm can be submitted with zero inputs and no warning.",
+      "severity": "medium"
+    },
+    {
+      "id": "C3", "layer": "UI (hidden default)",
+      "action": "Any wizard crop.",
+      "server_result": "seasonal_factor is always 'WetSeason' (CropDetailsStep.tsx:137; no input for seasonality.season; api.ts:603 takes season[0]). The engine uses it to pick the irrigation share for the water estimate (crop_defaults.py:153) when irrigation_water_m3 is blank. The user cannot influence this.",
+      "severity": "medium"
+    },
+    {
+      "id": "C4", "layer": "UI -> route",
+      "action": "Enter packaging material, distance to market, transport mode, input transport km in the Equipment step.",
+      "server_result": "Pydantic accepts `logistics` (models.py:308) but routes.py:72-89 never forwards it to the engine. The user's logistics are silently discarded; the engine applies a 230 km default for input transport (inputs.py:97, 433-436) and no packaging/market transport. Confirmed by grep: no code path adds request.logistics to rust_input.",
+      "severity": "high (silent loss of a whole wizard section; same class of bug as the historical pesticides_used loss documented at models.py:21-23)"
+    },
+    {
+      "id": "C5", "layer": "API", "endpoint": "POST /assess (auth: Bearer access token from /auth, app/auth/deps.py:30-47; any self-registered user)",
+      "payload": {"company_name": "x", "country": "Ghana", "foods": [{"id": "1", "name": "Maize", "quantity_kg": 1, "category": "Cereals"}]},
+      "server_result": "ACCEPT (probe 'minimal'). No farm_profile, management_practices, equipment_energy or area. Engine runs with activity defaults and seed defaults only; a per-kg result for 1 kg of maize is saved. Also ACCEPT with company_name '', id '', name '' (probe minimal_empty_strings).",
+      "severity": "medium (the API is by design 'simple or comprehensive' (routes.py:119), but nothing marks the result as a defaults-only screening)"
+    },
+    {
+      "id": "C6", "layer": "API",
+      "payload": {"company_name": "x", "country": "Ghana", "foods": []},
+      "server_result": "ACCEPT (probe empty_foods). Engine: no inputs, total_production_kg 0 -> divisor forced to 1.0 (adapter.py:257), kernel 0 flows (verified) -> saved assessment with all-zero impacts.",
+      "severity": "medium"
+    },
+    {
+      "id": "C7", "layer": "API",
+      "payload": {"company_name": "x", "country": "Ghana", "foods": [{"id": "1", "name": "Maize", "quantity_kg": 1000, "category": "Cereals", "area_allocated": -2}], "management_practices": {"soil_management": {}, "fertilization": {"uses_fertilizers": true, "fertilizer_applications": [{"fertilizer_type": "Urea", "npk_ratio": "46-0-0", "application_rate": 200, "applications_per_season": 2}]}, "water_management": {}, "pest_management": {}}},
+      "server_result": "ACCEPT at pydantic (probe area_negative). Rust kernel run verified: N2O flows -2.4172 (indirect) and -2.3131 (direct) kg, i.e. an emissions CREDIT. Same with application_rate -200 and positive area: -9.2526 kg direct N2O (probe fert_rate_negative + kernel run).",
+      "severity": "critical (negative impacts are presentable as a 'carbon negative' farm)"
+    },
+    {
+      "id": "C8", "layer": "API",
+      "payload": {"company_name": "x", "country": "Ghana", "foods": [{"id": "1", "name": "Maize", "quantity_kg": 1000, "category": "Cereals", "area_allocated": 2}], "management_practices": {"soil_management": {"uses_compost": true, "compost_source": "Purchased compost", "compost_application_rate": -10}, "fertilization": {}, "water_management": {}, "pest_management": {}}},
+      "server_result": "ACCEPT (probe compost_negative_rate). Engine extracts 'compost -20000.0 kg' as a purchased input (verified) -> negative supply-chain burden.",
+      "severity": "critical"
+    },
+    {
+      "id": "C9", "layer": "API",
+      "payload": {"company_name": "x", "country": "Ghana", "foods": [{"id": "1", "name": "Maize", "quantity_kg": 1000, "category": "Cereals"}], "management_practices": {"soil_management": {}, "fertilization": {"uses_fertilizers": true, "fertilizer_applications": [{"fertilizer_type": "Urea", "application_rate": 200, "applications_per_season": 2}]}, "water_management": {}, "pest_management": {}}},
+      "server_result": "ACCEPT (probe area_missing_with_fertiliser). Omitting area_allocated makes fertiliser, pesticide, compost and seed inputs AND fertiliser field N2O disappear (verified: 0 kernel flows; inputs note 'fertiliser reported but no crop area: cannot scale fertiliser inputs' is only a note, not a warning or error). Result looks like a clean low-input farm.",
+      "severity": "high"
+    },
+    {
+      "id": "C10", "layer": "API",
+      "payload": {"...": "as C7 but uses_fertilizers:false with the same fertilizer_applications"},
+      "server_result": "ACCEPT (probe fert_uses_false_but_apps_present). Python counts 800 kg urea production; Rust kernel skips all fertiliser N2O (verified). Inconsistent inventory, no warning.",
+      "severity": "medium"
+    },
+    {
+      "id": "C11", "layer": "API",
+      "payload": {"company_name": "x", "country": "Ghana", "foods": [{"id": "1", "name": "Maize", "quantity_kg": "NaN", "category": "Cereals"}]},
+      "server_result": "ACCEPT at pydantic (probe qty_nan; also inf). JSON clients can send NaN via Python json.dumps(allow_nan) or as 1e999 for inf. Kernel JSON parse fails -> HTTP 500 'Assessment failed: Rust produced no JSON'. Denial-of-quality rather than a fake result, but it reaches the engine.",
+      "severity": "low"
+    },
+    {
+      "id": "C12", "layer": "API",
+      "payload": {"company_name": "x", "country": "Ghana", "region": "Mars", "foods": [{"id": "1", "name": "Maize", "quantity_kg": 1, "category": "Cereals"}]},
+      "server_result": "ACCEPT at pydantic (probe bogus_region); engine KeyError 'unknown region' -> 500 (service.py:83-85 trusts the override). Should be 422.",
+      "severity": "low"
+    },
+    {
+      "id": "C13", "layer": "API",
+      "payload": {"...": "irrigation_system: 'Teleportation', water_source: ['Unicorn tears']"},
+      "server_result": "ACCEPT (probe irrigation_bogus_system_and_source). Engine treats any non-empty, non-'rainfed' string as surface irrigation and invents 10833 m3 water + pumping energy (verified). Conversely 'None (Rainfed)' or omitting it removes irrigation entirely regardless of production_system (activity_defaults.py:124 only checks 'irrigat' in production_system).",
+      "severity": "medium"
+    },
+    {
+      "id": "C14", "layer": "API",
+      "payload": {"...": "quantity_kg 1e12, application_rate 1e9, irrigation_water_m3 1e12, monthly_consumption 1e12, compost_application_rate 1e6, total_farm_size 1e9"},
+      "server_result": "All ACCEPT (probes *_absurd*). No server-side plausibility caps anywhere; zod caps exist client-side only (schema.ts). Engine produces the arithmetic result (e.g. 5.255e11 MJ pumping energy, 2e9 kg compost).",
+      "severity": "medium"
+    },
+    {
+      "id": "C15", "layer": "API", "endpoint": "POST /assess/comprehensive",
+      "payload": {"company_name": "x", "country": "Ghana", "foods": [{"id": "1", "name": "Maize", "quantity_kg": 1, "category": "Cereals"}], "farm_profile": {"farmer_name": "a", "farm_name": "b", "total_farm_size": 0, "farming_experience": 0, "farm_type": "Smallholder", "primary_farming_system": "Subsistence"}, "management_practices": {"soil_management": {}, "fertilization": {}, "water_management": {}, "pest_management": {}}},
+      "server_result": "ACCEPT (probe comprehensive_route_minimum). The route's only extra check is presence of farm_profile and management_practices (routes.py:198-202); empty sub-objects satisfy it. Also: this route lacks the UnsupportedCommodityError -> 422 mapping that /assess has (routes.py:133-137 vs 214-217), so honey returns 500.",
+      "severity": "low"
+    },
+    {
+      "id": "C16", "layer": "API", "endpoint": "POST /assess/{id}/rerun",
+      "server_result": "Same AssessmentRequest model and same _run_farm_engine (routes.py:220-248); every bypass above applies and overwrites an existing saved assessment in place.",
+      "severity": "as above"
+    },
+    {
+      "id": "what_is_correctly_blocked",
+      "list": [
+        "unknown keys at any level -> 422 'Extra inputs are not permitted' (probes unknown_top_key, unknown_food_key_annual_production, frontend_infrastructure_key_in_equipment_energy)",
+        "quantity_kg <= 0 -> 422 'Quantity must be positive'",
+        "country outside Ghana|Nigeria|Global -> 422 (so the raw UI value 'Canada' must be mapped, which api.ts does)",
+        "category outside VALID_FOOD_CATEGORIES -> 422",
+        "bad enum for farm_type, primary_farming_system, soil_type (incl. UI 'Clay Loam' with a space), production_system, seasonal_factor, land_use_change.previous_land_use -> 422",
+        "missing farm_profile required fields, missing management_practices.pest_management sub-object -> 422",
+        "fractional applications_per_season -> 422",
+        "residue fractions > 1, LUC years < 0, establishment productive_years <= 0 -> 422",
+        "unsupported lcia_method -> 422",
+        "legacy pesticides_used / monitoring_frequency keys are migrated, nested food farm_profile dropped (probe legacy_pesticides_used_alias, food_legacy_nested_profile_dropped)",
+        "honey/apiculture -> 422 on /assess (engine check, commodities.py:34-45)",
+        "UI: steps cannot be skipped (stepper icons have no onClick, page.tsx:786-840); Next validates the current step; Submit re-validates everything"
+      ]
+    }
+  ],
+
+  "D_recommendations": [
+    {"rank": 1, "fix": "Forward `logistics` to the engine: add `if request.logistics: rust_input['logistics'] = request.logistics.model_dump()` in _build_farm_rust_input, and add a route-level test that asserts every top-level AssessmentRequest field consumed by engine/inputs.py reaches run_farm_assessment.", "layer": "API", "file": "app/production/routes.py:72-89; new test in app/ (e.g. test_routes_contract.py) or extend app/test_request_schema.py"},
+    {"rank": 2, "fix": "Bound every quantity in the pydantic models with Field(): quantity_kg gt=0 + allow_inf_nan=False (ConfigDict or Annotated), area_allocated ge=0 (or gt=0 when management inputs are present), application_rate ge=0, applications_per_season ge=0, compost_application_rate ge=0, irrigation_water_m3 ge=0, monthly_consumption ge=0, hours_per_year ge=0, fuel_efficiency ge=0, total_farm_size gt=0, farming_experience ge=0, post_harvest_losses 0..100, seed_rate_kg_per_ha ge=0, packaging/transport km ge=0, ipcc_ef1_scale gt=0, foods min_length=1. Add plausibility ceilings mirroring the zod caps (e.g. application_rate le=5000, area le=1e5, quantity le=1e9).", "layer": "pydantic", "file": "app/production/models.py (FoodItem 237-277, FertilizerApplication 117-122, SoilManagement 109-115, WaterManagement 130-140, PesticideApplication 142-150, FarmEquipment/EnergyUsage/FuelUsage 172-197, FarmLogistics 205-216, FarmProfile 99-107, AssessmentRequest 294-327)"},
+    {"rank": 3, "fix": "Add a model_validator on AssessmentRequest for cross-field consistency: (a) if any fertiliser/pesticide/compost application is given, every food must have area_allocated > 0 (else 422 'area_allocated required to scale ... inputs'); (b) uses_fertilizers must be true when fertilizer_applications is non-empty (or derive it); (c) sum(area_allocated) <= total_farm_size when farm_profile is present; (d) if uses_compost then compost_application_rate required; (e) region, when given, must be in engine.regions.REGIONS (import the registry) so bogus regions are 422 not 500.", "layer": "pydantic", "file": "app/production/models.py (AssessmentRequest), app/production/routes.py for the region check if a model import of engine is undesirable"},
+    {"rank": 4, "fix": "Make the Rust kernel and Python extractor agree and refuse negatives: in lci.rs reject total_area_ha <= 0 and application_rate < 0 (return a validation warning and skip), and in inputs.py/pesticides.py replace `or 1` for applications_per_season with an explicit 0 (so 0 applications means 0 everywhere). Promote the 'no crop area' note to WARNING_PREFIX so it surfaces in data_quality.warnings (service.py:53-66).", "layer": "engine", "file": "african_lca_backend/src/production/lci.rs:343-369; engine/inputs.py:238, 230; engine/pesticides.py:117; engine/field_model.py:97"},
+    {"rank": 5, "fix": "Remove the demo farm from useForm defaultValues (keep it behind an explicit 'Load example' action, which country-examples.ts already provides) so an untouched wizard cannot submit. Alternatively require a confirmation checkbox on the Review step that the data is the farmer's own.", "layer": "frontend", "file": "african-lca-frontend/src/app/assessment/page.tsx:115-339; ReviewSubmitStep.tsx:389-393"},
+    {"rank": 6, "fix": "Expose and send seasonal_factor: add a season selector in CropDetailsStep (restricted to WetSeason|DrySeason|YearRound) or derive it from plantingMonths; drop 'Harmattan' from SeasonType or map it to DrySeason in api.ts before sending.", "layer": "frontend", "file": "african-lca-frontend/src/components/assessment/CropDetailsStep.tsx:137; src/types/enhanced-assessment.ts:187-192; src/lib/api.ts:603"},
+    {"rank": 7, "fix": "Send `unit` for fuel rows (add a unit select, default L, kg for LPG) and align the pydantic test fixture with what api.ts actually emits (remove unit:'kg' from FRONTEND_FARM_PAYLOAD or add the field to the transform). Better: generate the fixture from the TS transform in CI (e.g. a small node script that imports api.ts, or a JSON snapshot committed from the frontend and consumed by app/test_request_schema.py).", "layer": "frontend + tests", "file": "african-lca-frontend/src/lib/api.ts:578-583; app/test_request_schema.py:19-74"},
+    {"rank": 8, "fix": "Tighten zod minimums for rows the user explicitly adds: applicationRate and applicationsPerSeason gt(0) for fertiliser and pesticide rows, hoursPerYear gt(0) for powered equipment, monthlyConsumption gt(0) for energy/fuel rows; add a superRefine 'usesFertilizers requires at least one row'. Zero-quantity rows are never meaningful and currently pass as fake data.", "layer": "zod", "file": "african-lca-frontend/src/lib/enhanced-assessment-schema.ts:298-304, 362-367, 386-388, 397, 407"},
+    {"rank": 9, "fix": "Replace free-text str with Literal/Enum (or a validator against engine vocabularies) for fertilizer_type, irrigation_system, water_source, energy_type, fuel_type, power_source, pesticide_type, compost_source, market_transport_mode. The UI already uses closed enums; the API should too, with the engine's keyword tables as the allowed set. At minimum, make an unrecognised irrigation_system a 422 rather than 'surface'.", "layer": "pydantic (+ engine/crop_defaults.irrigation_system_key)", "file": "app/production/models.py; engine/crop_defaults.py:132-162"},
+    {"rank": 10, "fix": "Map the honey UnsupportedCommodityError to 422 on /assess/comprehensive and /assess/{id}/rerun as /assess does; flag defaults-only ('simple') assessments in the response (e.g. data_quality.warnings 'no management data supplied; activity defaults used') so a minimal payload cannot masquerade as a comprehensive result.", "layer": "API/engine", "file": "app/production/routes.py:214-217, 245-248; engine/service.py / engine/adapter.py data_quality"},
+    {"rank": 11, "fix": "Either send or stop collecting the unused zod-required fields (farmProfile.region -> study_meta.admin_region, includeUncertaintyAnalysis -> run_uncertainty, rotationSequence -> foods[].rotation_sequence which field_model.py:126 already reads but pydantic FoodItem lacks, averageYieldPerHectare cross-check vs annualProduction/areaAllocated, storageCapacity/roadAccess).", "layer": "frontend + pydantic", "file": "african-lca-frontend/src/lib/api.ts:497-626; app/production/models.py FoodItem"},
+    {"rank": 12, "fix": "Remove or fix the dead nested `compost_use.uses_compost` read in the Rust parser (never true for API payloads); harmless today because only Rust midpoints read it, but misleading.", "layer": "Rust", "file": "african_lca_backend/src/main.rs:518-525"}
+  ],
+
+  "tests_coverage": {
+    "backend": "app/test_request_schema.py (21 tests, pass): pins the key-name contract (extra=forbid, legacy aliases, WS1 bounded fields) against a hand-maintained FRONTEND_FARM_PAYLOAD fixture; no bounds tests for quantities, no route-level test, fixture includes fuel `unit` that the frontend never sends. engine/test_wizard_inputs.py tests engine extraction incl. logistics (line 234) but bypasses routes. engine/test_uncertainty.py:173-175 checks run_uncertainty default only.",
+    "frontend": "No test files exist under african-lca-frontend/src and package.json defines no test runner; transformEnhancedAssessmentToBackend is private (api.ts:497) and untested."
+  }
+}

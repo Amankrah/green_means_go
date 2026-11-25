@@ -318,9 +318,10 @@ export default function ManagementPracticesStep() {
                     fertilizerType: FertilizerType.NPK_COMPOUND,
                     brandName: '',
                     npkRatio: '',
-                    applicationRate: 0,
+                    // Blank, not 0: a zero-rate row used to pass validation and be silently ignored.
+                    applicationRate: undefined as unknown as number,
                     applicationsPerSeason: 1,
-                    cost: 0
+                    cost: undefined
                   })}
                   className="flex items-center space-x-2 text-moss hover:text-spruce"
                 >
@@ -566,7 +567,7 @@ export default function ManagementPracticesStep() {
           {/* Irrigation volume */}
           <div>
             <label className="block text-sm font-medium text-ink mb-2">
-              Irrigation water applied (m³ per year, optional)
+              Irrigation water applied (m³ per year; required when an irrigation system is selected)
             </label>
             <input
               type="number"
@@ -576,9 +577,14 @@ export default function ManagementPracticesStep() {
               placeholder="e.g., 5000"
               className="gmg-input"
             />
+            {errors.managementPractices?.waterManagement?.irrigationWaterM3 && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.managementPractices.waterManagement.irrigationWaterM3.message}
+              </p>
+            )}
             <p className="text-xs text-muted mt-1">
-              Leave blank to estimate it from the crop&apos;s water need and your irrigation system (FAO).
-              The water source above decides whether it counts as groundwater, surface water or bought water.
+              Rainfed farms leave this blank. The water source above decides whether it counts as
+              groundwater, surface water or bought water.
             </p>
           </div>
 

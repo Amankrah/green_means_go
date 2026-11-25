@@ -4,6 +4,8 @@ import { AssessmentRequest, AssessmentResult } from '@/types/assessment';
 import { RecommendationsResponse } from '@/types/recommendations';
 import { EnhancedAssessmentRequest, FertilizerApplication, PesticideApplication } from '@/types/enhanced-assessment';
 import { COUNTRY_TO_REGION } from '@/lib/country-examples';
+import { FARM_FUEL_DEFAULT_UNIT } from '@/lib/enhanced-assessment-schema';
+import { deriveSeasonalFactor } from '@/lib/seasonal-factor';
 import {
   AuthUser,
   UserRole,
@@ -223,7 +225,7 @@ class AssessmentAPI {
     try {
       await this.fetchAPI('/auth/logout', { method: 'POST' });
     } catch {
-      // Stateless logout — clearing local tokens is what matters even if the call fails.
+      // Stateless logout: clearing local tokens is what matters even if the call fails.
     } finally {
       clearSession();
     }
@@ -495,135 +497,7 @@ class AssessmentAPI {
   }
 
   private transformEnhancedAssessmentToBackend(data: EnhancedAssessmentRequest): AssessmentRequest {
-    // Map the UI country to the country the API accepts + the engine region. Canada is
-    // sent as country "Global" + region "CA" (the engine has a CA region but no Canada
-    // country). Sending region explicitly is also what makes Ghana->GH and Nigeria->NG
-    // resolve reliably instead of being re-derived from the country string.
-    const mapped = COUNTRY_TO_REGION[data.farmProfile.country as string]
-      ?? { country: data.farmProfile.country, region: undefined };
-
-    // Transform the comprehensive frontend data to backend format
-    const backendData: AssessmentRequest = {
-      company_name: `${data.farmProfile.farmerName} - ${data.farmProfile.farmName}`,
-      country: mapped.country as AssessmentRequest['country'],
-      region: mapped.region,
-      farm_profile: {
-        farmer_name: data.farmProfile.farmerName,
-        farm_name: data.farmProfile.farmName,
-        total_farm_size: data.farmProfile.totalFarmSize,
-        farming_experience: data.farmProfile.farmingExperience,
-        farm_type: data.farmProfile.farmType,
-        primary_farming_system: data.farmProfile.primaryFarmingSystem,
-        certifications: data.farmProfile.certifications,
-        participates_in_programs: data.farmProfile.participatesInPrograms,
-      },
-      management_practices: {
-        soil_management: {
-          // Backend SoilType enum is space-less PascalCase (ClayLoam), the UI uses spaces
-          // ("Clay Loam"); strip the space so multi-word soil types validate.
-          soil_type: data.managementPractices.soilManagement.soilType?.replace(/ /g, ''),
-          uses_compost: data.managementPractices.soilManagement.compostUse.usesCompost,
-          compost_source: data.managementPractices.soilManagement.compostUse.compostsource,
-          compost_application_rate: data.managementPractices.soilManagement.compostUse.applicationRate,
-          conservation_practices: data.managementPractices.soilManagement.conservationPractices,
-          soil_testing_frequency: data.managementPractices.soilManagement.soilTestingFrequency,
-        },
-        fertilization: {
-          uses_fertilizers: data.managementPractices.fertilization.usesFertilizers,
-          fertilizer_applications: data.managementPractices.fertilization.fertilizerApplications.map((app: FertilizerApplication) => ({
-            fertilizer_type: app.fertilizerType,
-            npk_ratio: app.npkRatio,
-            application_rate: app.applicationRate,
-            applications_per_season: app.applicationsPerSeason,
-            cost: app.cost,
-          })),
-          soil_test_based: data.managementPractices.fertilization.soilTestBased,
-          follows_nutrient_plan: data.managementPractices.fertilization.followsNutrientPlan,
-        },
-        water_management: {
-          water_source: data.managementPractices.waterManagement.waterSource,
-          irrigation_system: data.managementPractices.waterManagement.irrigationSystem,
-          irrigation_water_m3: data.managementPractices.waterManagement.irrigationWaterM3 ?? undefined,
-          water_conservation_practices: data.managementPractices.waterManagement.waterConservationPractices,
-        },
-        // Key names must match app/production/models.py exactly: the API rejects unknown
-        // keys (it used to drop `pesticides_used` silently, losing every pesticide).
-        pest_management: {
-          management_approach: data.pestManagement.managementApproach,
-          uses_ipm: data.pestManagement.usesIPM,
-          pesticides: data.pestManagement.pesticides.map((pest: PesticideApplication) => ({
-            pesticide_type: pest.pesticideType,
-            active_ingredient: pest.activeIngredient,
-            application_rate: pest.applicationRate,
-            applications_per_season: pest.applicationsPerSeason,
-            active_ingredient_content: pest.activeIngredientContent ?? undefined,
-            target_pests: pest.targetPests,
-          })),
-          pest_monitoring_frequency: data.pestManagement.pestMonitoringFrequency,
-        },
-      },
-      // Include equipment_energy if provided (convert to snake_case and strip infrastructure field)
-      equipment_energy: data.equipmentEnergy ? {
-        equipment: data.equipmentEnergy.equipment.map(eq => ({
-          equipment_type: eq.equipmentType,
-          power_source: eq.powerSource,
-          age: eq.age,
-          hours_per_year: eq.hoursPerYear,
-          fuel_efficiency: eq.fuelEfficiency,
-        })),
-        energy_sources: data.equipmentEnergy.energySources.map(es => ({
-          energy_type: es.energyType,
-          monthly_consumption: es.monthlyConsumption,
-          primary_use: es.primaryUse,
-          cost: es.cost,
-          currency: es.currency,
-        })),
-        fuel_consumption: (data.equipmentEnergy.fuelConsumption ?? []).map(fc => ({
-          fuel_type: fc.fuelType,
-          monthly_consumption: fc.monthlyConsumption,
-          primary_use: fc.primaryUse,
-          cost: fc.cost,
-        })),
-      } : undefined,
-      logistics: data.equipmentEnergy ? {
-        packaging_material: data.equipmentEnergy.infrastructure?.packagingMaterial?.trim() || undefined,
-        packaging_kg_per_tonne: data.equipmentEnergy.infrastructure?.packagingKgPerTonne ?? undefined,
-        distance_to_market_km: data.equipmentEnergy.infrastructure?.transportAccess?.distanceToMarket ?? undefined,
-        market_transport_mode: pickMarketMode(data.equipmentEnergy.infrastructure?.transportAccess?.transportMode),
-        input_transport_km: data.equipmentEnergy.infrastructure?.inputTransportKm ?? undefined,
-      } : undefined,
-      foods: data.cropProductions.map((crop, index) => ({
-        id: `crop_${index + 1}`,
-        name: crop.cropName,
-        quantity_kg: crop.annualProduction,
-        category: crop.category,
-        crop_type: crop.variety,
-        origin_country: data.farmProfile.country,
-        production_system: crop.productionSystem,
-        seasonal_factor: crop.seasonality.season[0], // Use first season as primary
-        variety: crop.variety,
-        area_allocated: crop.areaAllocated,
-        cropping_pattern: crop.croppingPattern,
-        intercropping_partners: crop.intercroppingPartners,
-        post_harvest_losses: crop.postHarvestLosses,
-        seed_rate_kg_per_ha: crop.seedRateKgPerHa ?? undefined,
-        land_use_change: crop.landUseChange?.previousLandUse
-          ? { previous_land_use: crop.landUseChange.previousLandUse,
-              years_since_conversion: crop.landUseChange.yearsSinceConversion ?? 0 }
-          : undefined,
-        residue_management: (crop.residueManagement?.fractionRemoved != null || crop.residueManagement?.fractionBurnt != null)
-          ? { fraction_removed: crop.residueManagement?.fractionRemoved ?? 0,
-              fraction_burnt: crop.residueManagement?.fractionBurnt ?? 0 }
-          : undefined,
-        establishment: (crop.establishment?.immatureYears != null || crop.establishment?.productiveYears != null)
-          ? { immature_years: crop.establishment?.immatureYears,
-              productive_years: crop.establishment?.productiveYears,
-              input_share: crop.establishment?.inputShare }
-          : undefined,
-      })),
-    };
-
-    return backendData;
+    return transformEnhancedAssessmentToBackend(data);
   }
 
   async getAssessment(assessmentId: string): Promise<AssessmentResult> {
@@ -814,3 +688,142 @@ export const getScoreInterpretation = (score: number) => {
     };
   }
 };
+
+/**
+ * Map the wizard's camelCase form data to the exact snake_case request the API accepts.
+ * Exported so the contract can be unit-tested without the API client.
+ */
+export function transformEnhancedAssessmentToBackend(data: EnhancedAssessmentRequest): AssessmentRequest {
+  // Map the UI country to the country the API accepts + the engine region. Canada is
+  // sent as country "Global" + region "CA" (the engine has a CA region but no Canada
+  // country). Sending region explicitly is also what makes Ghana->GH and Nigeria->NG
+  // resolve reliably instead of being re-derived from the country string.
+  const mapped = COUNTRY_TO_REGION[data.farmProfile.country as string]
+    ?? { country: data.farmProfile.country, region: undefined };
+
+  const backendData: AssessmentRequest = {
+    company_name: `${data.farmProfile.farmerName} - ${data.farmProfile.farmName}`,
+    country: mapped.country as AssessmentRequest['country'],
+    region: mapped.region,
+    farm_profile: {
+      farmer_name: data.farmProfile.farmerName,
+      farm_name: data.farmProfile.farmName,
+      total_farm_size: data.farmProfile.totalFarmSize,
+      farming_experience: data.farmProfile.farmingExperience,
+      farm_type: data.farmProfile.farmType,
+      primary_farming_system: data.farmProfile.primaryFarmingSystem,
+      certifications: data.farmProfile.certifications,
+      participates_in_programs: data.farmProfile.participatesInPrograms,
+    },
+    management_practices: {
+      soil_management: {
+        // Backend SoilType enum is space-less PascalCase (ClayLoam), the UI uses spaces
+        // ("Clay Loam"); strip the space so multi-word soil types validate.
+        soil_type: data.managementPractices.soilManagement.soilType?.replace(/ /g, ''),
+        uses_compost: data.managementPractices.soilManagement.compostUse.usesCompost,
+        compost_source: data.managementPractices.soilManagement.compostUse.compostsource,
+        compost_application_rate: data.managementPractices.soilManagement.compostUse.applicationRate,
+        conservation_practices: data.managementPractices.soilManagement.conservationPractices,
+        soil_testing_frequency: data.managementPractices.soilManagement.soilTestingFrequency,
+      },
+      fertilization: {
+        uses_fertilizers: data.managementPractices.fertilization.usesFertilizers,
+        fertilizer_applications: data.managementPractices.fertilization.fertilizerApplications.map((app: FertilizerApplication) => ({
+          fertilizer_type: app.fertilizerType,
+          npk_ratio: app.npkRatio,
+          application_rate: app.applicationRate,
+          applications_per_season: app.applicationsPerSeason,
+          cost: app.cost,
+        })),
+        soil_test_based: data.managementPractices.fertilization.soilTestBased,
+        follows_nutrient_plan: data.managementPractices.fertilization.followsNutrientPlan,
+      },
+      water_management: {
+        water_source: data.managementPractices.waterManagement.waterSource,
+        irrigation_system: data.managementPractices.waterManagement.irrigationSystem,
+        irrigation_water_m3: data.managementPractices.waterManagement.irrigationWaterM3 ?? undefined,
+        water_conservation_practices: data.managementPractices.waterManagement.waterConservationPractices,
+      },
+      // Key names must match app/production/models.py exactly: the API rejects unknown
+      // keys (it used to drop `pesticides_used` silently, losing every pesticide).
+      pest_management: {
+        management_approach: data.pestManagement.managementApproach,
+        uses_ipm: data.pestManagement.usesIPM,
+        pesticides: data.pestManagement.pesticides.map((pest: PesticideApplication) => ({
+          pesticide_type: pest.pesticideType,
+          active_ingredient: pest.activeIngredient,
+          application_rate: pest.applicationRate,
+          applications_per_season: pest.applicationsPerSeason,
+          active_ingredient_content: pest.activeIngredientContent ?? undefined,
+          target_pests: pest.targetPests,
+        })),
+        pest_monitoring_frequency: data.pestManagement.pestMonitoringFrequency,
+      },
+    },
+    // Include equipment_energy if provided (convert to snake_case and strip infrastructure field)
+    equipment_energy: data.equipmentEnergy ? {
+      equipment: data.equipmentEnergy.equipment.map(eq => ({
+        equipment_type: eq.equipmentType,
+        power_source: eq.powerSource,
+        age: eq.age,
+        hours_per_year: eq.hoursPerYear,
+        fuel_efficiency: eq.fuelEfficiency,
+      })),
+      energy_sources: data.equipmentEnergy.energySources.map(es => ({
+        energy_type: es.energyType,
+        monthly_consumption: es.monthlyConsumption,
+        primary_use: es.primaryUse,
+        cost: es.cost,
+        currency: es.currency,
+      })),
+      fuel_consumption: (data.equipmentEnergy.fuelConsumption ?? []).map(fc => ({
+        fuel_type: fc.fuelType,
+        monthly_consumption: fc.monthlyConsumption,
+        // Always sent: without it the engine reads LPG cylinders (kg) as litres.
+        unit: fc.unit ?? FARM_FUEL_DEFAULT_UNIT[fc.fuelType] ?? 'L',
+        primary_use: fc.primaryUse,
+        cost: fc.cost,
+      })),
+    } : undefined,
+    logistics: data.equipmentEnergy ? {
+      packaging_material: data.equipmentEnergy.infrastructure?.packagingMaterial?.trim() || undefined,
+      packaging_kg_per_tonne: data.equipmentEnergy.infrastructure?.packagingKgPerTonne ?? undefined,
+      distance_to_market_km: data.equipmentEnergy.infrastructure?.transportAccess?.distanceToMarket ?? undefined,
+      market_transport_mode: pickMarketMode(data.equipmentEnergy.infrastructure?.transportAccess?.transportMode),
+      input_transport_km: data.equipmentEnergy.infrastructure?.inputTransportKm ?? undefined,
+    } : undefined,
+    foods: data.cropProductions.map((crop, index) => ({
+      id: `crop_${index + 1}`,
+      name: crop.cropName,
+      quantity_kg: crop.annualProduction,
+      category: crop.category,
+      crop_type: crop.variety,
+      origin_country: data.farmProfile.country,
+      production_system: crop.productionSystem,
+      // Derived from the planting months and the country's rainy season; the form's
+      // `season` is only a display mirror of the same rule (never the TS "Harmattan").
+      seasonal_factor: deriveSeasonalFactor(data.farmProfile.country, crop.seasonality.plantingMonths),
+      variety: crop.variety,
+      area_allocated: crop.areaAllocated,
+      cropping_pattern: crop.croppingPattern,
+      intercropping_partners: crop.intercroppingPartners,
+      post_harvest_losses: crop.postHarvestLosses,
+      seed_rate_kg_per_ha: crop.seedRateKgPerHa ?? undefined,
+      land_use_change: crop.landUseChange?.previousLandUse
+        ? { previous_land_use: crop.landUseChange.previousLandUse,
+            years_since_conversion: crop.landUseChange.yearsSinceConversion ?? 0 }
+        : undefined,
+      residue_management: (crop.residueManagement?.fractionRemoved != null || crop.residueManagement?.fractionBurnt != null)
+        ? { fraction_removed: crop.residueManagement?.fractionRemoved ?? 0,
+            fraction_burnt: crop.residueManagement?.fractionBurnt ?? 0 }
+        : undefined,
+      establishment: (crop.establishment?.immatureYears != null || crop.establishment?.productiveYears != null)
+        ? { immature_years: crop.establishment?.immatureYears,
+            productive_years: crop.establishment?.productiveYears,
+            input_share: crop.establishment?.inputShare }
+        : undefined,
+    })),
+  };
+
+  return backendData;
+}
