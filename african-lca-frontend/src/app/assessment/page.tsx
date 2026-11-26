@@ -58,6 +58,7 @@ import PestManagementStep from '@/components/assessment/PestManagementStep';
 import EquipmentEnergyStep from '@/components/assessment/EquipmentEnergyStep';
 import ReviewSubmitStep from '@/components/assessment/ReviewSubmitStep';
 import { ALL_COUNTRIES } from '@/lib/regions';
+import { cacheAssessment } from '@/lib/result-cache';
 
 const stepIcons = {
   [FormStep.FARM_PROFILE]: User,
@@ -239,9 +240,9 @@ function ComprehensiveAssessmentPage({
       // freshly minted engine uuid that is not a DB row.
       const resultId = rerunId ?? result.id;
 
-      // Store result in localStorage for persistence (survives backend restarts)
-      localStorage.setItem(`assessment_${resultId}`, JSON.stringify({ ...result, id: resultId }));
-      localStorage.setItem('lastAssessmentId', resultId);
+      // Cache a slimmed copy for an instant first paint on the results page. The
+      // backend already holds the full result, so a cache failure is not an error.
+      cacheAssessment(resultId, result);
       
       setSubmitResult({
         success: true,

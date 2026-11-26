@@ -43,6 +43,7 @@ import {
 } from '@/components/results/ResultsExtras';
 import { assessmentAPI, getScoreInterpretation, ApiError } from '@/lib/api';
 import { AssessmentResult, SingleScoreResult } from '@/types/assessment';
+import { cacheAssessment, readCachedAssessment, clearCachedAssessment } from '@/lib/result-cache';
 
 // Color schemes for charts
 // const IMPACT_COLORS = [
@@ -200,11 +201,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
 
   const persistResults = (res: AssessmentResult) => {
     setResults(res);
-    try {
-      localStorage.setItem(`assessment_${assessmentId}`, JSON.stringify(res));
-    } catch {
-      /* ignore */
-    }
+    if (assessmentId) cacheAssessment(assessmentId, res);
   };
 
   // Non-destructive by default: recharacterizing populates method_variants for the
@@ -327,9 +324,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
   // copy is still worth showing.
   const isDeleted = (err: unknown) => err instanceof ApiError && err.status === 404;
 
-  const clearCached = (id: string) => {
-    try { localStorage.removeItem(`assessment_${id}`); } catch { /* ignore */ }
-  };
+  const clearCached = (id: string) => clearCachedAssessment(id);
 
   const loadResults = async (id: string) => {
     setLoading(true);
@@ -337,17 +332,13 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
     setNotFound(false);
 
     // Cache-first: show the cached copy immediately, then reconcile with the backend.
-    const cachedResult = localStorage.getItem(`assessment_${id}`);
+    const cachedResult = readCachedAssessment<AssessmentResult>(id);
     if (cachedResult) {
-      try {
-        setResults(JSON.parse(cachedResult));
-      } catch {
-        clearCached(id); // corrupt cache entry
-      }
+      setResults(cachedResult);
       setLoading(false);
       try {
         const backendResult = await fetchAssessment(id);
-        localStorage.setItem(`assessment_${id}`, JSON.stringify(backendResult));
+        cacheAssessment(id, backendResult);
         setResults(backendResult);
       } catch (err) {
         if (isDeleted(err)) {
@@ -365,7 +356,7 @@ function ResultsContent({ assessmentId, isProcessing = false }: ResultsContentPr
     // No cache: the backend is the only source.
     try {
       const result = await fetchAssessment(id);
-      localStorage.setItem(`assessment_${id}`, JSON.stringify(result));
+      cacheAssessment(id, result);
       setResults(result);
     } catch (err) {
       if (isDeleted(err)) {

@@ -32,6 +32,7 @@ import FacilityStep from '@/components/processing-assessment/FacilityStep';
 import ProductsStep from '@/components/processing-assessment/ProductsStep';
 import UtilitiesStep from '@/components/processing-assessment/UtilitiesStep';
 import ReviewStep from '@/components/processing-assessment/ReviewStep';
+import { cacheAssessment } from '@/lib/result-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,8 +114,7 @@ function ProcessingWizard() {
     try {
       const payload = buildProcessingPayload(data, COUNTRY_TO_REGION, { facilityId, formSnapshot: data });
       const result = await assessmentAPI.submitProcessingAssessmentStream(payload, setLiveProgress);
-      localStorage.setItem(`assessment_${result.id}`, JSON.stringify(result));
-      localStorage.setItem('lastAssessmentId', result.id);
+      cacheAssessment(result.id, result);
       setDone(true);
       setTimeout(() => router.push(`/results?id=${result.id}&type=processing`), 1200);
     } catch (err) {
