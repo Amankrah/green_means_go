@@ -8,7 +8,7 @@ import DashboardShell from '@/components/DashboardShell';
 import NewAssessmentButton from '@/components/NewAssessmentButton';
 import DashboardRecommendations from '@/components/DashboardRecommendations';
 import { useAuth } from '@/contexts/AuthContext';
-import { assessmentAPI, AssessmentSummary, Facility, Farm } from '@/lib/api';
+import { assessmentAPI, AssessmentSummary, Facility, Farm, formatLastRun } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -293,7 +293,7 @@ function OverviewContent() {
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell capitalize text-gray-600">{a.type}</td>
                     <td className="px-4 py-3 hidden md:table-cell text-gray-600">
-                      {a.created_at ? new Date(a.created_at).toLocaleDateString() : '—'}
+                      {formatLastRun(a)}
                     </td>
                     <td className="px-4 py-3 text-gray-900">
                       {typeof a.single_score === 'number' ? a.single_score.toFixed(3) : '—'}

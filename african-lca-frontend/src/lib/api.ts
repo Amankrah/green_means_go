@@ -71,8 +71,20 @@ export interface AssessmentSummary {
   status?: string;
   assessment_date?: string | null;
   created_at?: string | null;
+  /** Last write (first run, or the latest edit/re-run in place). */
+  updated_at?: string | null;
   /** True when the server stored the original submit payload for edit/re-run. */
   can_rerun?: boolean;
+}
+
+/** When the assessment was last run: a re-run updates the row in place, so prefer updated_at. */
+export function lastRunAt(a: { updated_at?: string | null; created_at?: string | null }): string | null {
+  return a.updated_at || a.created_at || null;
+}
+
+export function formatLastRun(a: { updated_at?: string | null; created_at?: string | null }): string {
+  const at = lastRunAt(a);
+  return at ? new Date(at).toLocaleDateString() : '—';
 }
 
 export interface AssessmentRequestArchive {

@@ -232,5 +232,6 @@ def list_owned_assessments(
     stmt = select(Assessment).where(Assessment.user_id == user.id)
     if a_type is not None:
         stmt = stmt.where(Assessment.type == a_type)
-    stmt = stmt.order_by(Assessment.created_at.desc())
+    # Most recently run first: an edit/re-run replaces the row in place and bumps updated_at.
+    stmt = stmt.order_by(Assessment.updated_at.desc(), Assessment.created_at.desc())
     return list(db.scalars(stmt))

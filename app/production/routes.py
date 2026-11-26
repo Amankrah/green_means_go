@@ -608,6 +608,7 @@ async def list_assessments(
                 "single_score": row.single_score,
                 "assessment_date": row.payload_json.get("assessment_date"),
                 "created_at": row.created_at,
+                "updated_at": row.updated_at,
                 "is_comprehensive": "farm_profile" in row.payload_json
                 or "management_analysis" in row.payload_json,
             }

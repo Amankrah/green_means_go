@@ -235,6 +235,7 @@ async def list_processing_assessments(
                 "single_score": row.single_score,
                 "assessment_date": row.payload_json.get("assessment_date"),
                 "created_at": row.created_at,
+                "updated_at": row.updated_at,
                 "processing_capacity": row.payload_json.get("facility_profile", {}).get("processing_capacity", 0.0),
             }
             for row in rows

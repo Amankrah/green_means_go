@@ -17,7 +17,7 @@ import {
 import RequireAuth from '@/components/RequireAuth';
 import DashboardShell from '@/components/DashboardShell';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import { assessmentAPI, AssessmentSummary, Facility } from '@/lib/api';
+import { assessmentAPI, AssessmentSummary, Facility, formatLastRun } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -188,7 +188,7 @@ function FacilityProfileContent() {
                       {a.title || a.company_name || 'Untitled'}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {a.created_at ? new Date(a.created_at).toLocaleDateString() : '—'}
+                      {formatLastRun(a)}
                       {typeof a.single_score === 'number' ? ` · ${a.single_score.toFixed(3)}` : ''}
                     </div>
                   </Link>

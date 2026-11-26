@@ -20,7 +20,7 @@ import RequireAuth from '@/components/RequireAuth';
 import DashboardShell from '@/components/DashboardShell';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import FarmCropSummary from '@/components/FarmCropSummary';
-import { assessmentAPI, AssessmentSummary, Farm } from '@/lib/api';
+import { assessmentAPI, AssessmentSummary, Farm, formatLastRun, lastRunAt } from '@/lib/api';
 import { normalizeFarmSnapshot, type FarmSnapshot } from '@/lib/farm-snapshot';
 
 export const dynamic = 'force-dynamic';
@@ -69,8 +69,10 @@ function FarmProfileContent() {
     return [...assessments]
       .filter((a) => a.can_rerun)
       .sort((a, b) => {
-        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        const ra = lastRunAt(a);
+        const rb = lastRunAt(b);
+        const ta = ra ? new Date(ra).getTime() : 0;
+        const tb = rb ? new Date(rb).getTime() : 0;
         return tb - ta;
       })[0] ?? null;
   }, [assessments]);
@@ -151,7 +153,7 @@ function FarmProfileContent() {
           mode="ready"
           snapshot={snapshot}
           assessmentId={snapshotSource.id}
-          assessmentDate={snapshotSource.created_at}
+          assessmentDate={lastRunAt(snapshotSource) ?? undefined}
           assessmentTitle={snapshotSource.title || snapshotSource.company_name}
         />
       );
@@ -291,7 +293,7 @@ function FarmProfileContent() {
                       {a.title || a.company_name || 'Untitled'}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {a.created_at ? new Date(a.created_at).toLocaleDateString() : '—'}
+                      {formatLastRun(a)}
                       {typeof a.single_score === 'number' ? ` · ${a.single_score.toFixed(3)}` : ''}
                     </div>
                   </Link>

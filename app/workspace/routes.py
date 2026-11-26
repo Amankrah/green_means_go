@@ -222,6 +222,7 @@ def my_assessments(user: User = Depends(get_current_user), db: Session = Depends
                 "status": row.status,
                 "assessment_date": row.payload_json.get("assessment_date"),
                 "created_at": row.created_at,
+                "updated_at": row.updated_at,
                 "can_rerun": bool(
                     row.request_json and row.request_json.get("form")
                 ),

@@ -10,6 +10,7 @@ from db import Base, get_db
 from models import AssessmentType, User
 from store import (
     ConcurrencyError,
+    list_owned_assessments,
     list_revisions,
     replace_assessment,
     save_assessment,
@@ -101,6 +102,23 @@ def test_optimistic_lock_rejects_stale_write():
         # Matching version succeeds.
         replace_assessment(db, a, payload=_payload(1200.0), expected_version=1)
         assert a.version == 2
+    finally:
+        db.close()
+
+
+def test_rerun_bumps_updated_at_and_list_order():
+    import time
+    db = _TestSession()
+    try:
+        u = _user(db)
+        older = save_assessment(db, user_id=u.id, a_type=AssessmentType.farm, payload=_payload(1.0))
+        time.sleep(0.01)
+        newer = save_assessment(db, user_id=u.id, a_type=AssessmentType.farm, payload=_payload(2.0))
+        assert [a.id for a in list_owned_assessments(db, u)][0] == newer.id
+        time.sleep(0.01)
+        replace_assessment(db, older, payload=_payload(1.5), reason="rerun")
+        assert older.updated_at > older.created_at
+        assert [a.id for a in list_owned_assessments(db, u)][0] == older.id
     finally:
         db.close()
 
