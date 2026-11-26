@@ -85,8 +85,9 @@ def test_cadmium_is_disclosed_not_booked():
     rec, notes = hm.cadmium_disclosure(_farm(apps))
     assert rec["booked"] is False
     assert rec["mineral_p2o5_kg"] == pytest.approx(50 * 0.46 * 3.0)          # all crops, 3 ha
-    assert rec["cd_upper_bound_g"] == pytest.approx(69.0 * 60 / 1000)
-    assert notes and "not booked" in notes[0]
+    assert rec["cd_at_eu_limit_g"] == pytest.approx(69.0 * 60 / 1000)
+    assert rec["cd_regional_range_g"] == pytest.approx([69.0 * 17 / 1000, 69.0 * 221 / 1000])
+    assert notes and "not booked" in notes[0].lower() and "may exceed" in notes[0]
 
 
 @pytest.mark.skipif(not DB.exists(), reason="canonical store not available")

@@ -51,20 +51,23 @@ OTHER_N_ORIGINS = ("crop_residues", "organic_fertiliser")
 
 # ---- Compost / manure organic-N -> field N2O (IPCC 2019 Vol.4 Ch.11) --------------------
 # Total-N content of the organic amendment, as a fraction of the fresh applied mass, by
-# source. UNCITED engine screening defaults: no source for applied compost/manure N content
-# in the served regions has been found (IPCC 2019 Vol 4 Ch 10 gives N excretion, not applied
-# product N). Every result note says so and flows carry origin "compost" so the pedigree
-# uncertainty (engine/uncertainty.py) can score them as unverified estimates. Real values vary
-# widely with moisture and feedstock. Application rate arrives in tonnes/ha/year.
-COMPOST_N_SOURCE = "uncited engine screening default (no regional compost/manure N analysis)"
+# source: AHDB (2017) Nutrient Management Guide (RB209) Section 2, Table 2.2 (cattle FYM
+# 6.0 kg N/t fresh) and Table 2.17 (green compost 7.5, green/food compost 11 kg N/t fresh).
+# UK analyses: no West African compost/manure N table has been found (IPCC 2019 Vol 4 Ch 10
+# gives N excretion, not applied product N), so every result note says so and flows carry
+# origin "compost" for the pedigree uncertainty (engine/uncertainty.py). RB209 has no
+# farm-made or mixed compost class: those take the higher compost value (green/food).
+# Application rate arrives in tonnes/ha/year.
+COMPOST_N_SOURCE = ("AHDB RB209 (2017) Tables 2.2 / 2.17 typical UK values, not a regional "
+                    "compost/manure analysis")
 COMPOST_N_FRACTION = {
-    "Animal manure": 0.005,
-    "Farm-made compost": 0.012,
-    "Purchased compost": 0.012,
-    "Green waste/crop residues": 0.008,
-    "Mixed sources": 0.010,
+    "Animal manure": 0.006,
+    "Farm-made compost": 0.011,
+    "Purchased compost": 0.011,
+    "Green waste/crop residues": 0.0075,
+    "Mixed sources": 0.011,
 }
-DEFAULT_COMPOST_N = 0.010
+DEFAULT_COMPOST_N = 0.011
 N2O_N_TO_N2O = 44.0 / 28.0
 NH3_N_TO_NH3 = 17.0 / 14.0            # molar mass NH3 / N
 NO3_N_TO_NO3 = 62.0 / 14.0            # molar mass NO3 / N

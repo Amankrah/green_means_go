@@ -93,12 +93,26 @@ BIOMASS_C = {
     "Oil palm": {"default": 30.0},
     "Rubber": {"tropical wet": 40.1, "tropical moist": 40.1, "tropical dry": 40.1,
                "tropical montane": 40.1},
+    # Commission Decision 2010/335/EU (OJ L 151, 17.6.2010) Annex s 8.2: C_VEG (above- and
+    # below-ground vegetation C over the production cycle) of perennial crops "whose stem is
+    # usually not annually harvested". Table 11 (general) derives from the IPCC 2006 Vol 4
+    # Table 5.1 climate defaults; Table 12 gives coconut for all climates. Same source as the
+    # Blonk LUC Impact tool (PAS 2050-1 statistical dLUC) for perennial crop vegetation.
+    "Perennial crop (general)": {"tropical dry": 6.2, "tropical moist": 14.4, "tropical wet": 34.3,
+                                 "warm temperate dry": 43.2, "warm temperate moist": 43.2,
+                                 "cool temperate dry": 43.2, "cool temperate moist": 43.2},
+    "Coconut": {"default": 75.0},
 }
-# Perennials whose engine/perennials.py entry has biomass_class None but which have their own
-# Table 5.3 row. Other perennials (cashew, coffee, coconut, citrus, mango, plantain/banana,
-# farmer-declared) have no tropical Table 5.1/5.3 row (orchard/olive/vine rows are temperate
-# only in EX-ACT), so their biomass after conversion is not credited (see _after_biomass).
-BIOMASS_CLASS_BY_CROP = {"rubber": "Rubber"}
+SRC_EC_2010 = ("Commission Decision 2010/335/EU Annex s 8.2 Table 11 (perennial crops, general) "
+               "and Table 12 (coconut)")
+# Perennials whose engine/perennials.py entry has biomass_class None. IPCC 2019 Table 5.3 has
+# no tropical row for the woody ones (cashew, coffee, citrus, mango, coconut), so they use
+# the EC 2010/335/EU defaults. Plantain/banana (stem cut every cycle, outside the EC
+# definition) and farmer-declared perennials stay uncredited (see _after_biomass).
+BIOMASS_CLASS_BY_CROP = {"rubber": "Rubber", "coconut": "Coconut",
+                         "cashew": "Perennial crop (general)", "coffee": "Perennial crop (general)",
+                         "citrus": "Perennial crop (general)", "mango": "Perennial crop (general)"}
+_EC_CLASSES = ("Perennial crop (general)", "Coconut")
 
 
 def _after_biomass(p: dict, clim: str) -> tuple[float, str | None]:
@@ -108,12 +122,16 @@ def _after_biomass(p: dict, clim: str) -> tuple[float, str | None]:
     if table:
         val = table.get(clim, table.get("default"))
         if val is not None:
+            if cls in _EC_CLASSES:
+                return val, (f"no IPCC 2019 Table 5.3 row for perennial '{p.get('crop')}': its "
+                             f"vegetation carbon after conversion is {val:g} t C/ha ({cls}, "
+                             f"{clim}; {SRC_EC_2010})")
             return val, None
-    return 0.0, (f"no IPCC 2019 Vol 4 Ch 5 Table 5.1/5.3 biomass value for perennial "
-                 f"'{p.get('crop')}' in a {clim} climate: its biomass after conversion is not "
-                 "credited (conservative: the full pre-conversion biomass loss is booked)")
+    return 0.0, (f"no IPCC 2019 Vol 4 Ch 5 Table 5.1/5.3 or EC 2010/335/EU biomass value for "
+                 f"perennial '{p.get('crop')}' in a {clim} climate: its biomass after conversion "
+                 "is not credited (conservative: the full pre-conversion biomass loss is booked)")
 SRC_BIOMASS = (f"IPCC 2019 Refinement Vol 4 Ch 5 Tables 5.1, 5.3, 5.9 (updated) and IPCC 2006 "
-               f"Vol 4 Ch 6 Table 6.4, via {EXACT}")
+               f"Vol 4 Ch 6 Table 6.4, via {EXACT}; {SRC_EC_2010}")
 
 # Region -> forest ecological zone override (FAO Global Ecological Zones 2010: the cocoa and
 # oil-palm belts of southern Ghana and Nigeria are tropical moist deciduous forest). Country-

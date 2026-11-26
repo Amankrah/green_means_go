@@ -30,7 +30,8 @@ v9.4.2 (data/recommendations/Tier1/EX-ACT_V9.4.2.xlsb, sheet 'IPCC', rows 59-68;
 tropical-montane row carries IPCC 2006 values, flagged red in EX-ACT). SOC_REF and the
 climate / soil-class mapping are reused from engine/land_use_change.py (Table 2.3).
 Perennial tree crops are not modelled (Table 5.5 F_MG / F_I describe annual-crop tillage and
-residue regimes); disclosed.
+residue regimes), nor is flooded paddy rice (Table 5.5: "For paddy rice, tillage and input
+factors are not used"); both disclosed.
 """
 from __future__ import annotations
 
@@ -295,8 +296,14 @@ def soc_management(assessment: dict, region) -> dict:
                                      "note": "perennial tree crop: Table 5.5 tillage/input "
                                              "factors not applied"})
             continue
+        if _is_flooded_rice(food):
+            base["per_crop"].append({"crop": name, "value": None,
+                                     "note": "paddy rice: Table 5.5 tillage and input factors "
+                                             "are not used for paddy rice (IPCC 2019 Vol 4 "
+                                             "Ch 5 Table 5.5, paddy rice F_LU row)"})
+            continue
         inp, why, alts = input_class(assessment, food)
-        flu = t["flu_rice"] if _is_flooded_rice(food) else t["flu"]
+        flu = t["flu"]
         d_soc, co2 = co2_for(flu, inp, area)
         alt_rows = [{"input": INPUT[a], "f_i": t["fi"][a], "value": co2_for(flu, a, area)[1],
                      "why": w} for a, w in alts]

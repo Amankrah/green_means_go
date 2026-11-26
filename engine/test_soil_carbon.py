@@ -161,10 +161,18 @@ def test_baseline_practice_has_zero_change_and_perennial_skipped():
     assert rec["value"] == 0.0 and rec["per_crop"][0]["value"] is None
 
 
-def test_flooded_rice_uses_paddy_flu():
+def test_flooded_rice_gets_no_tillage_or_input_factors():
+    # IPCC 2019 Table 5.5: "For paddy rice, tillage and input factors are not used".
     rec = soc.soc_management(_farm(["No-till"], years=5,
                                    food={"id": "r", "name": "Rice", "area_allocated": 1.0}), GH)
-    assert rec["per_crop"][0]["f_lu"] == 1.35
+    assert rec["value"] == 0.0 and rec["per_crop"][0]["value"] is None
+    assert "paddy rice" in rec["per_crop"][0]["note"]
+
+
+def test_upland_rice_keeps_tillage_factors():
+    rec = soc.soc_management(_farm(["No-till"], years=5,
+                                   food={"id": "r", "name": "Upland Rice", "area_allocated": 1.0}), GH)
+    assert rec["per_crop"][0]["f_mg"] > 1.0 and rec["per_crop"][0]["value"] < 0
 
 
 def test_table_values_match_region_reference_file():

@@ -134,8 +134,17 @@ def test_a_classification_never_changes_amounts():
     _assert_no_adversarial(got)
     # every amount is user number x user number (x area), or x a cited LHV constant
     area = sum(f.get("area_allocated") or 0 for f in base["foods"])
-    for inp, app in zip([i for i in got if i["kind"] == "fertiliser"], mp):
-        assert inp["amount"] == app["application_rate"] * (app.get("applications_per_season") or 1) * area
+    product_kg: dict[str, float] = {}
+    for i in got:
+        if i["kind"] != "fertiliser":
+            continue
+        if i.get("basis") == "nutrient":
+            key = i["name"].rsplit(" (", 1)[0]
+            product_kg[key] = product_kg.get(key, 0.0) + i["product_kg"]
+        else:
+            product_kg[i["name"]] = i["amount"]
+    want_kg = sorted(app["application_rate"] * (app.get("applications_per_season") or 1) * area for app in mp)
+    assert sorted(product_kg.values()) == pytest.approx(want_kg)
     # user litres: metered monthly x 12, or equipment hours x the user's L/h (the pump stops
     # being de-duplicated against the metered stream once that stream is relabelled)
     user_litres = {45 * 12} | {eq["hours_per_year"] * eq["fuel_efficiency"]

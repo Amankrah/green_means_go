@@ -20,6 +20,10 @@ from __future__ import annotations
 import os
 import tempfile
 
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # ingestion modules use bare imports
+
 from canonical_store import CanonicalStore
 from query import CanonicalQuery
 
@@ -30,6 +34,9 @@ def build_synthetic(db_path: str) -> dict:
     with CanonicalStore(db_path) as store:
         sid = store.upsert_source("synthetic", "v1", "test")
         run = store.start_run(sid, "test", "memory")
+        store.add_units([{"name": "MJ", "unit_group": "energy", "conversion_factor": 1.0, "is_reference": 1},
+                         {"name": "kWh", "unit_group": "energy", "conversion_factor": 3.6},
+                         {"name": "kg", "unit_group": "mass", "conversion_factor": 1.0, "is_reference": 1}])
 
         store.add_flows(sid, [
             {"uid": CO2, "name": "Carbon dioxide", "flow_type": "ELEMENTARY_FLOW", "ref_unit": "kg"},
@@ -89,6 +96,9 @@ def main() -> int:
         build_synthetic(path)
         with CanonicalQuery(path) as q:
             res = q.cradle_to_gate("P_grain", method_name="GWP")
+            elec_native = q.cradle_to_gate("P_elec").elementary_flows[CO2]["amount"]
+            elec_one = q.cradle_to_gate("P_elec", amount=1.0).elementary_flows[CO2]["amount"]
+            elec_two = q.cradle_to_gate("P_elec", amount=2.0).elementary_flows[CO2]["amount"]
         got_co2 = res.elementary_flows[CO2]["amount"]
         got_impact = res.impacts.get("Climate change", {}).get("value")
         exp = analytical()
@@ -103,6 +113,11 @@ def main() -> int:
         print(f"Synthetic cradle-to-gate (target=grain, supply chain={res.n_processes} processes, has loop):")
         check("total CO2 (elementary)", got_co2, exp["co2_kg"])
         check("characterized GWP", got_impact, exp["co2_kg"])
+        # amount is in the dataset's reference unit (kWh), not the unit-group base (MJ)
+        e = 1.0 / 0.7
+        check("1 kWh electricity CO2 (amount=1.0)", elec_one, 0.8 * e + 0.1 * e)
+        check("amount=None equals amount=ref_amount", elec_native, elec_one)
+        check("2 kWh electricity CO2 (amount=2.0)", elec_two, 2.0 * elec_one)
         print(f"  (analytical: elec={exp['elec_kWh']:.4f} kWh, steel={exp['steel_kg']:.4f} kg, CO2={exp['co2_kg']:.4f} kg)")
         print("\nRESULT:", "ALL PASS ✅" if ok else "FAILURES ❌")
         return 0 if ok else 1
@@ -110,6 +125,10 @@ def main() -> int:
         for ext in ("", "-wal", "-shm"):
             try: os.remove(path + ext)
             except OSError: pass
+
+
+def test_synthetic_cradle_to_gate():
+    assert main() == 0
 
 
 if __name__ == "__main__":

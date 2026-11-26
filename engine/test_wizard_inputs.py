@@ -534,14 +534,18 @@ def test_free_text_product_identified_by_its_standard_grade():
     assert f[0]["match_as"] == "urea fertiliser"
 
 
-def test_npk_15_15_15_and_blank_grade_keep_the_compound_product_dataset():
+def test_npk_15_15_15_and_blank_grade_use_the_same_nutrient_route_as_other_grades():
     a = _fert({"fertilizer_type": "NPK Compound", "npk_ratio": "15-15-15", "application_rate": 100,
                "applications_per_season": 1},
               {"fertilizer_type": "NPK Compound", "application_rate": 100, "applications_per_season": 1})
     f = _by_kind(extract_purchased_inputs(a)[0], "fertiliser")
-    assert [r["name"] for r in f] == ["NPK Compound 15-15-15 fertiliser", "NPK Compound fertiliser"]
-    assert all(r["basis"] == "product" and r["amount"] == pytest.approx(200.0) for r in f)
-    assert f[1]["estimated"] and not f[0].get("estimated")
+    assert len(f) == 6 and all(r["basis"] == "nutrient" for r in f)
+    assert all("nutrient supply from NPK (15-15-15)" in r["match_as"] for r in f)
+    assert all(r["amount"] == pytest.approx(200.0 * 0.15) for r in f)
+    graded = [r for r in f if r["name"].startswith("NPK Compound 15-15-15")]
+    blank = [r for r in f if not r["name"].startswith("NPK Compound 15-15-15")]
+    assert len(graded) == 3 and not any(r.get("estimated") for r in graded)
+    assert len(blank) == 3 and all(r["estimated"] for r in blank)
 
 
 def test_crops_per_year_and_crop_ids_scale_seasonal_inputs():

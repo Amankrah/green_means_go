@@ -68,6 +68,7 @@ class _UnitSolve:
     native_amount: float            # the process's own reference amount (demand when amount=None)
     flows: tuple                    # ((flow_key, name, unit, amount_per_unit_demand), ...)
     notes: tuple
+    ref_unit_factor: float = 1.0    # reference unit -> unit-group base unit (kWh -> MJ = 3.6)
 
 
 # The solve is linear in demand (T s = a·e  =>  g scales with a), so one solve per dataset
@@ -298,10 +299,13 @@ class CanonicalQuery:
 
     def cradle_to_gate(self, target_uid: str, method_name: Optional[str] = None,
                        max_nodes: int = 50000, amount: Optional[float] = None) -> InventoryResult:
-        """Elementary-flow inventory of `amount` of the target's reference product
-        (default: the process's native reference amount), optionally characterized."""
+        """Elementary-flow inventory of `amount` of the target's reference product, in the
+        process's reference unit (`processes.ref_unit`: 1.0 = 1 kWh for an electricity
+        dataset, not 1 MJ), or the native reference amount when None; optionally
+        characterized. The solve runs in unit-group base units, so `amount` is scaled by
+        the reference unit's conversion factor."""
         unit = self._unit_solve(target_uid, max_nodes)
-        demand = unit.native_amount if amount is None else float(amount)
+        demand = unit.native_amount if amount is None else float(amount) * unit.ref_unit_factor
         elementary = {}
         for key, name, flow_unit, per_unit in unit.flows:
             g = per_unit * demand
@@ -388,6 +392,7 @@ class CanonicalQuery:
         bio: dict[str, dict] = {}     # flow_uid -> {"name","unit","idx":array, "amt":array}
         diag = np.zeros(n)
         ambiguous = 0
+        target_ref_unit = proc.get("ref_unit")
 
         for ex in self._iter_exchanges(procs):
             ex_proc_uid = ex["process_uid"]
@@ -413,6 +418,8 @@ class CanonicalQuery:
                 # so the diagonal must carry the direction.
                 tamt = amt * self._unit_factor(ex["unit"])
                 diag[j] += -tamt if ex["is_input"] else tamt
+                if ex_proc_uid == target_uid:
+                    target_ref_unit = ex["unit"]
             else:
                 prov = ex["provider_process_uid"]
                 if not prov:  # Agribalyse: resolve by product flow
@@ -478,6 +485,7 @@ class CanonicalQuery:
         return _UnitSolve(
             target_name=proc["name"], n_processes=n, n_unlinked_inputs=unlinked,
             native_amount=diag_target, flows=tuple(flows), notes=tuple(notes),
+            ref_unit_factor=self._unit_factor(target_ref_unit),
         )
 
     def characterize_flows(self, elementary: dict, method_name: str) -> dict:

@@ -407,4 +407,6 @@ def test_grid_calibration_lands_on_official_factor(code, pattern):
     info = grid_calibration.apply(q, {"kind": "electricity", "amount": 1.0},
                                   sc.elementary_flows, r, r.default_method)
     assert info is not None and abs(info["climate_after"] - r.grid_ef_kgco2_per_kwh) < 1e-3
-    assert info["climate_before"] < r.grid_ef_kgco2_per_kwh  # ecoinvent understates both
+    # amount=1.0 is 1 kWh: both fossil-heavy ecoinvent grids exceed 0.9 kg CO2e/kWh (a solve
+    # read as 1 MJ gave about a third of that)
+    assert info["climate_before"] > 0.9

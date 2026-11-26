@@ -518,21 +518,18 @@ def _fertiliser_inputs(assessment, total_area, inputs, notes):
             if g is None:
                 g = NPK_REFERENCE_GRADE
                 notes.append(f"fertiliser '{ftype}': no NPK grade given; {NPK_DEFAULT_SOURCE}")
-            if g == NPK_REFERENCE_GRADE:
-                # WFLDB / ecoinvent compound product dataset of exactly this grade (kg product)
-                row = {"name": name, "amount": kg, "unit": "kg", "kind": "fertiliser", "basis": "product",
-                       "product_kg": kg, "nutrient_content": dict(zip(NUTRIENTS, (v / 100.0 for v in g))),
-                       **extra}
-                if grade is None:
-                    row["estimated"] = True
-                    row["estimate_meta"] = {"basis": NPK_DEFAULT_SOURCE}
-                inputs.append(row)
-            else:
-                inputs.extend(_nutrient_rows(name, kg, g, NPK_NUTRIENT_DATASET, extra))
-                notes.append(f"fertiliser '{name}': grade {npk_txt} modelled per nutrient "
-                             f"({', '.join(f'{v:g}% {nut}' for nut, v in zip(NUTRIENTS, g) if v)}) on "
-                             "the ecoinvent 3.11 NPK compound route ('nutrient supply from NPK "
-                             "(15-15-15) fertiliser', per kg nutrient)")
+            # Every grade, 15-15-15 included, on the same pinned ecoinvent route: a grade change
+            # then moves only the nutrient amounts, never the database (a WFLDB product match
+            # for 15-15-15 alone made 20-10-10 read +59% cancer toxicity in the sweep).
+            row_extra = dict(extra)
+            if grade is None:
+                row_extra.update(estimated=True, estimate_meta={"basis": NPK_DEFAULT_SOURCE})
+            inputs.extend(_nutrient_rows(name, kg, g, NPK_NUTRIENT_DATASET, row_extra))
+            notes.append(f"fertiliser '{name}': grade {npk_txt or 'none (15-15-15 assumed)'} "
+                         f"modelled per nutrient "
+                         f"({', '.join(f'{v:g}% {nut}' for nut, v in zip(NUTRIENTS, g) if v)}) on "
+                         "the ecoinvent 3.11 NPK compound route ('nutrient supply from NPK "
+                         "(15-15-15) fertiliser', per kg nutrient)")
         elif grade and "foliar" not in low and sum(1 for v in grade if v > 0) >= 2:
             inputs.extend(_nutrient_rows(name, kg, grade, NPK_NUTRIENT_DATASET, extra))
             notes.append(f"fertiliser '{name}': compound product not in the fertiliser table; grade "

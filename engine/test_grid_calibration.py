@@ -73,7 +73,7 @@ def test_calibration_co2_only_mode_is_climate_only(monkeypatch=None) -> int:
     return 0
 
 
-def test_calibration_thermal_topup_moves_copollutants() -> int:
+def test_calibration_scales_down_when_dataset_exceeds_official() -> int:
     s = _gh_setup()
     if not s:
         print("[skip] canonical store not present")
@@ -85,13 +85,31 @@ def test_calibration_thermal_topup_moves_copollutants() -> int:
                                   sc.elementary_flows, gh, method)
     after = q.characterize_flows(sc.elementary_flows, method)
     assert info is not None, "calibration did not fire for GH grid electricity"
-    assert _climate(before) < 0.35, "expected ecoinvent GH to understate before calibration"
+    assert _climate(before) > 0.35, "ecoinvent GH low voltage (per kWh) is above the 0.35 factor"
+    assert info["mode"] == "proportional_down"
     assert abs(_climate(after) - 0.35) < 1e-6, f"climate landed at {_climate(after)}, not 0.35"
-    if info.get("mode") == "thermal_topup":
-        # gas generation brings NOx (photochemical ozone, acidification) and fossil resource use
-        for key in ("Photochemical oxidant formation: human health", "Energy resources: non-renewable, fossil"):
-            if key in before:
-                assert after[key]["value"] > before[key]["value"], key
+    return 0
+
+
+def test_calibration_thermal_topup_moves_copollutants() -> int:
+    s = _gh_setup()
+    if not s:
+        print("[skip] canonical store not present")
+        return 0
+    q, gh, method, uid = s
+    # 1 kWh solved but declared as 2 kWh: the target (0.70 kg CO2e) exceeds the dataset, so the
+    # gap is filled with gas generation
+    sc = q.cradle_to_gate(uid, amount=1.0)
+    before = q.characterize_flows(sc.elementary_flows, method)
+    info = grid_calibration.apply(q, {"kind": "electricity", "amount": 2.0},
+                                  sc.elementary_flows, gh, method)
+    after = q.characterize_flows(sc.elementary_flows, method)
+    assert info is not None and info["mode"] == "thermal_topup"
+    assert abs(_climate(after) - 0.70) < 1e-6, f"climate landed at {_climate(after)}, not 0.70"
+    # gas generation brings NOx (photochemical ozone, acidification) and fossil resource use
+    for key in ("Photochemical oxidant formation: human health", "Energy resources: non-renewable, fossil"):
+        if key in before:
+            assert after[key]["value"] > before[key]["value"], key
     return 0
 
 
@@ -112,5 +130,6 @@ def test_calibration_region_without_factor_untouched() -> int:
 
 if __name__ == "__main__":
     test_calibration_co2_only_mode_is_climate_only()
+    test_calibration_scales_down_when_dataset_exceeds_official()
     test_calibration_thermal_topup_moves_copollutants()
     sys.exit(test_calibration_region_without_factor_untouched())

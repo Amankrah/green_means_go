@@ -177,29 +177,69 @@
    "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8745,
+   "score": 0.8744,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|BF|NPK Compound 15-15-15 fertiliser": {
-   "target": "NPK Compound 15-15-15 fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|BF|NPK Compound 15-15-15 fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.7586,
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|BF|NPK Compound fertiliser": {
-   "target": "NPK Compound fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|BF|NPK Compound 15-15-15 fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.6914,
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|BF|NPK Compound 15-15-15 fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|BF|NPK Compound fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|BF|NPK Compound fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|BF|NPK Compound fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|BF|NPK fertiliser": {
@@ -647,29 +687,69 @@
    "uid": "aa697d96-4b7f-38d5-95a7-64d07ef4c9a6",
    "name": "market for inorganic potassium fertiliser, as K2O | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Canada",
-   "score": 0.6415,
+   "score": 0.6414,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|CA|NPK Compound 15-15-15 fertiliser": {
-   "target": "NPK Compound 15-15-15 fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|CA|NPK Compound 15-15-15 fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.7586,
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|CA|NPK Compound fertiliser": {
-   "target": "NPK Compound fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|CA|NPK Compound 15-15-15 fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.6914,
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|CA|NPK Compound 15-15-15 fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|CA|NPK Compound fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|CA|NPK Compound fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|CA|NPK Compound fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|CA|NPK fertiliser": {
@@ -1117,29 +1197,69 @@
    "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8745,
+   "score": 0.8744,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|GH|NPK Compound 15-15-15 fertiliser": {
-   "target": "NPK Compound 15-15-15 fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|GH|NPK Compound 15-15-15 fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.7586,
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|GH|NPK Compound fertiliser": {
-   "target": "NPK Compound fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|GH|NPK Compound 15-15-15 fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.6914,
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|GH|NPK Compound 15-15-15 fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|GH|NPK Compound fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|GH|NPK Compound fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|GH|NPK Compound fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|GH|NPK fertiliser": {
@@ -1587,29 +1707,69 @@
    "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8745,
+   "score": 0.8744,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|NG|NPK Compound 15-15-15 fertiliser": {
-   "target": "NPK Compound 15-15-15 fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|NG|NPK Compound 15-15-15 fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.7586,
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|NG|NPK Compound fertiliser": {
-   "target": "NPK Compound fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|NG|NPK Compound 15-15-15 fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.6914,
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|NG|NPK Compound 15-15-15 fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|NG|NPK Compound fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|NG|NPK Compound fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|NG|NPK Compound fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|NG|NPK fertiliser": {
@@ -2057,29 +2217,69 @@
    "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8745,
+   "score": 0.8744,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|SN|NPK Compound 15-15-15 fertiliser": {
-   "target": "NPK Compound 15-15-15 fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|SN|NPK Compound 15-15-15 fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.7586,
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|SN|NPK Compound fertiliser": {
-   "target": "NPK Compound fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|SN|NPK Compound 15-15-15 fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.6914,
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|SN|NPK Compound 15-15-15 fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|SN|NPK Compound fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|SN|NPK Compound fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|SN|NPK Compound fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|SN|NPK fertiliser": {
@@ -2527,29 +2727,69 @@
    "uid": "8731c636-864a-3f3d-a87a-3625c6e3201a",
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8745,
+   "score": 0.8744,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|ZA|NPK Compound 15-15-15 fertiliser": {
-   "target": "NPK Compound 15-15-15 fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|ZA|NPK Compound 15-15-15 fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.7586,
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
    "fallback_used": null
   },
-  "farm|ZA|NPK Compound fertiliser": {
-   "target": "NPK Compound fertiliser",
-   "uid": "261d75ab-81bc-374f-8a42-4cbed52d5106",
-   "name": "NPK (15-15-15) (with 15% N, 15% P2O5, 15% K2O), at plant {RoW} - Adapted from WFLDB U",
+  "farm|ZA|NPK Compound 15-15-15 fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.6914,
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|ZA|NPK Compound 15-15-15 fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|ZA|NPK Compound fertiliser (K2O)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "uid": "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic potassium fertiliser, as K2O | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8917,
    "needs_review": false,
    "identity_basis": "concept",
+   "fallback_used": null
+  },
+  "farm|ZA|NPK Compound fertiliser (N)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8643,
+   "needs_review": true,
+   "identity_basis": "generic",
+   "fallback_used": null
+  },
+  "farm|ZA|NPK Compound fertiliser (P2O5)": {
+   "target": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+   "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
+   "location": "Rest of World",
+   "score": 0.8821,
+   "needs_review": true,
+   "identity_basis": "generic",
    "fallback_used": null
   },
   "farm|ZA|NPK fertiliser": {

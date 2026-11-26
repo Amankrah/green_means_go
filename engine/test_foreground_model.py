@@ -113,20 +113,20 @@ def _compost_farm(source="Farm-made compost", ids=None, fert=None):
 def test_compost_n2o_nh3_no3_hand_calculated():
     out, notes = adjust_field_emissions([], _compost_farm(), GH)
     by = {f["substance"]: f["quantity"] for f in out if f.get("origin") == "compost"}
-    f_on = 5.0 * 1000 * 5.0 * 0.012                     # 300 kg N on 5 ha
-    assert by["NH3"] == pytest.approx(f_on * 0.21 * 17 / 14)          # 76.5 kg NH3
-    assert by["NO3"] == pytest.approx(f_on * 0.24 * 62 / 14)          # 318.9 kg NO3
-    n2o = f_on * (0.006 + 0.21 * 0.014 + 0.24 * 0.011) * 44 / 28      # 5.461 kg N2O
+    f_on = 5.0 * 1000 * 5.0 * 0.011                     # 275 kg N on 5 ha (RB209 1.1% N)
+    assert by["NH3"] == pytest.approx(f_on * 0.21 * 17 / 14)          # 70.1 kg NH3
+    assert by["NO3"] == pytest.approx(f_on * 0.24 * 62 / 14)          # 292.3 kg NO3
+    n2o = f_on * (0.006 + 0.21 * 0.014 + 0.24 * 0.011) * 44 / 28      # 5.004 kg N2O
     assert by["N2O"] == pytest.approx(n2o)
-    assert by["NH3"] == pytest.approx(76.5) and by["N2O"] == pytest.approx(5.4593, rel=1e-4)
+    assert by["NH3"] == pytest.approx(70.125) and by["N2O"] == pytest.approx(5.0042, rel=1e-4)
     assert by["NOx"] == pytest.approx(0.21 * n2o)                     # Nemecek & Schnetzer 2011
-    assert any("uncited engine screening default" in n for n in notes)
+    assert any("RB209" in n for n in notes)
 
 
 def test_compost_respects_crop_ids_and_dry_no_leaching():
     out, _ = adjust_field_emissions([], _compost_farm(ids=["b"]), GH)
     nh3 = [f["quantity"] for f in out if f["substance"] == "NH3"][0]
-    assert nh3 == pytest.approx(5.0 * 1000 * 3.0 * 0.012 * 0.21 * 17 / 14)   # cassava 3 ha only
+    assert nh3 == pytest.approx(5.0 * 1000 * 3.0 * 0.011 * 0.21 * 17 / 14)   # cassava 3 ha only
     a = _compost_farm()
     a["field_parameters"]["frac_leach"] = 0.0
     out, _ = adjust_field_emissions([], a, DRY)
@@ -143,7 +143,7 @@ def test_manure_entered_twice_counted_once():
     fert[0]["crop_ids"] = ["b"]
     out, _ = adjust_field_emissions([], _compost_farm("Animal manure", fert=fert), GH)
     nh3 = [f["quantity"] for f in out if f["substance"] == "NH3"][0]
-    assert nh3 == pytest.approx(5.0 * 1000 * 2.0 * 0.005 * 0.21 * 17 / 14)   # maize only, 0.5% N
+    assert nh3 == pytest.approx(5.0 * 1000 * 2.0 * 0.006 * 0.21 * 17 / 14)   # maize only, 0.6% N
 
 
 def test_legume_crop_does_not_self_credit():
@@ -230,8 +230,19 @@ def test_perennials_without_biomass_class_do_not_crash():
     flows, _ = luc.dluc_flows(_luc_food("Rubber"), GH, 0.006, 0.24)
     co2 = [f["quantity"] for f in flows if f["substance"] == "CO2_luc"][0]
     assert co2 == pytest.approx((before - 40.1 + soc) * 44 / 12 * 1000 / 20)
-    # cashew: no tropical Table 5.1/5.3 row -> biomass not credited, disclosed
+    # cashew: no IPCC Table 5.3 row -> EC 2010/335/EU Table 11 general perennial C_VEG
+    clim, _ = luc.ipcc_climate(GH)
+    ec = {"tropical wet": 34.3, "tropical moist": 14.4, "tropical dry": 6.2}[clim]
     flows, notes = luc.dluc_flows(_luc_food("Cashew"), GH, 0.006, 0.24)
+    co2 = [f["quantity"] for f in flows if f["substance"] == "CO2_luc"][0]
+    assert co2 == pytest.approx((before - ec + soc) * 44 / 12 * 1000 / 20)
+    assert any("2010/335/EU" in n for n in notes)
+    # coconut: EC Table 12, 75 t C/ha in every climate
+    flows, _ = luc.dluc_flows(_luc_food("Coconut"), GH, 0.006, 0.24)
+    co2 = [f["quantity"] for f in flows if f["substance"] == "CO2_luc"][0]
+    assert co2 == pytest.approx((before - 75.0 + soc) * 44 / 12 * 1000 / 20)
+    # plantain: not a woody perennial under the EC definition -> not credited, disclosed
+    flows, notes = luc.dluc_flows(_luc_food("Plantain"), GH, 0.006, 0.24)
     co2 = [f["quantity"] for f in flows if f["substance"] == "CO2_luc"][0]
     assert co2 == pytest.approx((before + soc) * 44 / 12 * 1000 / 20)
     assert any("not credited" in n for n in notes)
