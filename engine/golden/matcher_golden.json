@@ -179,7 +179,7 @@
    "location": "Rest of World",
    "score": 0.8744,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|NPK Compound 15-15-15 fertiliser (K2O)": {
@@ -189,7 +189,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|NPK Compound 15-15-15 fertiliser (N)": {
@@ -197,9 +197,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|NPK Compound 15-15-15 fertiliser (P2O5)": {
@@ -207,9 +207,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|NPK Compound fertiliser (K2O)": {
@@ -219,7 +219,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|NPK Compound fertiliser (N)": {
@@ -227,9 +227,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|NPK Compound fertiliser (P2O5)": {
@@ -237,9 +237,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|NPK fertiliser": {
@@ -339,7 +339,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|charcoal (on-farm)": {
@@ -479,7 +479,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|BF|transport of harvest to first point of sale": {
@@ -699,7 +699,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|CA|NPK Compound 15-15-15 fertiliser (N)": {
@@ -707,9 +707,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|CA|NPK Compound 15-15-15 fertiliser (P2O5)": {
@@ -717,9 +717,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|CA|NPK Compound fertiliser (K2O)": {
@@ -729,7 +729,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|CA|NPK Compound fertiliser (N)": {
@@ -737,9 +737,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|CA|NPK Compound fertiliser (P2O5)": {
@@ -747,9 +747,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|CA|NPK fertiliser": {
@@ -849,7 +849,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|CA|charcoal (on-farm)": {
@@ -1199,7 +1199,7 @@
    "location": "Rest of World",
    "score": 0.8744,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|NPK Compound 15-15-15 fertiliser (K2O)": {
@@ -1209,7 +1209,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|NPK Compound 15-15-15 fertiliser (N)": {
@@ -1217,9 +1217,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|NPK Compound 15-15-15 fertiliser (P2O5)": {
@@ -1227,9 +1227,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|NPK Compound fertiliser (K2O)": {
@@ -1239,7 +1239,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|NPK Compound fertiliser (N)": {
@@ -1247,9 +1247,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|NPK Compound fertiliser (P2O5)": {
@@ -1257,9 +1257,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|NPK fertiliser": {
@@ -1359,7 +1359,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|charcoal (on-farm)": {
@@ -1499,7 +1499,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|GH|transport of harvest to first point of sale": {
@@ -1709,7 +1709,7 @@
    "location": "Rest of World",
    "score": 0.8744,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|NPK Compound 15-15-15 fertiliser (K2O)": {
@@ -1719,7 +1719,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|NPK Compound 15-15-15 fertiliser (N)": {
@@ -1727,9 +1727,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|NPK Compound 15-15-15 fertiliser (P2O5)": {
@@ -1737,9 +1737,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|NPK Compound fertiliser (K2O)": {
@@ -1749,7 +1749,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|NPK Compound fertiliser (N)": {
@@ -1757,9 +1757,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|NPK Compound fertiliser (P2O5)": {
@@ -1767,9 +1767,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|NPK fertiliser": {
@@ -1869,7 +1869,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|charcoal (on-farm)": {
@@ -2009,7 +2009,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|NG|transport of harvest to first point of sale": {
@@ -2219,7 +2219,7 @@
    "location": "Rest of World",
    "score": 0.8744,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|NPK Compound 15-15-15 fertiliser (K2O)": {
@@ -2229,7 +2229,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|NPK Compound 15-15-15 fertiliser (N)": {
@@ -2237,9 +2237,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|NPK Compound 15-15-15 fertiliser (P2O5)": {
@@ -2247,9 +2247,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|NPK Compound fertiliser (K2O)": {
@@ -2259,7 +2259,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|NPK Compound fertiliser (N)": {
@@ -2267,9 +2267,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|NPK Compound fertiliser (P2O5)": {
@@ -2277,9 +2277,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|NPK fertiliser": {
@@ -2379,7 +2379,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|charcoal (on-farm)": {
@@ -2519,7 +2519,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|SN|transport of harvest to first point of sale": {
@@ -2729,7 +2729,7 @@
    "location": "Rest of World",
    "score": 0.8744,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|NPK Compound 15-15-15 fertiliser (K2O)": {
@@ -2739,7 +2739,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|NPK Compound 15-15-15 fertiliser (N)": {
@@ -2747,9 +2747,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|NPK Compound 15-15-15 fertiliser (P2O5)": {
@@ -2757,9 +2757,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|NPK Compound fertiliser (K2O)": {
@@ -2769,7 +2769,7 @@
    "location": "Rest of World",
    "score": 0.8917,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|NPK Compound fertiliser (N)": {
@@ -2777,9 +2777,9 @@
    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8643,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8644,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|NPK Compound fertiliser (P2O5)": {
@@ -2787,9 +2787,9 @@
    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
    "name": "nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5 | Cutoff, U",
    "location": "Rest of World",
-   "score": 0.8821,
-   "needs_review": true,
-   "identity_basis": "generic",
+   "score": 0.8819,
+   "needs_review": false,
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|NPK fertiliser": {
@@ -2889,7 +2889,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "farm|ZA|charcoal (on-farm)": {
@@ -3079,7 +3079,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|BF|Cardboard packaging": {
@@ -3209,7 +3209,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|BF|Palm kernel shell (facility fuel)": {
@@ -3219,7 +3219,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|BF|PaperBag packaging": {
@@ -3289,7 +3289,7 @@
    "location": "Rest of World",
    "score": 0.8706,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|BF|inbound transport (mixed)": {
@@ -3359,7 +3359,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|BF|solid waste (inorganic), anaerobicdigestion": {
@@ -3499,7 +3499,7 @@
    "location": "Rest of World",
    "score": 0.8971,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|CA|Biodiesel (facility fuel)": {
@@ -3519,7 +3519,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|CA|Cardboard packaging": {
@@ -3649,7 +3649,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|CA|Palm kernel shell (facility fuel)": {
@@ -3659,7 +3659,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|CA|PaperBag packaging": {
@@ -3729,7 +3729,7 @@
    "location": "Canada, Quebec",
    "score": 0.8706,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|CA|inbound transport (mixed)": {
@@ -3939,7 +3939,7 @@
    "location": "Canada, Quebec",
    "score": 0.8971,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|GH|Biodiesel (facility fuel)": {
@@ -3959,7 +3959,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|GH|Cardboard packaging": {
@@ -4089,7 +4089,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|GH|Palm kernel shell (facility fuel)": {
@@ -4099,7 +4099,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|GH|PaperBag packaging": {
@@ -4169,7 +4169,7 @@
    "location": "Rest of World",
    "score": 0.8706,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|GH|inbound transport (mixed)": {
@@ -4239,7 +4239,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|GH|solid waste (inorganic), anaerobicdigestion": {
@@ -4379,7 +4379,7 @@
    "location": "Rest of World",
    "score": 0.8971,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|NG|Biodiesel (facility fuel)": {
@@ -4399,7 +4399,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|NG|Cardboard packaging": {
@@ -4529,7 +4529,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|NG|Palm kernel shell (facility fuel)": {
@@ -4539,7 +4539,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|NG|PaperBag packaging": {
@@ -4609,7 +4609,7 @@
    "location": "Rest of World",
    "score": 0.8706,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|NG|inbound transport (mixed)": {
@@ -4679,7 +4679,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|NG|solid waste (inorganic), anaerobicdigestion": {
@@ -4819,7 +4819,7 @@
    "location": "Rest of World",
    "score": 0.8971,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|SN|Biodiesel (facility fuel)": {
@@ -4839,7 +4839,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|SN|Cardboard packaging": {
@@ -4969,7 +4969,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|SN|Palm kernel shell (facility fuel)": {
@@ -4979,7 +4979,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|SN|PaperBag packaging": {
@@ -5049,7 +5049,7 @@
    "location": "Rest of World",
    "score": 0.8706,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|SN|inbound transport (mixed)": {
@@ -5119,7 +5119,7 @@
    "location": "Rest of World",
    "score": 0.8894,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|SN|solid waste (inorganic), anaerobicdigestion": {
@@ -5259,7 +5259,7 @@
    "location": "Rest of World",
    "score": 0.8971,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|ZA|Biodiesel (facility fuel)": {
@@ -5279,7 +5279,7 @@
    "location": "Rest of World",
    "score": 0.8276,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|ZA|Cardboard packaging": {
@@ -5409,7 +5409,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|ZA|Palm kernel shell (facility fuel)": {
@@ -5419,7 +5419,7 @@
    "location": "Rest of World",
    "score": 0.9219,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|ZA|PaperBag packaging": {
@@ -5489,7 +5489,7 @@
    "location": "South Africa",
    "score": 0.8706,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "processing|ZA|inbound transport (mixed)": {
@@ -5699,7 +5699,7 @@
    "location": "South Africa",
    "score": 0.8971,
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "fallback_used": null
   },
   "raw_material|BF|Aubergine": {

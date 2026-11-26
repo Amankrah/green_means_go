@@ -171,6 +171,23 @@ def test_needs_review_sets_top_level_flag():
     assert r.review_required
 
 
+def test_review_items_list_an_input_once_across_crops():
+    flagged = {"input": "neem extract", "matched": "pesticide, unspecified", "uid": "u1",
+               "needs_review": True, "review_reason": "no dataset carries 'neem'"}
+    items = review_items([flagged, dict(flagged), {**flagged, "input": "other"}])
+    assert [i["input"] for i in items] == ["neem extract", "other"]
+
+
+def test_season_note_only_when_it_matters():
+    a = {"foods": [{"name": "Wheat", "planting_months": [5]}],
+         "management_practices": {"water_management": {"irrigation_system": "None (Rainfed)"}}}
+    _, notes = service.derive_seasons(a, "CA")
+    assert not any("season not derived" in n for n in notes)
+    a["management_practices"]["water_management"]["irrigation_system"] = "Sprinkler"
+    _, notes = service.derive_seasons(a, "CA")
+    assert any("season not derived" in n for n in notes)
+
+
 # ------------------------------------------------------------- climate and season
 def test_climate_engine_applies_admin_region_wet_dry():
     class Eng:

@@ -283,6 +283,11 @@ def derive_seasons(assessment: dict, region_code: str) -> tuple[dict, list[str]]
     crop_defaults.derive_seasonal_factor). An explicit seasonal_factor always wins."""
     admin = _admin_region(assessment)
     rainy = regions.rainy_season_months(region_code, admin)
+    water = ((assessment.get("management_practices") or {}).get("water_management") or {})
+    system = water.get("irrigation_system")
+    rainfed = (bool(system) and crop_defaults._system_key(system) is None
+               and not any("irrig" in str((f or {}).get("production_system") or "").lower()
+                           for f in assessment.get("foods") or []))
     foods, notes, changed = [], [], False
     for f in assessment.get("foods") or []:
         if f.get("seasonal_factor") or not isinstance(f, dict):
@@ -292,7 +297,8 @@ def derive_seasons(assessment: dict, region_code: str) -> tuple[dict, list[str]]
         if factor:
             f = {**f, "seasonal_factor": factor}
             changed = True
-        notes.append(f"{f.get('name', 'crop')}: {note}")
+        if factor or not rainfed:
+            notes.append(f"{f.get('name', 'crop')}: {note}")
         foods.append(f)
     if not changed:
         return assessment, notes

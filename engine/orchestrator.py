@@ -127,12 +127,17 @@ def review_items(input_matches: list[dict]) -> list[dict]:
     excluded for a basis problem. Any item blocks publication: the caller sets
     review_required on the result (audit 3.17; openLCA practice: a product system is a
     frozen, reviewed choice, never an unreviewed top embedding hit)."""
-    out = []
+    out, seen = [], set()
     for m in input_matches or []:
         if isinstance(m, dict) and m.get("needs_review"):
-            out.append({"input": m.get("input") or m.get("name"), "matched": m.get("matched"),
-                        "uid": m.get("uid"), "reason": m.get("review_reason"),
-                        "excluded": m.get("excluded")})
+            item = {"input": m.get("input") or m.get("name"), "matched": m.get("matched"),
+                    "uid": m.get("uid"), "reason": m.get("review_reason"),
+                    "excluded": m.get("excluded")}
+            # one entry per input/dataset pair: a multi-crop farm repeats each input per crop
+            key = (item["input"], item["uid"], item["reason"], item["excluded"])
+            if key not in seen:
+                seen.add(key)
+                out.append(item)
     return out
 
 
@@ -417,6 +422,12 @@ class FarmLCA:
             keep = {k: chosen[k] for k in ("needs_review", "review_reason", "identity",
                                            "adjudication")}
             chosen = {**pick, **keep}
+        if passing and "|" in text and (chosen.get("name") or "").strip() == text.strip():
+            # the query is a full dataset name pinned by the engine (e.g. NPK nutrient rows)
+            # and the chosen dataset carries that exact name: the product is fixed, not inferred
+            chosen["needs_review"] = False
+            chosen["review_reason"] = None
+            chosen["identity"] = {**chosen["identity"], "basis": "exact"}
         return chosen
 
     def _maybe_adjudicate(self, text: str, ranked: list[dict], chosen: dict,

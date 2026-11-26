@@ -9,7 +9,7 @@
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "target": "market for potassium chloride | potassium chloride | Cutoff, U"
   }
  },
@@ -23,7 +23,7 @@
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "target": "market for potassium chloride | potassium chloride | Cutoff, U"
   }
  },
@@ -37,7 +37,7 @@
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "target": "market for potassium chloride | potassium chloride | Cutoff, U"
   }
  },
@@ -51,7 +51,7 @@
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "target": "market for potassium chloride | potassium chloride | Cutoff, U"
   }
  },
@@ -65,7 +65,7 @@
    "name": "market for potassium chloride | potassium chloride | Cutoff, U",
    "location": "Rest of World",
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "target": "market for potassium chloride | potassium chloride | Cutoff, U"
   }
  },
@@ -121,7 +121,7 @@
    "name": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U",
    "location": "Canada, Quebec",
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "target": "electricity production, hydro, run-of-river | electricity, high voltage | Cutoff, U"
   }
  },
@@ -135,7 +135,7 @@
    "name": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U",
    "location": "Canada, Quebec",
    "needs_review": false,
-   "identity_basis": "concept",
+   "identity_basis": "exact",
    "target": "electricity production, wind, 1-3MW turbine, onshore | electricity, high voltage | Cutoff, U"
   }
  }

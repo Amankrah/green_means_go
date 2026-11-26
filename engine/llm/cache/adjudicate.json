@@ -1,0 +1,34 @@
+{
+  "79f86792a14c2214c5e0d706": {
+    "query": "nutrient supply from npk 15-15-15 fertiliser inorganic phosphorus fertiliser as p2o5 cutoff u",
+    "uids": [
+      "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+      "7d1f2c6a-4dd6-3c23-a4e6-72fd201bd463",
+      "8b458b93-4542-3fa9-b5b9-57729dfea8e7",
+      "d0bae146-1272-39db-88c5-96409ac1de5b",
+      "d145c13f-7b88-3fd1-b540-d59f549ec417",
+      "dbac0695-b8b7-3251-a4f1-4f21ea86adc2"
+    ],
+    "region": "GH",
+    "uid": "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+    "rationale": "The 'nutrient supply from NPK (15-15-15) fertiliser | inorganic phosphorus fertiliser, as P2O5' dataset matches the purchased product and its kg unit exactly. No African version is offered, so the Rest of World location is the most appropriate proxy for Ghana, ahead of the Europe, China and Northern America variants.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-26"
+  },
+  "f0248678111ac960a84390ff": {
+    "query": "nutrient supply from npk 15-15-15 fertiliser inorganic nitrogen fertiliser as n cutoff u",
+    "uids": [
+      "2a80a9c1-533a-36cd-ab48-4a45e1ac5dff",
+      "6f0d22f9-45cb-38b5-8b08-13d46111d258",
+      "786b9ece-bb34-35a0-9049-a0f1f6b1f58a",
+      "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+      "dbac0695-b8b7-3251-a4f1-4f21ea86adc2",
+      "e8e1561d-8b06-3ce6-8971-253857e4b28b"
+    ],
+    "region": "GH",
+    "uid": "dad2a389-3f9a-3e21-8556-a3a096c95cc8",
+    "rationale": "The candidate 'nutrient supply from NPK (15-15-15) fertiliser | inorganic nitrogen fertiliser, as N' matches the purchased product and the 15-15-15 grade exactly, with reference unit kg as N. Its Rest of World location is the most appropriate for Ghana, since the alternatives cover only Europe and Northern America.",
+    "model": "claude-opus-5-5",
+    "cached_at": "2026-11-26"
+  }
+}

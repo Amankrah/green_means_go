@@ -320,3 +320,18 @@ def test_known_bad_rows_fixed(engines):
         m, _ = get(region).resolve_input({"name": text, "kind": "fertiliser"})
         assert "cocoa" not in m["name"].lower(), (region, text, m["name"])
         assert m["needs_review"] is True
+
+
+def test_pinned_dataset_name_is_not_flagged(engines):
+    """An input the engine pins to a full dataset name (NPK nutrient rows) is an exact
+    choice, not a family-level guess, so it does not block publication."""
+    from engine.inputs import NPK_NUTRIENT_DATASET
+    eng = engines[0]("CA")
+    for nut, target in NPK_NUTRIENT_DATASET.items():
+        try:
+            m, _ = eng.resolve_input({"name": f"NPK Compound 15-15-15 fertiliser ({nut})",
+                                      "match_as": target, "kind": "fertiliser"})
+        except LookupError as e:
+            pytest.skip(str(e))
+        assert m["name"] == target
+        assert m["needs_review"] is False and m["identity"]["basis"] == "exact", (nut, m)
